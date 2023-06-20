@@ -5,7 +5,7 @@ use yagbas::{lexer::Token, parser::remove_comments};
 fn main() {
   let prog = r#"
   const FOO = 1_2;
-  section "main" @[$0150,rom0] {
+  section "main" [rom0 @ $0150] {
     // comment1
     label1:
       ld a FOO;
