@@ -9,16 +9,16 @@ fn main() {
     const FOO = 1_2;
     const BAR = -2;
     section "main" [rom0] {
-        // comment1
-        label1:
+      // comment1
+      label1:
         ld a FOO;
-          ld b $4_6;
-          ld c %101_010;
-          d = $FF;
-        1: /* foo bar baz */
-          inc c;
-          zero_bytes!(3);
-          jr 1b;
+        ld b $4_6;
+        ld c %101_010;
+        d = $FF;
+      1: /* foo bar baz */
+        inc c;
+        zero_bytes!(3);
+        jr 1b;
     }
   "#;
 
