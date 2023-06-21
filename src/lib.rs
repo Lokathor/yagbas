@@ -1,7 +1,12 @@
+#![allow(unused_imports)]
+
+use core::ops::Range;
 use std::{
   collections::HashSet,
   sync::{OnceLock, RwLock},
 };
+
+use chumsky::span::Span;
 
 pub mod lexer;
 pub mod parser;

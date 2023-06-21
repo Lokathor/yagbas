@@ -1,9 +1,13 @@
+use core::ops::Range;
+
 use crate::{static_str, StaticStr};
 use logos::Logos;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Logos)]
-#[logos(skip r#"[ \t\r\n\f]+"#, error = StaticStr)] // ignore this between tokens
+#[logos(skip r#"[ \t\r\n\f]+"#)] // ignore this between tokens
 pub enum Token {
+  Error,
+
   /// `//` starts a single-line comment.
   #[regex(r"//[^\r\n]*")]
   CommentSingle,
@@ -31,7 +35,7 @@ pub enum Token {
   /// Something that's supposed to be a number.
   ///
   /// Interpreting the number is left for the parsing stage.
-  #[regex(r"((0x|\$)[a-fA-F0-9]|(0b|%)[01]|[0-9])[a-fA-F0-9_]*", |lex| static_str(lex.slice()))]
+  #[regex(r"-?((0x|\$)[a-fA-F0-9]|(0b|%)[01]|[0-9])[a-fA-F0-9_]*", |lex| static_str(lex.slice()))]
   Num(StaticStr),
 
   /// Holds all the stuff *between* two `"`.
@@ -92,12 +96,13 @@ impl core::fmt::Debug for Token {
       Token::CommentMultiStart => write!(f, "/*"),
       Token::CommentMultiEnd => write!(f, "*/"),
       Token::Ident(i) => write!(f, "{i}"),
-      Token::Punct(p) => write!(f, "{p}"),
+      Token::Punct(p) => write!(f, "{p:?}"),
       Token::Num(n) => write!(f, "{n}"),
       Token::Str(s) => write!(f, "{s:?}"),
       Token::KwSection => write!(f, "section"),
       Token::KwConst => write!(f, "const"),
       Token::KwStatic => write!(f, "static"),
+      Token::Error => write!(f, "ERROR"),
     }
   }
 }

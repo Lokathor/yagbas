@@ -1,40 +1,39 @@
+#![allow(unused)]
 #![allow(clippy::while_let_on_iterator)]
 
-use yagbas::{lexer::Token, parser::remove_comments};
+use chumsky::{input::Input, prelude::*, span::SimpleSpan, IterParser, Parser};
+use yagbas::{lexer::Token, parser::*};
 
 fn main() {
   let prog = r#"
-  const FOO = 1_2;
-  section "main" [rom0 @ $0150] {
-    // comment1
-    label1:
-      ld a FOO;
-      ld b $4_6;
-      ld c %10671_010;
-      d = $FF;
-    1: /* foo bar baz */
-      inc c;
-      zero_bytes!(3);
-      jr 1b;
-  }"#;
-  let lex = Token::lexer(prog);
-  for (token_res, _) in remove_comments(lex.spanned()) {
-    match token_res {
-      Ok(Token::Punct(';')) => println!(";"),
-      Ok(Token::Punct('{')) => {
-        println!("{{")
-      }
-      Ok(Token::Punct('}')) => {
-        println!("}}")
-      }
-      Ok(token) => {
-        print!("{token:?} ");
-      }
-      Err(msg) => {
-        println!();
-        println!("ERROR: {msg}");
-      }
+    const FOO = 1_2;
+    const BAR = -2;
+    section "main" [rom0] {
+        // comment1
+        label1:
+        ld a FOO;
+          ld b $4_6;
+          ld c %101_010;
+          d = $FF;
+        1: /* foo bar baz */
+          inc c;
+          zero_bytes!(3);
+          jr 1b;
     }
-  }
-  println!();
+  "#;
+
+  let tokens: Vec<(Token, SimpleSpan)> = match strip_comments(Token::lexer(prog).spanned()) {
+    Ok(tokens) => tokens,
+    Err(e) => {
+      println!("{e:?}");
+      return;
+    }
+  };
+  println!("Tokens: {tokens:?}");
+
+  let x = item_parser()
+    .repeated()
+    .collect::<Vec<_>>()
+    .parse(tokens.spanned(SimpleSpan::from(0..prog.len())));
+  println!("Parse Result: {x:#?}");
 }
