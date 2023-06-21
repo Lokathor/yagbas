@@ -6,8 +6,6 @@ use logos::Logos;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Logos)]
 #[logos(skip r#"[ \t\r\n\f]+"#)] // ignore this between tokens
 pub enum Token {
-  Error,
-
   /// `//` starts a single-line comment.
   #[regex(r"//[^\r\n]*")]
   CommentSingle,
@@ -102,7 +100,6 @@ impl core::fmt::Debug for Token {
       Token::KwSection => write!(f, "section"),
       Token::KwConst => write!(f, "const"),
       Token::KwStatic => write!(f, "static"),
-      Token::Error => write!(f, "ERROR"),
     }
   }
 }
