@@ -8,7 +8,9 @@ fn main() {
   let prog = r#"
     const FOO = 1_2;
     const BAR = -2;
-    section "main" [rom0] {
+    const ZAP = %0101_012;
+    const HEK = $FF00;
+    section main [rom0] {
       // comment1
       label1:
         ld a FOO;
@@ -29,11 +31,20 @@ fn main() {
       return;
     }
   };
-  println!("Tokens: {tokens:?}");
+  //println!("Tokens: {tokens:?}");
 
   let x = item_parser()
     .repeated()
     .collect::<Vec<_>>()
     .parse(tokens.spanned(SimpleSpan::from(0..prog.len())));
-  println!("Parse Result: {x:#?}");
+  for item in x.output().unwrap() {
+    match item {
+      Item::Const(c) => {
+        let name = c.0.name.0;
+        let val = interpret_num(c.0.val.0);
+        println!("Const> Name: {name:?}, Val: {val:?}");
+      }
+      Item::Section(_) => continue,
+    }
+  }
 }
