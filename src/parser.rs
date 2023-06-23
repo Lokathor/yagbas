@@ -74,8 +74,8 @@ pub fn interpret_num(mut num: &str) -> Result<i32, InterpretNumErr> {
       let x: i32 = match ch {
         '_' => continue,
         '0'..='9' => (ch as i32) - ('0' as i32),
-        'a'..='f' => (ch as i32) - ('a' as i32),
-        'A'..='F' => (ch as i32) - ('A' as i32),
+        'a'..='f' => 10 + (ch as i32) - ('a' as i32),
+        'A'..='F' => 10 + (ch as i32) - ('A' as i32),
         other => return Err(InterpretNumErr::IllegalHexDigit(other)),
       };
       out = match out.checked_mul(16).and_then(|out| out.checked_add(x)) {
