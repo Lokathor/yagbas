@@ -27,16 +27,17 @@ fn main() {
   let tokens: Vec<(Token, SimpleSpan)> = match strip_comments(Token::lexer(prog).spanned()) {
     Ok(tokens) => tokens,
     Err(e) => {
-      println!("{e:?}");
+      println!("CommentStripError::{e:?}, <{}>", &prog[e.get_span()]);
       return;
     }
   };
-  //println!("Tokens: {tokens:?}");
+  println!("Tokens: {tokens:?}");
 
   let x = item_parser()
     .repeated()
     .collect::<Vec<_>>()
     .parse(tokens.spanned(SimpleSpan::from(0..prog.len())));
+  println!("{x:?}");
   for item in x.output().unwrap() {
     match item {
       Item::Const(c) => {

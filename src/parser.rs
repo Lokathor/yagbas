@@ -13,9 +13,18 @@ use logos::Span;
 
 #[derive(Debug, Clone)]
 pub enum CommentStripError {
-  Lex(Span),
+  LexError(Span),
   UnmatchedMultiOpen(Span),
   UnmatchedMultiClose(Span),
+}
+impl CommentStripError {
+  pub fn get_span(&self) -> Span {
+    match self {
+      CommentStripError::LexError(s) => s.clone(),
+      CommentStripError::UnmatchedMultiOpen(s) => s.clone(),
+      CommentStripError::UnmatchedMultiClose(s) => s.clone(),
+    }
+  }
 }
 
 pub fn strip_comments(
@@ -26,7 +35,7 @@ pub fn strip_comments(
   let mut last_zero_opener = 0..0;
   for (res, span) in i {
     let token = match res {
-      Err(()) => return Err(CommentStripError::Lex(span)),
+      Err(()) => return Err(CommentStripError::LexError(span)),
       Ok(Token::CommentSingle) => continue,
       Ok(Token::CommentMultiStart) => {
         if comment_levels == 0 {
