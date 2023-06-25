@@ -22,7 +22,7 @@ section main [rom0] {
     // copy tile data
     ld da, tiles;
     ld hl, VRAM_TILE_BLOCK_2;
-    ld bc, size_of!(tiles);
+    ld bc, size_of_section!(tiles);
   copy_tiles:
     ld a, [de];
     ld [hl++], a;
@@ -35,7 +35,7 @@ section main [rom0] {
     // copy the tile map
     ld de, tilemap;
     ld hl, VRAM_TILE_MAP_0;
-    ld bc, size_of!(tilemap);
+    ld bc, size_of_section!(tilemap);
   copy_tilemap:
     ld a, [de];
     ld [hl++], a;
@@ -46,7 +46,7 @@ section main [rom0] {
     jp nz, copy_tilemap;
 
     // turn the display on
-    ld a, $1000_0001;
+    ld a, %1000_0001;
     ld [LCDC], a;
 
     // set the background color palette
