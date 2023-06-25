@@ -49,6 +49,7 @@ section main [rom0] {
     ld a, $1000_0001;
     ld [LCDC], a;
 
+    // set the background color palette
     ld a, %11_10_01_00;
     ld [BGP], a;
 

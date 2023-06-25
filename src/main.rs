@@ -20,6 +20,9 @@ fn main() {
     .collect::<Vec<_>>()
     .then_ignore(end())
     .parse(tokens.spanned(SimpleSpan::from(0..prog.len())));
+  for error in x.errors() {
+    println!("ERROR: {error:?}");
+  }
   for item in x.output().unwrap() {
     match item {
       Item::Const(c) => {
