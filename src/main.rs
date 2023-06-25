@@ -18,7 +18,6 @@ fn main() {
   let x = item_parser()
     .repeated()
     .collect::<Vec<_>>()
-    .then_ignore(end())
     .parse(tokens.spanned(SimpleSpan::from(0..prog.len())));
   for error in x.errors() {
     println!("ERROR: {error:?}");
