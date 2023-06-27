@@ -149,7 +149,12 @@ where
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let data = &self.0;
     let span = &self.1;
-    write!(f, "{data:?} (@{span})")
+    // special call style to preserve the `alternate` flag on inner items
+    core::fmt::Debug::fmt(data, f)?;
+    if f.alternate() {
+      write!(f, " (@{span})")?;
+    }
+    Ok(())
   }
 }
 
