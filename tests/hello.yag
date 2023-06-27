@@ -54,7 +54,7 @@ section main [rom0] {
     ld [BGP], a;
 
   1:
-    jp 1b
+    jp 1b;
 }
 
 section tiles [rom0] {

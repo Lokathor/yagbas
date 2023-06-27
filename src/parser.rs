@@ -289,7 +289,7 @@ pub fn statement_parser<'a, I>() -> impl Parser<'a, I, Statement, MyParseErr<'a>
 where
   I: ValueInput<'a, Token = crate::lexer::Token, Span = SimpleSpan>,
 {
-  none_of(Token::Punct(';'))
+  none_of([Token::Punct(';'), Token::Punct('}')])
     .map_with_span(Spanned)
     .repeated()
     .collect::<Vec<_>>()
