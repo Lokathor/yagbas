@@ -47,6 +47,7 @@ fn main() {
     .repeated()
     .collect::<Vec<_>>()
     .parse(tokens.spanned(SimpleSpan::from(0..prog.len())));
+  println!("x is {x:?}");
   for error in x.errors() {
     println!("ERROR: {error:?}");
   }
