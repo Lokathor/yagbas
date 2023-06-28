@@ -10,9 +10,17 @@ use chumsky::{
 use logos::Span;
 
 pub mod comment_filter;
+pub mod const_decl;
 pub mod token_tree;
 
 use comment_filter::*;
 use token_tree::*;
+use Token::*;
+use TokenTree::*;
 
-pub type MyParseErr<'a> = extra::Err<Rich<'a, Token>>;
+pub type ErrRichToken<'a> = extra::Err<Rich<'a, Token>>;
+pub type ErrRichTokenTree<'a> = extra::Err<Rich<'a, TokenTree>>;
+
+pub(crate) fn spanned<T>(t: T, span: SimpleSpan) -> (T, SimpleSpan) {
+  (t, span)
+}

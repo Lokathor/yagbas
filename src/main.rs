@@ -4,12 +4,22 @@
 use chumsky::{input::Input, prelude::*, span::SimpleSpan, IterParser, Parser};
 use yagbas::{
   lexer::Token,
-  parser::{comment_filter::no_comment_tokens, token_tree::make_token_trees, *},
+  parser::{
+    comment_filter::no_comment_tokens, const_decl::ConstDecl,
+    token_tree::make_token_trees, *,
+  },
 };
 
 fn main() {
   //let prog = include_str!("../tests/hello.yag");
-  let prog = "section foo {} section bar { content in bar; }";
+  let prog = r#"
+    const FOO = 123;
+    const NAME = "test-name";
+    //section main [rom0] {
+    //  // just loop
+    //  1: jp 1b;
+    //}
+  "#;
 
   let token_list = match no_comment_tokens(prog) {
     Ok(tokens) => tokens,
@@ -22,4 +32,21 @@ fn main() {
 
   let token_trees = make_token_trees(&token_list);
   println!("Token Trees: {token_trees:?}");
+
+  let decls = {
+    let tt = token_trees.output().unwrap();
+    let span: SimpleSpan = if tt.is_empty() {
+      (0..0).into()
+    } else {
+      let start = tt.first().unwrap().1.start;
+      let end = tt.last().unwrap().1.end;
+      (start..end).into()
+    };
+    ConstDecl::parser()
+      .map_with_span(|tt, span| (tt, span))
+      .repeated()
+      .collect::<Vec<_>>()
+      .parse(tt.spanned(span))
+  };
+  println!("Const Decls: {decls:?}");
 }

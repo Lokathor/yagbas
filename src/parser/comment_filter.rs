@@ -1,7 +1,4 @@
-use chumsky::span::SimpleSpan;
-use logos::Span;
-
-use crate::lexer::Token;
+use super::*;
 
 #[derive(Debug, Clone)]
 pub enum CommentFilterError {

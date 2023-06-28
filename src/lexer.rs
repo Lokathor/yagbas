@@ -34,7 +34,7 @@ pub enum Token {
   ///
   /// Interpreting the number is left for the parsing stage.
   #[regex(r"-?((0x|\$)[a-fA-F0-9_]+|(0b|%)[a-fA-F0-9_]+|[0-9][a-fA-F0-9_]*)", |lex| static_str(lex.slice()))]
-  Num(StaticStr),
+  NumLit(StaticStr),
 
   /// Holds all the stuff *between* two `"`.
   ///
@@ -46,7 +46,7 @@ pub enum Token {
   /// front and then requiring the rest of the literal to not be a quote or
   /// escape (that would start with `\`)"
   #[regex(r#""((\\"|\\\\)|[^\\"])*""#, |lex| {let s = lex.slice(); static_str(&s[1..s.len()-1]) })]
-  Str(StaticStr),
+  StrLit(StaticStr),
 
   /// Keyword: `section`
   #[token("section")]
@@ -77,12 +77,12 @@ impl Token {
   }
   #[inline]
   pub fn is_num(&self) -> bool {
-    matches!(self, Self::Num(_))
+    matches!(self, Self::NumLit(_))
   }
   #[inline]
   pub fn unwrap_num(self) -> StaticStr {
     match self {
-      Self::Num(n) => n,
+      Self::NumLit(n) => n,
       _ => panic!("unwrap_num on {self:?}"),
     }
   }
@@ -95,8 +95,8 @@ impl core::fmt::Debug for Token {
       Token::CommentMultiEnd => write!(f, "*/"),
       Token::Ident(i) => write!(f, "{i}"),
       Token::Punct(p) => write!(f, "{p:?}"),
-      Token::Num(n) => write!(f, "{n}"),
-      Token::Str(s) => write!(f, "{s:?}"),
+      Token::NumLit(n) => write!(f, "n{n:?}"),
+      Token::StrLit(s) => write!(f, "s{s:?}"),
       Token::KwSection => write!(f, "section"),
       Token::KwConst => write!(f, "const"),
       Token::KwStatic => write!(f, "static"),
