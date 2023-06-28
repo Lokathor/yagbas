@@ -5,63 +5,17 @@ use chumsky::{
   input::{BoxedStream, Stream, ValueInput},
   prelude::*,
   primitive::*,
-  select,
-  span::SimpleSpan,
-  Parser,
+  select, Parser,
 };
 use logos::Span;
 
-#[derive(Debug, Clone)]
-pub enum CommentStripError {
-  LexError(Span),
-  UnmatchedMultiOpen(Span),
-  UnmatchedMultiClose(Span),
-}
-impl CommentStripError {
-  pub fn get_span(&self) -> Span {
-    match self {
-      CommentStripError::LexError(s) => s.clone(),
-      CommentStripError::UnmatchedMultiOpen(s) => s.clone(),
-      CommentStripError::UnmatchedMultiClose(s) => s.clone(),
-    }
-  }
-}
+pub mod comment_filter;
+pub mod token_tree;
 
-pub fn strip_comments(
-  i: impl Iterator<Item = (Result<Token, ()>, Span)>,
-) -> Result<Vec<(Token, SimpleSpan)>, CommentStripError> {
-  let mut out: Vec<(Token, SimpleSpan)> = vec![];
-  let mut comment_levels = 0;
-  let mut last_zero_opener = 0..0;
-  for (res, span) in i {
-    let token = match res {
-      Err(()) => return Err(CommentStripError::LexError(span)),
-      Ok(Token::CommentSingle) => continue,
-      Ok(Token::CommentMultiStart) => {
-        if comment_levels == 0 {
-          last_zero_opener = span;
-        }
-        comment_levels += 1;
-        continue;
-      }
-      Ok(Token::CommentMultiEnd) => {
-        if comment_levels == 0 {
-          return Err(CommentStripError::UnmatchedMultiClose(span));
-        }
-        comment_levels -= 1;
-        continue;
-      }
-      Ok(_) if comment_levels > 0 => continue,
-      Ok(t) => t,
-    };
-    out.push((token, span.into()));
-  }
-  if comment_levels > 0 {
-    Err(CommentStripError::UnmatchedMultiOpen(last_zero_opener))
-  } else {
-    Ok(out)
-  }
-}
+use comment_filter::*;
+use token_tree::*;
+
+pub type MyParseErr<'a> = extra::Err<Rich<'a, Token>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InterpretNumErr {
@@ -138,26 +92,6 @@ pub fn interpret_num(mut num: &str) -> Result<i32, InterpretNumErr> {
   Ok(if is_neg { -val } else { val })
 }
 
-pub type MyParseErr<'a> = extra::Err<Rich<'a, Token>>;
-
-#[derive(Clone, Copy)]
-pub struct Spanned<T>(pub T, pub SimpleSpan);
-impl<T> core::fmt::Debug for Spanned<T>
-where
-  T: core::fmt::Debug,
-{
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let data = &self.0;
-    let span = &self.1;
-    // special call style to preserve the `alternate` flag on inner items
-    core::fmt::Debug::fmt(data, f)?;
-    if f.alternate() {
-      write!(f, " (@{span})")?;
-    }
-    Ok(())
-  }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct ConstDecl {
   pub name: Spanned<StaticStr>,
@@ -216,37 +150,6 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub enum TokenTree {
-  Single(Token),
-  Parens(Vec<Spanned<Self>>),
-  Brackets(Vec<Spanned<Self>>),
-}
-pub fn tt_parser<'a, I>() -> impl Parser<'a, I, TokenTree, MyParseErr<'a>>
-where
-  I: ValueInput<'a, Token = crate::lexer::Token, Span = SimpleSpan>,
-{
-  recursive(|tt| {
-    let token_list = tt.map_with_span(Spanned).repeated().collect::<Vec<_>>();
-
-    // Looks like `(...)`
-    let parens = token_list
-      .clone()
-      .map(TokenTree::Parens)
-      .delimited_by(just(Token::Punct('(')), just(Token::Punct(')')));
-
-    // Looks like `[...]`
-    let brackets = token_list
-      .map(TokenTree::Brackets)
-      .delimited_by(just(Token::Punct('[')), just(Token::Punct(']')));
-
-    // Looks like `5` or `"hello"`
-    let single = none_of([Token::Punct(')'), Token::Punct(';')]).map(TokenTree::Single);
-
-    parens.or(brackets).or(single)
-  })
-}
-
-#[derive(Debug, Clone)]
 pub struct Directive {
   pub name: Spanned<StaticStr>,
   pub body: Spanned<TokenTree>,
@@ -271,7 +174,7 @@ where
   ident
     .then_ignore(just(Token::Punct('!')))
     .then(
-      tt_parser()
+      TokenTree::parser()
         .map_with_span(Spanned)
         .repeated()
         .collect()

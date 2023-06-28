@@ -2,49 +2,24 @@
 #![allow(clippy::while_let_on_iterator)]
 
 use chumsky::{input::Input, prelude::*, span::SimpleSpan, IterParser, Parser};
-use yagbas::{lexer::Token, parser::*};
+use yagbas::{
+  lexer::Token,
+  parser::{comment_filter::no_comment_tokens, token_tree::make_token_trees, *},
+};
 
 fn main() {
-  let prog = include_str!("../tests/hello.yag");
-  #[cfg(FALSE)]
-  let prog = r#"
-  section test0 [rom0] {
-  }
-  section test1 [rom0] {
-  }
-  section test2 [rom0] {
-    ;
-  }
-  "#;
+  //let prog = include_str!("../tests/hello.yag");
+  let prog = "section foo {} section bar { content in bar; }";
 
-  let tokens: Vec<(Token, SimpleSpan)> = match strip_comments(Token::lexer(prog).spanned()) {
+  let token_list = match no_comment_tokens(prog) {
     Ok(tokens) => tokens,
-    Err(e) => {
-      println!("CommentStripError::{e:?}, <{}>", &prog[e.get_span()]);
+    Err(span) => {
+      println!("Could not process comment markers: {span:?}");
       return;
     }
   };
+  println!("Token List: {token_list:?}");
 
-  let x = item_parser()
-    .repeated()
-    .collect::<Vec<_>>()
-    .parse(tokens.spanned(SimpleSpan::from(0..prog.len())));
-  println!("x is {x:?}");
-  for error in x.errors() {
-    println!("ERROR: {error:?}");
-  }
-  for item in x.output().unwrap() {
-    match item {
-      Item::Const(c) => {
-        let name = c.0.name.0;
-        let val = interpret_num(c.0.val.0);
-        println!("Const> Name: {name:?}, Val: {val:?}");
-      }
-      Item::Section(s) => {
-        let name = s.0.name.0;
-        let locations = &s.0.locations;
-        println!("Section> Name: {name}");
-      }
-    }
-  }
+  let token_trees = make_token_trees(&token_list);
+  println!("Token Trees: {token_trees:?}");
 }
