@@ -24,8 +24,14 @@ pub fn static_str(s: &str) -> StaticStr {
   } else {
     drop(read);
     let mut write = rw_lock.write().unwrap_or_else(PoisonError::into_inner);
-    let leaked: StaticStr = Box::leak(s.to_string().into_boxed_str());
-    write.insert(leaked);
-    leaked
+    // It's *possible* that the string was inserted after we dropped the reader
+    // before we acquired the writer, so we check a second time.
+    if let Some(out) = write.get(s) {
+      out
+    } else {
+      let leaked: StaticStr = Box::leak(s.to_string().into_boxed_str());
+      write.insert(leaked);
+      leaked
+    }
   }
 }
