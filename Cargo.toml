@@ -9,3 +9,4 @@ license = "Zlib OR Apache-2.0 OR MIT"
 [dependencies]
 chumsky = "1.0.0-alpha.4"
 logos = "0.13.0"
+serde_json = "*"
