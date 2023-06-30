@@ -24,22 +24,31 @@ fn main() {
   "#;
 
   let rom = std::fs::read("tests/blargg/01-special.gb").unwrap();
-  let mut zeros = 0;
-  for op in bytes_to_op_tokens(&rom[0x0150..0x0200]) {
-    match op {
-      OpToken::One(0) => zeros += 1,
-      _ => {
-        if zeros > 0 {
-          println!("$00 (x{zeros})");
-          zeros = 0;
+  for (i, bank) in rom.chunks(8 * 1024).enumerate() {
+    let mut zeros: u32 = 0;
+    println!("/* Bank {i} */");
+    for op in bytes_to_op_tokens(bank) {
+      match op {
+        OpToken::One(0) => zeros += 1,
+        _ => {
+          match zeros {
+            0 => (),
+            1 => {
+              println!("    {};", OpToken::One(0x00));
+              zeros = 0;
+            }
+            2.. => {
+              println!("    zero_bytes!({zeros});");
+              zeros = 0;
+            }
+          }
+          println!("    {op};")
         }
-        println!("{op:?}")
-      }
-    };
-  }
-  if zeros > 0 {
-    println!("$00 (x{zeros})");
-    zeros = 0;
+      };
+    }
+    if zeros > 0 {
+      println!("    zero_bytes!({zeros});");
+    }
   }
 
   let token_list = match no_comment_tokens(prog) {

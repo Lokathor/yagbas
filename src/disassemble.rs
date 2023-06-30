@@ -25,6 +25,86 @@ impl core::fmt::Debug for OpToken {
     }
   }
 }
+impl core::fmt::Display for OpToken {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if let Some(op) = self.op() {
+      match op {
+        0x00 => write!(f, "nop"),
+        0x01 => write!(f, "ld bc, ${:04X}", self.u16()),
+        0x02 => write!(f, "ld [bc], a"),
+        0x03 => write!(f, "inc bc"),
+        0x04 => write!(f, "inc b"),
+        0x05 => write!(f, "dec b"),
+        0x06 => write!(f, "ld b, {}", self.u8()),
+        0x07 => write!(f, "rlca"),
+        0x08 => write!(f, "ld [${:04X}], sp", self.u16()),
+        0x09 => write!(f, "add hl, bc"),
+        0x0A => write!(f, "ld a, [bc]"),
+        0x0B => write!(f, "dec bc"),
+        0x0C => write!(f, "inc c"),
+        0x0D => write!(f, "dec c"),
+        0x0E => write!(f, "ld c, {}", self.u8()),
+        0x0F => write!(f, "rrca"),
+        //
+        0x10 => write!(f, "stop"),
+        0x11 => write!(f, "ld de, ${:04X}", self.u16()),
+        0x12 => write!(f, "ld [de], a"),
+        0x13 => write!(f, "inc de"),
+        0x14 => write!(f, "inc d"),
+        0x15 => write!(f, "dec d"),
+        0x16 => write!(f, "ld d, {}", self.u8()),
+        0x17 => write!(f, "rla"),
+        0x18 => write!(f, "jr {:+}", self.i8()),
+        0x19 => write!(f, "add hl, de"),
+        0x1A => write!(f, "ld a, [de]"),
+        0x1B => write!(f, "dec de"),
+        0x1C => write!(f, "inc e"),
+        0x1D => write!(f, "dec e"),
+        0x1E => write!(f, "ld d, {}", self.u8()),
+        0x1F => write!(f, "rra"),
+        // todo
+        _ => core::fmt::Debug::fmt(self, f),
+      }
+    } else {
+      match self {
+        OpToken::WantedTwoGotOne(o) => write!(f, "raw_bytes!(${o:02X});"),
+        OpToken::WantedThreeGotOne(o) => write!(f, "raw_bytes!(${o:02X});"),
+        OpToken::WantedThreeGotTwo(o, t) => write!(f, "raw_bytes!(${o:02X}, ${t:02X});"),
+        _ => core::fmt::Debug::fmt(self, f),
+      }
+    }
+  }
+}
+impl OpToken {
+  pub fn op(self) -> Option<u8> {
+    match self {
+      OpToken::One(op) => Some(op),
+      OpToken::Two(op, _) => Some(op),
+      OpToken::Three(op, _) => Some(op),
+      OpToken::WantedTwoGotOne(_) => None,
+      OpToken::WantedThreeGotOne(_) => None,
+      OpToken::WantedThreeGotTwo(_, _) => None,
+    }
+  }
+  pub fn u8(self) -> u8 {
+    match self {
+      OpToken::Two(_, u) => u,
+      _ => panic!(),
+    }
+  }
+  pub fn i8(self) -> i8 {
+    match self {
+      OpToken::Two(_, u) => u as i8,
+      _ => panic!(),
+    }
+  }
+  pub fn u16(self) -> u16 {
+    match self {
+      OpToken::Three(_, u) => u,
+      _ => panic!(),
+    }
+  }
+}
 
 pub fn bytes_to_op_tokens(mut bytes: &[u8]) -> impl Iterator<Item = OpToken> + '_ {
   core::iter::from_fn(move || {
@@ -87,7 +167,7 @@ static BYTES_PER_OP: [u8; 256] = [
   1, /* 0x0D */
   2, /* 0x0E */
   1, /* 0x0F */
-  2, /* 0x10 */
+  1, /* 0x10 */
   3, /* 0x11 */
   1, /* 0x12 */
   1, /* 0x13 */
