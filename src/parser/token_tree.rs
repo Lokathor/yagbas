@@ -15,6 +15,7 @@ pub enum TokenTree {
   Braces(Vec<(Self, SimpleSpan)>),
 }
 impl TokenTree {
+  /// Parses for just one token tree.
   pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichToken<'a>>
   where
     I: ValueInput<'a, Token = crate::lexer::Token, Span = SimpleSpan>,
@@ -52,18 +53,7 @@ impl TokenTree {
 pub fn make_token_trees(
   tokens: &[(Token, SimpleSpan)],
 ) -> ParseResult<Vec<(TokenTree, SimpleSpan)>, Rich<'_, Token>> {
-  // calculate the likely span value based on the first and last token, assumes
-  // that the tokens are still properly in order.
-  let span: SimpleSpan = if tokens.is_empty() {
-    (0..0).into()
-  } else {
-    let start = tokens.first().unwrap().1.start;
-    let end = tokens.last().unwrap().1.end;
-    (start..end).into()
-  };
-  TokenTree::parser()
-    .map_with_span(|tt, span| (tt, span))
-    .repeated()
-    .collect::<Vec<_>>()
-    .parse(tokens.spanned(span))
+  let parser = TokenTree::parser().map_with_span(spanned).repeated().collect::<Vec<_>>();
+  //
+  run_parser(parser, tokens)
 }

@@ -50,5 +50,5 @@ fn main() {
       .collect::<Vec<_>>()
       .parse(tt.spanned(span))
   };
-  //println!("Const Decls: {decls:?}");
+  println!("Const Decls: {decls:?}");
 }
