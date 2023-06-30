@@ -25,14 +25,14 @@ impl ConstDecl {
     let equal = just(Lone(Punct('=')));
 
     let expr =
-      none_of(Lone(Punct(';'))).map_with_span(spanned).repeated().collect::<Vec<_>>();
+      none_of(Lone(Punct(';'))).map_with_span(id2).repeated().collect::<Vec<_>>();
 
     let semicolon = just(Lone(Punct(';')));
 
     kw_const
-      .ignore_then(ident.map_with_span(spanned))
+      .ignore_then(ident.map_with_span(id2))
       .then_ignore(equal)
-      .then(expr.map_with_span(spanned))
+      .then(expr.map_with_span(id2))
       .then_ignore(semicolon)
       .map(|(name, expr)| ConstDecl { name, expr })
   }

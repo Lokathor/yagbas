@@ -12,9 +12,11 @@ use logos::Span;
 
 pub mod comment_filter;
 pub mod const_decl;
+pub mod section;
 pub mod token_tree;
 
 use comment_filter::*;
+use section::*;
 use token_tree::*;
 use Token::*;
 use TokenTree::*;
@@ -24,8 +26,8 @@ use TokenTree::*;
 /// This is only really useful as a higher order function.
 #[inline]
 #[must_use]
-pub(crate) fn spanned<T>(t: T, span: SimpleSpan) -> (T, SimpleSpan) {
-  (t, span)
+pub(crate) fn id2<A, B>(a: A, b: B) -> (A, B) {
+  (a, b)
 }
 
 pub type ErrRichToken<'a> = extra::Err<Rich<'a, Token>>;

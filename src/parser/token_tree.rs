@@ -53,7 +53,7 @@ impl TokenTree {
 pub fn make_token_trees(
   tokens: &[(Token, SimpleSpan)],
 ) -> ParseResult<Vec<(TokenTree, SimpleSpan)>, Rich<'_, Token>> {
-  let parser = TokenTree::parser().map_with_span(spanned).repeated().collect::<Vec<_>>();
+  let parser = TokenTree::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
   //
   run_parser(parser, tokens)
 }
