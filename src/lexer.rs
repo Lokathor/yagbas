@@ -33,7 +33,7 @@ pub enum Token {
   /// Something that's supposed to be a number.
   ///
   /// Interpreting the number is left for the parsing stage.
-  #[regex(r"-?((0x|\$)[a-fA-F0-9_]+|(0b|%)[a-fA-F0-9_]+|[0-9][a-fA-F0-9_]*)", |lex| static_str(lex.slice()))]
+  #[regex(r"[-+]?((0x|\$)[a-fA-F0-9_]+|(0b|%)[a-fA-F0-9_]+|[0-9][a-fA-F0-9_]*)", |lex| static_str(lex.slice()))]
   NumLit(StaticStr),
 
   /// Holds all the stuff *between* two `"`.
