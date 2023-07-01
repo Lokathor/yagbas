@@ -1,22 +1,3 @@
-use core::ops::{Deref, DerefMut, Range};
-
-use crate::{lexer::Token, StaticStr};
-use chumsky::{
-  input::{BoxedStream, Stream, ValueInput},
-  prelude::*,
-  primitive::*,
-  select, Parser,
-};
-use logos::Span;
-
-pub mod comment_filter;
-pub mod token_tree;
-
-use comment_filter::*;
-use token_tree::*;
-
-pub type MyParseErr<'a> = extra::Err<Rich<'a, Token>>;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InterpretNumErr {
   IllegalHexDigit(char),
@@ -90,30 +71,6 @@ pub fn interpret_num(mut num: &str) -> Result<i32, InterpretNumErr> {
     interpret_dec(num)?
   };
   Ok(if is_neg { -val } else { val })
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ConstDecl {
-  pub name: Spanned<StaticStr>,
-  pub val: Spanned<StaticStr>,
-}
-pub fn const_decl_parser<'a, I>() -> impl Parser<'a, I, ConstDecl, MyParseErr<'a>>
-where
-  I: ValueInput<'a, Token = crate::lexer::Token, Span = SimpleSpan>,
-{
-  let ident = select! {
-    Token::Ident(i) = span => Spanned(i, span),
-  };
-  let num = select! {
-    Token::Num(n) = span => Spanned(n, span),
-  };
-
-  just(Token::KwConst)
-    .ignore_then(ident)
-    .then_ignore(just(Token::Punct('=')))
-    .then(num)
-    .then_ignore(just(Token::Punct(';')))
-    .map(|(name, val)| ConstDecl { name, val })
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -226,31 +183,6 @@ where
     .collect::<Vec<_>>()
     .map(Block)
     .delimited_by(just(Token::Punct('{')), just(Token::Punct('}')))
-}
-
-#[derive(Debug, Clone)]
-pub struct Section {
-  pub name: Spanned<StaticStr>,
-  pub locations: Vec<Spanned<StaticStr>>,
-  pub block: Spanned<Block>,
-}
-pub fn section_parser<'a, I>() -> impl Parser<'a, I, Section, MyParseErr<'a>>
-where
-  I: ValueInput<'a, Token = crate::lexer::Token, Span = SimpleSpan>,
-{
-  let ident = select! {
-    Token::Ident(i) = span => Spanned(i, span),
-  };
-  let location_list = ident
-    .separated_by(just(Token::Punct(',')))
-    .collect::<Vec<_>>()
-    .delimited_by(just(Token::Punct('[')), just(Token::Punct(']')));
-
-  just(Token::KwSection)
-    .ignore_then(ident)
-    .then(location_list)
-    .then(block_parser().map_with_span(Spanned))
-    .map(|((name, locations), block)| Section { name, locations, block })
 }
 
 #[derive(Debug, Clone)]
