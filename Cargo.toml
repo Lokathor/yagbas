@@ -1,6 +1,6 @@
 [package]
 name = "yagbas"
-description = "yet another game boy assembler"
+description = "Yet Another Game Boy Assembler"
 repository = "https://github.com/Lokathor/yagbas/tree/main"
 version = "0.1.0"
 edition = "2021"
@@ -8,5 +8,5 @@ license = "Zlib OR Apache-2.0 OR MIT"
 
 [dependencies]
 chumsky = "1.0.0-alpha.4"
-clap = "4.3.10"
+clap = { version = "4.3.10", features = ["derive"] }
 logos = "0.13.0"
