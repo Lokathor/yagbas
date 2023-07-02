@@ -21,9 +21,11 @@ use token_tree::*;
 use Token::*;
 use TokenTree::*;
 
-/// This just wraps the two values as a tuple.
+/// "Identity, 2-arg"
 ///
-/// This is only really useful as a higher order function.
+/// This just wraps the two values as a tuple. This is only really useful as a
+/// higher order function to pass to map and similar when we want to join
+/// multi-arg inputs into a single value output.
 #[inline]
 #[must_use]
 pub(crate) fn id2<A, B>(a: A, b: B) -> (A, B) {
