@@ -1,0 +1,6 @@
+
+const FOO = $FF00;
+
+section main [rom0] {
+  ld a, 0;
+}
