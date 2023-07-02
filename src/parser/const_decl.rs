@@ -6,10 +6,20 @@ use super::*;
 /// ```txt
 /// const NAME = EXPR;
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ConstDecl {
   pub name: (StaticStr, SimpleSpan),
   pub expr: (Vec<(TokenTree, SimpleSpan)>, SimpleSpan),
+}
+impl core::fmt::Debug for ConstDecl {
+  /// this cuts out some of the SimpleSpan junk from a debug print compared to
+  /// using the derive.
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("ConstDecl")
+      .field("name", &self.name.0)
+      .field("expr", &self.expr.0)
+      .finish()
+  }
 }
 impl ConstDecl {
   pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
