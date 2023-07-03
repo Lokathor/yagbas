@@ -1,10 +1,11 @@
 #![allow(clippy::while_let_on_iterator)]
 
-use chumsky::{IterParser, Parser as _};
+use chumsky::{span::SimpleSpan, IterParser, Parser as _};
 use yagbas::{
   disassemble::print_basic_disassembly,
   parser::{
-    comment_filter::no_comment_tokens, item::Item, token_tree::make_token_trees, *,
+    block_element::BlockElement, comment_filter::no_comment_tokens, item::Item,
+    section_decl::SectionDecl, token_tree::make_token_trees, *,
   },
 };
 
@@ -91,7 +92,18 @@ pub fn build(args: BuildArgs) {
       let parser = Item::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
       run_parser(parser, tt)
     };
-    println!("Items: {items:?}");
+    let item_slice: &[(Item, SimpleSpan)] =
+      items.output().map(Vec::as_slice).unwrap_or_default();
+    for (item, _span) in item_slice {
+      println!("I: {item:?}");
+      if let Item::SectionDecl(SectionDecl { block_tokens, .. }) = item {
+        let p = BlockElement::parser().repeated().collect::<Vec<_>>();
+        let block_elem_result = run_parser(p, &block_tokens.0);
+        for be in block_elem_result.output().map(Vec::as_slice).unwrap_or_default() {
+          println!("BE: {be:?}");
+        }
+      }
+    }
   }
 }
 
