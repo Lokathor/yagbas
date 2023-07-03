@@ -8,7 +8,7 @@ section main [rom0] {
 
     // wait for vblank to turn off the display
   1:
-    ld a, [LY];
+    ld A, [LY];
     cp a, 144;
     jp c, 1b;
 }
