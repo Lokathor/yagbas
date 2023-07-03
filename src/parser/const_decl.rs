@@ -9,7 +9,7 @@ use super::*;
 #[derive(Clone)]
 pub struct ConstDecl {
   pub name: (StaticStr, SimpleSpan),
-  pub expr: (Vec<(TokenTree, SimpleSpan)>, SimpleSpan),
+  pub expr_tokens: (Vec<(TokenTree, SimpleSpan)>, SimpleSpan),
 }
 impl core::fmt::Debug for ConstDecl {
   /// this cuts out some of the SimpleSpan junk from a debug print compared to
@@ -17,7 +17,7 @@ impl core::fmt::Debug for ConstDecl {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("ConstDecl")
       .field("name", &self.name.0)
-      .field("expr", &DebugListWithoutSpans(&self.expr.0))
+      .field("expr_tokens", &DebugListWithoutSpans(&self.expr_tokens.0))
       .finish()
   }
 }
@@ -44,6 +44,6 @@ impl ConstDecl {
       .then_ignore(equal)
       .then(expr.map_with_span(id2))
       .then_ignore(semicolon)
-      .map(|(name, expr)| ConstDecl { name, expr })
+      .map(|(name, expr)| ConstDecl { name, expr_tokens: expr })
   }
 }
