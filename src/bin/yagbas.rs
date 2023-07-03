@@ -37,15 +37,16 @@ pub struct BuildArgs {
   /// One or more source files.
   pub files: Vec<String>,
 
-  /// Output file name (defaults to first `first_src.gb`)
+  /// Output file name. Defaults to the name of the first src file with `.gb`
+  /// extension
   #[arg(short, long)]
   pub out: Option<String>,
 }
 
 #[derive(Args, Debug, Clone)]
 pub struct UnbuildArgs {
-  /// One or more ROM files.
-  pub files: Vec<String>,
+  /// The rom file to un-build back into source code.
+  pub file: String,
 
   /// Output file name (prints to stdout by default)
   #[arg(short, long)]
@@ -96,21 +97,15 @@ pub fn build(args: BuildArgs) {
 
 pub fn unbuild(args: UnbuildArgs) {
   println!("{args:?}");
-
-  if args.files.is_empty() {
-    eprintln!("Error: Must provide at least one rom file.");
-    return;
-  }
-
-  for file in args.files {
-    println!("Reading `{file}`...");
-    let rom = match std::fs::read(file) {
-      Ok(bytes) => bytes,
-      Err(e) => {
-        println!("File Read Error: {e:?}");
-        continue;
-      }
-    };
-    print_basic_disassembly(&rom)
-  }
+  //
+  let file = &args.file;
+  println!("Reading `{file}`...");
+  let rom = match std::fs::read(file) {
+    Ok(bytes) => bytes,
+    Err(e) => {
+      println!("File Read Error: {e:?}");
+      return;
+    }
+  };
+  print_basic_disassembly(&rom)
 }
