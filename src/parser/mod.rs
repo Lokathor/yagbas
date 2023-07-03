@@ -35,6 +35,20 @@ pub const fn id2<A, B>(a: A, b: B) -> (A, B) {
   (a, b)
 }
 
+pub struct DebugListWithoutSpans<'a, T>(pub &'a [(T, SimpleSpan)]);
+impl<'a, T> core::fmt::Debug for DebugListWithoutSpans<'a, T>
+where
+  T: core::fmt::Debug,
+{
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let mut x = f.debug_list();
+    for (t, _) in self.0 {
+      x.entry(t);
+    }
+    x.finish()
+  }
+}
+
 pub type ErrRichToken<'a> = extra::Err<Rich<'a, Token>>;
 pub type ErrRichTokenTree<'a> = extra::Err<Rich<'a, TokenTree>>;
 pub type InputSlice<'a, T> = SpannedInput<T, SimpleSpan, &'a [(T, SimpleSpan)]>;
