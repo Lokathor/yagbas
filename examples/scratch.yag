@@ -2,5 +2,13 @@
 const FOO = $FF00;
 
 section main [rom0] {
-  ld a, 0;
+    // shut down audio
+    ld a, 0;
+    ld [NR52], a;
+
+    // wait for vblank to turn off the display
+  1:
+    ld a, [LY];
+    cp a, 144;
+    jp c, 1b;
 }
