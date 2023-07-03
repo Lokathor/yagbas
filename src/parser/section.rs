@@ -21,8 +21,8 @@ impl core::fmt::Debug for Section {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("Section")
       .field("name", &self.name.0)
-      .field("locations", &self.locations.0)
-      .field("block", &self.block.0)
+      .field("locations", &DebugListWithoutSpans(&self.locations.0))
+      .field("block", &DebugListWithoutSpans(&self.block.0))
       .finish()
   }
 }

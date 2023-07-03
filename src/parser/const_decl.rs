@@ -17,7 +17,7 @@ impl core::fmt::Debug for ConstDecl {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("ConstDecl")
       .field("name", &self.name.0)
-      .field("expr", &self.expr.0)
+      .field("expr", &DebugListWithoutSpans(&self.expr.0))
       .finish()
   }
 }

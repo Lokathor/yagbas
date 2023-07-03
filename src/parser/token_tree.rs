@@ -7,12 +7,22 @@ use super::*;
 /// do any more advanced parsing.
 ///
 /// * See: [make_token_trees]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum TokenTree {
   Lone(Token),
   Parens(Vec<(Self, SimpleSpan)>),
   Brackets(Vec<(Self, SimpleSpan)>),
   Braces(Vec<(Self, SimpleSpan)>),
+}
+impl core::fmt::Debug for TokenTree {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Lone(t) => core::fmt::Debug::fmt(&t, f),
+      Parens(ts) => write!(f, "Parens({:?})", DebugListWithoutSpans(ts)),
+      Brackets(ts) => write!(f, "Brackets({:?})", DebugListWithoutSpans(ts)),
+      Braces(ts) => write!(f, "Braces({:?})", DebugListWithoutSpans(ts)),
+    }
+  }
 }
 impl TokenTree {
   /// Parses for just one token tree.
