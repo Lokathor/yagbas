@@ -30,10 +30,12 @@ impl BlockElement {
       let args = select! {
         Parens(tt) => Parens(tt),
       };
+      let semicolon = just(Lone(Punct(';')));
       name
         .map_with_span(id2)
         .then_ignore(bang)
         .then(args.map_with_span(id2))
+        .then_ignore(semicolon)
         .map(|(name, args)| Self::Macro(name, args))
     };
 
