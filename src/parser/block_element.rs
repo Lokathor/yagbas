@@ -3,6 +3,7 @@ use super::*;
 #[derive(Clone)]
 pub enum BlockElement {
   Label(LabelDecl),
+  Macro((TokenTree, SimpleSpan), (TokenTree, SimpleSpan)),
   Statement(StatementDecl),
 }
 impl core::fmt::Debug for BlockElement {
@@ -10,6 +11,7 @@ impl core::fmt::Debug for BlockElement {
     match self {
       BlockElement::Label(l) => core::fmt::Debug::fmt(&l, f),
       BlockElement::Statement(s) => core::fmt::Debug::fmt(&s, f),
+      BlockElement::Macro((name, _), (args, _)) => write!(f, "{name:?}!{args:?};"),
     }
   }
 }
@@ -20,7 +22,21 @@ impl BlockElement {
   {
     let label = LabelDecl::parser().map(BlockElement::Label);
     let statement = StatementDecl::parser().map(BlockElement::Statement);
+    let macro_use = {
+      let name = select! {
+        Lone(Ident(i)) => Lone(Ident(i)),
+      };
+      let bang = just(Lone(Punct(';')));
+      let args = select! {
+        Parens(tt) => Parens(tt),
+      };
+      name
+        .map_with_span(id2)
+        .then_ignore(bang)
+        .then(args.map_with_span(id2))
+        .map(|(name, args)| Self::Macro(name, args))
+    };
 
-    label.or(statement)
+    label.or(macro_use).or(statement)
   }
 }

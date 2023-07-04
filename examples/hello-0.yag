@@ -17,7 +17,7 @@ section main [rom0] {
     jp c, 1b;
 
     ld a, 0;
-    ld [LCDC] a;
+    ld [LCDC], a;
 
     // copy tile data
     ld da, tiles;

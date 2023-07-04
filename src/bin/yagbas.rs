@@ -102,6 +102,9 @@ pub fn build(args: BuildArgs) {
         for be in block_elem_result.output().map(Vec::as_slice).unwrap_or_default() {
           println!("BE: {be:?}");
         }
+        for e in block_elem_result.errors() {
+          println!("ERR: {e:?}");
+        }
       }
     }
   }
