@@ -18,9 +18,27 @@ impl core::fmt::Debug for TokenTree {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Lone(t) => core::fmt::Debug::fmt(&t, f),
-      Parens(ts) => write!(f, "Parens({:?})", DebugListWithoutSpans(ts)),
-      Brackets(ts) => write!(f, "Brackets({:?})", DebugListWithoutSpans(ts)),
-      Braces(ts) => write!(f, "Braces({:?})", DebugListWithoutSpans(ts)),
+      Parens(ts) => {
+        if ts.len() < 10 {
+          write!(f, "Parens({:?})", DebugListWithoutSpans(ts))
+        } else {
+          write!(f, "Parens({} elements)", ts.len())
+        }
+      }
+      Brackets(ts) => {
+        if ts.len() < 10 {
+          write!(f, "Brackets({:?})", DebugListWithoutSpans(ts))
+        } else {
+          write!(f, "Brackets({} elements)", ts.len())
+        }
+      }
+      Braces(ts) => {
+        if ts.len() < 10 {
+          write!(f, "Braces({:?})", DebugListWithoutSpans(ts))
+        } else {
+          write!(f, "Braces({} elements)", ts.len())
+        }
+      }
     }
   }
 }
