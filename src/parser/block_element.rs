@@ -26,7 +26,7 @@ impl BlockElement {
       let name = select! {
         Lone(Ident(i)) => Lone(Ident(i)),
       };
-      let bang = just(Lone(Punct(';')));
+      let bang = just(Lone(Punct('!')));
       let args = select! {
         Parens(tt) => Parens(tt),
       };
