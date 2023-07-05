@@ -20,7 +20,7 @@ section main [rom0] {
     ld [LCDC], a;
 
     // copy tile data
-    ld da, tiles;
+    ld de, tiles;
     ld hl, VRAM_TILE_BLOCK_2;
     ld bc, size_of_section!(tiles);
   copy_tiles:
