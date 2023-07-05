@@ -19,26 +19,14 @@ impl core::fmt::Debug for TokenTree {
     match self {
       Lone(t) => core::fmt::Debug::fmt(&t, f),
       Parens(ts) => {
-        if ts.len() < 10 {
+        if ts.len() > 10 {
+          write!(f, "Parens({} len)", ts.len())
+        } else {
           write!(f, "Parens({:?})", DebugListWithoutSpans(ts))
-        } else {
-          write!(f, "Parens({} elements)", ts.len())
         }
       }
-      Brackets(ts) => {
-        if ts.len() < 10 {
-          write!(f, "Brackets({:?})", DebugListWithoutSpans(ts))
-        } else {
-          write!(f, "Brackets({} elements)", ts.len())
-        }
-      }
-      Braces(ts) => {
-        if ts.len() < 10 {
-          write!(f, "Braces({:?})", DebugListWithoutSpans(ts))
-        } else {
-          write!(f, "Braces({} elements)", ts.len())
-        }
-      }
+      Brackets(ts) => write!(f, "Brackets({:?})", DebugListWithoutSpans(ts)),
+      Braces(ts) => write!(f, "Braces({:?})", DebugListWithoutSpans(ts)),
     }
   }
 }
