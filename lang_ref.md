@@ -46,7 +46,7 @@ Outline of how I think the language grammar works.
 
 <Place16> ::= bc | de | hl | sp
 
-<LoadSpecialPlace> ::= [ <ConstExpr> ] | [bc] | [de] | [c] | [hl-] | [hl+]
+<LoadSpecialPlace> ::= [ <ConstExpr> ] | [bc] | [de] | [hl-] | [hl+]
 
 <AluStatement> ::= <AluOp> a , <Data8> | <AluOp> <Data8>
 

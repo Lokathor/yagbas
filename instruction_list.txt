@@ -152,7 +152,6 @@ jr z, e8
 ld [a16], a
 ld [a16], sp
 ld [bc], a
-ld [c], a
 ld [de], a
 ld [hl], a
 ld [hl-], a
@@ -166,7 +165,6 @@ ld [hl], n8
 ld [hl+], a
 ld a, [a16]
 ld a, [bc]
-ld a, [c]
 ld a, [de]
 ld a, [hl]
 ld a, [hl-]
@@ -240,7 +238,9 @@ ld l, n8
 ld sp, hl
 ld sp, n16
 ldh [a8], a
+ldh [c], a
 ldh a, [a8]
+ldh a, [c]
 nop
 or a, [hl]
 or a, a
