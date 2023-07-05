@@ -50,7 +50,7 @@ Outline of how I think the language grammar works.
 
 <AluStatement> ::= <AluOp> a , <Data8> | <AluOp> <Data8>
 
-<AluOp> ::= cp | or
+<AluOp> ::= add | adc | sub | sbc | and | xor | or | cp
 
 <Jump> ::= jp <ConstExpr> | jp <Condition> , <ConstExpr> | jp hl
 
