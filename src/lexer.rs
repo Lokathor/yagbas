@@ -198,6 +198,22 @@ pub enum Token {
   #[token("XOR", priority = 3)]
   InstXOR,
 
+  #[token("cy", priority = 3)]
+  #[token("CY", priority = 3)]
+  CondCY,
+  #[token("nc", priority = 3)]
+  #[token("NC", priority = 3)]
+  CondNC,
+  #[token("ze", priority = 3)]
+  #[token("ZE", priority = 3)]
+  CondZE,
+  #[token("nz", priority = 3)]
+  #[token("NZ", priority = 3)]
+  CondNZ,
+  #[token("al", priority = 3)]
+  #[token("AL", priority = 3)]
+  CondAL,
+
   /// A standard identifier in C-style langs: `[_a-zA-Z][_a-zA-Z0-9]*`
   ///
   /// The lone character `_` ends up matching as an Ident rather than a
@@ -326,6 +342,11 @@ impl core::fmt::Debug for Token {
       Token::InstSUB => write!(f, "sub"),
       Token::InstSWAP => write!(f, "swap"),
       Token::InstXOR => write!(f, "xor"),
+      Token::CondCY => write!(f, "cy"),
+      Token::CondNC => write!(f, "nc"),
+      Token::CondZE => write!(f, "ze"),
+      Token::CondNZ => write!(f, "nz"),
+      Token::CondAL => write!(f, "al"),
     }
   }
 }
