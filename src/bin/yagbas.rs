@@ -3,10 +3,7 @@
 use chumsky::{span::SimpleSpan, IterParser, Parser as _};
 use yagbas::{
   disassemble::print_basic_disassembly,
-  parser::{
-    block_element::BlockElement, comment_filter::no_comment_tokens, item::Item,
-    section_decl::SectionDecl, token_tree::make_token_trees, *,
-  },
+  parser::{comment_filter::no_comment_tokens, item::Item, section_decl::SectionDecl, *},
 };
 
 use clap::{Args, Parser, Subcommand};
@@ -100,10 +97,10 @@ pub fn build(args: BuildArgs) {
         let p = BlockElement::parser().repeated().collect::<Vec<_>>();
         let block_elem_result = run_parser(p, &block_tokens.0);
         for be in block_elem_result.output().map(Vec::as_slice).unwrap_or_default() {
-          println!("BE: {be:?}");
+          println!("==BE: {be:?}");
         }
         for e in block_elem_result.errors() {
-          println!("ERR: {e:?}");
+          println!("==ERR: {e:?}");
         }
       }
     }

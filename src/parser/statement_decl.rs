@@ -43,7 +43,6 @@ impl StatementDecl {
         Lone(RegSP) => Lone(RegSP),
       };
       let comma = just(Lone(Punct(',')));
-      let semicolon = just(Lone(Punct(';')));
       let macro_src = select! {
         Lone(Ident(i)) => Lone(Ident(i)),
       }
@@ -77,7 +76,6 @@ impl StatementDecl {
         .ignore_then(dest.map_with_span(id2))
         .then_ignore(comma)
         .then(src.map_with_span(id2))
-        .then_ignore(semicolon)
         .map(|(d, s)| StatementDecl::Load(d, s))
     };
 
@@ -96,7 +94,6 @@ impl StatementDecl {
         Lone(RegH) => Lone(RegH),
         Lone(RegL) => Lone(RegL),
       };
-      let semicolon = just(Lone(Punct(';')));
 
       let cp_a = instr
         .clone()
@@ -104,7 +101,7 @@ impl StatementDecl {
         .ignore_then(comma)
         .ignore_then(rhs.map_with_span(id2));
       let cp = instr.clone().ignore_then(rhs.map_with_span(id2));
-      cp_a.or(cp).map(|(tt, span)| Self::Compare((tt, span))).then_ignore(semicolon)
+      cp_a.or(cp).map(|(tt, span)| Self::Compare((tt, span)))
     };
     let or = {
       let instr = just(Lone(InstOR));
@@ -121,7 +118,6 @@ impl StatementDecl {
         Lone(RegH) => Lone(RegH),
         Lone(RegL) => Lone(RegL),
       };
-      let semicolon = just(Lone(Punct(';')));
 
       let or_a = instr
         .clone()
@@ -129,7 +125,7 @@ impl StatementDecl {
         .ignore_then(comma)
         .ignore_then(rhs.map_with_span(id2));
       let or = instr.clone().ignore_then(rhs.map_with_span(id2));
-      or_a.or(or).map(|(tt, span)| Self::Compare((tt, span))).then_ignore(semicolon)
+      or_a.or(or).map(|(tt, span)| Self::Compare((tt, span)))
     };
 
     let jump = {
@@ -143,21 +139,17 @@ impl StatementDecl {
         Lone(NumLit(n)) => Lone(NumLit(n)),
         Lone(Ident(i)) => Lone(Ident(i)),
       };
-      let semicolon = just(Lone(Punct(';')));
 
       let jp_cond = instr
         .clone()
         .ignore_then(cond.map_with_span(id2))
         .then_ignore(comma)
         .then(target.map_with_span(id2))
-        .then_ignore(semicolon.clone())
         .map(|(cond, target)| StatementDecl::Jump(cond, target));
       let jp_always =
-        instr.clone().ignore_then(target.map_with_span(id2)).then_ignore(semicolon).map(
-          |target| {
-            StatementDecl::Jump((Lone(Ident("al")), SimpleSpan::from(0..0)), target)
-          },
-        );
+        instr.clone().ignore_then(target.map_with_span(id2)).map(|target| {
+          StatementDecl::Jump((Lone(Ident("al")), SimpleSpan::from(0..0)), target)
+        });
       jp_cond.or(jp_always)
     };
 
@@ -177,11 +169,7 @@ impl StatementDecl {
         Lone(RegHL) => Lone(RegHL),
         Lone(RegSP) => Lone(RegSP),
       };
-      let semicolon = just(Lone(Punct(';')));
-      instr
-        .ignore_then(target)
-        .map_with_span(|t, span| Self::Inc((t, span)))
-        .then_ignore(semicolon)
+      instr.ignore_then(target).map_with_span(|t, span| Self::Inc((t, span)))
     };
     let dec = {
       let instr = just(Lone(InstDEC));
@@ -199,11 +187,7 @@ impl StatementDecl {
         Lone(RegHL) => Lone(RegHL),
         Lone(RegSP) => Lone(RegSP),
       };
-      let semicolon = just(Lone(Punct(';')));
-      instr
-        .ignore_then(target)
-        .map_with_span(|t, span| Self::Inc((t, span)))
-        .then_ignore(semicolon)
+      instr.ignore_then(target).map_with_span(|t, span| Self::Inc((t, span)))
     };
 
     load.or(compare).or(or).or(jump).or(inc).or(dec)

@@ -33,10 +33,6 @@ impl SectionDecl {
   {
     let kw_section = just(Lone(KwSection));
 
-    let ident = select! {
-      Lone(Ident(i)) => i,
-    };
-
     let locations = select! {
       Brackets(l) => l,
     };
@@ -46,13 +42,13 @@ impl SectionDecl {
     };
 
     kw_section
-      .ignore_then(ident.map_with_span(id2))
+      .ignore_then(ident_parser().map_with_span(id2))
       .then(locations.map_with_span(id2))
       .then(block.map_with_span(id2))
-      .map(|((name, locations), block)| Self {
+      .map(|((name, location_tokens), block_tokens)| Self {
         name,
-        location_tokens: locations,
-        block_tokens: block,
+        location_tokens,
+        block_tokens,
       })
   }
 }

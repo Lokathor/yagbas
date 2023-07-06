@@ -5,25 +5,33 @@
 Outline of how I think the language grammar works.
 
 ```
+<Ident> ::= primitive
+
+<NumberLiteral> ::= primitive
+
+<ConstExpr> ::= <NumberLiteral> | <MacroInvoke>
+
+<Place8> ::= a | b | c | d | e | h | l | [hl]
+
+<Data8> ::= <Place8> | <ConstExpr>
+
 <ConstDecl> ::= const <Ident> = <ConstExpr> ;
 
 <SectionDecl> ::= section <Ident> [ <0+ Location, comma separated> ] { <0+ BlockElement> }
 
-<Ident> ::= primitive
+<Label> ::= <Ident> | <NumberLiteral>
 
-<ConstExpr> ::= <NumberLiteral>
+<MacroInvoke> ::= <Ident> ! ( <0+ TokenTrees> )
+```
 
-<NumberLiteral> ::= primitive
+the parser module hasn't been updated to include the below elements
 
+```
 <Location> ::= rom0
 
 <BlockElement> ::= <Label> :
                  | <MacroInvoke> ;
                  | <Statement> ;
-
-<Label> ::= <Ident> | <NumberLiteral>
-
-<MacroInvoke> ::= <Ident> ! ( <0+ TokenTrees> )
 
 <Statement> ::= <Load>
               | <AluStatement>
@@ -32,21 +40,17 @@ Outline of how I think the language grammar works.
 
 <Load> ::= ld <Place8> , <Data8>
          | ld <Place16> , <ConstExpr>
-         | ld <LoadSpecialPlace> , a
-         | ld a , <LoadSpecialPlace>
+         | ld [ <LoadSpecialAddr> ] , a
+         | ld a , [ <LoadSpecialAddr> ]
          | ld [ <ConstExpr> ] , sp
          | ld [ <ConstExpr> ] , a
          | ld hl , sp + <ConstExpr>
          | ld hl , sp
          | ld sp , hl
 
-<Place8> ::= a | b | c | d | e | h | l | [hl]
-
-<Data8> ::= <Place8> | <ConstExpr>
-
 <Place16> ::= bc | de | hl | sp
 
-<LoadSpecialPlace> ::= [ <ConstExpr> ] | [bc] | [de] | [hl-] | [hl+]
+<LoadSpecialAddr> ::= <ConstExpr> | bc | de | hl- | hl+
 
 <AluStatement> ::= <AluOp> a , <Data8> | <AluOp> <Data8>
 
