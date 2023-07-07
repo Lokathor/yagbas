@@ -1,6 +1,6 @@
 use core::ops::Range;
 
-use crate::{static_str, StaticStr};
+use crate::{parser::TokenTree, static_str, StaticStr};
 use logos::Logos;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Logos)]
@@ -67,6 +67,17 @@ pub enum Token {
   #[token("pc", priority = 3)]
   #[token("PC", priority = 3)]
   RegPC,
+
+  #[regex(r#"\[\s*(bc|BC)\s*\]"#, priority = 3)]
+  AddrBC,
+  #[regex(r#"\[\s*(de|DE)\s*\]"#, priority = 3)]
+  AddrDE,
+  #[regex(r#"\[\s*(hl|HL)\s*\]"#, priority = 3)]
+  AddrHL,
+  #[regex(r#"\[\s*(hl|HL)\s*\++\s*\]"#, priority = 3)]
+  AddrHLInc,
+  #[regex(r#"\[\s*(hl|HL)\s*-+\s*\]"#, priority = 3)]
+  AddrHLDec,
 
   #[token("adc", priority = 3)]
   #[token("ADC", priority = 3)]
@@ -223,7 +234,7 @@ pub enum Token {
 
   /// A punctuation character (using the `[:punct:]` regex class) that does
   /// *not* match any other case.
-  #[regex(r"[[:punct:]]", |lex| lex.slice().chars().next().unwrap())]
+  #[regex(r"[[:punct:]]", |lex| lex.slice().chars().next().unwrap(), priority=1)]
   Punct(char),
 
   /// Something that's supposed to be a number.
@@ -347,6 +358,21 @@ impl core::fmt::Debug for Token {
       Token::CondZE => write!(f, "ze"),
       Token::CondNZ => write!(f, "nz"),
       Token::CondAL => write!(f, "al"),
+      Token::AddrHL => write!(f, "[hl]"),
+      Token::AddrHLInc => write!(f, "[hl++]"),
+      Token::AddrHLDec => write!(f, "[hl--]"),
+      Token::AddrBC => write!(f, "[bc]"),
+      Token::AddrDE => write!(f, "[de]"),
     }
   }
+}
+
+#[test]
+fn test_token_lexer() {
+  use Token::*;
+  let tokens: Vec<Token> =
+    Token::lexer("[hl] [   hl]   [hl  ] [  hl  ] [hl+] [hl++] [hl------]")
+      .map(Result::unwrap)
+      .collect();
+  assert_eq!(&tokens, &[AddrHL, AddrHL, AddrHL, AddrHL, AddrHLInc, AddrHLInc, AddrHLDec]);
 }

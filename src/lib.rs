@@ -9,8 +9,8 @@ use std::{
 use chumsky::span::Span;
 
 pub mod disassemble;
-pub mod lexer;
 pub mod parser;
+pub mod token;
 
 pub type StaticStr = &'static str;
 

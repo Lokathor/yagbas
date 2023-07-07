@@ -1,6 +1,6 @@
 use core::ops::{Deref, DerefMut, Range};
 
-use crate::{lexer::Token, StaticStr};
+use crate::{token::Token, StaticStr};
 use chumsky::{
   extra::ParserExtra,
   input::{BoxedStream, SpannedInput, Stream, ValueInput},
@@ -107,7 +107,7 @@ impl TokenTree {
   /// Parses for just one token tree.
   pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichToken<'a>>
   where
-    I: ValueInput<'a, Token = crate::lexer::Token, Span = SimpleSpan>,
+    I: ValueInput<'a, Token = crate::token::Token, Span = SimpleSpan>,
   {
     recursive(|tt| {
       let token_list = tt.map_with_span(|i, s| (i, s)).repeated().collect::<Vec<_>>();
