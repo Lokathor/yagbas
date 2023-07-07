@@ -5,15 +5,27 @@
 Outline of how I think the language grammar works.
 
 ```
+<Place8> ::= a | b | c | d | e | h | l | [hl]
+<Place16> ::= bc | de | hl | sp
+<PlaceIndirect> ::= [bc] | [de] | [hl++] | [hl--]
+<PlaceConst> ::= [ <ConstExpr> ]
+<Place> ::= <Place8> | <Place16> | <PlaceIndirect> | <PlaceConst>
+
+<Label> ::= <NumLit> :
+          | <Ident> :
+<MacroInvoke> ::= <Ident> ! ( <MacroArgs> ) ;
+<InstrUse> ::= <Instr> <not(;) ...> ;
+<PlaceUse> ::= <Place> <not(;) ...> ;
+<BlockElem> ::= <Label> | <MacroInvoke> | <InstrUse> | <PlaceUse>
+```
+
+<!--
+
 <Ident> ::= primitive
 
 <NumberLiteral> ::= primitive
 
 <ConstExpr> ::= <NumberLiteral> | <MacroInvoke>
-
-<Place8> ::= a | b | c | d | e | h | l | [hl]
-
-<Place16> ::= bc | de | hl | sp
 
 <Data8> ::= <Place8> | <ConstExpr>
 
@@ -51,14 +63,10 @@ Outline of how I think the language grammar works.
               | <AluStatement>
               | <JumpStatement>
               | <DecStatement>
-```
 
-the parser module hasn't been updated to include the below elements
-
-```
 <Location> ::= rom0
 
 <BlockElement> ::= <Label> :
                  | <MacroInvoke> ;
                  | <Statement> ;
-```
+-->
