@@ -1,6 +1,6 @@
 use core::ops::Range;
 
-use crate::{parser::TokenTree, static_str, StaticStr};
+use crate::{static_str, StaticStr};
 use logos::Logos;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Logos)]
@@ -68,15 +68,22 @@ pub enum Token {
   #[token("PC", priority = 3)]
   RegPC,
 
-  #[regex(r#"\[\s*(bc|BC)\s*\]"#, priority = 3)]
+  /*
+   * these tokens aren't Logos output, they can only be produced by the
+   * TokenTree builder flattening specific Brackets tree sequences. Logos
+   * doesn't support backtracking, so trying to lex these tokens directly would
+   * cause more errors than desirable in the raw token stream. Not every sequence
+   * gets a special replacement, but these are particularly common.
+   */
+  /// `[bc]`
   AddrBC,
-  #[regex(r#"\[\s*(de|DE)\s*\]"#, priority = 3)]
+  /// `[de]`
   AddrDE,
-  #[regex(r#"\[\s*(hl|HL)\s*\]"#, priority = 3)]
+  /// `[hl]`
   AddrHL,
-  #[regex(r#"\[\s*(hl|HL)\s*\++\s*\]"#, priority = 3)]
+  /// `[hl++]`
   AddrHLInc,
-  #[regex(r#"\[\s*(hl|HL)\s*-+\s*\]"#, priority = 3)]
+  /// `[hl--]`
   AddrHLDec,
 
   #[token("adc", priority = 3)]
@@ -240,7 +247,7 @@ pub enum Token {
   /// Something that's supposed to be a number.
   ///
   /// Interpreting the number is left for the parsing stage.
-  #[regex(r"[-+]?((0x|\$)[a-fA-F0-9_]+|(0b|%)[a-fA-F0-9_]+|[0-9][a-fA-F0-9_]*)", |lex| static_str(lex.slice()))]
+  #[regex(r"[-+]?((0x|\$)[_a-zA-Z0-9]+|(0b|%)[_a-zA-Z0-9]+|[0-9][_a-zA-Z0-9]*)", |lex| static_str(lex.slice()))]
   NumLit(StaticStr),
 
   /// Holds all the stuff *between* two `"`.
@@ -260,28 +267,6 @@ impl Token {
   #[must_use]
   pub fn lexer(s: &str) -> logos::Lexer<'_, Token> {
     <Self as Logos>::lexer(s)
-  }
-  #[inline]
-  pub fn is_ident(&self) -> bool {
-    matches!(self, Self::Ident(_))
-  }
-  #[inline]
-  pub fn unwrap_ident(self) -> StaticStr {
-    match self {
-      Self::Ident(i) => i,
-      _ => panic!("unwrap_ident on {self:?}"),
-    }
-  }
-  #[inline]
-  pub fn is_num(&self) -> bool {
-    matches!(self, Self::NumLit(_))
-  }
-  #[inline]
-  pub fn unwrap_num(self) -> StaticStr {
-    match self {
-      Self::NumLit(n) => n,
-      _ => panic!("unwrap_num on {self:?}"),
-    }
   }
 }
 impl core::fmt::Debug for Token {
