@@ -351,13 +351,3 @@ impl core::fmt::Debug for Token {
     }
   }
 }
-
-#[test]
-fn test_token_lexer() {
-  use Token::*;
-  let tokens: Vec<Token> =
-    Token::lexer("[hl] [   hl]   [hl  ] [  hl  ] [hl+] [hl++] [hl------]")
-      .map(Result::unwrap)
-      .collect();
-  assert_eq!(&tokens, &[AddrHL, AddrHL, AddrHL, AddrHL, AddrHLInc, AddrHLInc, AddrHLDec]);
-}

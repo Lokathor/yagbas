@@ -1,6 +1,6 @@
 use core::ops::{Deref, DerefMut, Range};
 
-use crate::{token::Token, StaticStr};
+use crate::{id2, run_parser, token::Token, StaticStr};
 use chumsky::{
   extra::ParserExtra,
   input::{BoxedStream, SpannedInput, Stream, ValueInput},
@@ -10,27 +10,14 @@ use chumsky::{
 };
 use logos::Span;
 
-pub mod comment_filter;
 pub mod item;
 pub mod section_decl;
 
 use crate::token_tree::*;
-use comment_filter::*;
 use item::*;
 use section_decl::*;
 use Token::*;
 use TokenTree::*;
-
-/// "Identity, 2-arg"
-///
-/// This just wraps the two values as a tuple. This is only really useful as a
-/// higher order function to pass to map and similar when we want to join
-/// multi-arg inputs into a single value output.
-#[inline]
-#[must_use]
-pub const fn id2<A, B>(a: A, b: B) -> (A, B) {
-  (a, b)
-}
 
 pub struct DebugListWithoutSpans<'a, T>(pub &'a [(T, SimpleSpan)]);
 impl<'a, T> core::fmt::Debug for DebugListWithoutSpans<'a, T>
@@ -48,40 +35,6 @@ where
 
 pub type ErrRichToken<'a> = extra::Err<Rich<'a, Token>>;
 pub type ErrRichTokenTree<'a> = extra::Err<Rich<'a, TokenTree>>;
-pub type InputSlice<'a, T> = SpannedInput<T, SimpleSpan, &'a [(T, SimpleSpan)]>;
-
-/// Runs a parser from `T` to `O` on a slice of `T`, giving a [ParseResult]
-#[inline]
-pub fn run_parser<'a, P, T, O, E>(
-  parser: P, data: &'a [(T, SimpleSpan)],
-) -> ParseResult<O, E::Error>
-where
-  P: Parser<'a, InputSlice<'a, T>, O, E>,
-  E: ParserExtra<'a, InputSlice<'a, T>>,
-  <E as ParserExtra<'a, InputSlice<'a, T>>>::State: Default,
-  <E as ParserExtra<'a, InputSlice<'a, T>>>::Context: Default,
-{
-  // calculate the likely span value based on the first and last token, assumes
-  // that the tokens are still properly in order.
-  let span: SimpleSpan = if data.is_empty() {
-    (0..0).into()
-  } else {
-    let start = data.first().unwrap().1.start;
-    let end = data.last().unwrap().1.end;
-    (start..end).into()
-  };
-  let input = data.spanned(span);
-  parser.parse(input)
-}
-
-#[inline]
-pub fn make_token_trees(
-  tokens: &[(Token, SimpleSpan)],
-) -> ParseResult<Vec<(TokenTree, SimpleSpan)>, Rich<'_, Token>> {
-  let parser = TokenTree::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
-  //
-  run_parser(parser, tokens)
-}
 
 pub fn ident_parser<'a, I>() -> impl Parser<'a, I, StaticStr, ErrRichTokenTree<'a>>
 where

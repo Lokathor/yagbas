@@ -1,13 +1,16 @@
-use super::*;
+use chumsky::span::SimpleSpan;
+use logos::Span as LogosSpan;
+
+use crate::token::Token;
 
 #[derive(Debug, Clone)]
 pub enum CommentFilterError {
-  LexError(Span),
-  UnmatchedMultiOpen(Span),
-  UnmatchedMultiClose(Span),
+  LexError(LogosSpan),
+  UnmatchedMultiOpen(LogosSpan),
+  UnmatchedMultiClose(LogosSpan),
 }
 impl CommentFilterError {
-  pub fn get_span(&self) -> Span {
+  pub fn get_span(&self) -> LogosSpan {
     match self {
       CommentFilterError::LexError(s) => s.clone(),
       CommentFilterError::UnmatchedMultiOpen(s) => s.clone(),
@@ -17,7 +20,7 @@ impl CommentFilterError {
 }
 
 pub fn filter_out_comments(
-  i: impl Iterator<Item = (Result<Token, ()>, Span)>,
+  i: impl Iterator<Item = (Result<Token, ()>, LogosSpan)>,
 ) -> Result<Vec<(Token, SimpleSpan)>, CommentFilterError> {
   let mut out: Vec<(Token, SimpleSpan)> = vec![];
   let mut comment_levels = 0;
@@ -52,6 +55,8 @@ pub fn filter_out_comments(
   }
 }
 
-pub fn no_comment_tokens(s: &str) -> Result<Vec<(Token, SimpleSpan)>, CommentFilterError> {
+pub fn no_comment_tokens(
+  s: &str,
+) -> Result<Vec<(Token, SimpleSpan)>, CommentFilterError> {
   filter_out_comments(Token::lexer(s).spanned())
 }

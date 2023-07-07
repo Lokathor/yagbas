@@ -2,8 +2,12 @@
 
 use chumsky::{span::SimpleSpan, IterParser, Parser as _};
 use yagbas::{
+  comment_filter::no_comment_tokens,
   disassemble::print_basic_disassembly,
-  parser::{comment_filter::no_comment_tokens, item::Item, section_decl::SectionDecl, *},
+  id2,
+  parser::{item::Item, section_decl::SectionDecl, *},
+  run_parser,
+  token_tree::make_token_trees,
 };
 
 use clap::{Args, Parser, Subcommand};
