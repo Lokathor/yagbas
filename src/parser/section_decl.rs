@@ -9,22 +9,11 @@ use super::*;
 ///   // statements that end with `;`
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SectionDecl {
   pub name: (StaticStr, SimpleSpan),
   pub location_tokens: (Vec<(TokenTree, SimpleSpan)>, SimpleSpan),
   pub block_tokens: (Vec<(TokenTree, SimpleSpan)>, SimpleSpan),
-}
-impl core::fmt::Debug for SectionDecl {
-  /// this cuts out some of the SimpleSpan junk from a debug print compared to
-  /// using the derive.
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_struct("SectionDecl")
-      .field("name", &self.name.0)
-      .field("location_tokens", &DebugListWithoutSpans(&self.location_tokens.0))
-      .field("block_tokens", &DebugListWithoutSpans(&self.block_tokens.0))
-      .finish()
-  }
 }
 impl SectionDecl {
   pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>

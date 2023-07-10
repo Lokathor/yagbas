@@ -1,9 +1,7 @@
 use chumsky::{input::ValueInput, prelude::*};
 
 use crate::{
-  id2,
-  parser::DebugListWithoutSpans,
-  run_parser,
+  id2, run_parser,
   token::{Token, Token::*},
   ErrRichToken,
 };
@@ -29,13 +27,49 @@ impl core::fmt::Debug for TokenTree {
       Lone(t) => core::fmt::Debug::fmt(&t, f),
       Parens(ts) => {
         if ts.len() > 10 {
-          write!(f, "Parens({} elements)", ts.len())
+          write!(f, "((...{} elements...))", ts.len())
         } else {
-          write!(f, "Parens({:?})", DebugListWithoutSpans(ts))
+          write!(f, "(")?;
+          for (i, (tt, _span)) in ts.iter().enumerate() {
+            if i > 0 {
+              write!(f, " ")?;
+            }
+            write!(f, "{tt:?}")?;
+          }
+          write!(f, ")")?;
+          Ok(())
         }
       }
-      Brackets(ts) => write!(f, "Brackets({:?})", DebugListWithoutSpans(ts)),
-      Braces(ts) => write!(f, "Braces({:?})", DebugListWithoutSpans(ts)),
+      Brackets(ts) => {
+        if ts.len() > 10 {
+          write!(f, "[[...{} elements...]]", ts.len())
+        } else {
+          write!(f, "[")?;
+          for (i, (tt, _span)) in ts.iter().enumerate() {
+            if i > 0 {
+              write!(f, " ")?;
+            }
+            write!(f, "{tt:?}")?;
+          }
+          write!(f, "]")?;
+          Ok(())
+        }
+      }
+      Braces(ts) => {
+        if ts.len() > 10 {
+          write!(f, "{{{{...{} elements...}}}}", ts.len())
+        } else {
+          write!(f, "{{")?;
+          for (i, (tt, _span)) in ts.iter().enumerate() {
+            if i > 0 {
+              write!(f, " ")?;
+            }
+            write!(f, "{tt:?}")?;
+          }
+          write!(f, "}}")?;
+          Ok(())
+        }
+      }
     }
   }
 }

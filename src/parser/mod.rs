@@ -19,20 +19,6 @@ use section_decl::*;
 use Token::*;
 use TokenTree::*;
 
-pub struct DebugListWithoutSpans<'a, T>(pub &'a [(T, SimpleSpan)]);
-impl<'a, T> core::fmt::Debug for DebugListWithoutSpans<'a, T>
-where
-  T: core::fmt::Debug,
-{
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let mut x = f.debug_list();
-    for (t, _) in self.0 {
-      x.entry(t);
-    }
-    x.finish()
-  }
-}
-
 pub fn ident_parser<'a, I>() -> impl Parser<'a, I, StaticStr, ErrRichTokenTree<'a>>
 where
   I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
@@ -284,21 +270,10 @@ impl Label {
   }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MacroInvoke {
   pub name: (StaticStr, SimpleSpan),
   pub args: (Vec<(TokenTree, SimpleSpan)>, SimpleSpan),
-}
-impl core::fmt::Debug for MacroInvoke {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}!(", self.name.0)?;
-    if self.args.0.len() > 10 {
-      write!(f, "{{{} token trees}}", self.args.0.len())?;
-    } else {
-      write!(f, "{:?}", DebugListWithoutSpans(&self.args.0))?;
-    }
-    write!(f, ")")
-  }
 }
 impl MacroInvoke {
   pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
