@@ -8,15 +8,22 @@ Outline of how I think the language grammar works.
 <Place8> ::= a | b | c | d | e | h | l | [hl]
 <Place16> ::= bc | de | hl | sp
 <PlaceIndirect> ::= [bc] | [de] | [hl++] | [hl--]
-<PlaceConst> ::= [ <ConstExpr> ]
+<PlaceConst> ::= [ <...> ]
 <Place> ::= <Place8> | <Place16> | <PlaceIndirect> | <PlaceConst>
 
+<MacroUse> ::= <Ident> ! ( <MacroArgs> )
 <Label> ::= <NumLit> :
           | <Ident> :
-<MacroInvoke> ::= <Ident> ! ( <MacroArgs> ) ;
 <InstrUse> ::= <Instr> <not(;) ...> ;
 <PlaceUse> ::= <Place> <not(;) ...> ;
-<BlockElem> ::= <Label> | <MacroInvoke> | <InstrUse> | <PlaceUse>
+<BlockElem> ::= <MacroUse> ;
+              | <InstrUse>
+              | <PlaceUse>
+              | <Label>
+
+<ConstDecl> ::= const <Ident> = <not(;) ...> ;
+
+<SectionDecl> ::= section <Ident> [ <...> ] { <...> }
 ```
 
 <!--

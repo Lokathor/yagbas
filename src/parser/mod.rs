@@ -1,6 +1,6 @@
 use core::ops::{Deref, DerefMut, Range};
 
-use crate::{id2, run_parser, token::Token, StaticStr};
+use crate::{id2, run_parser, token::Token, ErrRichTokenTree, StaticStr};
 use chumsky::{
   extra::ParserExtra,
   input::{BoxedStream, SpannedInput, Stream, ValueInput},
@@ -32,9 +32,6 @@ where
     x.finish()
   }
 }
-
-pub type ErrRichToken<'a> = extra::Err<Rich<'a, Token>>;
-pub type ErrRichTokenTree<'a> = extra::Err<Rich<'a, TokenTree>>;
 
 pub fn ident_parser<'a, I>() -> impl Parser<'a, I, StaticStr, ErrRichTokenTree<'a>>
 where

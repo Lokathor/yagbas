@@ -8,13 +8,27 @@ use std::{
 
 use chumsky::{
   extra::ParserExtra,
-  input::SpannedInput,
-  prelude::Input,
+  input::{SpannedInput, ValueInput},
+  prelude::*,
+  primitive::Just,
   span::{SimpleSpan, Span},
   ParseResult, Parser,
 };
+use token::{Token, Token::*};
+use token_tree::{TokenTree, TokenTree::*};
 
+pub mod block_elem;
 pub mod comment_filter;
+pub mod instr_use;
+pub mod instruction;
+pub mod label;
+pub mod macro_use;
+pub mod place;
+pub mod place16;
+pub mod place8;
+pub mod place_const;
+pub mod place_indirect;
+pub mod place_use;
 pub mod token;
 pub mod token_tree;
 
@@ -22,6 +36,8 @@ pub mod disassemble;
 pub mod parser;
 
 pub type StaticStr = &'static str;
+pub type ErrRichToken<'a> = extra::Err<Rich<'a, Token>>;
+pub type ErrRichTokenTree<'a> = extra::Err<Rich<'a, TokenTree>>;
 
 /// Convert any str into a static str, using a global cache.
 #[inline]
@@ -85,4 +101,53 @@ where
   };
   let input = data.spanned(span);
   parser.parse(input)
+}
+
+pub fn ident<'a, I>() -> impl Parser<'a, I, StaticStr, ErrRichTokenTree<'a>>
+where
+  I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+{
+  select! {
+    Lone(Ident(i)) => i,
+  }
+}
+
+pub fn num_lit<'a, I>() -> impl Parser<'a, I, StaticStr, ErrRichTokenTree<'a>>
+where
+  I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+{
+  select! {
+    Lone(NumLit(i)) => i,
+  }
+}
+
+pub fn paren_group<'a, I>(
+) -> impl Parser<'a, I, Vec<(TokenTree, SimpleSpan)>, ErrRichTokenTree<'a>>
+where
+  I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+{
+  select! {
+    Parens(tts) => tts,
+  }
+}
+
+pub fn colon<'a, I>() -> impl Parser<'a, I, (), ErrRichTokenTree<'a>>
+where
+  I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+{
+  just(Lone(Punct(':'))).ignored()
+}
+
+pub fn semicolon<'a, I>() -> impl Parser<'a, I, (), ErrRichTokenTree<'a>>
+where
+  I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+{
+  just(Lone(Punct(';'))).ignored()
+}
+
+pub fn bang<'a, I>() -> impl Parser<'a, I, (), ErrRichTokenTree<'a>>
+where
+  I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+{
+  just(Lone(Punct('!'))).ignored()
 }

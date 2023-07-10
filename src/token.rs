@@ -276,7 +276,7 @@ impl core::fmt::Debug for Token {
       Token::CommentMultiStart => write!(f, "/*"),
       Token::CommentMultiEnd => write!(f, "*/"),
       Token::Ident(i) => write!(f, "{i}"),
-      Token::Punct(p) => write!(f, "{p:?}"),
+      Token::Punct(p) => write!(f, "{p}"),
       Token::NumLit(n) => write!(f, "n{n:?}"),
       Token::StrLit(s) => write!(f, "s{s:?}"),
       Token::KwSection => write!(f, "section"),

@@ -2,9 +2,10 @@ use chumsky::{input::ValueInput, prelude::*};
 
 use crate::{
   id2,
-  parser::{DebugListWithoutSpans, ErrRichToken},
+  parser::DebugListWithoutSpans,
   run_parser,
   token::{Token, Token::*},
+  ErrRichToken,
 };
 
 /// A lone token or a list of tokens in one of three grouping styles.
