@@ -19,8 +19,10 @@ use token_tree::{TokenTree, TokenTree::*};
 
 pub mod block_elem;
 pub mod comment_filter;
+pub mod const_decl;
 pub mod instr_use;
 pub mod instruction;
+pub mod item_decl;
 pub mod label;
 pub mod macro_use;
 pub mod place;
@@ -29,11 +31,11 @@ pub mod place8;
 pub mod place_const;
 pub mod place_indirect;
 pub mod place_use;
+pub mod section_decl;
 pub mod token;
 pub mod token_tree;
 
 pub mod disassemble;
-pub mod parser;
 
 pub type StaticStr = &'static str;
 pub type ErrRichToken<'a> = extra::Err<Rich<'a, Token>>;
@@ -121,6 +123,26 @@ where
   }
 }
 
+pub fn bracket_group<'a, I>(
+) -> impl Parser<'a, I, Vec<(TokenTree, SimpleSpan)>, ErrRichTokenTree<'a>>
+where
+  I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+{
+  select! {
+    Brackets(tts) => tts,
+  }
+}
+
+pub fn brace_group<'a, I>(
+) -> impl Parser<'a, I, Vec<(TokenTree, SimpleSpan)>, ErrRichTokenTree<'a>>
+where
+  I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+{
+  select! {
+    Braces(tts) => tts,
+  }
+}
+
 pub fn paren_group<'a, I>(
 ) -> impl Parser<'a, I, Vec<(TokenTree, SimpleSpan)>, ErrRichTokenTree<'a>>
 where
@@ -150,4 +172,11 @@ where
   I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
 {
   just(Lone(Punct('!'))).ignored()
+}
+
+pub fn equal<'a, I>() -> impl Parser<'a, I, (), ErrRichTokenTree<'a>>
+where
+  I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+{
+  just(Lone(Punct('='))).ignored()
 }

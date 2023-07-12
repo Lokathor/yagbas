@@ -32,7 +32,7 @@ impl core::fmt::Debug for MacroUse {
 }
 
 #[test]
-fn test_macro_use_parser() {
+fn test_parser() {
   let checks: &[(&str, MacroUse)] = &[
     //
     ("check!()", MacroUse { name: ("check", SimpleSpan::from(0..5)), args: vec![] }),

@@ -28,7 +28,7 @@ impl core::fmt::Debug for Label {
 }
 
 #[test]
-fn test_label_parser() {
+fn test_parser() {
   let checks: &[(&str, Label)] = &[
     //
     ("here:", Label::Ident("here")),

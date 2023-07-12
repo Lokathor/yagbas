@@ -27,7 +27,7 @@ impl core::fmt::Debug for TokenTree {
       Lone(t) => core::fmt::Debug::fmt(&t, f),
       Parens(ts) => {
         if ts.len() > 10 {
-          write!(f, "((...{} elements...))", ts.len())
+          write!(f, "(...{} elements...)", ts.len())
         } else {
           write!(f, "(")?;
           for (i, (tt, _span)) in ts.iter().enumerate() {
@@ -42,7 +42,7 @@ impl core::fmt::Debug for TokenTree {
       }
       Brackets(ts) => {
         if ts.len() > 10 {
-          write!(f, "[[...{} elements...]]", ts.len())
+          write!(f, "[...{} elements...]", ts.len())
         } else {
           write!(f, "[")?;
           for (i, (tt, _span)) in ts.iter().enumerate() {
@@ -57,7 +57,7 @@ impl core::fmt::Debug for TokenTree {
       }
       Braces(ts) => {
         if ts.len() > 10 {
-          write!(f, "{{{{...{} elements...}}}}", ts.len())
+          write!(f, "{{...{} elements...}}", ts.len())
         } else {
           write!(f, "{{")?;
           for (i, (tt, _span)) in ts.iter().enumerate() {

@@ -1,13 +1,15 @@
 #![allow(clippy::while_let_on_iterator)]
+#![allow(unused_imports)]
 
 use chumsky::{span::SimpleSpan, IterParser, Parser as _};
 use yagbas::{
   comment_filter::no_comment_tokens,
   disassemble::print_basic_disassembly,
   id2,
-  parser::{item::Item, section_decl::SectionDecl, *},
+  item_decl::ItemDecl,
   run_parser,
-  token_tree::make_token_trees,
+  token::Token,
+  token_tree::{make_token_trees, TokenTree},
 };
 
 use clap::{Args, Parser, Subcommand};
@@ -64,6 +66,8 @@ pub fn main() {
 }
 
 pub fn build(args: BuildArgs) {
+  use rayon::prelude::*;
+  //
   println!("{args:?}");
 
   if args.files.is_empty() {
@@ -71,44 +75,38 @@ pub fn build(args: BuildArgs) {
     return;
   }
 
-  for file in args.files {
-    println!("Reading `{file}`...");
-    let prog = match std::fs::read_to_string(file) {
-      Ok(bytes) => bytes,
-      Err(e) => {
-        println!("File Read Error: {e:?}");
-        continue;
-      }
-    };
-    let token_list = match no_comment_tokens(&prog) {
-      Ok(tokens) => tokens,
-      Err(span) => {
-        println!("Could not process comment markers: {span:?}");
-        return;
-      }
-    };
-    let token_trees = make_token_trees(&token_list);
-    let items = {
-      let tt = token_trees.output().unwrap();
-      let parser = Item::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
-      run_parser(parser, tt)
-    };
-    let item_slice: &[(Item, SimpleSpan)] =
-      items.output().map(Vec::as_slice).unwrap_or_default();
-    for (item, _span) in item_slice {
-      println!("I: {item:?}");
-      if let Item::SectionDecl(SectionDecl { block_tokens, .. }) = item {
-        let p = BlockElement::parser().repeated().collect::<Vec<_>>();
-        let block_elem_result = run_parser(p, &block_tokens.0);
-        for be in block_elem_result.output().map(Vec::as_slice).unwrap_or_default() {
-          println!("==BE: {be:?}");
-        }
-        for e in block_elem_result.errors() {
-          println!("==ERR: {e:?}");
+  let file_results: Vec<_> = args.files.par_iter().map(build_process_file).collect();
+  for (result, filename) in file_results.iter().zip(args.files.iter()) {
+    println!("== Results for `{filename}` ==");
+    match result {
+      Ok(items) => {
+        for (item, _span) in items {
+          println!("Ok: {item:?}");
         }
       }
+      Err(err) => println!("Err: {err}"),
     }
   }
+}
+
+#[allow(clippy::ptr_arg)]
+fn build_process_file(filename: &String) -> Result<Vec<(ItemDecl, SimpleSpan)>, String> {
+  let file_string: String =
+    std::fs::read_to_string(filename).map_err(|e| e.to_string())?;
+
+  let tokens: Vec<(Token, SimpleSpan)> =
+    no_comment_tokens(&file_string).map_err(|e| format!("{e:?}"))?;
+
+  let token_trees: Vec<(TokenTree, SimpleSpan)> =
+    make_token_trees(&tokens).into_result().map_err(|v| format!("{v:?}"))?;
+
+  let items: Vec<(ItemDecl, SimpleSpan)> = {
+    let item_parser =
+      ItemDecl::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
+    run_parser(item_parser, &token_trees).into_result().map_err(|v| format!("{v:?}"))?
+  };
+
+  Ok(items)
 }
 
 pub fn unbuild(args: UnbuildArgs) {

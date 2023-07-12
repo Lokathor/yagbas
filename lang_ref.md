@@ -24,6 +24,8 @@ Outline of how I think the language grammar works.
 <ConstDecl> ::= const <Ident> = <not(;) ...> ;
 
 <SectionDecl> ::= section <Ident> [ <...> ] { <...> }
+
+<Item> ::= <ConstDecl> | <SectionDecl>
 ```
 
 <!--

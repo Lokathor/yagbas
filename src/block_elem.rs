@@ -35,7 +35,7 @@ impl core::fmt::Debug for BlockElem {
 }
 
 #[test]
-fn test_block_elem_parser() {
+fn test_parser() {
   let checks: &[(&str, BlockElem)] = &[
     ("here:", BlockElem::Label(Label::Ident("here"))),
     (

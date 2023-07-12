@@ -34,7 +34,7 @@ impl core::fmt::Debug for Place {
 }
 
 #[test]
-fn test_place_parser() {
+fn test_parser() {
   let checks: &[(&str, Place)] = &[
     ("a", Place::Place8(Place8::A)),
     ("b", Place::Place8(Place8::B)),

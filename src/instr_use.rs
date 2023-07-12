@@ -35,7 +35,7 @@ impl core::fmt::Debug for InstrUse {
 }
 
 #[test]
-fn test_instr_use_parser() {
+fn test_parser() {
   let checks: &[(&str, InstrUse)] = &[
     //
     (
