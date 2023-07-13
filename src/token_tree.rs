@@ -6,7 +6,7 @@ use crate::{
   ErrRichToken,
 };
 
-/// A lone token or a list of tokens in one of three grouping styles.
+/// A lone token or a list of token trees within one of three groupings.
 ///
 /// Collecting a raw token list into token trees ensures that all the
 /// opening/closing markers of all the groupings are balanced before trying to

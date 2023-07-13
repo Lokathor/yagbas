@@ -5,6 +5,11 @@ use crate::{
   section_decl::SectionDecl, *,
 };
 
+/// An item "declaration" has the minimum outline of an item.
+///
+/// To make the parsing as recoverable as possible, we only parse for the
+/// minimum outline, and leave any more complicated parsing for the next phase
+/// of the process.
 #[derive(Clone, PartialEq, Eq)]
 pub enum ItemDecl {
   ConstDecl(ConstDecl),
