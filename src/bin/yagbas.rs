@@ -3,6 +3,7 @@
 
 use chumsky::{span::SimpleSpan, IterParser, Parser as _};
 use yagbas::{
+  ast::Ast,
   comment_filter::no_comment_tokens,
   disassemble::print_basic_disassembly,
   id2,
@@ -79,8 +80,8 @@ pub fn build(args: BuildArgs) {
   for (result, filename) in file_results.iter().zip(args.files.iter()) {
     println!("== Results for `{filename}` ==");
     match result {
-      Ok(items) => {
-        for (item, _span) in items {
+      Ok(declarations) => {
+        for (item, _span) in &declarations.items {
           println!("Ok: {item:?}");
         }
       }
@@ -90,23 +91,17 @@ pub fn build(args: BuildArgs) {
 }
 
 #[allow(clippy::ptr_arg)]
-fn build_process_file(filename: &String) -> Result<Vec<(ItemDecl, SimpleSpan)>, String> {
+fn build_process_file(filename: &String) -> Result<Ast<ItemDecl>, String> {
   let file_string: String =
     std::fs::read_to_string(filename).map_err(|e| e.to_string())?;
 
-  let tokens: Vec<(Token, SimpleSpan)> =
-    no_comment_tokens(&file_string).map_err(|e| format!("{e:?}"))?;
+  let tokens: Ast<Token> = Ast::module_to_tokens(&file_string)?;
 
-  let token_trees: Vec<(TokenTree, SimpleSpan)> =
-    make_token_trees(&tokens).into_result().map_err(|v| format!("{v:?}"))?;
+  let token_trees: Ast<TokenTree> = tokens.make_token_trees()?;
 
-  let items: Vec<(ItemDecl, SimpleSpan)> = {
-    let item_parser =
-      ItemDecl::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
-    run_parser(item_parser, &token_trees).into_result().map_err(|v| format!("{v:?}"))?
-  };
+  let declarations: Ast<ItemDecl> = token_trees.parse_declarations()?;
 
-  Ok(items)
+  Ok(declarations)
 }
 
 pub fn unbuild(args: UnbuildArgs) {
