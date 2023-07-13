@@ -17,6 +17,7 @@ use chumsky::{
 use token::{Token, Token::*};
 use token_tree::{TokenTree, TokenTree::*};
 
+pub mod ast;
 pub mod block_elem;
 pub mod comment_filter;
 pub mod const_decl;
