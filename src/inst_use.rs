@@ -148,9 +148,9 @@ fn test_parser() {
     //
     (
       "ld a, 0;",
-      InstUse::LoadPlace8ConstExpr { place: Place8::A, expr: ConstExpr::Lit(Ok(0)) },
+      InstUse::LoadPlace8ConstExpr { place: Place8::A, expr: ConstExpr::Value(0) },
     ),
-    ("cp a, 144;", InstUse::CompareAConst { expr: ConstExpr::Lit(Ok(144)) }),
+    ("cp a, 144;", InstUse::CompareAConst { expr: ConstExpr::Value(144) }),
     ("inc de;", InstUse::Inc16(Place16::DE)),
     (
       "daa;",

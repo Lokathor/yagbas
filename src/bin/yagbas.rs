@@ -113,6 +113,8 @@ fn build_process_file(filename: &String) -> Ast<ItemFormed> {
 
   let forms: Ast<ItemFormed> = declarations.into_forms();
 
+  // TODO: replace const idents with their values
+
   forms
 }
 

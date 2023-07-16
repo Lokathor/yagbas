@@ -42,7 +42,7 @@ fn test_parser() {
       "ld a, 0;",
       BlockEntry::InstUse(InstUse::LoadPlace8ConstExpr {
         place: Place8::A,
-        expr: ConstExpr::Lit(Ok(0)),
+        expr: ConstExpr::Value(0),
       }),
     ),
     (
