@@ -1,6 +1,7 @@
 use chumsky::{input::ValueInput, prelude::*};
 
 use crate::{
+  ast::Ast,
   id2, run_parser,
   token::{Token, Token::*},
   ErrRichToken,
@@ -196,8 +197,8 @@ fn test_make_token_trees() {
   ];
 
   for (prog, expected) in checks {
-    let tokens = crate::comment_filter::no_comment_tokens(prog).unwrap();
-    let token_trees = make_token_trees(&tokens);
+    let tokens = Ast::tokenize(prog.to_string());
+    let token_trees = make_token_trees(&tokens.items);
     if token_trees.has_errors() {
       for err in token_trees.errors() {
         println!("ERROR: {err:?}");

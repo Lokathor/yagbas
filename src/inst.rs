@@ -1,7 +1,7 @@
 use crate::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Instruction {
+pub enum Inst {
   ADC,
   ADD,
   AND,
@@ -46,7 +46,7 @@ pub enum Instruction {
   SWAP,
   XOR,
 }
-impl Instruction {
+impl Inst {
   pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
   where
     I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
@@ -98,7 +98,7 @@ impl Instruction {
     }
   }
 }
-impl core::fmt::Debug for Instruction {
+impl core::fmt::Debug for Inst {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
       f,

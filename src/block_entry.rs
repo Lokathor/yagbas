@@ -1,34 +1,34 @@
 use crate::{
-  instr_use::InstrUse, instruction::Instruction, label::Label, macro_use::MacroUse,
-  place::Place, place16::Place16, place8::Place8, place_const::PlaceConst,
-  place_indirect::PlaceIndirect, place_use::PlaceUse, *,
+  ast::Ast, const_expr::ConstExpr, inst::Inst, inst_use::InstUse, label::Label,
+  macro_use::MacroUse, place::Place, place16::Place16, place8::Place8,
+  place_const::PlaceConst, place_indirect::PlaceIndirect, place_use::PlaceUse, *,
 };
 
 #[derive(Clone, PartialEq, Eq)]
-pub enum BlockElem {
+pub enum BlockEntry {
   Label(Label),
   MacroUse(MacroUse),
-  InstrUse(InstrUse),
+  InstUse(InstUse),
   PlaceUse(PlaceUse),
 }
-impl BlockElem {
+impl BlockEntry {
   pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
   where
     I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
   {
     let label = Label::parser().map(Self::Label);
     let macro_ = MacroUse::parser().map(Self::MacroUse).then_ignore(semicolon());
-    let instr = InstrUse::parser().map(Self::InstrUse);
+    let instr = InstUse::parser().map(Self::InstUse);
     let place = PlaceUse::parser().map(Self::PlaceUse);
     choice((label, macro_, instr, place))
   }
 }
-impl core::fmt::Debug for BlockElem {
+impl core::fmt::Debug for BlockEntry {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::Label(x) => write!(f, "{x:?}"),
       Self::MacroUse(x) => write!(f, "{x:?}"),
-      Self::InstrUse(x) => write!(f, "{x:?}"),
+      Self::InstUse(x) => write!(f, "{x:?}"),
       Self::PlaceUse(x) => write!(f, "{x:?}"),
     }
   }
@@ -36,22 +36,18 @@ impl core::fmt::Debug for BlockElem {
 
 #[test]
 fn test_parser() {
-  let checks: &[(&str, BlockElem)] = &[
-    ("here:", BlockElem::Label(Label::Ident("here"))),
+  let checks: &[(&str, BlockEntry)] = &[
+    ("here:", BlockEntry::Label(Label::Ident("here"))),
     (
       "ld a, 0;",
-      BlockElem::InstrUse(InstrUse {
-        name: (Instruction::LD, SimpleSpan::from(0..2)),
-        args: vec![
-          (Lone(RegA), SimpleSpan::from(3..4)),
-          (Lone(Punct(',')), SimpleSpan::from(4..5)),
-          (Lone(NumLit("0")), SimpleSpan::from(6..7)),
-        ],
+      BlockEntry::InstUse(InstUse::LoadPlace8ConstExpr {
+        place: Place8::A,
+        expr: ConstExpr::Lit(Ok(0)),
       }),
     ),
     (
       "a &= 0xF0;",
-      BlockElem::PlaceUse(PlaceUse {
+      BlockEntry::PlaceUse(PlaceUse {
         name: (Place::Place8(Place8::A), SimpleSpan::from(0..1)),
         args: vec![
           (Lone(Punct('&')), SimpleSpan::from(2..3)),
@@ -62,7 +58,7 @@ fn test_parser() {
     ),
     (
       "raw_bytes!($00,$F0);",
-      BlockElem::MacroUse(MacroUse {
+      BlockEntry::MacroUse(MacroUse {
         name: ("raw_bytes", SimpleSpan::from(0..9)),
         args: vec![
           (Lone(NumLit("$00")), SimpleSpan::from(11..14)),
@@ -74,9 +70,10 @@ fn test_parser() {
   ];
 
   for (prog, expected) in checks {
-    let tokens = crate::comment_filter::no_comment_tokens(prog).unwrap();
-    let token_trees = crate::token_tree::make_token_trees(&tokens).into_output().unwrap();
-    let parse_result = run_parser(BlockElem::parser(), &token_trees);
+    let tokens = Ast::tokenize(prog.to_string());
+    let token_trees =
+      crate::token_tree::make_token_trees(&tokens.items).into_output().unwrap();
+    let parse_result = run_parser(BlockEntry::parser(), &token_trees);
     if parse_result.has_errors() {
       for err in parse_result.errors() {
         println!("ERROR: {err:?}");

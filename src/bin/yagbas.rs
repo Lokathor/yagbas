@@ -2,12 +2,13 @@
 #![allow(unused_imports)]
 
 use chumsky::{span::SimpleSpan, IterParser, Parser as _};
+use std::borrow::Cow;
 use yagbas::{
   ast::Ast,
-  comment_filter::no_comment_tokens,
   disassemble::print_basic_disassembly,
   id2,
   item_decl::ItemDecl,
+  item_formed::ItemFormed,
   run_parser,
   token::Token,
   token_tree::{make_token_trees, TokenTree},
@@ -77,31 +78,42 @@ pub fn build(args: BuildArgs) {
   }
 
   let file_results: Vec<_> = args.files.par_iter().map(build_process_file).collect();
-  for (result, filename) in file_results.iter().zip(args.files.iter()) {
-    println!("== Results for `{filename}` ==");
-    match result {
-      Ok(declarations) => {
-        for (item, _span) in &declarations.items {
-          println!("Ok: {item:?}");
-        }
-      }
-      Err(err) => println!("Err: {err}"),
+  for (ast, filename) in file_results.iter().zip(args.files.iter()) {
+    println!("== AST Info For `{filename}` ==");
+    for (item, span) in &ast.items {
+      let line = ast.line_of(span.start);
+      println!("I(L {line}): {item:?}");
+    }
+    for (error, span) in &ast.errors {
+      let line = ast.line_of(span.start);
+      println!("ERR(L {line}): {error:?}");
     }
   }
 }
 
 #[allow(clippy::ptr_arg)]
-fn build_process_file(filename: &String) -> Result<Ast<ItemDecl>, String> {
-  let file_string: String =
-    std::fs::read_to_string(filename).map_err(|e| e.to_string())?;
+fn build_process_file(filename: &String) -> Ast<ItemFormed> {
+  let file_string: String = match std::fs::read_to_string(filename) {
+    Ok(s) => s,
+    Err(e) => {
+      return Ast {
+        module_text: String::new(),
+        lines: Vec::new(),
+        items: Vec::new(),
+        errors: vec![(Cow::Owned(format!("{e:?}")), SimpleSpan::from(0..0))],
+      }
+    }
+  };
 
-  let tokens: Ast<Token> = Ast::module_to_tokens(&file_string)?;
+  let tokens: Ast<Token> = Ast::tokenize(file_string);
 
-  let token_trees: Ast<TokenTree> = tokens.make_token_trees()?;
+  let token_trees: Ast<TokenTree> = tokens.into_token_trees();
 
-  let declarations: Ast<ItemDecl> = token_trees.parse_declarations()?;
+  let declarations: Ast<ItemDecl> = token_trees.into_declarations();
 
-  Ok(declarations)
+  let forms: Ast<ItemFormed> = declarations.into_forms();
+
+  forms
 }
 
 pub fn unbuild(args: UnbuildArgs) {

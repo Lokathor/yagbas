@@ -1,5 +1,5 @@
 use crate::{
-  place16::Place16, place8::Place8, place_const::PlaceConst,
+  ast::Ast, place16::Place16, place8::Place8, place_const::PlaceConst,
   place_indirect::PlaceIndirect, *,
 };
 
@@ -79,8 +79,9 @@ fn test_parser() {
   ];
 
   for (prog, expected) in checks {
-    let tokens = crate::comment_filter::no_comment_tokens(prog).unwrap();
-    let token_trees = crate::token_tree::make_token_trees(&tokens).into_output().unwrap();
+    let tokens = Ast::tokenize(prog.to_string());
+    let token_trees =
+      crate::token_tree::make_token_trees(&tokens.items).into_output().unwrap();
     let parse_result = run_parser(Place::parser(), &token_trees);
     if parse_result.has_errors() {
       for err in parse_result.errors() {

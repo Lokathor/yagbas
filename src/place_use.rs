@@ -1,4 +1,4 @@
-use crate::{place::Place, place16::Place16, place8::Place8, *};
+use crate::{ast::Ast, place::Place, place16::Place16, place8::Place8, *};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct PlaceUse {
@@ -72,8 +72,9 @@ fn test_instr_use_parser() {
   ];
 
   for (prog, expected) in checks {
-    let tokens = crate::comment_filter::no_comment_tokens(prog).unwrap();
-    let token_trees = crate::token_tree::make_token_trees(&tokens).into_output().unwrap();
+    let tokens = Ast::tokenize(prog.to_string());
+    let token_trees =
+      crate::token_tree::make_token_trees(&tokens.items).into_output().unwrap();
     let parse_result = run_parser(PlaceUse::parser(), &token_trees);
     if parse_result.has_errors() {
       for err in parse_result.errors() {

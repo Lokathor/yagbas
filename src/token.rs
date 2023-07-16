@@ -12,21 +12,20 @@ pub enum Token {
 
   /// `/*`, the start of a multi-line comment
   #[token(r"/*", priority = 2)]
-  CommentMultiStart,
+  CommentBlockStart,
 
   /// `*/`, the end of a multi-line comment
   #[token(r"*/", priority = 2)]
-  CommentMultiEnd,
+  CommentBlockEnd,
 
-  /// Keyword: `section`
   #[token("section")]
   KwSection,
-  /// Keyword: `const`
   #[token("const")]
   KwConst,
-  /// Keyword: `static`
   #[token("static")]
   KwStatic,
+  #[token("if")]
+  KwIf,
 
   #[token("a", priority = 3)]
   #[token("A", priority = 3)]
@@ -273,8 +272,8 @@ impl core::fmt::Debug for Token {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match *self {
       Token::CommentSingle => write!(f, "//"),
-      Token::CommentMultiStart => write!(f, "/*"),
-      Token::CommentMultiEnd => write!(f, "*/"),
+      Token::CommentBlockStart => write!(f, "/*"),
+      Token::CommentBlockEnd => write!(f, "*/"),
       Token::Ident(i) => write!(f, "{i}"),
       Token::Punct(p) => write!(f, "{p}"),
       Token::NumLit(n) => write!(f, "n{n:?}"),
@@ -348,6 +347,7 @@ impl core::fmt::Debug for Token {
       Token::AddrHLDec => write!(f, "[hl--]"),
       Token::AddrBC => write!(f, "[bc]"),
       Token::AddrDE => write!(f, "[de]"),
+      Token::KwIf => write!(f, "if"),
     }
   }
 }
