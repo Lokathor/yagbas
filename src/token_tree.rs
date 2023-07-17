@@ -82,50 +82,6 @@ impl TokenTree {
     recursive(|tt| {
       let token_list = tt.map_with_span(id2).repeated().collect::<Vec<_>>();
 
-      // Certain bracketed sequences that occur very frequently, and that have
-      // only one form without extra info we need to carry, we collapse into a
-      // single lone token during the tree creation. This reduces intermediate
-      // allocation and simplifies the later parsing stages quite a bit.
-
-      // Looks like `[ hl + + ]` or `[ hl + ]`
-      let addr_hl_inc = just(Punct('['))
-        .ignore_then(just(RegHL))
-        .ignore_then(just(Punct('+')))
-        .ignore_then(just(Punct('+')).or_not())
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrHLInc));
-
-      // Looks like `[ hl - - ]` or `[ hl - ]`
-      let addr_hl_dec = just(Punct('['))
-        .ignore_then(just(RegHL))
-        .ignore_then(just(Punct('-')))
-        .ignore_then(just(Punct('-')).or_not())
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrHLDec));
-
-      // Looks like `[ hl ]`
-      let addr_hl = just(Punct('['))
-        .ignore_then(just(RegHL))
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrHL));
-
-      // Looks like `[ bc ]`
-      let addr_bc = just(Punct('['))
-        .ignore_then(just(RegBC))
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrBC));
-
-      // Looks like `[ de ]`
-      let addr_de = just(Punct('['))
-        .ignore_then(just(RegDE))
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrDE));
-
       // Looks like `[...]`
       let brackets = token_list
         .clone()
@@ -147,17 +103,7 @@ impl TokenTree {
       // Looks like something that does *NOT* close one of the other types.
       let single = none_of([Punct(')'), Punct(']'), Punct('}')]).map(TokenTree::Lone);
 
-      choice((
-        addr_hl_inc,
-        addr_hl_dec,
-        addr_hl,
-        addr_bc,
-        addr_de,
-        brackets,
-        braces,
-        parens,
-        single,
-      ))
+      choice((brackets, braces, parens, single))
     })
   }
 }

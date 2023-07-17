@@ -67,24 +67,6 @@ pub enum Token {
   #[token("PC", priority = 3)]
   RegPC,
 
-  /*
-   * these tokens aren't Logos output, they can only be produced by the
-   * TokenTree builder flattening specific Brackets tree sequences. Logos
-   * doesn't support backtracking, so trying to lex these tokens directly would
-   * cause more errors than desirable in the raw token stream. Not every sequence
-   * gets a special replacement, but these are particularly common.
-   */
-  /// `[bc]`
-  AddrBC,
-  /// `[de]`
-  AddrDE,
-  /// `[hl]`
-  AddrHL,
-  /// `[hl++]`
-  AddrHLInc,
-  /// `[hl--]`
-  AddrHLDec,
-
   #[token("adc", priority = 3)]
   #[token("ADC", priority = 3)]
   InstADC,
@@ -345,11 +327,6 @@ impl core::fmt::Debug for Token {
       Token::CondZE => write!(f, "ze"),
       Token::CondNZ => write!(f, "nz"),
       Token::CondAL => write!(f, "al"),
-      Token::AddrHL => write!(f, "[hl]"),
-      Token::AddrHLInc => write!(f, "[hl++]"),
-      Token::AddrHLDec => write!(f, "[hl--]"),
-      Token::AddrBC => write!(f, "[bc]"),
-      Token::AddrDE => write!(f, "[de]"),
       Token::KwIf => write!(f, "if"),
       Token::TokenError => write!(f, "//TokenError"),
     }
