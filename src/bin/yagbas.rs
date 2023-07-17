@@ -2,9 +2,16 @@
 #![allow(unused_imports)]
 #![allow(clippy::ptr_arg)]
 
-use chumsky::{span::SimpleSpan, IterParser, Parser as _};
+use chumsky::{
+  prelude::Rich, primitive::*, recovery::via_parser, span::SimpleSpan, IterParser,
+  Parser as _,
+};
 use std::borrow::Cow;
-use yagbas::{token::Token, token_tree::TokenTree};
+use yagbas::{
+  id2,
+  token::{tokenize_module, Token},
+  token_tree::{grow_token_trees, TokenTree},
+};
 
 use clap::{Args, Parser, Subcommand};
 
@@ -82,18 +89,12 @@ fn build_process_file(filename: &String) {
     }
   };
 
-  let tokens: Vec<(Token, SimpleSpan)> = Token::lexer(&module_src)
-    .spanned()
-    .map(|(r, span)| (r.unwrap_or(Token::TokenError), SimpleSpan::from(span)))
-    .collect();
+  let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(&module_src);
   println!("== Tokens: {tokens:?}");
 
-  let span: SimpleSpan = SimpleSpan::from(0..module_src.len());
-  let parser = TokenTree::parser().repeated();
-  let input = tokens.spanned(span);
-  use chumsky::input::Input;
-  let parse_result = parser.parse(input);
-  println!("{parse_result:?}");
+  let (token_trees, tree_parse_errors) = grow_token_trees(&tokens);
+  println!("== Token Trees: {token_trees:?}");
+  println!("== Token Tree Parse Errors: {tree_parse_errors:?}");
 }
 
 pub fn unbuild(args: UnbuildArgs) {

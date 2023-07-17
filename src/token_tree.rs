@@ -6,7 +6,7 @@ use chumsky::{
 use crate::{
   id2,
   token::{Token, Token::*},
-  ErrRichToken,
+  ErrRichToken, TokenSlice,
 };
 
 /// A lone token or a list of token trees within one of three groupings.
@@ -22,7 +22,6 @@ pub enum TokenTree {
   Parens(Vec<(Self, SimpleSpan)>),
   Brackets(Vec<(Self, SimpleSpan)>),
   Braces(Vec<(Self, SimpleSpan)>),
-  CommentBlock,
   TreeError,
 }
 use TokenTree::*;
@@ -75,101 +74,79 @@ impl core::fmt::Debug for TokenTree {
           Ok(())
         }
       }
-      CommentBlock => write!(f, "/* */"),
       TreeError => write!(f, "TreeError"),
     }
   }
 }
 impl TokenTree {
   /// Parses for just one token tree.
-  pub fn parser<'a>() -> impl Parser<
-    'a,
-    SpannedInput<Token, SimpleSpan, &'a [(Token, SimpleSpan)]>,
-    Self,
-    ErrRichToken<'a>,
-  > + Clone {
+  pub fn parser<'a>() -> impl Parser<'a, TokenSlice<'a>, Self, ErrRichToken<'a>> + Clone {
     recursive(|tt| {
       let token_list = tt.map_with_span(id2).repeated().collect::<Vec<_>>();
 
-      // Looks like `/* ... */`
-      let comment = token_list
-        .clone()
-        .delimited_by(just(CommentBlockStart), just(CommentBlockEnd))
-        .to(CommentBlock);
-
-      // Looks like `[...]`
+      // Looks like `[ ... ]`
       let brackets = token_list
         .clone()
         .delimited_by(just(Punct('[')), just(Punct(']')))
-        .map(|mut trees| {
-          trees.retain(|(tree, _span)| !matches!(tree, TokenTree::CommentBlock));
-          TokenTree::Brackets(trees)
-        });
+        .map(TokenTree::Brackets);
 
-      // Looks like `{...}`
+      // Looks like `{ ... }`
       let braces = token_list
         .clone()
         .delimited_by(just(Punct('{')), just(Punct('}')))
-        .map(|mut trees| {
-          trees.retain(|(tree, _span)| !matches!(tree, TokenTree::CommentBlock));
-          TokenTree::Braces(trees)
-        });
+        .map(TokenTree::Braces);
 
-      // Looks like `(...)`
+      // Looks like `( ... )`
       let parens = token_list
         .clone()
         .delimited_by(just(Punct('(')), just(Punct(')')))
-        .map(|mut trees| {
-          trees.retain(|(tree, _span)| !matches!(tree, TokenTree::CommentBlock));
-          TokenTree::Parens(trees)
-        });
+        .map(TokenTree::Parens);
 
       // Looks like something that does *NOT* close one of the other types.
-      let single = none_of([CommentBlockEnd, Punct(')'), Punct(']'), Punct('}')])
-        .padded_by(just(CommentSingle).repeated())
-        .map(TokenTree::Lone);
+      let single = none_of([
+        Punct('['),
+        Punct(']'),
+        Punct('{'),
+        Punct('}'),
+        Punct('('),
+        Punct(')'),
+        CommentBlockStart,
+        CommentBlockEnd,
+      ])
+      .map(TokenTree::Lone);
 
-      choice((comment, brackets, braces, parens, single))
+      // Looks like `//`
+      let single_comment = just(CommentSingle).ignored();
+
+      // Looks like `/* ... */`
+      let block_comment = token_list
+        .clone()
+        .delimited_by(just(CommentBlockStart), just(CommentBlockEnd))
+        .ignored();
+
+      // Either type of comment
+      let comment = single_comment.or(block_comment);
+
+      choice((brackets, braces, parens, single)).padded_by(comment.repeated())
     })
   }
 }
 
-#[test]
-#[cfg(FALSE)]
-fn test_make_token_trees() {
-  let checks: &[(&str, &[TokenTree])] = &[
-    ("[hl]", &[Lone(AddrHL)]),
-    ("[ hl]", &[Lone(AddrHL)]),
-    ("[hl ]", &[Lone(AddrHL)]),
-    ("[ hl ]", &[Lone(AddrHL)]),
-    //
-    ("[bc]", &[Lone(AddrBC)]),
-    ("[ bc]", &[Lone(AddrBC)]),
-    ("[bc ]", &[Lone(AddrBC)]),
-    ("[ bc ]", &[Lone(AddrBC)]),
-    //
-    ("[hl+]", &[Lone(AddrHLInc)]),
-    ("[hl++]", &[Lone(AddrHLInc)]),
-    ("[hl +]", &[Lone(AddrHLInc)]),
-    ("[hl + +]", &[Lone(AddrHLInc)]),
-    //
-    ("[hl-]", &[Lone(AddrHLDec)]),
-    ("[hl--]", &[Lone(AddrHLDec)]),
-    ("[hl -  ]", &[Lone(AddrHLDec)]),
-    ("[ hl  - -]", &[Lone(AddrHLDec)]),
-  ];
-
-  for (prog, expected) in checks {
-    let tokens = Ast::tokenize(prog.to_string());
-    let token_trees = make_token_trees(&tokens.items);
-    if token_trees.has_errors() {
-      for err in token_trees.errors() {
-        println!("ERROR: {err:?}");
-      }
-      panic!("One or more errors during token tree creation.");
-    }
-    for (ex, ac) in expected.iter().zip(token_trees.output().unwrap().iter()) {
-      assert_eq!(ex, &ac.0);
-    }
-  }
+pub fn grow_token_trees(
+  tokens: &[(Token, SimpleSpan)],
+) -> (Vec<(TokenTree, SimpleSpan)>, Vec<Rich<'static, Token>>) {
+  let len = tokens.last().map(|(_, s)| s.end).unwrap_or(0);
+  let span: SimpleSpan = SimpleSpan::from(len..len);
+  let parser = TokenTree::parser()
+    .recover_with(via_parser(any().repeated().at_least(1).to(TokenTree::TreeError)))
+    .map_with_span(id2)
+    .repeated()
+    .collect::<Vec<_>>();
+  let input = tokens.spanned(span);
+  use chumsky::input::Input;
+  let (trees, errors) = parser.parse(input).into_output_errors();
+  (
+    trees.unwrap_or_default(),
+    errors.into_iter().map(|r| r.into_owned()).collect::<Vec<_>>(),
+  )
 }

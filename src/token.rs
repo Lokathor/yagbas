@@ -1,6 +1,7 @@
 use core::ops::Range;
 
 use crate::{static_str, StaticStr};
+use chumsky::span::SimpleSpan;
 use logos::Logos;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Logos)]
@@ -328,7 +329,14 @@ impl core::fmt::Debug for Token {
       Token::CondNZ => write!(f, "nz"),
       Token::CondAL => write!(f, "al"),
       Token::KwIf => write!(f, "if"),
-      Token::TokenError => write!(f, "//TokenError"),
+      Token::TokenError => write!(f, "/*TokenError*/"),
     }
   }
+}
+
+pub fn tokenize_module(module_src: &str) -> Vec<(Token, SimpleSpan)> {
+  Token::lexer(module_src)
+    .spanned()
+    .map(|(r, span)| (r.unwrap_or(Token::TokenError), SimpleSpan::from(span)))
+    .collect()
 }
