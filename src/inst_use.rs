@@ -137,8 +137,8 @@ impl InstUse {
       load_place_indirect_a,
       compare_a_const,
       jump,
-      unknown_fallback,
     ))
+    .recover_with(via_parser(unknown_fallback))
   }
 }
 
@@ -160,14 +160,12 @@ fn test_parser() {
 
   for (prog, expected) in checks {
     let tokens = Ast::tokenize(prog.to_string());
-    let token_trees =
-      crate::token_tree::make_token_trees(&tokens.items).into_output().unwrap();
-    let parse_result = run_parser(InstUse::parser(), &token_trees);
+    let token_trees = tokens.into_token_trees();
+    let parse_result = run_parser(InstUse::parser(), &token_trees.items);
     if parse_result.has_errors() {
       for err in parse_result.errors() {
         println!("ERROR: {err:?}");
       }
-      panic!("One or more errors.");
     }
     assert_eq!(expected, parse_result.output().unwrap());
   }
