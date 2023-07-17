@@ -77,8 +77,11 @@ impl Ast<Token> {
 
 impl Ast<TokenTree> {
   pub fn into_declarations(self) -> Ast<ItemDecl> {
-    let item_parser =
-      ItemDecl::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
+    let item_parser = ItemDecl::parser()
+      .recover_with(via_parser(any().repeated().at_least(1).to(ItemDecl::DeclError)))
+      .map_with_span(id2)
+      .repeated()
+      .collect::<Vec<_>>();
     let (declarations, rich_errors) =
       run_parser(item_parser, &self.items).into_output_errors();
 

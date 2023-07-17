@@ -14,6 +14,7 @@ use crate::{
 pub enum ItemDecl {
   ConstDecl(ConstDecl),
   SectionDecl(SectionDecl),
+  DeclError,
 }
 impl ItemDecl {
   pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
@@ -30,6 +31,7 @@ impl core::fmt::Debug for ItemDecl {
     match self {
       Self::ConstDecl(x) => write!(f, "{x:?}"),
       Self::SectionDecl(x) => write!(f, "{x:?}"),
+      Self::DeclError => write!(f, "/*DeclError*/"),
     }
   }
 }

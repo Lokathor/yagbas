@@ -8,6 +8,7 @@ use super::*;
 pub enum ItemFormed {
   Const(ConstFormed),
   Section(SectionFormed),
+  FormedError,
 }
 impl TryFrom<ItemDecl> for ItemFormed {
   type Error = Vec<CowStr>;
@@ -15,6 +16,7 @@ impl TryFrom<ItemDecl> for ItemFormed {
     Ok(match decl {
       ItemDecl::ConstDecl(x) => Self::Const(x.try_into()?),
       ItemDecl::SectionDecl(x) => Self::Section(x.try_into()?),
+      ItemDecl::DeclError => ItemFormed::FormedError,
     })
   }
 }
@@ -23,6 +25,7 @@ impl core::fmt::Debug for ItemFormed {
     match self {
       ItemFormed::Const(x) => write!(f, "{x:?}"),
       ItemFormed::Section(x) => write!(f, "{x:?}"),
+      ItemFormed::FormedError => write!(f, "/*FormedError*/"),
     }
   }
 }
