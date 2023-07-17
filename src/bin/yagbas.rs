@@ -1,18 +1,10 @@
 #![allow(clippy::while_let_on_iterator)]
 #![allow(unused_imports)]
+#![allow(clippy::ptr_arg)]
 
 use chumsky::{span::SimpleSpan, IterParser, Parser as _};
 use std::borrow::Cow;
-use yagbas::{
-  ast::Ast,
-  disassemble::print_basic_disassembly,
-  id2,
-  item_decl::ItemDecl,
-  item_formed::ItemFormed,
-  run_parser,
-  token::Token,
-  token_tree::{make_token_trees, TokenTree},
-};
+use yagbas::token::Token;
 
 use clap::{Args, Parser, Subcommand};
 
@@ -77,45 +69,24 @@ pub fn build(args: BuildArgs) {
     return;
   }
 
-  let file_results: Vec<_> = args.files.par_iter().map(build_process_file).collect();
-  for (ast, filename) in file_results.iter().zip(args.files.iter()) {
-    println!("== AST Info For `{filename}` ==");
-    for (item, span) in &ast.items {
-      let line = ast.line_of(span.start);
-      println!("I(L {line}): {item:?}");
-    }
-    for (error, span) in &ast.errors {
-      let line = ast.line_of(span.start);
-      println!("ERR(L {line}): {error:?}");
-    }
-  }
+  let _todo: Vec<_> = args.files.iter().map(build_process_file).collect();
 }
 
-#[allow(clippy::ptr_arg)]
-fn build_process_file(filename: &String) -> Ast<ItemFormed> {
-  let file_string: String = match std::fs::read_to_string(filename) {
+fn build_process_file(filename: &String) {
+  println!("== {filename}:");
+  let module_src: String = match std::fs::read_to_string(filename) {
     Ok(s) => s,
     Err(e) => {
-      return Ast {
-        module_text: String::new(),
-        lines: Vec::new(),
-        items: Vec::new(),
-        errors: vec![(Cow::Owned(format!("{e:?}")), SimpleSpan::from(0..0))],
-      }
+      println!("File Read Error: {e:?}");
+      return;
     }
   };
 
-  let tokens: Ast<Token> = Ast::tokenize(file_string);
-
-  let token_trees: Ast<TokenTree> = tokens.into_token_trees();
-
-  let declarations: Ast<ItemDecl> = token_trees.into_declarations();
-
-  let forms: Ast<ItemFormed> = declarations.into_forms();
-
-  // TODO: replace const idents with their values
-
-  forms
+  let tokens: Vec<(Token, logos::Span)> = Token::lexer(&module_src)
+    .spanned()
+    .map(|(r, span)| (r.unwrap_or(Token::TokenError), span))
+    .collect();
+  println!("== Tokens: {tokens:?}");
 }
 
 pub fn unbuild(args: UnbuildArgs) {
@@ -123,12 +94,12 @@ pub fn unbuild(args: UnbuildArgs) {
   //
   let file = &args.file;
   println!("Reading `{file}`...");
-  let rom = match std::fs::read(file) {
+  let _rom = match std::fs::read(file) {
     Ok(bytes) => bytes,
     Err(e) => {
       println!("File Read Error: {e:?}");
       return;
     }
   };
-  print_basic_disassembly(&rom)
+  //print_basic_disassembly(&rom)
 }

@@ -1,8 +1,7 @@
 use chumsky::{input::ValueInput, prelude::*};
 
 use crate::{
-  ast::Ast,
-  id2, run_parser,
+  id2,
   token::{Token, Token::*},
   ErrRichToken,
 };
@@ -76,7 +75,7 @@ impl core::fmt::Debug for TokenTree {
 }
 impl TokenTree {
   /// Parses for just one token tree.
-  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichToken<'a>>
+  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichToken<'a>> + Clone
   where
     I: ValueInput<'a, Token = crate::token::Token, Span = SimpleSpan>,
   {
@@ -163,16 +162,8 @@ impl TokenTree {
   }
 }
 
-#[inline]
-pub fn make_token_trees(
-  tokens: &[(Token, SimpleSpan)],
-) -> ParseResult<Vec<(TokenTree, SimpleSpan)>, Rich<'_, Token>> {
-  let parser = TokenTree::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
-  //
-  run_parser(parser, tokens)
-}
-
 #[test]
+#[cfg(FALSE)]
 fn test_make_token_trees() {
   let checks: &[(&str, &[TokenTree])] = &[
     ("[hl]", &[Lone(AddrHL)]),

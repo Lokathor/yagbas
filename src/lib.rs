@@ -16,34 +16,12 @@ use chumsky::{
   IterParser, ParseResult, Parser,
 };
 use rayon::prelude::*;
-use token::{Token, Token::*};
-use token_tree::{TokenTree, TokenTree::*};
 
-pub mod ast;
-pub mod block_entry;
-pub mod cond;
-pub mod const_decl;
-pub mod const_expr;
-pub mod const_formed;
-pub mod inst;
-pub mod inst_use;
-pub mod item_decl;
-pub mod item_formed;
-pub mod jump_target;
-pub mod label;
-pub mod macro_use;
-pub mod place;
-pub mod place16;
-pub mod place8;
-pub mod place_const;
-pub mod place_indirect;
-pub mod place_use;
-pub mod section_decl;
-pub mod section_formed;
 pub mod token;
-pub mod token_tree;
+use token::{Token, Token::*};
 
-pub mod disassemble;
+pub mod token_tree;
+use token_tree::{TokenTree, TokenTree::*};
 
 pub type StaticStr = &'static str;
 pub type CowStr = Cow<'static, str>;
@@ -86,6 +64,32 @@ pub fn static_str(s: &str) -> StaticStr {
 pub const fn id2<A, B>(a: A, b: B) -> (A, B) {
   (a, b)
 }
+
+/*
+
+pub mod ast;
+pub mod block_entry;
+pub mod cond;
+pub mod const_decl;
+pub mod const_expr;
+pub mod const_formed;
+pub mod inst;
+pub mod inst_use;
+pub mod item_decl;
+pub mod item_formed;
+pub mod jump_target;
+pub mod label;
+pub mod macro_use;
+pub mod place;
+pub mod place16;
+pub mod place8;
+pub mod place_const;
+pub mod place_indirect;
+pub mod place_use;
+pub mod section_decl;
+pub mod section_formed;
+
+pub mod disassemble;
 
 pub fn spanless<T>(spanned: &[(T, SimpleSpan)]) -> impl Iterator<Item = &T> {
   spanned.iter().map(|(t, _s)| t)
@@ -254,3 +258,5 @@ pub fn lit_to_value(lit: &str) -> Result<i32, CowStr> {
     dec_to_value(lit)
   }
 }
+
+*/

@@ -260,6 +260,9 @@ pub enum Token {
   /// escape (that would start with `\`)"
   #[regex(r#""((\\"|\\\\)|[^\\"])*""#, |lex| {let s = lex.slice(); static_str(&s[1..s.len()-1]) })]
   StrLit(StaticStr),
+
+  /// Error during lexing (the token's span says where)
+  TokenError,
 }
 impl Token {
   #[inline]
@@ -348,6 +351,7 @@ impl core::fmt::Debug for Token {
       Token::AddrBC => write!(f, "[bc]"),
       Token::AddrDE => write!(f, "[de]"),
       Token::KwIf => write!(f, "if"),
+      Token::TokenError => write!(f, "//TokenError"),
     }
   }
 }
