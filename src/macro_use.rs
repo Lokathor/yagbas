@@ -6,7 +6,7 @@ pub struct MacroUse {
   pub args: Vec<(TokenTree, SimpleSpan)>,
 }
 impl MacroUse {
-  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
+  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>> + Clone
   where
     I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
   {

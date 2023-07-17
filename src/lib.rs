@@ -9,7 +9,7 @@ use std::{
 
 use chumsky::{
   extra::ParserExtra,
-  input::{SpannedInput, ValueInput},
+  input::{BorrowInput, SpannedInput, ValueInput},
   prelude::*,
   primitive::Just,
   span::{SimpleSpan, Span},
@@ -49,6 +49,9 @@ pub type StaticStr = &'static str;
 pub type CowStr = Cow<'static, str>;
 pub type ErrRichToken<'a> = extra::Err<Rich<'a, Token>>;
 pub type ErrRichTokenTree<'a> = extra::Err<Rich<'a, TokenTree>>;
+pub type InputSlice<'a, T> = SpannedInput<T, SimpleSpan, &'a [(T, SimpleSpan)]>;
+pub type TokenTreeInput<'a> =
+  SpannedInput<TokenTree, SimpleSpan, &'a [(TokenTree, SimpleSpan)]>;
 
 /// Convert any str into a static str, using a global cache.
 #[inline]
@@ -88,8 +91,6 @@ pub fn spanless<T>(spanned: &[(T, SimpleSpan)]) -> impl Iterator<Item = &T> {
   spanned.iter().map(|(t, _s)| t)
 }
 
-pub type InputSlice<'a, T> = SpannedInput<T, SimpleSpan, &'a [(T, SimpleSpan)]>;
-
 /// Runs a parser from `T` to `O` on a slice of `T`, giving a [ParseResult]
 #[inline]
 pub fn run_parser<'a, P, T, O, E>(
@@ -114,7 +115,7 @@ where
   parser.parse(input)
 }
 
-pub fn ident<'a, I>() -> impl Parser<'a, I, StaticStr, ErrRichTokenTree<'a>>
+pub fn ident<'a, I>() -> impl Parser<'a, I, StaticStr, ErrRichTokenTree<'a>> + Clone
 where
   I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
 {
@@ -123,7 +124,7 @@ where
   }
 }
 
-pub fn num_lit<'a, I>() -> impl Parser<'a, I, StaticStr, ErrRichTokenTree<'a>>
+pub fn num_lit<'a, I>() -> impl Parser<'a, I, StaticStr, ErrRichTokenTree<'a>> + Clone
 where
   I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
 {
@@ -153,7 +154,7 @@ where
 }
 
 pub fn paren_group<'a, I>(
-) -> impl Parser<'a, I, Vec<(TokenTree, SimpleSpan)>, ErrRichTokenTree<'a>>
+) -> impl Parser<'a, I, Vec<(TokenTree, SimpleSpan)>, ErrRichTokenTree<'a>> + Clone
 where
   I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
 {
@@ -176,7 +177,7 @@ where
   just(Lone(Punct(';'))).ignored()
 }
 
-pub fn bang<'a, I>() -> impl Parser<'a, I, (), ErrRichTokenTree<'a>>
+pub fn bang<'a, I>() -> impl Parser<'a, I, (), ErrRichTokenTree<'a>> + Clone
 where
   I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
 {

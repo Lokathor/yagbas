@@ -6,8 +6,8 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InstUse {
   LoadPlace8ConstExpr { place: Place8, expr: ConstExpr },
-  LoadConstAddrA { addr: Vec<(TokenTree, SimpleSpan)> },
-  LoadAConstAddr { addr: Vec<(TokenTree, SimpleSpan)> },
+  LoadConstAddrA { addr: ConstExpr },
+  LoadAConstAddr { addr: ConstExpr },
   LoadAPlaceIndirect { place: PlaceIndirect },
   LoadPlace8Place8 { dst: Place8, src: Place8 },
   LoadPlaceIndirectA { place: PlaceIndirect },
@@ -20,10 +20,7 @@ pub enum InstUse {
   UNKNOWN { name: (Inst, SimpleSpan), args: Vec<(TokenTree, SimpleSpan)> },
 }
 impl InstUse {
-  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
-  where
-    I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
-  {
+  pub fn parser<'a>() -> impl Parser<'a, TokenTreeInput<'a>, Self, ErrRichTokenTree<'a>> {
     let ld = select! {
       Lone(InstLD) => (),
     };
@@ -74,11 +71,16 @@ impl InstUse {
       .then_ignore(semicolon())
       .map(Self::OrAPlace8);
 
-    let const_addr_expr = select! {
-      Brackets(x) => x,
-    };
+    let const_addr_expr = ConstExpr::parser()
+      .nested_in(select_ref! {
+          Brackets(tokens) = span => {
+              let span: SimpleSpan = span;
+              tokens[..].spanned(SimpleSpan::from(span.end..span.end))
+          },
+      })
+      .recover_with(via_parser(select! { Brackets(_) => ConstExpr::ConstExprError }));
     let load_const_addr_a = ld
-      .ignore_then(const_addr_expr)
+      .ignore_then(const_addr_expr.clone())
       .then_ignore(comma())
       .then_ignore(a.clone())
       .then_ignore(semicolon())

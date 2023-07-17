@@ -12,10 +12,7 @@ pub enum BlockEntry {
   PlaceUse(PlaceUse),
 }
 impl BlockEntry {
-  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
-  where
-    I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
-  {
+  pub fn parser<'a>() -> impl Parser<'a, TokenTreeInput<'a>, Self, ErrRichTokenTree<'a>> {
     let label = Label::parser().map(Self::Label);
     let macro_ = MacroUse::parser().map(Self::MacroUse).then_ignore(semicolon());
     let instr = InstUse::parser().map(Self::InstUse);

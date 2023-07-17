@@ -16,7 +16,7 @@ pub enum JumpTarget {
 impl JumpTarget {
   pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
   where
-    I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+    I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan> + BorrowInput<'a>,
   {
     let ident = ident().map(Self::Ident);
 

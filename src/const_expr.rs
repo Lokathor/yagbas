@@ -12,11 +12,13 @@ pub enum ConstExpr {
   MacroUse(MacroUse),
   /// The user wrote a literal but we couldn't parse it (and why).
   BadLit(CowStr),
+  /// zesterer please make this all make sense some day
+  ConstExprError,
 }
 impl ConstExpr {
-  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>>
+  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichTokenTree<'a>> + Clone
   where
-    I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan>,
+    I: ValueInput<'a, Token = TokenTree, Span = SimpleSpan> + BorrowInput<'a>,
   {
     let lit = num_lit().map(|lit| match lit_to_value(lit) {
       Ok(i) => Self::Value(i),
@@ -37,6 +39,7 @@ impl core::fmt::Debug for ConstExpr {
       ConstExpr::Value(x) => write!(f, "{x}"),
       ConstExpr::BadLit(x) => write!(f, "{x:?}"),
       ConstExpr::MacroUse(x) => write!(f, "{x:?}"),
+      ConstExpr::ConstExprError => write!(f, "/*ConstExprError*/"),
     }
   }
 }
