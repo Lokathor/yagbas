@@ -1,4 +1,7 @@
-use chumsky::{input::ValueInput, prelude::*};
+use chumsky::{
+  input::{SpannedInput, ValueInput},
+  prelude::*,
+};
 
 use crate::{
   id2,
@@ -19,6 +22,8 @@ pub enum TokenTree {
   Parens(Vec<(Self, SimpleSpan)>),
   Brackets(Vec<(Self, SimpleSpan)>),
   Braces(Vec<(Self, SimpleSpan)>),
+  CommentBlock,
+  TreeError,
 }
 use TokenTree::*;
 impl core::fmt::Debug for TokenTree {
@@ -70,40 +75,61 @@ impl core::fmt::Debug for TokenTree {
           Ok(())
         }
       }
+      CommentBlock => write!(f, "/* */"),
+      TreeError => write!(f, "TreeError"),
     }
   }
 }
 impl TokenTree {
   /// Parses for just one token tree.
-  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichToken<'a>> + Clone
-  where
-    I: ValueInput<'a, Token = crate::token::Token, Span = SimpleSpan>,
-  {
+  pub fn parser<'a>() -> impl Parser<
+    'a,
+    SpannedInput<Token, SimpleSpan, &'a [(Token, SimpleSpan)]>,
+    Self,
+    ErrRichToken<'a>,
+  > + Clone {
     recursive(|tt| {
       let token_list = tt.map_with_span(id2).repeated().collect::<Vec<_>>();
+
+      // Looks like `/* ... */`
+      let comment = token_list
+        .clone()
+        .delimited_by(just(CommentBlockStart), just(CommentBlockEnd))
+        .to(CommentBlock);
 
       // Looks like `[...]`
       let brackets = token_list
         .clone()
         .delimited_by(just(Punct('[')), just(Punct(']')))
-        .map(TokenTree::Brackets);
+        .map(|mut trees| {
+          trees.retain(|(tree, _span)| !matches!(tree, TokenTree::CommentBlock));
+          TokenTree::Brackets(trees)
+        });
 
       // Looks like `{...}`
       let braces = token_list
         .clone()
         .delimited_by(just(Punct('{')), just(Punct('}')))
-        .map(TokenTree::Braces);
+        .map(|mut trees| {
+          trees.retain(|(tree, _span)| !matches!(tree, TokenTree::CommentBlock));
+          TokenTree::Braces(trees)
+        });
 
       // Looks like `(...)`
       let parens = token_list
         .clone()
         .delimited_by(just(Punct('(')), just(Punct(')')))
-        .map(TokenTree::Parens);
+        .map(|mut trees| {
+          trees.retain(|(tree, _span)| !matches!(tree, TokenTree::CommentBlock));
+          TokenTree::Parens(trees)
+        });
 
       // Looks like something that does *NOT* close one of the other types.
-      let single = none_of([Punct(')'), Punct(']'), Punct('}')]).map(TokenTree::Lone);
+      let single = none_of([CommentBlockEnd, Punct(')'), Punct(']'), Punct('}')])
+        .padded_by(just(CommentSingle).repeated())
+        .map(TokenTree::Lone);
 
-      choice((brackets, braces, parens, single))
+      choice((comment, brackets, braces, parens, single))
     })
   }
 }

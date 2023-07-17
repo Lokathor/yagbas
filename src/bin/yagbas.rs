@@ -4,7 +4,7 @@
 
 use chumsky::{span::SimpleSpan, IterParser, Parser as _};
 use std::borrow::Cow;
-use yagbas::token::Token;
+use yagbas::{token::Token, token_tree::TokenTree};
 
 use clap::{Args, Parser, Subcommand};
 
@@ -82,11 +82,18 @@ fn build_process_file(filename: &String) {
     }
   };
 
-  let tokens: Vec<(Token, logos::Span)> = Token::lexer(&module_src)
+  let tokens: Vec<(Token, SimpleSpan)> = Token::lexer(&module_src)
     .spanned()
-    .map(|(r, span)| (r.unwrap_or(Token::TokenError), span))
+    .map(|(r, span)| (r.unwrap_or(Token::TokenError), SimpleSpan::from(span)))
     .collect();
   println!("== Tokens: {tokens:?}");
+
+  let span: SimpleSpan = SimpleSpan::from(0..module_src.len());
+  let parser = TokenTree::parser().repeated();
+  let input = tokens.spanned(span);
+  use chumsky::input::Input;
+  let parse_result = parser.parse(input);
+  println!("{parse_result:?}");
 }
 
 pub fn unbuild(args: UnbuildArgs) {
