@@ -38,6 +38,7 @@ where
 }
 
 #[test]
+#[allow(clippy::precedence)]
 fn test_const_expr_parser() {
   let checks = [
     //
@@ -50,9 +51,11 @@ fn test_const_expr_parser() {
     ("((12))", ConstExpr::Value(12)),
     ("FOO", ConstExpr::Ident("FOO")),
     ("-7", ConstExpr::Value(-7)),
+    ("--7", ConstExpr::Value(7)),
     ("+8", ConstExpr::Value(8)),
     ("- 7", ConstExpr::Value(-7)),
     ("+ 8", ConstExpr::Value(8)),
+    ("+ + 8", ConstExpr::Value(8)),
     (
       "FOO + 1",
       ConstExpr::Add(
@@ -73,11 +76,16 @@ fn test_const_expr_parser() {
     ("1 + (1)", ConstExpr::Value(2)),
     ("(1) + (1)", ConstExpr::Value(2)),
     ("!0", ConstExpr::Value(!0_i32)),
+    ("!!0", ConstExpr::Value(0_i32)),
     ("1 | 2", ConstExpr::Value(1 | 2)),
     ("567 ^ 8910", ConstExpr::Value(567_i32 ^ 8910)),
     ("292 & 1995", ConstExpr::Value(292_i32 & 1995)),
     ("u8::MAX", ConstExpr::Value(u8::MAX as i32)),
     ("u16::MAX", ConstExpr::Value(u16::MAX as i32)),
+    ("i8::MAX", ConstExpr::Value(i8::MAX as i32)),
+    ("i16::MAX", ConstExpr::Value(i16::MAX as i32)),
+    ("i8::MIN", ConstExpr::Value(i8::MIN as i32)),
+    ("i16::MIN", ConstExpr::Value(i16::MIN as i32)),
     (
       "size_of_static!(tiles)",
       ConstExpr::MacroUse {
@@ -85,6 +93,11 @@ fn test_const_expr_parser() {
         args: vec![(Lone(Ident("tiles")), SimpleSpan::from(16..21))],
       },
     ),
+    ("1 + 1 + 1", ConstExpr::Value(3)),
+    ("1 + 1 -8 ", ConstExpr::Value(-6)),
+    ("2 | 3 & 7 ", ConstExpr::Value(2 | 3 & 7)),
+    ("7 + 4 - 1 & 8  | 13", ConstExpr::Value(7 + 4 - 1 & 8 | 13)),
+    ("7 + (4 - 1 ^ 123)  | 13", ConstExpr::Value(7 + (4 - 1 ^ 123) | 13)),
   ];
   for (src, expected) in checks.into_iter() {
     let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(src);
@@ -94,7 +107,7 @@ fn test_const_expr_parser() {
     let (opt_const_expr, expr_parse_errors) =
       run_tt_parser(ConstExpr::parser(), &token_trees).into_output_errors();
     assert!(expr_parse_errors.is_empty(), "{expr_parse_errors:?}\nSrc: {src}\n");
-    assert_eq!(expected, opt_const_expr.unwrap());
+    assert_eq!(expected, opt_const_expr.unwrap(), "\nSrc Was: {src}\n");
   }
   //
 }

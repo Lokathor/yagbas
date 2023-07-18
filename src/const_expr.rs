@@ -15,6 +15,7 @@ pub enum ConstExpr {
   MacroUse { name: (StaticStr, SimpleSpan), args: Vec<(TokenTree, SimpleSpan)> },
   UnknownError(CowStr),
 }
+// https://gist.github.com/zesterer/e0a896ef16fdc95a4749851ebb0d8461 ???
 impl ConstExpr {
   /// Parses a const expression.
   ///
@@ -23,11 +24,13 @@ impl ConstExpr {
   ///
   /// * A const expression *never* contains lone `,` or `;`, so either of those
   ///   can be used as a recovery point probably.
-  /// * **Currently:** There's no precedence rules and only a single unary or
-  ///   binary op can be processed per grouping, so you have to use lots of
-  ///   parens.
-  /// * **Future Plans:** The precedence rules follow Rust's own [Expression
-  ///   Precedence][ref-exp] for maximum ease of understanding.
+  /// * The precedence rules are based on the [Expression Precedence][ref-exp]
+  ///   rules as used by Rust. Specifically:
+  ///   * unary plus / neg / not
+  ///   * add / subtract
+  ///   * bit_and
+  ///   * bit_xor
+  ///   * bit_or
   ///
   /// [ref-exp]:
   ///     https://doc.rust-lang.org/reference/expressions.html#expression-precedence
@@ -64,7 +67,17 @@ impl ConstExpr {
         .then(colon())
         .then(just(Lone(Ident("MAX"))))
         .to(ConstExpr::Value(i16::MAX as i32));
-      let magic_constant = choice((u8_max, u16_max, i8_max, i16_max));
+      let i8_min = just(Lone(Ident("i8")))
+        .then(colon())
+        .then(colon())
+        .then(just(Lone(Ident("MIN"))))
+        .to(ConstExpr::Value(i8::MIN as i32));
+      let i16_min = just(Lone(Ident("i16")))
+        .then(colon())
+        .then(colon())
+        .then(just(Lone(Ident("MIN"))))
+        .to(ConstExpr::Value(i16::MIN as i32));
+      let magic_constant = choice((u8_max, u16_max, i8_max, i16_max, i8_min, i16_min));
 
       let ident = ident().map(Self::Ident);
 
@@ -88,17 +101,14 @@ impl ConstExpr {
         .foldr(atom.clone().map_with_span(id2), |(ch, op_span), (rhs, rhs_span)| {
           let span = SimpleSpan::new(op_span.start, rhs_span.end);
           match (ch, &rhs) {
+            // `+atom` is accepted and always evaluates to the `atom`, even when
+            // we don't know the atom's value right now.
+            ('+', _) => (rhs, span),
+            // negate or not if we know the value right now, otherwise make an
+            // expression node for later evaluation
             ('-', ConstExpr::Value(r)) => (ConstExpr::Value(r.wrapping_neg()), span),
             ('-', _) => (
               ConstExpr::Sub(
-                Box::new((ConstExpr::Value(0), SimpleSpan::from(0..0))),
-                Box::new((rhs, span)),
-              ),
-              span,
-            ),
-            ('+', ConstExpr::Value(r)) => (ConstExpr::Value(*r), span),
-            ('+', _) => (
-              ConstExpr::Add(
                 Box::new((ConstExpr::Value(0), SimpleSpan::from(0..0))),
                 Box::new((rhs, span)),
               ),
@@ -109,67 +119,112 @@ impl ConstExpr {
             _ => unimplemented!(),
           }
         })
+        .map(|(expr, _span)| expr)
+        .boxed();
+
+      let add_sub = unary
+        .clone()
+        .map_with_span(id2)
+        .foldl(
+          choice((plus(), minus()))
+            .map_with_span(id2)
+            .then(unary.clone().map_with_span(id2))
+            .repeated(),
+          |(lhs, lhs_span), ((op, _op_span), (rhs, rhs_span))| {
+            let span = SimpleSpan::new(lhs_span.start, rhs_span.end);
+            match (&lhs, op, &rhs) {
+              (ConstExpr::Value(l), '+', ConstExpr::Value(r))
+                if l.checked_add(*r).is_some() =>
+              {
+                (ConstExpr::Value(*l + *r), span)
+              }
+              (_, '+', _) => (
+                ConstExpr::Add(Box::new((lhs, lhs_span)), Box::new((rhs, rhs_span))),
+                span,
+              ),
+              (ConstExpr::Value(l), '-', ConstExpr::Value(r))
+                if l.checked_sub(*r).is_some() =>
+              {
+                (ConstExpr::Value(*l - *r), span)
+              }
+              (_, '-', _) => (
+                ConstExpr::Sub(Box::new((lhs, lhs_span)), Box::new((rhs, rhs_span))),
+                span,
+              ),
+              _ => unimplemented!(),
+            }
+          },
+        )
         .map(|(expr, _span)| expr);
 
-      let atom_plus_atom = atom
+      let bitand = add_sub
         .clone()
         .map_with_span(id2)
-        .then_ignore(plus())
-        .then(atom.clone().map_with_span(id2))
-        .map(|((lhs, lh_span), (rhs, rh_span))| match (&lhs, &rhs) {
-          (ConstExpr::Value(l), ConstExpr::Value(r)) if l.checked_add(*r).is_some() => {
-            ConstExpr::Value(*l + *r)
-          }
-          _ => ConstExpr::Add(Box::new((lhs, lh_span)), Box::new((rhs, rh_span))),
-        });
-      let atom_minus_atom = atom
-        .clone()
-        .map_with_span(id2)
-        .then_ignore(minus())
-        .then(atom.clone().map_with_span(id2))
-        .map(|((lhs, lh_span), (rhs, rh_span))| match (&lhs, &rhs) {
-          (ConstExpr::Value(l), ConstExpr::Value(r)) if l.checked_sub(*r).is_some() => {
-            ConstExpr::Value(*l - *r)
-          }
-          _ => ConstExpr::Sub(Box::new((lhs, lh_span)), Box::new((rhs, rh_span))),
-        });
-      let atom_pipe_atom = atom
-        .clone()
-        .map_with_span(id2)
-        .then_ignore(pipe())
-        .then(atom.clone().map_with_span(id2))
-        .map(|((lhs, lh_span), (rhs, rh_span))| match (&lhs, &rhs) {
-          (ConstExpr::Value(l), ConstExpr::Value(r)) => ConstExpr::Value(*l | *r),
-          _ => ConstExpr::Or(Box::new((lhs, lh_span)), Box::new((rhs, rh_span))),
-        });
-      let atom_caret_atom = atom
-        .clone()
-        .map_with_span(id2)
-        .then_ignore(caret())
-        .then(atom.clone().map_with_span(id2))
-        .map(|((lhs, lh_span), (rhs, rh_span))| match (&lhs, &rhs) {
-          (ConstExpr::Value(l), ConstExpr::Value(r)) => ConstExpr::Value(*l ^ *r),
-          _ => ConstExpr::Xor(Box::new((lhs, lh_span)), Box::new((rhs, rh_span))),
-        });
-      let atom_ampersand_atom = atom
-        .clone()
-        .map_with_span(id2)
-        .then_ignore(ampersand())
-        .then(atom.clone().map_with_span(id2))
-        .map(|((lhs, lh_span), (rhs, rh_span))| match (&lhs, &rhs) {
-          (ConstExpr::Value(l), ConstExpr::Value(r)) => ConstExpr::Value(*l & *r),
-          _ => ConstExpr::And(Box::new((lhs, lh_span)), Box::new((rhs, rh_span))),
-        });
+        .foldl(
+          ampersand()
+            .map_with_span(id2)
+            .then(add_sub.clone().map_with_span(id2))
+            .repeated(),
+          |(lhs, lhs_span), ((op, _op_span), (rhs, rhs_span))| {
+            let span = SimpleSpan::new(lhs_span.start, rhs_span.end);
+            match (&lhs, op, &rhs) {
+              (ConstExpr::Value(l), '&', ConstExpr::Value(r)) => {
+                (ConstExpr::Value(*l & *r), span)
+              }
+              (_, '&', _) => (
+                ConstExpr::And(Box::new((lhs, lhs_span)), Box::new((rhs, rhs_span))),
+                span,
+              ),
+              _ => unimplemented!(),
+            }
+          },
+        )
+        .map(|(expr, _span)| expr);
 
-      choice((
-        atom_plus_atom,
-        atom_minus_atom,
-        atom_pipe_atom,
-        atom_caret_atom,
-        atom_ampersand_atom,
-        unary,
-        atom,
-      ))
+      let bitxor = bitand
+        .clone()
+        .map_with_span(id2)
+        .foldl(
+          caret().map_with_span(id2).then(bitand.clone().map_with_span(id2)).repeated(),
+          |(lhs, lhs_span), ((op, _op_span), (rhs, rhs_span))| {
+            let span = SimpleSpan::new(lhs_span.start, rhs_span.end);
+            match (&lhs, op, &rhs) {
+              (ConstExpr::Value(l), '^', ConstExpr::Value(r)) => {
+                (ConstExpr::Value(*l ^ *r), span)
+              }
+              (_, '^', _) => (
+                ConstExpr::And(Box::new((lhs, lhs_span)), Box::new((rhs, rhs_span))),
+                span,
+              ),
+              _ => unimplemented!(),
+            }
+          },
+        )
+        .map(|(expr, _span)| expr);
+
+      let bitor = bitxor
+        .clone()
+        .map_with_span(id2)
+        .foldl(
+          pipe().map_with_span(id2).then(bitxor.clone().map_with_span(id2)).repeated(),
+          |(lhs, lhs_span), ((op, _op_span), (rhs, rhs_span))| {
+            let span = SimpleSpan::new(lhs_span.start, rhs_span.end);
+            match (&lhs, op, &rhs) {
+              (ConstExpr::Value(l), '|', ConstExpr::Value(r)) => {
+                (ConstExpr::Value(*l | *r), span)
+              }
+              (_, '|', _) => (
+                ConstExpr::And(Box::new((lhs, lhs_span)), Box::new((rhs, rhs_span))),
+                span,
+              ),
+              _ => unimplemented!(),
+            }
+          },
+        )
+        .map(|(expr, _span)| expr)
+        .boxed();
+
+      bitor
     })
   }
 }
@@ -214,11 +269,7 @@ pub fn lit_to_value(lit: &str) -> Result<i32, CowStr> {
     Ok(total)
   }
   //
-  if let Some(neg) = lit.strip_prefix('-') {
-    lit_to_value(neg).map(|i| -i)
-  } else if let Some(pos) = lit.strip_prefix('+') {
-    lit_to_value(pos)
-  } else if let Some(hex) = lit.strip_prefix('$') {
+  if let Some(hex) = lit.strip_prefix('$') {
     hex_to_value(hex)
   } else if let Some(hex) = lit.strip_prefix("0x") {
     hex_to_value(hex)
