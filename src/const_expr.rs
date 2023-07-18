@@ -54,6 +54,17 @@ impl ConstExpr {
         .then(colon())
         .then(just(Lone(Ident("MAX"))))
         .to(ConstExpr::Value(u16::MAX as i32));
+      let i8_max = just(Lone(Ident("i8")))
+        .then(colon())
+        .then(colon())
+        .then(just(Lone(Ident("MAX"))))
+        .to(ConstExpr::Value(i8::MAX as i32));
+      let i16_max = just(Lone(Ident("i16")))
+        .then(colon())
+        .then(colon())
+        .then(just(Lone(Ident("MAX"))))
+        .to(ConstExpr::Value(i16::MAX as i32));
+      let magic_constant = choice((u8_max, u16_max, i8_max, i16_max));
 
       let ident = ident().map(Self::Ident);
 
@@ -69,28 +80,36 @@ impl ConstExpr {
         },
       });
 
-      let atom = choice((macro_use, u8_max, u16_max, ident, lit, parens));
+      let atom = choice((macro_use, magic_constant, ident, lit, parens));
 
-      let neg = minus().ignore_then(atom.clone().map_with_span(id2)).map(
-        |(rhs, span)| match &rhs {
-          ConstExpr::Value(r) => ConstExpr::Value(r.wrapping_neg()),
-          _ => ConstExpr::Sub(
-            Box::new((ConstExpr::Value(0), SimpleSpan::from(0..0))),
-            Box::new((rhs, span)),
-          ),
-        },
-      );
-      let pos = plus().ignore_then(atom.clone());
-      let not =
-        bang().ignore_then(atom.clone().map_with_span(id2)).map(
-          |(rhs, span)| match &rhs {
-            ConstExpr::Value(r) => ConstExpr::Value(!*r),
-            _ => ConstExpr::Sub(
-              Box::new((ConstExpr::Value(0), SimpleSpan::from(0..0))),
-              Box::new((rhs, span)),
+      let unary = choice((minus(), plus(), bang()))
+        .map_with_span(id2)
+        .repeated()
+        .foldr(atom.clone().map_with_span(id2), |(ch, op_span), (rhs, rhs_span)| {
+          let span = SimpleSpan::new(op_span.start, rhs_span.end);
+          match (ch, &rhs) {
+            ('-', ConstExpr::Value(r)) => (ConstExpr::Value(r.wrapping_neg()), span),
+            ('-', _) => (
+              ConstExpr::Sub(
+                Box::new((ConstExpr::Value(0), SimpleSpan::from(0..0))),
+                Box::new((rhs, span)),
+              ),
+              span,
             ),
-          },
-        );
+            ('+', ConstExpr::Value(r)) => (ConstExpr::Value(*r), span),
+            ('+', _) => (
+              ConstExpr::Add(
+                Box::new((ConstExpr::Value(0), SimpleSpan::from(0..0))),
+                Box::new((rhs, span)),
+              ),
+              span,
+            ),
+            ('!', ConstExpr::Value(r)) => (ConstExpr::Value(!*r), span),
+            ('!', _) => (ConstExpr::Not(Box::new((rhs, span))), span),
+            _ => unimplemented!(),
+          }
+        })
+        .map(|(expr, _span)| expr);
 
       let atom_plus_atom = atom
         .clone()
@@ -148,9 +167,7 @@ impl ConstExpr {
         atom_pipe_atom,
         atom_caret_atom,
         atom_ampersand_atom,
-        neg,
-        pos,
-        not,
+        unary,
         atom,
       ))
     })
