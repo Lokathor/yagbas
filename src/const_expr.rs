@@ -16,6 +16,21 @@ pub enum ConstExpr {
   UnknownError(CowStr),
 }
 impl ConstExpr {
+  /// Parses a const expression.
+  ///
+  /// A const expression can be assigned a name with a const declaration, or
+  /// more commonly will appear directly within an instruction.
+  ///
+  /// * A const expression *never* contains lone `,` or `;`, so either of those
+  ///   can be used as a recovery point probably.
+  /// * **Currently:** There's no precedence rules and only a single unary or
+  ///   binary op can be processed per grouping, so you have to use lots of
+  ///   parens.
+  /// * **Future Plans:** The precedence rules follow Rust's own [Expression
+  ///   Precedence][ref-exp] for maximum ease of understanding.
+  ///
+  /// [ref-exp]:
+  ///     https://doc.rust-lang.org/reference/expressions.html#expression-precedence
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     recursive(|expr| {
