@@ -22,10 +22,6 @@ pub const fn id2<A, B>(a: A, b: B) -> (A, B) {
   (a, b)
 }
 
-// TODO: there's something not great about the naming here where two methods
-// match anything and then one of them takes a specific input to match. it seems
-// like the naming is inconsistent.
-
 pub fn ident<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, StaticStr, ErrRichTokenTree<'a>> + Clone {
   select! {
@@ -40,7 +36,7 @@ pub fn num_lit<'a>(
   }
 }
 
-pub fn punct<'a>(
+pub fn just_punct<'a>(
   punct: char,
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
   select! {
@@ -50,45 +46,45 @@ pub fn punct<'a>(
 
 pub fn plus<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
-  punct('+')
+  just_punct('+')
 }
 
 pub fn minus<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
-  punct('-')
+  just_punct('-')
 }
 
 pub fn bang<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
-  punct('!')
+  just_punct('!')
 }
 
 pub fn semicolon<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
-  punct(';')
+  just_punct(';')
 }
 
 pub fn comma<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
-  punct(',')
+  just_punct(',')
 }
 
 pub fn pipe<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
-  punct('|')
+  just_punct('|')
 }
 
 pub fn caret<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
-  punct('^')
+  just_punct('^')
 }
 
 pub fn colon<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
-  punct(':')
+  just_punct(':')
 }
 
 pub fn ampersand<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
-  punct('&')
+  just_punct('&')
 }
