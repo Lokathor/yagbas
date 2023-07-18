@@ -102,7 +102,7 @@ impl TokenTree {
         .delimited_by(just(Punct('(')), just(Punct(')')))
         .map(TokenTree::Parens);
 
-      // Looks like something that does *NOT* close one of the other types.
+      // Looks like something that does *NOT* open or close one of the other types.
       let single = none_of([
         Punct('['),
         Punct(']'),

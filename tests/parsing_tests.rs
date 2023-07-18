@@ -1,9 +1,12 @@
 use chumsky::{extra::ParserExtra, input::Input, span::SimpleSpan, ParseResult, Parser};
 use yagbas::{
+  const_expr::ConstExpr,
   token::{tokenize_module, Token},
   token_tree::{grow_token_trees, TokenTree},
   *,
 };
+use Token::*;
+use TokenTree::*;
 
 #[allow(unused)]
 macro_rules! span {
@@ -69,6 +72,19 @@ fn test_const_expr_parser() {
     ("(1) + 1", ConstExpr::Value(2)),
     ("1 + (1)", ConstExpr::Value(2)),
     ("(1) + (1)", ConstExpr::Value(2)),
+    ("!0", ConstExpr::Value(!0_i32)),
+    ("1 | 2", ConstExpr::Value(1 | 2)),
+    ("567 ^ 8910", ConstExpr::Value(567_i32 ^ 8910)),
+    ("292 & 1995", ConstExpr::Value(292_i32 & 1995)),
+    ("u8::MAX", ConstExpr::Value(u8::MAX as i32)),
+    ("u16::MAX", ConstExpr::Value(u16::MAX as i32)),
+    (
+      "size_of_static!(tiles)",
+      ConstExpr::MacroUse {
+        name: ("size_of_static", SimpleSpan::from(0..14)),
+        args: vec![(Lone(Ident("tiles")), SimpleSpan::from(16..21))],
+      },
+    ),
   ];
   for (src, expected) in checks.into_iter() {
     let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(src);
