@@ -88,3 +88,8 @@ pub fn ampersand<'a>(
 ) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
   just_punct('&')
 }
+
+pub fn equal<'a>(
+) -> impl Parser<'a, TokenTreeSlice<'a>, char, ErrRichTokenTree<'a>> + Clone {
+  just_punct('=')
+}
