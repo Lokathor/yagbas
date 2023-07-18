@@ -1,5 +1,5 @@
 use chumsky::{
-  input::{SpannedInput, ValueInput},
+  input::{Input, SpannedInput, ValueInput},
   prelude::*,
 };
 
@@ -143,7 +143,6 @@ pub fn grow_token_trees(
     .repeated()
     .collect::<Vec<_>>();
   let input = tokens.spanned(span);
-  use chumsky::input::Input;
   let (trees, errors) = parser.parse(input).into_output_errors();
   (
     trees.unwrap_or_default(),
