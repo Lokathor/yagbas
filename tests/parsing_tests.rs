@@ -49,6 +49,10 @@ fn test_const_expr_parser() {
     ("(12)", ConstExpr::Value(12)),
     ("((12))", ConstExpr::Value(12)),
     ("FOO", ConstExpr::Ident("FOO")),
+    ("-7", ConstExpr::Value(-7)),
+    ("+8", ConstExpr::Value(8)),
+    ("- 7", ConstExpr::Value(-7)),
+    ("+ 8", ConstExpr::Value(8)),
     (
       "FOO + 1",
       ConstExpr::Add(
@@ -63,10 +67,6 @@ fn test_const_expr_parser() {
         Box::new((ConstExpr::Value(3), SimpleSpan::from(4..5))),
       ),
     ),
-    ("-7", ConstExpr::Value(-7)),
-    ("+8", ConstExpr::Value(8)),
-    ("- 7", ConstExpr::Value(-7)),
-    ("+ 8", ConstExpr::Value(8)),
     ("1 + 1", ConstExpr::Value(2)),
     ("1+1", ConstExpr::Value(2)),
     ("(1) + 1", ConstExpr::Value(2)),
@@ -93,7 +93,7 @@ fn test_const_expr_parser() {
 
     let (opt_const_expr, expr_parse_errors) =
       run_tt_parser(ConstExpr::parser(), &token_trees).into_output_errors();
-    assert!(expr_parse_errors.is_empty(), "{expr_parse_errors:?}");
+    assert!(expr_parse_errors.is_empty(), "{expr_parse_errors:?}\nSrc: {src}\n");
     assert_eq!(expected, opt_const_expr.unwrap());
   }
   //
