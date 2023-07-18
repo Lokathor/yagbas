@@ -1,7 +1,6 @@
+use super::*;
+use crate::static_str::static_str;
 use core::ops::Range;
-
-use crate::{static_str, StaticStr};
-use chumsky::span::SimpleSpan;
 use logos::Logos;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Logos)]
