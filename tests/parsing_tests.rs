@@ -1,6 +1,7 @@
 use chumsky::{extra::ParserExtra, input::Input, span::SimpleSpan, ParseResult, Parser};
 use yagbas::{
   const_expr::ConstExpr,
+  item::ConstDecl,
   token::{tokenize_module, Token},
   token_tree::{grow_token_trees, TokenTree},
   util_junk::*,
@@ -106,6 +107,32 @@ fn test_const_expr_parser() {
 
     let (opt_const_expr, expr_parse_errors) =
       run_tt_parser(ConstExpr::parser(), &token_trees).into_output_errors();
+    assert!(expr_parse_errors.is_empty(), "{expr_parse_errors:?}\nSrc: {src}\n");
+    assert_eq!(expected, opt_const_expr.unwrap(), "\nSrc Was: {src}\n");
+  }
+  //
+}
+
+#[test]
+#[allow(clippy::precedence)]
+fn test_const_decl_parser() {
+  let checks = [
+    //
+    (
+      "const FOO = $FF00;",
+      ConstDecl {
+        name: ("FOO", SimpleSpan::new(6, 9)),
+        expr: (ConstExpr::Value(0xFF00), SimpleSpan::new(12, 17)),
+      },
+    ),
+  ];
+  for (src, expected) in checks.into_iter() {
+    let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(src);
+    let (token_trees, tree_parse_errors) = grow_token_trees(&tokens);
+    assert!(tree_parse_errors.is_empty(), "{tree_parse_errors:?}");
+
+    let (opt_const_expr, expr_parse_errors) =
+      run_tt_parser(ConstDecl::parser(), &token_trees).into_output_errors();
     assert!(expr_parse_errors.is_empty(), "{expr_parse_errors:?}\nSrc: {src}\n");
     assert_eq!(expected, opt_const_expr.unwrap(), "\nSrc Was: {src}\n");
   }

@@ -16,10 +16,11 @@ impl Item {
   }
 }
 
+/// A const declaration assigns a name to a specific const expression.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstDecl {
-  name: (StaticStr, SimpleSpan),
-  expr: (ConstExpr, SimpleSpan),
+  pub name: (StaticStr, SimpleSpan),
+  pub expr: (ConstExpr, SimpleSpan),
 }
 impl ConstDecl {
   pub fn parser<'a>(

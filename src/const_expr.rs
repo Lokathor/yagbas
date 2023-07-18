@@ -2,6 +2,23 @@ use super::*;
 
 use std::borrow::Cow;
 
+/// An expression that should evaluate to a constant value during compilation.
+///
+/// A const expression can be assigned a name with a [ConstDecl], or
+/// more commonly they will appear directly within an instruction.
+///
+/// * A const expression *never* contains lone `,` or `;`, so either of those
+///   can be used as a recovery point when const expression parsing has failed.
+/// * The precedence rules are based on the [Expression Precedence][ref-exp]
+///   rules as used by Rust. Specifically:
+///   * unary plus / neg / not
+///   * add / subtract
+///   * bit_and
+///   * bit_xor
+///   * bit_or
+///
+/// [ref-exp]:
+///     https://doc.rust-lang.org/reference/expressions.html#expression-precedence
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConstExpr {
   Value(i32),
@@ -15,25 +32,13 @@ pub enum ConstExpr {
   MacroUse { name: (StaticStr, SimpleSpan), args: Vec<(TokenTree, SimpleSpan)> },
   UnknownError(CowStr),
 }
-// https://gist.github.com/zesterer/e0a896ef16fdc95a4749851ebb0d8461 ???
+// Note(Zesterer): https://gist.github.com/zesterer/e0a896ef16fdc95a4749851ebb0d8461
 impl ConstExpr {
   /// Parses a const expression.
   ///
-  /// A const expression can be assigned a name with a const declaration, or
-  /// more commonly will appear directly within an instruction.
-  ///
-  /// * A const expression *never* contains lone `,` or `;`, so either of those
-  ///   can be used as a recovery point probably.
-  /// * The precedence rules are based on the [Expression Precedence][ref-exp]
-  ///   rules as used by Rust. Specifically:
-  ///   * unary plus / neg / not
-  ///   * add / subtract
-  ///   * bit_and
-  ///   * bit_xor
-  ///   * bit_or
-  ///
-  /// [ref-exp]:
-  ///     https://doc.rust-lang.org/reference/expressions.html#expression-precedence
+  /// * Parsing will immediately evaluate operations when possible (including
+  ///   that `i32` overflow must not occur), and will otherwise leave evaluation
+  ///   work for later.
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     recursive(|expr| {
@@ -229,6 +234,11 @@ impl ConstExpr {
   }
 }
 
+/// Parse a numeric literal info a value we can work with.
+///
+/// * Fails if `i32` overflow would occur.
+/// * Fails if a digit is out of range for the number literal type based on the
+///   literal's prefix (binary, decimal, or hexadecimal).
 pub fn lit_to_value(lit: &str) -> Result<i32, CowStr> {
   fn hex_to_value(hex: &str) -> Result<i32, CowStr> {
     let mut total = 0_i32;
