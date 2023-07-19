@@ -125,6 +125,13 @@ fn test_const_decl_parser() {
         expr: (ConstExpr::Value(0xFF00), SimpleSpan::new(12, 17)),
       },
     ),
+    (
+      "const BAR = $FF00 + $AA;",
+      ConstDecl {
+        name: ("BAR", SimpleSpan::new(6, 9)),
+        expr: (ConstExpr::Value(0xFFAA), SimpleSpan::new(12, 23)),
+      },
+    ),
   ];
   for (src, expected) in checks.into_iter() {
     let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(src);
