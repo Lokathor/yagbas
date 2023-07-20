@@ -132,6 +132,27 @@ fn test_const_decl_parser() {
         expr: (ConstExpr::Value(0xFFAA), SimpleSpan::new(12, 23)),
       },
     ),
+    (
+      "const;",
+      ConstDecl {
+        name: ("", SimpleSpan::new(5, 6)),
+        expr: (ConstExpr::BAD_PARSE, SimpleSpan::new(5, 6)),
+      },
+    ),
+    (
+      "const",
+      ConstDecl {
+        name: ("", SimpleSpan::new(5, 5)),
+        expr: (ConstExpr::BAD_PARSE, SimpleSpan::new(5, 5)),
+      },
+    ),
+    (
+      "const foo bar baz;",
+      ConstDecl {
+        name: ("", SimpleSpan::new(6, 18)),
+        expr: (ConstExpr::BAD_PARSE, SimpleSpan::new(6, 18)),
+      },
+    ),
   ];
   for (src, expected) in checks.into_iter() {
     let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(src);
@@ -150,6 +171,8 @@ fn test_const_decl_parser() {
 fn test_item_parser() {
   let checks = [
     //
+    (";", Item::ItemError),
+    ("hello;", Item::ItemError),
     (
       "const FOO = $FF00;",
       Item::ConstDecl(ConstDecl {
@@ -157,7 +180,13 @@ fn test_item_parser() {
         expr: (ConstExpr::Value(0xFF00), SimpleSpan::new(12, 17)),
       }),
     ),
-    ("hello;", Item::ItemError),
+    (
+      "const FOO = ++++;",
+      Item::ConstDecl(ConstDecl {
+        name: ("FOO", SimpleSpan::new(6, 9)),
+        expr: (ConstExpr::BAD_PARSE, SimpleSpan::new(12, 16)),
+      }),
+    ),
   ];
   for (src, expected) in checks.into_iter() {
     let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(src);
