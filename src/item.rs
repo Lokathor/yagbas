@@ -11,11 +11,29 @@ impl Item {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     let const_decl = ConstDecl::parser().map(Self::ConstDecl);
-    let item_error =
-      none_of([Lone(Punct(';'))]).repeated().then(semicolon()).to(Self::ItemError);
+    let item_error = none_of([Lone(Punct(';'))])
+      .repeated()
+      .at_least(1)
+      .then(semicolon().ignored().or(end()))
+      .to(Self::ItemError)
+      .or(semicolon().to(Self::ItemError));
 
     choice((const_decl,)).recover_with(via_parser(item_error))
   }
+}
+
+pub fn parse_module_items(
+  trees: &[(TokenTree, SimpleSpan)],
+) -> (Vec<(Item, SimpleSpan)>, Vec<Rich<'static, TokenTree>>) {
+  let len = trees.last().map(|(_, s)| s.end).unwrap_or(0);
+  let span: SimpleSpan = SimpleSpan::from(len..len);
+  let parser = Item::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
+  let input = trees.spanned(span);
+  let (items, errors) = parser.parse(input).into_output_errors();
+  (
+    items.unwrap_or_default(),
+    errors.into_iter().map(|r| r.into_owned()).collect::<Vec<_>>(),
+  )
 }
 
 /// A const declaration assigns a name to a specific const expression.

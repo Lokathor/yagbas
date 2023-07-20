@@ -8,6 +8,7 @@ use chumsky::{
 };
 use std::borrow::Cow;
 use yagbas::{
+  item::parse_module_items,
   token::{tokenize_module, Token},
   token_tree::grow_token_trees,
 };
@@ -89,11 +90,21 @@ fn build_process_file(filename: &String) {
   };
 
   let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(&module_src);
-  println!("== Tokens: {tokens:?}");
+  //println!("== Tokens: {tokens:?}");
 
   let (token_trees, tree_parse_errors) = grow_token_trees(&tokens);
-  println!("== Token Trees: {token_trees:?}");
-  println!("== Token Tree Parse Errors: {tree_parse_errors:?}");
+  //println!("== Token Trees: {token_trees:?}");
+  if !tree_parse_errors.is_empty() {
+    println!("== Token Tree Parse Errors: {tree_parse_errors:?}");
+  }
+
+  let (items, item_parse_errors) = parse_module_items(&token_trees);
+  for item in items {
+    println!("I: {item:?}");
+  }
+  if !item_parse_errors.is_empty() {
+    println!("== Item Parse Errors: {item_parse_errors:?}");
+  }
 }
 
 pub fn unbuild(args: UnbuildArgs) {
