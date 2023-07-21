@@ -11,6 +11,7 @@ impl Item {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     let const_decl = ConstDecl::parser().map(Self::ConstDecl);
+
     let item_error = none_of([Lone(Punct(';'))])
       .repeated()
       .at_least(1)
@@ -37,16 +38,16 @@ pub fn parse_module_items(
 }
 
 /// A const declaration assigns a name to a specific const expression.
+///
+/// A const declaration is `const` and then some non-`;` stuff, then `;`
+///
+/// * Should look like: `const IDENT = CONST_EXPR ;`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstDecl {
   pub name: (StaticStr, SimpleSpan),
   pub expr: (ConstExpr, SimpleSpan),
 }
 impl ConstDecl {
-  /// A const declaration is `const` and then some non-`;` stuff, then `;`
-  ///
-  /// * The "good" path is `const IDENT = CONST_EXPR ;`
-  /// * There's all sorts of ways this can go wrong of course.
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     let kw_const = just(Lone(KwConst));
@@ -89,5 +90,73 @@ impl ConstDecl {
     // sort of const declaration (since we saw the keyword). If we don't even
     // see `const` then it's not a const declaration at all.
     kw_const.ignore_then(post_keyword)
+  }
+}
+
+/// A static declaration is `static` and then some non-`;` stuff, then `;`
+///
+/// * Should look like: `static IDENT [LOCATIONS] = STATIC_EXPR ;`
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StaticDecl {
+  pub name: (StaticStr, SimpleSpan),
+  pub locations: Vec<(RomLocation, SimpleSpan)>,
+  pub expr: (StaticExpr, SimpleSpan),
+}
+impl StaticDecl {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let kw_static = just(Lone(KwStatic));
+    let ident = ident().map_with_span(id2);
+    let not_semicolon = none_of([Lone(Punct(';'))]);
+    let expr = StaticExpr::parser().map_with_span(id2).recover_with(via_parser(
+      not_semicolon
+        .clone()
+        .ignored()
+        .repeated()
+        .map_with_span(|(), span| (StaticExpr::StaticError, span)),
+    ));
+    let locations = todo();
+    let all_parts = ident
+      .clone()
+      .then(locations)
+      .then_ignore(equal())
+      .then(expr.clone())
+      .then_ignore(semicolon())
+      .map(|((name, locations), expr)| Self { name, locations, expr });
+    let generic_eat_to_end = not_semicolon
+      .clone()
+      .ignored()
+      .repeated()
+      .then_ignore(semicolon().ignored().or(end()))
+      .map_with_span(|(), span| Self {
+        name: ("", span),
+        expr: (StaticExpr::StaticError, span),
+        locations: vec![],
+      });
+    let post_keyword = all_parts.recover_with(via_parser(generic_eat_to_end));
+
+    kw_static.ignore_then(post_keyword)
+  }
+}
+
+/// A location within the ROM output
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RomLocation {}
+impl RomLocation {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    todo()
+  }
+}
+
+/// An expression that evaluates to 0 or more bytes of static data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StaticExpr {
+  StaticError,
+}
+impl StaticExpr {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    todo()
   }
 }
