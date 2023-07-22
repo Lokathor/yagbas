@@ -5,12 +5,15 @@ use super::*;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Item {
   ConstDecl(ConstDecl),
+  StaticDecl(StaticDecl),
   ItemError,
 }
 impl Item {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     let const_decl = ConstDecl::parser().map(Self::ConstDecl);
+
+    let static_decl = StaticDecl::parser().map(Self::StaticDecl);
 
     let item_error = none_of([Lone(Punct(';'))])
       .repeated()
@@ -19,7 +22,7 @@ impl Item {
       .to(Self::ItemError)
       .or(semicolon().to(Self::ItemError));
 
-    choice((const_decl,)).recover_with(via_parser(item_error))
+    choice((const_decl, static_decl)).recover_with(via_parser(item_error))
   }
 }
 
@@ -113,9 +116,19 @@ impl StaticDecl {
         .clone()
         .ignored()
         .repeated()
-        .map_with_span(|(), span| (StaticExpr::StaticError, span)),
+        .map_with_span(|(), span| (StaticExpr::StaticExprError, span)),
     ));
-    let locations = todo();
+    let locations = just(Lone(Ident("rom0")))
+      .to(RomLocation::Rom0)
+      .map_with_span(id2)
+      .separated_by(comma())
+      .collect::<Vec<_>>()
+      .nested_in(select_ref! {
+        Brackets(tokens) = span => {
+          let span: SimpleSpan = span;
+          tokens.spanned(span)
+        },
+      });
     let all_parts = ident
       .clone()
       .then(locations)
@@ -130,7 +143,7 @@ impl StaticDecl {
       .then_ignore(semicolon().ignored().or(end()))
       .map_with_span(|(), span| Self {
         name: ("", span),
-        expr: (StaticExpr::StaticError, span),
+        expr: (StaticExpr::StaticExprError, span),
         locations: vec![],
       });
     let post_keyword = all_parts.recover_with(via_parser(generic_eat_to_end));
@@ -141,7 +154,9 @@ impl StaticDecl {
 
 /// A location within the ROM output
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RomLocation {}
+pub enum RomLocation {
+  Rom0,
+}
 impl RomLocation {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
@@ -152,11 +167,37 @@ impl RomLocation {
 /// An expression that evaluates to 0 or more bytes of static data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StaticExpr {
-  StaticError,
+  RawBytes(Vec<(ConstExpr, SimpleSpan)>),
+  StaticExprError,
 }
 impl StaticExpr {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    todo()
+    let raw_bytes = Self::raw_bytes();
+    let generic = Self::generic_eat_to_semicolon();
+
+    choice((raw_bytes,)).recover_with(via_parser(generic))
+  }
+
+  fn raw_bytes<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let name = just(Lone(Ident("raw_bytes"))).ignored();
+    let bang = bang().ignored();
+    let bytes = ConstExpr::parser()
+      .map_with_span(id2)
+      .separated_by(comma())
+      .collect::<Vec<_>>()
+      .nested_in(select_ref! {
+        Parens(tokens) = span => {
+          let span: SimpleSpan = span;
+          tokens.spanned(span)
+        },
+      });
+    name.ignore_then(bang).ignore_then(bytes).map(Self::RawBytes)
+  }
+
+  fn generic_eat_to_semicolon<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    none_of([Lone(Punct(';'))]).ignored().or(end()).repeated().to(Self::StaticExprError)
   }
 }
