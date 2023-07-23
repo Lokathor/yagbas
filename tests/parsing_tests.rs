@@ -1,4 +1,6 @@
-use chumsky::{extra::ParserExtra, input::Input, span::SimpleSpan, ParseResult, Parser};
+#![allow(clippy::unit_cmp)]
+
+use chumsky::{extra::ParserExtra, prelude::*};
 use yagbas::{
   const_expr::ConstExpr,
   item::{ConstDecl, Item},
@@ -36,6 +38,33 @@ where
   };
   let input = data.spanned(span);
   parser.parse(input)
+}
+
+#[test]
+fn test_eat_until_semicolon_or_end() {
+  let checks = [
+    //
+    (";", 1),
+    ("foo;", 1),
+    ("foo", 1),
+    ("foo bar", 1),
+    ("foo; bar;", 2),
+    ("foo; {} bar;", 3),
+  ];
+  for (src, expected) in checks.into_iter() {
+    let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(src);
+    let (token_trees, tree_parse_errors) = grow_token_trees(&tokens);
+    assert!(tree_parse_errors.is_empty(), "{tree_parse_errors:?}");
+
+    let (opt_list, expr_parse_errors) = run_tt_parser(
+      eat_until_semicolon_or_braces().repeated().collect::<Vec<_>>(),
+      &token_trees,
+    )
+    .into_output_errors();
+    assert!(expr_parse_errors.is_empty(), "{expr_parse_errors:?}\nSrc: {src}\n");
+    assert_eq!(expected, opt_list.unwrap().len(), "\nSrc Was: {src}\n");
+  }
+  //
 }
 
 #[test]

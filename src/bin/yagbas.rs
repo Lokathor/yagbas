@@ -93,9 +93,11 @@ fn build_process_file(filename: &String) {
   //println!("== Tokens: {tokens:?}");
 
   let (token_trees, tree_parse_errors) = grow_token_trees(&tokens);
-  //println!("== Token Trees: {token_trees:?}");
   if !tree_parse_errors.is_empty() {
-    println!("== Token Tree Parse Errors: {tree_parse_errors:?}");
+    println!("== Token Tree Parse Errors ==");
+    for error in &tree_parse_errors {
+      println!("ERR: {error:?}");
+    }
   }
 
   let (items, item_parse_errors) = parse_module_items(&token_trees);
@@ -103,7 +105,10 @@ fn build_process_file(filename: &String) {
     println!("I: {item:?}");
   }
   if !item_parse_errors.is_empty() {
-    println!("== Item Parse Errors: {item_parse_errors:?}");
+    println!("== Item Parse Errors ==");
+    for error in &item_parse_errors {
+      println!("ERR: {error:?}");
+    }
   }
 }
 

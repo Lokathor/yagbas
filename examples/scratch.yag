@@ -5,12 +5,18 @@ const LCDC = $FF40;
 const LY = $FF44;
 const BGP = $FF47;
 
-static tilemap [rom0] = raw_bytes!(
-  $00, $FF, $14, $15,
-  $16, $17, $18, $19,
-);
-
+static tilemap [rom0] = raw_bytes!();
 
 section main [rom0] {
+    // shut down audio
     ld a, 0;
+    ld [NR52], a;
+
+    // wait for vblank to turn off the display
+  1:
+    ld a, [LY];
+    cp a, 144;
+    jp cy, 1b;
+  1:
+    jp 1b;
 }

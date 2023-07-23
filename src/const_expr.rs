@@ -228,10 +228,9 @@ impl ConstExpr {
             }
           },
         )
-        .map(|(expr, _span)| expr)
-        .boxed();
+        .map(|(expr, _span)| expr);
 
-      bitor
+      bitor.labelled("ConstExpr").boxed()
     })
   }
 }

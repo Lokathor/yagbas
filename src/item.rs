@@ -1,4 +1,7 @@
-use crate::const_expr::ConstExpr;
+use crate::{
+  const_expr::{lit_to_value, ConstExpr},
+  static_expr::StaticExpr,
+};
 
 use super::*;
 
@@ -18,13 +21,7 @@ impl Item {
 
     let section_decl = SectionDecl::parser().map(Self::SectionDecl);
 
-    let item_error = none_of([Lone(Punct(';'))])
-      .ignored()
-      .repeated()
-      .at_least(1)
-      .then(semicolon().ignored().or(end()))
-      .to(Self::ItemError)
-      .or(semicolon().to(Self::ItemError));
+    let item_error = eat_until_semicolon_or_braces().to(Self::ItemError);
 
     choice((const_decl, static_decl, section_decl)).recover_with(via_parser(item_error))
   }
@@ -70,7 +67,6 @@ impl ConstDecl {
 
     // the "good" path of what we want after the keyword.
     let all_parts = ident
-      .clone()
       .then_ignore(equal())
       .then(expr.clone())
       .then_ignore(semicolon())
@@ -133,7 +129,6 @@ impl StaticDecl {
         },
       });
     let all_parts = ident
-      .clone()
       .then(locations)
       .then_ignore(equal())
       .then(expr.clone())
@@ -169,45 +164,6 @@ impl RomLocation {
   }
 }
 
-/// An expression that evaluates to 0 or more bytes of static data.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StaticExpr {
-  RawBytes(Vec<(ConstExpr, SimpleSpan)>),
-  StaticExprError,
-}
-impl StaticExpr {
-  pub fn parser<'a>(
-  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    let raw_bytes = Self::raw_bytes();
-    let generic = Self::generic_eat_to_semicolon();
-
-    choice((raw_bytes,)).recover_with(via_parser(generic))
-  }
-
-  fn raw_bytes<'a>(
-  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    let name = just(Lone(Ident("raw_bytes"))).ignored();
-    let bang = bang().ignored();
-    let bytes = ConstExpr::parser()
-      .map_with_span(id2)
-      .separated_by(comma())
-      .collect::<Vec<_>>()
-      .then_ignore(comma().or_not())
-      .nested_in(select_ref! {
-        Parens(tokens) = span => {
-          let span: SimpleSpan = span;
-          tokens.spanned(span)
-        },
-      });
-    name.ignore_then(bang).ignore_then(bytes).map(Self::RawBytes)
-  }
-
-  fn generic_eat_to_semicolon<'a>(
-  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    none_of([Lone(Punct(';'))]).ignored().or(end()).repeated().to(Self::StaticExprError)
-  }
-}
-
 /// A static declaration is `section` and then some non-braces stuff, then
 /// braces.
 ///
@@ -237,7 +193,6 @@ impl SectionDecl {
       });
 
     let all_parts = ident
-      .clone()
       .then(locations)
       .then(
         SectionElem::parser()
@@ -252,15 +207,14 @@ impl SectionDecl {
           }),
       )
       .map(|((name, rom_locations), elements)| Self { name, rom_locations, elements });
-    let braces = select! {
-      Braces(_)  => (),
-    };
-    let not_braces = braces.not();
-    let generic_eat_to_braces =
-      not_braces.ignored().repeated().then_ignore(braces.or(end())).map_with_span(
-        |(), span| Self { name: ("", span), elements: vec![], rom_locations: vec![] },
-      );
-    let post_keyword = all_parts.recover_with(via_parser(generic_eat_to_braces));
+
+    let recovery = eat_until_semicolon_or_braces().to(Self {
+      name: ("", SimpleSpan::new(0, 0)),
+      rom_locations: Default::default(),
+      elements: Default::default(),
+    });
+
+    let post_keyword = all_parts.recover_with(via_parser(recovery));
 
     kw_section.ignore_then(post_keyword).boxed()
   }
@@ -269,11 +223,236 @@ impl SectionDecl {
 /// A statement within a section.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SectionElem {
-  SectionElemError,
+  NumberLabel(i32),
+  IdentLabel(StaticStr),
+  Instruction(Instruction),
+  SectionElemError(CowStr),
 }
 impl SectionElem {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    any().to(Self::SectionElemError)
+    let number_label = num_lit().then_ignore(colon()).map(|n| match lit_to_value(n) {
+      Ok(i) => Self::NumberLabel(i),
+      Err(e) => Self::SectionElemError(e),
+    });
+
+    let ident_label = ident().then_ignore(colon()).map(Self::IdentLabel);
+
+    let instruction = Instruction::parser().map(Self::Instruction);
+
+    let happy = choice((number_label, ident_label, instruction));
+
+    let recovery =
+      eat_until_semicolon_or_braces().to(Self::SectionElemError(CowStr::Borrowed("")));
+
+    happy.recover_with(via_parser(recovery))
+  }
+}
+
+/// A particular instruction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Instruction {
+  Load(Load),
+  Compare(Compare),
+  Jump(Jump),
+  InstructionError,
+}
+impl Instruction {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let load = Load::parser().map(Self::Load);
+    let compare = Compare::parser().map(Self::Compare);
+    let jump = Jump::parser().map(Self::Jump);
+
+    let happy = choice((load, compare, jump));
+
+    let recovery = eat_until_semicolon_or_braces().to(Self::InstructionError);
+
+    happy.recover_with(via_parser(recovery))
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[rustfmt::skip]
+pub enum Place8 {
+  B,C,D,E,H,L,AddrHL,A
+}
+impl Place8 {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone + Copy {
+    let lone = select! {
+      Lone(RegA) => Self::A,
+      Lone(RegB) => Self::B,
+      Lone(RegC) => Self::C,
+      Lone(RegD) => Self::D,
+      Lone(RegE) => Self::E,
+      Lone(RegH) => Self::H,
+      Lone(RegL) => Self::L,
+    };
+    let hl = select! {
+      Lone(RegHL) => Self::AddrHL
+    }
+    .nested_in(select_ref! {
+      Brackets(tokens) = span => {
+        let span: SimpleSpan = span;
+        tokens.spanned(span)
+      },
+    });
+    lone.or(hl).labelled("Place8")
+  }
+}
+
+/// A statement within a section.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Load {
+  Place8Imm8((Place8, SimpleSpan), (ConstExpr, SimpleSpan)),
+  ConstAddrA((ConstExpr, SimpleSpan)),
+  AConstAddr((ConstExpr, SimpleSpan)),
+  LoadError,
+}
+impl Load {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let ld = select! {
+      Lone(InstLD) => (),
+    };
+    let a = select! {
+      Lone(RegA) => (),
+    };
+
+    let const_addr = ConstExpr::parser()
+      .nested_in(select_ref! {
+        Brackets(tokens) = span => {
+          let span: SimpleSpan = span;
+          tokens.spanned(span)
+        },
+      })
+      .labelled("ConstAddress")
+      .map_with_span(id2);
+
+    let place8_imm8 = Place8::parser()
+      .map_with_span(id2)
+      .then_ignore(comma())
+      .then(ConstExpr::parser().map_with_span(id2))
+      .map(|(place, expr)| Self::Place8Imm8(place, expr));
+
+    let const_addr_a =
+      const_addr.clone().then_ignore(comma()).then_ignore(a).map(Self::ConstAddrA);
+    let a_const_addr =
+      a.ignore_then(comma()).ignore_then(const_addr.clone()).map(Self::AConstAddr);
+
+    let happy =
+      choice((place8_imm8, const_addr_a, a_const_addr)).then_ignore(semicolon());
+    let recovery = via_parser(eat_until_semicolon_or_braces().to(Self::LoadError));
+
+    ld.ignore_then(happy.recover_with(recovery))
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Compare {
+  Place8(Place8, SimpleSpan),
+  ConstExpr(ConstExpr, SimpleSpan),
+  CompareError,
+}
+impl Compare {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let cp = select! {
+      Lone(InstCP) => (),
+    };
+    let a = select! {
+      Lone(RegA) => (),
+    };
+
+    let a_place8 =
+      a.ignore_then(comma()).ignore_then(Place8::parser().map_with_span(Self::Place8));
+    let a_const = a
+      .ignore_then(comma())
+      .ignore_then(ConstExpr::parser().map_with_span(Self::ConstExpr));
+    let only_place8 = Place8::parser().map_with_span(Self::Place8);
+    let only_const = ConstExpr::parser().map_with_span(Self::ConstExpr);
+
+    let happy =
+      choice((a_place8, a_const, only_place8, only_const)).then_ignore(semicolon());
+    let recovery = via_parser(eat_until_semicolon_or_braces().to(Self::CompareError));
+
+    cp.ignore_then(happy.recover_with(recovery))
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[rustfmt::skip]
+pub enum Condition {
+  Zero, NonZero, Carry, NoCarry, Always
+}
+impl Condition {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone + Copy {
+    select! {
+      Lone(CondZE) => Self::Zero,
+      Lone(CondNZ) => Self::NonZero,
+      Lone(CondCY) => Self::Carry,
+      Lone(CondNC) => Self::NoCarry,
+      Lone(CondAL) => Self::Always,
+    }
+    .labelled("Condition")
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JumpDirection {
+  Back,
+  Forward,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NumLabelTarget(i32, JumpDirection);
+impl NumLabelTarget {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    num_lit()
+      .try_map(|lit, span| {
+        Ok(if let Some(lit) = lit.strip_suffix('f') {
+          NumLabelTarget(
+            lit_to_value(lit).map_err(|e| Rich::custom(span, e))?,
+            JumpDirection::Forward,
+          )
+        } else if let Some(lit) = lit.strip_suffix('b') {
+          NumLabelTarget(
+            lit_to_value(lit).map_err(|e| Rich::custom(span, e))?,
+            JumpDirection::Back,
+          )
+        } else {
+          return Err(Rich::custom(span, "Number label requires `b` or `f` suffix"));
+        })
+      })
+      .labelled("NumericLabel")
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Jump {
+  NumLabel(Condition, NumLabelTarget),
+  JumpError,
+}
+impl Jump {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let jp = select! {
+      Lone(InstJP) => (),
+    };
+
+    let cond_num_label = Condition::parser()
+      .then_ignore(comma())
+      .then(NumLabelTarget::parser())
+      .map(|(cond, nlt)| Self::NumLabel(cond, nlt));
+    let always_num_label =
+      NumLabelTarget::parser().map(|nlt| Self::NumLabel(Condition::Always, nlt));
+
+    let happy = choice((cond_num_label, always_num_label)).then_ignore(semicolon());
+    let recovery = via_parser(eat_until_semicolon_or_braces().to(Self::JumpError));
+
+    jp.ignore_then(happy.recover_with(recovery))
   }
 }

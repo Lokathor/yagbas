@@ -14,7 +14,7 @@ codegen-units=1
 lto=true
 
 [dependencies]
-chumsky = "1.0.0-alpha.4"
+chumsky = { version = "1.0.0-alpha.4", features = ["label"] }
 clap = { version = "4.3.10", features = ["derive"] }
 logos = "0.13.0"
 rayon = "1.7.0"
