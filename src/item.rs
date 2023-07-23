@@ -6,6 +6,7 @@ use super::*;
 pub enum Item {
   ConstDecl(ConstDecl),
   StaticDecl(StaticDecl),
+  SectionDecl(SectionDecl),
   ItemError,
 }
 impl Item {
@@ -15,6 +16,8 @@ impl Item {
 
     let static_decl = StaticDecl::parser().map(Self::StaticDecl);
 
+    let section_decl = SectionDecl::parser().map(Self::SectionDecl);
+
     let item_error = none_of([Lone(Punct(';'))])
       .ignored()
       .repeated()
@@ -23,7 +26,7 @@ impl Item {
       .to(Self::ItemError)
       .or(semicolon().to(Self::ItemError));
 
-    choice((const_decl, static_decl)).recover_with(via_parser(item_error))
+    choice((const_decl, static_decl, section_decl)).recover_with(via_parser(item_error))
   }
 }
 
@@ -202,5 +205,75 @@ impl StaticExpr {
   fn generic_eat_to_semicolon<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     none_of([Lone(Punct(';'))]).ignored().or(end()).repeated().to(Self::StaticExprError)
+  }
+}
+
+/// A static declaration is `section` and then some non-braces stuff, then
+/// braces.
+///
+/// * Should look like: `static IDENT [LOCATIONS] { STATEMENTS }`
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SectionDecl {
+  pub name: (StaticStr, SimpleSpan),
+  pub rom_locations: Vec<(RomLocation, SimpleSpan)>,
+  pub elements: Vec<(SectionElem, SimpleSpan)>,
+}
+impl SectionDecl {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let kw_section = just(Lone(KwSection));
+
+    let ident = ident().map_with_span(id2);
+
+    let locations = RomLocation::parser()
+      .map_with_span(id2)
+      .separated_by(comma())
+      .collect::<Vec<_>>()
+      .nested_in(select_ref! {
+        Brackets(tokens) = span => {
+          let span: SimpleSpan = span;
+          tokens.spanned(span)
+        },
+      });
+
+    let all_parts = ident
+      .clone()
+      .then(locations)
+      .then(
+        SectionElem::parser()
+          .map_with_span(id2)
+          .repeated()
+          .collect::<Vec<_>>()
+          .nested_in(select_ref! {
+            Braces(tokens) = span => {
+              let span: SimpleSpan = span;
+              tokens.spanned(span)
+            },
+          }),
+      )
+      .map(|((name, rom_locations), elements)| Self { name, rom_locations, elements });
+    let braces = select! {
+      Braces(_)  => (),
+    };
+    let not_braces = braces.not();
+    let generic_eat_to_braces =
+      not_braces.ignored().repeated().then_ignore(braces.or(end())).map_with_span(
+        |(), span| Self { name: ("", span), elements: vec![], rom_locations: vec![] },
+      );
+    let post_keyword = all_parts.recover_with(via_parser(generic_eat_to_braces));
+
+    kw_section.ignore_then(post_keyword).boxed()
+  }
+}
+
+/// A statement within a section.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SectionElem {
+  SectionElemError,
+}
+impl SectionElem {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    any().to(Self::SectionElemError)
   }
 }

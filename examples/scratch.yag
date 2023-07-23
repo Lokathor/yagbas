@@ -9,3 +9,8 @@ static tilemap [rom0] = raw_bytes!(
   $00, $FF, $14, $15,
   $16, $17, $18, $19,
 );
+
+
+section main [rom0] {
+    ld a, 0;
+}
