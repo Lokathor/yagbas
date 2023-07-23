@@ -102,7 +102,7 @@ impl ConstDecl {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StaticDecl {
   pub name: (StaticStr, SimpleSpan),
-  pub locations: Vec<(RomLocation, SimpleSpan)>,
+  pub rom_locations: Vec<(RomLocation, SimpleSpan)>,
   pub expr: (StaticExpr, SimpleSpan),
 }
 impl StaticDecl {
@@ -135,7 +135,7 @@ impl StaticDecl {
       .then_ignore(equal())
       .then(expr.clone())
       .then_ignore(semicolon())
-      .map(|((name, locations), expr)| Self { name, locations, expr });
+      .map(|((name, rom_locations), expr)| Self { name, rom_locations, expr });
     let generic_eat_to_end = not_semicolon
       .clone()
       .ignored()
@@ -144,7 +144,7 @@ impl StaticDecl {
       .map_with_span(|(), span| Self {
         name: ("", span),
         expr: (StaticExpr::StaticExprError, span),
-        locations: vec![],
+        rom_locations: vec![],
       });
     let post_keyword = all_parts.recover_with(via_parser(generic_eat_to_end));
 
