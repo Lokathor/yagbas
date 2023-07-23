@@ -6,4 +6,6 @@ const LY = $FF44;
 const BGP = $FF47;
 
 static tilemap [rom0] = raw_bytes!(
-  $00, $00, $14, $15, $16, $17, $18, $19);
+  $00, $FF, $14, $15,
+  $16, $17, $18, $19,
+);

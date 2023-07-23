@@ -16,6 +16,7 @@ impl Item {
     let static_decl = StaticDecl::parser().map(Self::StaticDecl);
 
     let item_error = none_of([Lone(Punct(';'))])
+      .ignored()
       .repeated()
       .at_least(1)
       .then(semicolon().ignored().or(end()))
@@ -92,7 +93,7 @@ impl ConstDecl {
     // If we see `const` we run the rest and whatever happens it's still some
     // sort of const declaration (since we saw the keyword). If we don't even
     // see `const` then it's not a const declaration at all.
-    kw_const.ignore_then(post_keyword)
+    kw_const.ignore_then(post_keyword).boxed()
   }
 }
 
@@ -118,8 +119,7 @@ impl StaticDecl {
         .repeated()
         .map_with_span(|(), span| (StaticExpr::StaticExprError, span)),
     ));
-    let locations = just(Lone(Ident("rom0")))
-      .to(RomLocation::Rom0)
+    let locations = RomLocation::parser()
       .map_with_span(id2)
       .separated_by(comma())
       .collect::<Vec<_>>()
@@ -148,7 +148,7 @@ impl StaticDecl {
       });
     let post_keyword = all_parts.recover_with(via_parser(generic_eat_to_end));
 
-    kw_static.ignore_then(post_keyword)
+    kw_static.ignore_then(post_keyword).boxed()
   }
 }
 
@@ -160,7 +160,9 @@ pub enum RomLocation {
 impl RomLocation {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    todo()
+    let rom0 = just(Lone(Ident("rom0"))).to(Self::Rom0);
+
+    rom0
   }
 }
 
@@ -187,6 +189,7 @@ impl StaticExpr {
       .map_with_span(id2)
       .separated_by(comma())
       .collect::<Vec<_>>()
+      .then_ignore(comma().or_not())
       .nested_in(select_ref! {
         Parens(tokens) = span => {
           let span: SimpleSpan = span;

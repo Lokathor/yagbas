@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+#![allow(clippy::let_and_return)]
 
 use chumsky::{prelude::*, span::SimpleSpan, *};
 
