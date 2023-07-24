@@ -238,7 +238,7 @@ impl SectionElem {
 
     let ident_label = ident().then_ignore(colon()).map(Self::IdentLabel);
 
-    let instruction = Instruction::parser().map(Self::Instruction);
+    let instruction = Instruction::parser().map(Self::Instruction).boxed();
 
     let happy = choice((number_label, ident_label, instruction));
 
@@ -254,7 +254,10 @@ impl SectionElem {
 pub enum Instruction {
   Load(Load),
   Compare(Compare),
+  Or(Or),
   Jump(Jump),
+  Inc(Inc),
+  Dec(Dec),
   InstructionError,
 }
 impl Instruction {
@@ -262,9 +265,12 @@ impl Instruction {
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     let load = Load::parser().map(Self::Load);
     let compare = Compare::parser().map(Self::Compare);
+    let or = Or::parser().map(Self::Or);
     let jump = Jump::parser().map(Self::Jump);
+    let inc = Inc::parser().map(Self::Inc);
+    let dec = Dec::parser().map(Self::Dec);
 
-    let happy = choice((load, compare, jump));
+    let happy = choice((load, compare, or, jump, inc, dec));
 
     let recovery = eat_until_semicolon_or_braces().to(Self::InstructionError);
 
@@ -302,12 +308,62 @@ impl Place8 {
   }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[rustfmt::skip]
+pub enum Place16 {
+  BC,DE,HL,SP
+}
+impl Place16 {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone + Copy {
+    select! {
+      Lone(RegBC) => Self::BC,
+      Lone(RegDE) => Self::DE,
+      Lone(RegHL) => Self::HL,
+      Lone(RegSP) => Self::SP,
+    }
+    .labelled("Place16")
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[rustfmt::skip]
+pub enum PlaceIndirect {
+  AddrBC,AddrDE,AddrHLInc,AddrHLDec
+}
+impl PlaceIndirect {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let bc_or_de = select! {
+      Lone(RegBC) => Self::AddrBC,
+      Lone(RegDE) => Self::AddrDE,
+    };
+    let hl_inc =
+      just([Lone(RegHL), Lone(Punct('+')), Lone(Punct('+'))]).to(Self::AddrHLInc);
+    let hl_dec =
+      just([Lone(RegHL), Lone(Punct('-')), Lone(Punct('-'))]).to(Self::AddrHLDec);
+
+    choice((bc_or_de, hl_inc, hl_dec))
+      .nested_in(select_ref! {
+        Brackets(tokens) = span => {
+          let span: SimpleSpan = span;
+          tokens.spanned(span)
+        },
+      })
+      .labelled("PlaceIndirect")
+  }
+}
+
 /// A statement within a section.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Load {
+  Place8Place8((Place8, SimpleSpan), (Place8, SimpleSpan)),
   Place8Imm8((Place8, SimpleSpan), (ConstExpr, SimpleSpan)),
+  Place16Imm16((Place16, SimpleSpan), (ConstExpr, SimpleSpan)),
   ConstAddrA((ConstExpr, SimpleSpan)),
   AConstAddr((ConstExpr, SimpleSpan)),
+  PlaceIndirectA((PlaceIndirect, SimpleSpan)),
+  APlaceIndirect((PlaceIndirect, SimpleSpan)),
   LoadError,
 }
 impl Load {
@@ -330,22 +386,52 @@ impl Load {
       .labelled("ConstAddress")
       .map_with_span(id2);
 
+    let place8_place8 = Place8::parser()
+      .map_with_span(id2)
+      .then_ignore(comma())
+      .then(Place8::parser().map_with_span(id2))
+      .map(|(dest, src)| Self::Place8Place8(dest, src));
+
     let place8_imm8 = Place8::parser()
       .map_with_span(id2)
       .then_ignore(comma())
       .then(ConstExpr::parser().map_with_span(id2))
       .map(|(place, expr)| Self::Place8Imm8(place, expr));
+    let place16_imm16 = Place16::parser()
+      .map_with_span(id2)
+      .then_ignore(comma())
+      .then(ConstExpr::parser().map_with_span(id2))
+      .map(|(place, expr)| Self::Place16Imm16(place, expr));
 
     let const_addr_a =
       const_addr.clone().then_ignore(comma()).then_ignore(a).map(Self::ConstAddrA);
     let a_const_addr =
       a.ignore_then(comma()).ignore_then(const_addr.clone()).map(Self::AConstAddr);
 
-    let happy =
-      choice((place8_imm8, const_addr_a, a_const_addr)).then_ignore(semicolon());
+    let place_indirect_a = PlaceIndirect::parser()
+      .map_with_span(id2)
+      .clone()
+      .then_ignore(comma())
+      .then_ignore(a)
+      .map(Self::PlaceIndirectA);
+    let a_place_indirect = a
+      .ignore_then(comma())
+      .ignore_then(PlaceIndirect::parser().map_with_span(id2))
+      .map(Self::APlaceIndirect);
+
+    let happy = choice((
+      place8_place8,
+      place8_imm8,
+      place16_imm16,
+      const_addr_a,
+      a_const_addr,
+      place_indirect_a,
+      a_place_indirect,
+    ))
+    .then_ignore(semicolon());
     let recovery = via_parser(eat_until_semicolon_or_braces().to(Self::LoadError));
 
-    ld.ignore_then(happy.recover_with(recovery))
+    ld.ignore_then(happy.recover_with(recovery)).boxed()
   }
 }
 
@@ -378,6 +464,38 @@ impl Compare {
     let recovery = via_parser(eat_until_semicolon_or_braces().to(Self::CompareError));
 
     cp.ignore_then(happy.recover_with(recovery))
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Or {
+  Place8(Place8, SimpleSpan),
+  ConstExpr(ConstExpr, SimpleSpan),
+  OrError,
+}
+impl Or {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let or = select! {
+      Lone(InstOR) => (),
+    };
+    let a = select! {
+      Lone(RegA) => (),
+    };
+
+    let a_place8 =
+      a.ignore_then(comma()).ignore_then(Place8::parser().map_with_span(Self::Place8));
+    let a_const = a
+      .ignore_then(comma())
+      .ignore_then(ConstExpr::parser().map_with_span(Self::ConstExpr));
+    let only_place8 = Place8::parser().map_with_span(Self::Place8);
+    let only_const = ConstExpr::parser().map_with_span(Self::ConstExpr);
+
+    let happy =
+      choice((a_place8, a_const, only_place8, only_const)).then_ignore(semicolon());
+    let recovery = via_parser(eat_until_semicolon_or_braces().to(Self::OrError));
+
+    or.ignore_then(happy.recover_with(recovery))
   }
 }
 
@@ -434,6 +552,7 @@ impl NumLabelTarget {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Jump {
   NumLabel(Condition, NumLabelTarget),
+  IdentLabel(Condition, StaticStr),
   JumpError,
 }
 impl Jump {
@@ -450,9 +569,63 @@ impl Jump {
     let always_num_label =
       NumLabelTarget::parser().map(|nlt| Self::NumLabel(Condition::Always, nlt));
 
-    let happy = choice((cond_num_label, always_num_label)).then_ignore(semicolon());
+    let cond_ident_label = Condition::parser()
+      .then_ignore(comma())
+      .then(ident())
+      .map(|(cond, nlt)| Self::IdentLabel(cond, nlt));
+    let always_ident_label = ident().map(|nlt| Self::IdentLabel(Condition::Always, nlt));
+
+    let happy =
+      choice((cond_num_label, always_num_label, cond_ident_label, always_ident_label))
+        .then_ignore(semicolon());
     let recovery = via_parser(eat_until_semicolon_or_braces().to(Self::JumpError));
 
     jp.ignore_then(happy.recover_with(recovery))
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Inc {
+  Inc8(Place8),
+  Inc16(Place16),
+  IncError,
+}
+impl Inc {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let inc = select! {
+      Lone(InstINC) => (),
+    };
+
+    let inc8 = Place8::parser().map(Self::Inc8);
+    let inc16 = Place16::parser().map(Self::Inc16);
+
+    let happy = choice((inc8, inc16)).then_ignore(semicolon());
+    let recovery = via_parser(eat_until_semicolon_or_braces().to(Self::IncError));
+
+    inc.ignore_then(happy.recover_with(recovery))
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Dec {
+  Dec8(Place8),
+  Dec16(Place16),
+  DecError,
+}
+impl Dec {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    let dec = select! {
+      Lone(InstDEC) => (),
+    };
+
+    let dec8 = Place8::parser().map(Self::Dec8);
+    let dec16 = Place16::parser().map(Self::Dec16);
+
+    let happy = choice((dec8, dec16)).then_ignore(semicolon());
+    let recovery = via_parser(eat_until_semicolon_or_braces().to(Self::DecError));
+
+    dec.ignore_then(happy.recover_with(recovery))
   }
 }

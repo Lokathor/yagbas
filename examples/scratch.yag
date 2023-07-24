@@ -5,8 +5,6 @@ const LCDC = $FF40;
 const LY = $FF44;
 const BGP = $FF47;
 
-static tilemap [rom0] = raw_bytes!();
-
 section main [rom0] {
     // shut down audio
     ld a, 0;
@@ -17,6 +15,52 @@ section main [rom0] {
     ld a, [LY];
     cp a, 144;
     jp cy, 1b;
+
+    ld a, 0;
+    ld [LCDC], a;
+
+    // copy tile data
+    ld de, tiles;
+    ld hl, VRAM_TILE_BLOCK_2;
+    ld bc, size_of_static!(tiles);
+  copy_tiles:
+    ld a, [de];
+    ld [hl++], a;
+    inc de;
+    dec bc;
+    ld a, b;
+    or a, c;
+    jp nz, copy_tiles;
+
+    // copy the tile map
+    ld de, tilemap;
+    ld hl, VRAM_TILE_MAP_0;
+    ld bc, size_of_static!(tilemap);
+  copy_tilemap:
+    ld a, [de];
+    ld [hl++], a;
+    inc de;
+    dec bc;
+    ld a, b;
+    or a, c;
+    jp nz, copy_tilemap;
+
+    // turn the display on
+    ld a, %1000_0001;
+    ld [LCDC], a;
+
+    // set the background color palette
+    ld a, %11_10_01_00;
+    ld [BGP], a;
+
   1:
     jp 1b;
 }
+
+static tiles [rom0] = raw_bytes!(
+  $00,$ff, $00,$ff,
+);
+
+static tilemap [rom0] = raw_bytes!(
+  $00, $00, $00, $00,
+);

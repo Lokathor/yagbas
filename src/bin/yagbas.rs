@@ -8,7 +8,7 @@ use chumsky::{
 };
 use std::borrow::Cow;
 use yagbas::{
-  item::parse_module_items,
+  item::{parse_module_items, Item},
   token::{tokenize_module, Token},
   token_tree::grow_token_trees,
 };
@@ -101,8 +101,18 @@ fn build_process_file(filename: &String) {
   }
 
   let (items, item_parse_errors) = parse_module_items(&token_trees);
-  for item in items {
-    println!("I: {item:?}");
+  for (item, span) in &items {
+    match item {
+      Item::ConstDecl(x) => println!("I({span:?}): {x:?}"),
+      Item::StaticDecl(x) => println!("I({span:?}): {x:?}"),
+      Item::SectionDecl(x) => {
+        println!("I({span:?}): {}", x.name.0);
+        for (elem, span) in &x.elements {
+          println!("..({span:?}): {:?}", elem);
+        }
+      }
+      Item::ItemError => println!("I({span:?}): ItemError"),
+    }
   }
   if !item_parse_errors.is_empty() {
     println!("== Item Parse Errors ==");
