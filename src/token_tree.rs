@@ -1,10 +1,12 @@
-use chumsky::{input::ValueInput, prelude::*};
+use chumsky::{
+  input::{Input, SpannedInput, ValueInput},
+  prelude::*,
+};
 
 use crate::{
-  ast::Ast,
-  id2, run_parser,
+  id2,
   token::{Token, Token::*},
-  ErrRichToken,
+  ErrRichToken, TokenSlice,
 };
 
 /// A lone token or a list of token trees within one of three groupings.
@@ -20,6 +22,7 @@ pub enum TokenTree {
   Parens(Vec<(Self, SimpleSpan)>),
   Brackets(Vec<(Self, SimpleSpan)>),
   Braces(Vec<(Self, SimpleSpan)>),
+  TreeError,
 }
 use TokenTree::*;
 impl core::fmt::Debug for TokenTree {
@@ -71,142 +74,78 @@ impl core::fmt::Debug for TokenTree {
           Ok(())
         }
       }
+      TreeError => write!(f, "TreeError"),
     }
   }
 }
 impl TokenTree {
   /// Parses for just one token tree.
-  pub fn parser<'a, I>() -> impl Parser<'a, I, Self, ErrRichToken<'a>>
-  where
-    I: ValueInput<'a, Token = crate::token::Token, Span = SimpleSpan>,
-  {
+  pub fn parser<'a>() -> impl Parser<'a, TokenSlice<'a>, Self, ErrRichToken<'a>> + Clone {
     recursive(|tt| {
       let token_list = tt.map_with_span(id2).repeated().collect::<Vec<_>>();
 
-      // Certain bracketed sequences that occur very frequently, and that have
-      // only one form without extra info we need to carry, we collapse into a
-      // single lone token during the tree creation. This reduces intermediate
-      // allocation and simplifies the later parsing stages quite a bit.
-
-      // Looks like `[ hl + + ]` or `[ hl + ]`
-      let addr_hl_inc = just(Punct('['))
-        .ignore_then(just(RegHL))
-        .ignore_then(just(Punct('+')))
-        .ignore_then(just(Punct('+')).or_not())
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrHLInc));
-
-      // Looks like `[ hl - - ]` or `[ hl - ]`
-      let addr_hl_dec = just(Punct('['))
-        .ignore_then(just(RegHL))
-        .ignore_then(just(Punct('-')))
-        .ignore_then(just(Punct('-')).or_not())
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrHLDec));
-
-      // Looks like `[ hl ]`
-      let addr_hl = just(Punct('['))
-        .ignore_then(just(RegHL))
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrHL));
-
-      // Looks like `[ bc ]`
-      let addr_bc = just(Punct('['))
-        .ignore_then(just(RegBC))
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrBC));
-
-      // Looks like `[ de ]`
-      let addr_de = just(Punct('['))
-        .ignore_then(just(RegDE))
-        .ignore_then(just(Punct(']')))
-        .ignored()
-        .to(Lone(AddrDE));
-
-      // Looks like `[...]`
+      // Looks like `[ ... ]`
       let brackets = token_list
         .clone()
         .delimited_by(just(Punct('[')), just(Punct(']')))
         .map(TokenTree::Brackets);
 
-      // Looks like `{...}`
+      // Looks like `{ ... }`
       let braces = token_list
         .clone()
         .delimited_by(just(Punct('{')), just(Punct('}')))
         .map(TokenTree::Braces);
 
-      // Looks like `(...)`
+      // Looks like `( ... )`
       let parens = token_list
         .clone()
         .delimited_by(just(Punct('(')), just(Punct(')')))
         .map(TokenTree::Parens);
 
-      // Looks like something that does *NOT* close one of the other types.
-      let single = none_of([Punct(')'), Punct(']'), Punct('}')]).map(TokenTree::Lone);
+      // Looks like something that does *NOT* open or close one of the other types.
+      let single = none_of([
+        Punct('['),
+        Punct(']'),
+        Punct('{'),
+        Punct('}'),
+        Punct('('),
+        Punct(')'),
+        CommentBlockStart,
+        CommentBlockEnd,
+      ])
+      .map(TokenTree::Lone);
 
-      choice((
-        addr_hl_inc,
-        addr_hl_dec,
-        addr_hl,
-        addr_bc,
-        addr_de,
-        brackets,
-        braces,
-        parens,
-        single,
-      ))
+      // Looks like `//`
+      let single_comment = just(CommentSingle).ignored();
+
+      // Looks like `/* ... */`
+      let block_comment = token_list
+        .clone()
+        .delimited_by(just(CommentBlockStart), just(CommentBlockEnd))
+        .ignored();
+
+      // Either type of comment
+      let comment = single_comment.or(block_comment);
+
+      choice((brackets, braces, parens, single)).padded_by(comment.repeated())
     })
   }
 }
 
-#[inline]
-pub fn make_token_trees(
+pub fn grow_token_trees(
   tokens: &[(Token, SimpleSpan)],
-) -> ParseResult<Vec<(TokenTree, SimpleSpan)>, Rich<'_, Token>> {
-  let parser = TokenTree::parser().map_with_span(id2).repeated().collect::<Vec<_>>();
-  //
-  run_parser(parser, tokens)
-}
-
-#[test]
-fn test_make_token_trees() {
-  let checks: &[(&str, &[TokenTree])] = &[
-    ("[hl]", &[Lone(AddrHL)]),
-    ("[ hl]", &[Lone(AddrHL)]),
-    ("[hl ]", &[Lone(AddrHL)]),
-    ("[ hl ]", &[Lone(AddrHL)]),
-    //
-    ("[bc]", &[Lone(AddrBC)]),
-    ("[ bc]", &[Lone(AddrBC)]),
-    ("[bc ]", &[Lone(AddrBC)]),
-    ("[ bc ]", &[Lone(AddrBC)]),
-    //
-    ("[hl+]", &[Lone(AddrHLInc)]),
-    ("[hl++]", &[Lone(AddrHLInc)]),
-    ("[hl +]", &[Lone(AddrHLInc)]),
-    ("[hl + +]", &[Lone(AddrHLInc)]),
-    //
-    ("[hl-]", &[Lone(AddrHLDec)]),
-    ("[hl--]", &[Lone(AddrHLDec)]),
-    ("[hl -  ]", &[Lone(AddrHLDec)]),
-    ("[ hl  - -]", &[Lone(AddrHLDec)]),
-  ];
-
-  for (prog, expected) in checks {
-    let tokens = Ast::tokenize(prog.to_string());
-    let token_trees = make_token_trees(&tokens.items);
-    if token_trees.has_errors() {
-      for err in token_trees.errors() {
-        println!("ERROR: {err:?}");
-      }
-      panic!("One or more errors during token tree creation.");
-    }
-    for (ex, ac) in expected.iter().zip(token_trees.output().unwrap().iter()) {
-      assert_eq!(ex, &ac.0);
-    }
-  }
+) -> (Vec<(TokenTree, SimpleSpan)>, Vec<Rich<'static, Token>>) {
+  let len = tokens.last().map(|(_, s)| s.end).unwrap_or(0);
+  let span: SimpleSpan = SimpleSpan::from(len..len);
+  let parser = TokenTree::parser()
+    .recover_with(via_parser(any().repeated().at_least(1).to(TokenTree::TreeError)))
+    .map_with_span(id2)
+    .repeated()
+    .collect::<Vec<_>>();
+  let input = tokens.spanned(span);
+  let (trees, errors) = parser.parse(input).into_output_errors();
+  (
+    trees.unwrap_or_default(),
+    errors.into_iter().map(|r| r.into_owned()).collect::<Vec<_>>(),
+  )
 }
