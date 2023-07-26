@@ -508,9 +508,9 @@ impl Condition {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone + Copy {
     select! {
-      Lone(CondZE) => Self::Zero,
+      Lone(CondZF) => Self::Zero,
       Lone(CondNZ) => Self::NonZero,
-      Lone(CondCY) => Self::Carry,
+      Lone(CondCF) => Self::Carry,
       Lone(CondNC) => Self::NoCarry,
       Lone(CondAL) => Self::Always,
     }

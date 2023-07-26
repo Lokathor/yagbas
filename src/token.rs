@@ -197,15 +197,15 @@ pub enum Token {
   #[token("XOR", priority = 3)]
   InstXOR,
 
-  #[token("cy", priority = 3)]
-  #[token("CY", priority = 3)]
-  CondCY,
+  #[token("cf", priority = 3)]
+  #[token("CF", priority = 3)]
+  CondCF,
   #[token("nc", priority = 3)]
   #[token("NC", priority = 3)]
   CondNC,
-  #[token("ze", priority = 3)]
-  #[token("ZE", priority = 3)]
-  CondZE,
+  #[token("zf", priority = 3)]
+  #[token("ZF", priority = 3)]
+  CondZF,
   #[token("nz", priority = 3)]
   #[token("NZ", priority = 3)]
   CondNZ,
@@ -266,6 +266,7 @@ impl core::fmt::Debug for Token {
       Token::KwSection => write!(f, "section"),
       Token::KwConst => write!(f, "const"),
       Token::KwStatic => write!(f, "static"),
+      Token::KwIf => write!(f, "if"),
       Token::RegA => write!(f, "a"),
       Token::RegB => write!(f, "b"),
       Token::RegC => write!(f, "c"),
@@ -322,12 +323,11 @@ impl core::fmt::Debug for Token {
       Token::InstSUB => write!(f, "sub"),
       Token::InstSWAP => write!(f, "swap"),
       Token::InstXOR => write!(f, "xor"),
-      Token::CondCY => write!(f, "cy"),
+      Token::CondCF => write!(f, "cf"),
       Token::CondNC => write!(f, "nc"),
-      Token::CondZE => write!(f, "ze"),
+      Token::CondZF => write!(f, "zf"),
       Token::CondNZ => write!(f, "nz"),
       Token::CondAL => write!(f, "al"),
-      Token::KwIf => write!(f, "if"),
       Token::TokenError => write!(f, "/*TokenError*/"),
     }
   }

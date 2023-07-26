@@ -14,7 +14,7 @@ section main [rom0] {
   1:
     ld a, [LY];
     cp a, 144;
-    jp cy, 1b;
+    jp cf, 1b;
 
     ld a, 0;
     ld [LCDC], a;
