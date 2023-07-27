@@ -5,14 +5,15 @@ use super::*;
 /// An expression that evaluates to 0 or more bytes of static data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StaticExpr {
-  RawBytes(Vec<(ConstExpr, SimpleSpan)>),
-  StaticExprError,
+  RawBytesExprList(Vec<(ConstExpr, SimpleSpan)>),
+  RawBytesResolved(Vec<u8>, SimpleSpan),
+  Error,
 }
 impl StaticExpr {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     let raw_bytes = Self::raw_bytes();
-    let recovery = eat_until_parser(semicolon()).to(Self::StaticExprError);
+    let recovery = eat_until_parser(semicolon()).to(Self::Error);
 
     choice((raw_bytes,)).recover_with(via_parser(recovery))
   }
@@ -32,6 +33,24 @@ impl StaticExpr {
           tokens.spanned(span)
         },
       });
-    name.ignore_then(bang).ignore_then(bytes).map(Self::RawBytes)
+    name
+      .ignore_then(bang)
+      .ignore_then(bytes)
+      .map(|exprs: Vec<(ConstExpr, SimpleSpan)>| {
+        let mut resolved = vec![];
+        for (expr, _span) in exprs.iter() {
+          match expr {
+            ConstExpr::Value(x) => match u8::try_from(*x) {
+              Ok(u) => resolved.push(u),
+              Err(_) => return Self::RawBytesExprList(exprs),
+            },
+            _ => return Self::RawBytesExprList(exprs),
+          }
+        }
+        let start = exprs.first().map(|(_, span)| span.start).unwrap_or(0);
+        let end = exprs.last().map(|(_, span)| span.end).unwrap_or(0);
+        Self::RawBytesResolved(resolved, SimpleSpan::new(start, end))
+      })
+      .labelled("RawBytes")
   }
 }
