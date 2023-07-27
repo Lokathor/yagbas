@@ -116,7 +116,7 @@ impl StaticDecl {
         .clone()
         .ignored()
         .repeated()
-        .map_with_span(|(), span| (StaticExpr::StaticExprError, span)),
+        .map_with_span(|(), span| (StaticExpr::Error, span)),
     ));
     let locations = RomLocation::parser()
       .map_with_span(id2)
@@ -141,7 +141,7 @@ impl StaticDecl {
       .then_ignore(semicolon().ignored().or(end()))
       .map_with_span(|(), span| Self {
         name: ("", span),
-        expr: (StaticExpr::StaticExprError, span),
+        expr: (StaticExpr::Error, span),
         rom_locations: vec![],
       });
     let post_keyword = all_parts.recover_with(via_parser(generic_eat_to_end));
