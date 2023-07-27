@@ -3,10 +3,13 @@
 #![allow(clippy::ptr_arg)]
 
 use chumsky::{
-  prelude::Rich, primitive::*, recovery::via_parser, span::SimpleSpan, IterParser,
-  Parser as _,
+  container::Seq, prelude::Rich, primitive::*, recovery::via_parser, span::SimpleSpan,
+  IterParser, Parser as _,
 };
-use std::borrow::Cow;
+use std::{
+  borrow::Cow,
+  collections::{hash_map::Entry, HashMap},
+};
 use yagbas::{
   item::{parse_module_items, Item},
   token::{tokenize_module, Token},
@@ -101,25 +104,50 @@ fn build_process_file(filename: &String) {
   }
 
   let (items, item_parse_errors) = parse_module_items(&token_trees);
-  for (item, span) in &items {
-    match item {
-      Item::ConstDecl(x) => println!("I({span:?}): {x:?}"),
-      Item::StaticDecl(x) => println!("I({span:?}): {x:?}"),
-      Item::SectionDecl(x) => {
-        println!("I({span:?}): {}", x.name.0);
-        for (elem, span) in &x.elements {
-          println!("..({span:?}): {:?}", elem);
-        }
-      }
-      Item::ItemError => println!("I({span:?}): ItemError"),
-    }
-  }
   if !item_parse_errors.is_empty() {
     println!("== Item Parse Errors ==");
     for error in &item_parse_errors {
       println!("ERR: {error:?}");
     }
   }
+
+  let mut consts = HashMap::new();
+  let mut sections = HashMap::new();
+  let mut statics = HashMap::new();
+  let mut item_errors = 0_usize;
+
+  for (item, _span) in items {
+    match item {
+      Item::ConstDecl(x) => {
+        if let Entry::Vacant(e) = consts.entry(x.name.0) {
+          e.insert(x);
+        } else {
+          item_errors += 1;
+        }
+      }
+      Item::SectionDecl(x) => {
+        if let Entry::Vacant(e) = sections.entry(x.name.0) {
+          e.insert(x);
+        } else {
+          item_errors += 1;
+        }
+      }
+      Item::StaticDecl(x) => {
+        if let Entry::Vacant(e) = statics.entry(x.name.0) {
+          e.insert(x);
+        } else {
+          item_errors += 1;
+        }
+      }
+      Item::ItemError => item_errors += 1,
+    }
+  }
+  if item_errors > 0 {
+    println!("{item_errors} item errors encountered.");
+  }
+  println!("== consts: {consts:?}");
+  println!("== sections: {sections:?}");
+  println!("== statics: {statics:?}");
 }
 
 pub fn unbuild(args: UnbuildArgs) {
