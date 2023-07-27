@@ -4,7 +4,7 @@ use core::ops::Range;
 use logos::Logos;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Logos)]
-#[logos(skip r#"[ \t\r\n\f]+"#)] // ignore this between tokens
+#[logos(skip r#"[[:space:]]"#)] // ignore this between tokens
 pub enum Token {
   /// `//` starts a single-line comment.
   #[regex(r"//[^\r\n]*")]
@@ -220,15 +220,17 @@ pub enum Token {
   #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*", |lex| static_str(lex.slice()), priority=2)]
   Ident(StaticStr),
 
-  /// A punctuation character (using the `[:punct:]` regex class) that does
-  /// *not* match any other case.
+  /// A punctuation character.
   #[regex(r"[[:punct:]]", |lex| lex.slice().chars().next().unwrap(), priority=1)]
   Punct(char),
 
   /// Something that's supposed to be a number.
   ///
-  /// Interpreting the number is left for the parsing stage.
-  #[regex(r"((0x|\$)[_a-zA-Z0-9]+|(0b|%)[_a-zA-Z0-9]+|[0-9][_a-zA-Z0-9]*)", |lex| static_str(lex.slice()))]
+  /// * `$` or `%` followed by 1 or more word characters
+  /// * A digit followed by 0 or more word characters
+  ///
+  /// Interpreting the token is left for the parser.
+  #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)", |lex| static_str(lex.slice()))]
   NumLit(StaticStr),
 
   /// Holds all the stuff *between* two `"`.
