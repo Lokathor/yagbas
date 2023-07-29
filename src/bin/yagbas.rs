@@ -91,10 +91,7 @@ fn build_process_file(filename: &String) {
       return;
     }
   };
-
   let tokens: Vec<(Token, SimpleSpan)> = tokenize_module(&module_src);
-  //println!("== Tokens: {tokens:?}");
-
   let (token_trees, tree_parse_errors) = grow_token_trees(&tokens);
   if !tree_parse_errors.is_empty() {
     println!("== Token Tree Parse Errors ==");
