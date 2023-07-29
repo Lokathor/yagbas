@@ -62,7 +62,7 @@ impl ConstDecl {
         .clone()
         .ignored()
         .repeated()
-        .map_with_span(|(), span| (ConstExpr::BAD_PARSE, span)),
+        .map_with_span(|(), span| (ConstExpr::Err, span)),
     ));
 
     // the "good" path of what we want after the keyword.
@@ -81,10 +81,7 @@ impl ConstDecl {
       .ignored()
       .repeated()
       .then_ignore(semicolon().ignored().or(end()))
-      .map_with_span(|(), span| Self {
-        name: ("", span),
-        expr: (ConstExpr::BAD_PARSE, span),
-      });
+      .map_with_span(|(), span| Self { name: ("", span), expr: (ConstExpr::Err, span) });
 
     // now assemble how we parse everything *after* the keyword.
     let post_keyword = all_parts.recover_with(via_parser(generic_eat_to_end));

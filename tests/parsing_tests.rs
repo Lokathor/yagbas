@@ -165,21 +165,21 @@ fn test_const_decl_parser() {
       "const;",
       ConstDecl {
         name: ("", SimpleSpan::new(5, 6)),
-        expr: (ConstExpr::BAD_PARSE, SimpleSpan::new(5, 6)),
+        expr: (ConstExpr::Err, SimpleSpan::new(5, 6)),
       },
     ),
     (
       "const",
       ConstDecl {
         name: ("", SimpleSpan::new(5, 5)),
-        expr: (ConstExpr::BAD_PARSE, SimpleSpan::new(5, 5)),
+        expr: (ConstExpr::Err, SimpleSpan::new(5, 5)),
       },
     ),
     (
       "const foo bar baz;",
       ConstDecl {
         name: ("", SimpleSpan::new(6, 18)),
-        expr: (ConstExpr::BAD_PARSE, SimpleSpan::new(6, 18)),
+        expr: (ConstExpr::Err, SimpleSpan::new(6, 18)),
       },
     ),
   ];
@@ -213,7 +213,7 @@ fn test_item_parser() {
       "const FOO = ++++;",
       Item::ConstDecl(ConstDecl {
         name: ("FOO", SimpleSpan::new(6, 9)),
-        expr: (ConstExpr::BAD_PARSE, SimpleSpan::new(12, 16)),
+        expr: (ConstExpr::Err, SimpleSpan::new(12, 16)),
       }),
     ),
   ];

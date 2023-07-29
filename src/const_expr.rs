@@ -30,12 +30,10 @@ pub enum ConstExpr {
   Xor(Box<(Self, SimpleSpan)>, Box<(Self, SimpleSpan)>),
   Not(Box<(Self, SimpleSpan)>),
   MacroUse { name: (StaticStr, SimpleSpan), args: Vec<(TokenTree, SimpleSpan)> },
-  UnknownError(CowStr),
+  Err,
 }
 // Note(Zesterer): https://gist.github.com/zesterer/e0a896ef16fdc95a4749851ebb0d8461
 impl ConstExpr {
-  pub const BAD_PARSE: Self = ConstExpr::UnknownError(CowStr::Borrowed("Bad Parse"));
-
   /// Parses a const expression.
   ///
   /// * Parsing will immediately evaluate operations when possible (including
@@ -88,9 +86,12 @@ impl ConstExpr {
 
       let ident = ident().map(Self::Ident);
 
-      let lit = num_lit().map(|lit| match lit_to_value(lit) {
+      let lit = num_lit().validate(|lit, span, emitter| match lit_to_value(lit) {
         Ok(i) => Self::Value(i),
-        Err(e) => Self::UnknownError(e),
+        Err(e) => {
+          emitter.emit(Rich::custom(span, format!("LiteralParseError:{e:?}")));
+          Self::Err
+        }
       });
 
       let parens = expr.clone().nested_in(select_ref! {
