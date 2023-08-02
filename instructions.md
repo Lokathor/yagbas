@@ -80,11 +80,11 @@ The source of the value can be
 * a named const expression
 * a label (including the name of a section or static), which causes the address of the label to be used as the value
 
-The `jr` instruction is a "relative" jump. When a label is used, the distance (in bytes) between the *end* of the `jr` instruction and the labeled position is what becomes the `i8` value inserted.
+The `jr` instruction is a "relative" jump. When a label is used, the distance (in bytes) between the *end* of the `jr` instruction and the labeled position is what becomes the `i8` value inserted. Also, `jr` to a label must refer to a label in the same section as the `jr` instruction itself (it is possible, but unlikely, that this restriction will be removed in the future).
 
 The `ldh` instruction must be given a value where the high byte is `$FF`. Something in the range `$FF00` through `$FFFF`. Only the low byte of this value is actually included in the instruction encoding, and the high byte being `$FF` is implicit.
 
-The `rst` instruction can only be use with one of these specific eight constant values:
+The `rst` instruction can only be use with one of these specific eight constant values (or something that evaluates to one of these values):
 * RstValue: $0, $8, $10, $18, $20, $28, $30, $38
 
 ```
