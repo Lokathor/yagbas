@@ -4,6 +4,7 @@ use chumsky::{extra::ParserExtra, prelude::*};
 use yagbas::{
   const_expr::ConstExpr,
   item::{ConstDecl, Item},
+  str_id::StrID,
   token::{tokenize_module, Token},
   token_tree::{grow_token_trees, TokenTree},
   util_junk::*,
@@ -79,7 +80,7 @@ fn test_const_expr_parser() {
     ("%101", ConstExpr::Value(0b101)),
     ("(12)", ConstExpr::Value(12)),
     ("((12))", ConstExpr::Value(12)),
-    ("FOO", ConstExpr::Ident("FOO")),
+    ("FOO", ConstExpr::Ident(StrID::from("FOO"))),
     ("-7", ConstExpr::Value(-7)),
     ("--7", ConstExpr::Value(7)),
     ("+8", ConstExpr::Value(8)),
@@ -89,14 +90,14 @@ fn test_const_expr_parser() {
     (
       "FOO + 1",
       ConstExpr::Add(
-        Box::new((ConstExpr::Ident("FOO"), SimpleSpan::from(0..3))),
+        Box::new((ConstExpr::Ident(StrID::from("FOO")), SimpleSpan::from(0..3))),
         Box::new((ConstExpr::Value(1), SimpleSpan::from(6..7))),
       ),
     ),
     (
       "FOO-3",
       ConstExpr::Sub(
-        Box::new((ConstExpr::Ident("FOO"), SimpleSpan::from(0..3))),
+        Box::new((ConstExpr::Ident(StrID::from("FOO")), SimpleSpan::from(0..3))),
         Box::new((ConstExpr::Value(3), SimpleSpan::from(4..5))),
       ),
     ),
@@ -119,8 +120,8 @@ fn test_const_expr_parser() {
     (
       "size_of_static!(tiles)",
       ConstExpr::MacroUse {
-        name: ("size_of_static", SimpleSpan::from(0..14)),
-        args: vec![(Lone(Ident("tiles")), SimpleSpan::from(16..21))],
+        name: (StrID::from("size_of_static"), SimpleSpan::from(0..14)),
+        args: vec![(Lone(Ident(StrID::from("tiles"))), SimpleSpan::from(16..21))],
       },
     ),
     ("1 + 1 + 1", ConstExpr::Value(3)),
@@ -150,35 +151,35 @@ fn test_const_decl_parser() {
     (
       "const FOO = $FF00;",
       ConstDecl {
-        name: ("FOO", SimpleSpan::new(6, 9)),
+        name: (StrID::from("FOO"), SimpleSpan::new(6, 9)),
         expr: (ConstExpr::Value(0xFF00), SimpleSpan::new(12, 17)),
       },
     ),
     (
       "const BAR = $FF00 + $AA;",
       ConstDecl {
-        name: ("BAR", SimpleSpan::new(6, 9)),
+        name: (StrID::from("BAR"), SimpleSpan::new(6, 9)),
         expr: (ConstExpr::Value(0xFFAA), SimpleSpan::new(12, 23)),
       },
     ),
     (
       "const;",
       ConstDecl {
-        name: ("", SimpleSpan::new(5, 6)),
+        name: (StrID::from(""), SimpleSpan::new(5, 6)),
         expr: (ConstExpr::Err, SimpleSpan::new(5, 6)),
       },
     ),
     (
       "const",
       ConstDecl {
-        name: ("", SimpleSpan::new(5, 5)),
+        name: (StrID::from(""), SimpleSpan::new(5, 5)),
         expr: (ConstExpr::Err, SimpleSpan::new(5, 5)),
       },
     ),
     (
       "const foo bar baz;",
       ConstDecl {
-        name: ("", SimpleSpan::new(6, 18)),
+        name: (StrID::from(""), SimpleSpan::new(6, 18)),
         expr: (ConstExpr::Err, SimpleSpan::new(6, 18)),
       },
     ),
@@ -205,14 +206,14 @@ fn test_item_parser() {
     (
       "const FOO = $FF00;",
       Item::ConstDecl(ConstDecl {
-        name: ("FOO", SimpleSpan::new(6, 9)),
+        name: (StrID::from("FOO"), SimpleSpan::new(6, 9)),
         expr: (ConstExpr::Value(0xFF00), SimpleSpan::new(12, 17)),
       }),
     ),
     (
       "const FOO = ++++;",
       Item::ConstDecl(ConstDecl {
-        name: ("FOO", SimpleSpan::new(6, 9)),
+        name: (StrID::from("FOO"), SimpleSpan::new(6, 9)),
         expr: (ConstExpr::Err, SimpleSpan::new(12, 16)),
       }),
     ),

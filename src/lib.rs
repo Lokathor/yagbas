@@ -4,6 +4,7 @@
 use chumsky::{prelude::*, span::SimpleSpan, *};
 
 pub mod str_id;
+use str_id::StrID;
 
 pub mod static_str;
 use static_str::{CowStr, StaticStr};

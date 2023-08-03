@@ -1,6 +1,7 @@
 use crate::{
   const_expr::{lit_to_value, ConstExpr},
   static_expr::StaticExpr,
+  str_id::StrID,
 };
 
 use super::*;
@@ -48,7 +49,7 @@ pub fn parse_module_items(
 /// * Should look like: `const IDENT = CONST_EXPR ;`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstDecl {
-  pub name: (StaticStr, SimpleSpan),
+  pub name: (StrID, SimpleSpan),
   pub expr: (ConstExpr, SimpleSpan),
 }
 impl ConstDecl {
@@ -81,7 +82,10 @@ impl ConstDecl {
       .ignored()
       .repeated()
       .then_ignore(semicolon().ignored().or(end()))
-      .map_with_span(|(), span| Self { name: ("", span), expr: (ConstExpr::Err, span) });
+      .map_with_span(|(), span| Self {
+        name: (StrID::from(""), span),
+        expr: (ConstExpr::Err, span),
+      });
 
     // now assemble how we parse everything *after* the keyword.
     let post_keyword = all_parts.recover_with(via_parser(generic_eat_to_end));
@@ -98,7 +102,7 @@ impl ConstDecl {
 /// * Should look like: `static IDENT [LOCATIONS] = STATIC_EXPR ;`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StaticDecl {
-  pub name: (StaticStr, SimpleSpan),
+  pub name: (StrID, SimpleSpan),
   pub rom_locations: Vec<(RomLocation, SimpleSpan)>,
   pub expr: (StaticExpr, SimpleSpan),
 }
@@ -137,7 +141,7 @@ impl StaticDecl {
       .repeated()
       .then_ignore(semicolon().ignored().or(end()))
       .map_with_span(|(), span| Self {
-        name: ("", span),
+        name: (StrID::from(""), span),
         expr: (StaticExpr::Error, span),
         rom_locations: vec![],
       });
@@ -155,7 +159,7 @@ pub enum RomLocation {
 impl RomLocation {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    let rom0 = just(Lone(Ident("rom0"))).to(Self::Rom0);
+    let rom0 = just(Lone(Ident(StrID::from("rom0")))).to(Self::Rom0);
 
     rom0
   }
@@ -167,7 +171,7 @@ impl RomLocation {
 /// * Should look like: `static IDENT [LOCATIONS] { STATEMENTS }`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SectionDecl {
-  pub name: (StaticStr, SimpleSpan),
+  pub name: (StrID, SimpleSpan),
   pub rom_locations: Vec<(RomLocation, SimpleSpan)>,
   pub elements: Vec<(SectionElem, SimpleSpan)>,
 }
@@ -206,7 +210,7 @@ impl SectionDecl {
       .map(|((name, rom_locations), elements)| Self { name, rom_locations, elements });
 
     let recovery = eat_until_semicolon_or_braces().to(Self {
-      name: ("", SimpleSpan::new(0, 0)),
+      name: (StrID::from(""), SimpleSpan::new(0, 0)),
       rom_locations: Default::default(),
       elements: Default::default(),
     });
@@ -221,17 +225,18 @@ impl SectionDecl {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SectionElem {
   NumberLabel(i32),
-  IdentLabel(StaticStr),
+  IdentLabel(StrID),
   Instruction(Instruction),
   SectionElemError(CowStr),
 }
 impl SectionElem {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    let number_label = num_lit().then_ignore(colon()).map(|n| match lit_to_value(n) {
-      Ok(i) => Self::NumberLabel(i),
-      Err(e) => Self::SectionElemError(e),
-    });
+    let number_label =
+      num_lit().then_ignore(colon()).map(|n| match lit_to_value(n.as_str()) {
+        Ok(i) => Self::NumberLabel(i),
+        Err(e) => Self::SectionElemError(e),
+      });
 
     let ident_label = ident().then_ignore(colon()).map(Self::IdentLabel);
 
@@ -528,12 +533,12 @@ impl NumLabelTarget {
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     num_lit()
       .try_map(|lit, span| {
-        Ok(if let Some(lit) = lit.strip_suffix('f') {
+        Ok(if let Some(lit) = lit.as_str().strip_suffix('f') {
           NumLabelTarget(
             lit_to_value(lit).map_err(|e| Rich::custom(span, e))?,
             JumpDirection::Forward,
           )
-        } else if let Some(lit) = lit.strip_suffix('b') {
+        } else if let Some(lit) = lit.as_str().strip_suffix('b') {
           NumLabelTarget(
             lit_to_value(lit).map_err(|e| Rich::custom(span, e))?,
             JumpDirection::Back,
@@ -549,7 +554,7 @@ impl NumLabelTarget {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Jump {
   NumLabel(Condition, NumLabelTarget),
-  IdentLabel(Condition, StaticStr),
+  IdentLabel(Condition, StrID),
   JumpError,
 }
 impl Jump {

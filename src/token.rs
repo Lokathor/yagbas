@@ -1,5 +1,5 @@
 use super::*;
-use crate::static_str::static_str;
+use crate::{static_str::static_str, str_id::StrID};
 use core::ops::Range;
 use logos::Logos;
 
@@ -217,8 +217,8 @@ pub enum Token {
   ///
   /// The lone character `_` ends up matching as an Ident rather than a
   /// Punctuation.
-  #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*", |lex| static_str(lex.slice()), priority=2)]
-  Ident(StaticStr),
+  #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*", |lex| StrID::from(lex.slice()), priority=2)]
+  Ident(StrID),
 
   /// A punctuation character.
   #[regex(r"[[:punct:]]", |lex| lex.slice().chars().next().unwrap(), priority=1)]
@@ -230,8 +230,8 @@ pub enum Token {
   /// * A digit followed by 0 or more word characters
   ///
   /// Interpreting the token is left for the parser.
-  #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)", |lex| static_str(lex.slice()))]
-  NumLit(StaticStr),
+  #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)", |lex| StrID::from(lex.slice()))]
+  NumLit(StrID),
 
   /// Holds all the stuff *between* two `"`.
   ///
@@ -242,8 +242,8 @@ pub enum Token {
   /// escape sequences you allow (here just `\"`, and `\\` for a `\` itself) up
   /// front and then requiring the rest of the literal to not be a quote or
   /// escape (that would start with `\`)"
-  #[regex(r#""((\\"|\\\\)|[^\\"])*""#, |lex| {let s = lex.slice(); static_str(&s[1..s.len()-1]) })]
-  StrLit(StaticStr),
+  #[regex(r#""((\\"|\\\\)|[^\\"])*""#, |lex| {let s = lex.slice(); StrID::from(&s[1..s.len()-1]) })]
+  StrLit(StrID),
 
   /// Error during lexing (the token's span says where)
   TokenError,
