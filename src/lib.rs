@@ -3,6 +3,8 @@
 
 use chumsky::{prelude::*, span::SimpleSpan, *};
 
+pub mod str_id;
+
 pub mod static_str;
 use static_str::{CowStr, StaticStr};
 
