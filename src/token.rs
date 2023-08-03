@@ -1,5 +1,5 @@
 use super::*;
-use crate::{static_str::static_str, str_id::StrID};
+use crate::str_id::StrID;
 use core::ops::Range;
 use logos::Logos;
 

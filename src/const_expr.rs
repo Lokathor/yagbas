@@ -239,6 +239,8 @@ impl ConstExpr {
   }
 }
 
+type CowStr = std::borrow::Cow<'static, str>;
+
 /// Parse a numeric literal info a value we can work with.
 ///
 /// * Fails if `i32` overflow would occur.

@@ -227,16 +227,20 @@ pub enum SectionElem {
   NumberLabel(i32),
   IdentLabel(StrID),
   Instruction(Instruction),
-  SectionElemError(CowStr),
+  Err,
 }
 impl SectionElem {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    let number_label =
-      num_lit().then_ignore(colon()).map(|n| match lit_to_value(n.as_str()) {
+    let number_label = num_lit().then_ignore(colon()).validate(|lit, span, emitter| {
+      match lit_to_value(lit.as_str()) {
         Ok(i) => Self::NumberLabel(i),
-        Err(e) => Self::SectionElemError(e),
-      });
+        Err(e) => {
+          emitter.emit(Rich::custom(span, format!("LiteralParseError:{e:?}")));
+          Self::Err
+        }
+      }
+    });
 
     let ident_label = ident().then_ignore(colon()).map(Self::IdentLabel);
 
@@ -244,8 +248,7 @@ impl SectionElem {
 
     let happy = choice((number_label, ident_label, instruction));
 
-    let recovery =
-      eat_until_semicolon_or_braces().to(Self::SectionElemError(CowStr::Borrowed("")));
+    let recovery = eat_until_semicolon_or_braces().to(Self::Err);
 
     happy.recover_with(via_parser(recovery))
   }

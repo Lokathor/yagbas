@@ -1,5 +1,3 @@
-use crate::static_str::StaticStr;
-
 use super::*;
 
 use chumsky::{extra::ParserExtra, input::SpannedInput, prelude::*, *};
