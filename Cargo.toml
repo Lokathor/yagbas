@@ -14,6 +14,7 @@ codegen-units=1
 lto=true
 
 [dependencies]
+bimap = "0.6.3"
 chumsky = { version = "1.0.0-alpha.4", features = ["label"] }
 clap = { version = "4.3.10", features = ["derive"] }
 logos = "0.13.0"

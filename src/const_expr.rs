@@ -1,3 +1,5 @@
+use crate::str_id::StrID;
+
 use super::*;
 
 use std::borrow::Cow;
@@ -22,14 +24,14 @@ use std::borrow::Cow;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConstExpr {
   Value(i32),
-  Ident(StaticStr),
+  Ident(StrID),
   Add(Box<(Self, SimpleSpan)>, Box<(Self, SimpleSpan)>),
   Sub(Box<(Self, SimpleSpan)>, Box<(Self, SimpleSpan)>),
   Or(Box<(Self, SimpleSpan)>, Box<(Self, SimpleSpan)>),
   And(Box<(Self, SimpleSpan)>, Box<(Self, SimpleSpan)>),
   Xor(Box<(Self, SimpleSpan)>, Box<(Self, SimpleSpan)>),
   Not(Box<(Self, SimpleSpan)>),
-  MacroUse { name: (StaticStr, SimpleSpan), args: Vec<(TokenTree, SimpleSpan)> },
+  MacroUse { name: (StrID, SimpleSpan), args: Vec<(TokenTree, SimpleSpan)> },
   Err,
 }
 // Note(Zesterer): https://gist.github.com/zesterer/e0a896ef16fdc95a4749851ebb0d8461
@@ -52,47 +54,48 @@ impl ConstExpr {
 
       // Just for fun we'll parse these two "magical" sequences, even though
       // other `path::ident` stuff won't be available until later.
-      let u8_max = just(Lone(Ident("u8")))
+      let u8_max = just(Lone(Ident(StrID::from("u8"))))
         .then(colon())
         .then(colon())
-        .then(just(Lone(Ident("MAX"))))
+        .then(just(Lone(Ident(StrID::from("MAX")))))
         .to(ConstExpr::Value(u8::MAX as i32));
-      let u16_max = just(Lone(Ident("u16")))
+      let u16_max = just(Lone(Ident(StrID::from("u16"))))
         .then(colon())
         .then(colon())
-        .then(just(Lone(Ident("MAX"))))
+        .then(just(Lone(Ident(StrID::from("MAX")))))
         .to(ConstExpr::Value(u16::MAX as i32));
-      let i8_max = just(Lone(Ident("i8")))
+      let i8_max = just(Lone(Ident(StrID::from("i8"))))
         .then(colon())
         .then(colon())
-        .then(just(Lone(Ident("MAX"))))
+        .then(just(Lone(Ident(StrID::from("MAX")))))
         .to(ConstExpr::Value(i8::MAX as i32));
-      let i16_max = just(Lone(Ident("i16")))
+      let i16_max = just(Lone(Ident(StrID::from("i16"))))
         .then(colon())
         .then(colon())
-        .then(just(Lone(Ident("MAX"))))
+        .then(just(Lone(Ident(StrID::from("MAX")))))
         .to(ConstExpr::Value(i16::MAX as i32));
-      let i8_min = just(Lone(Ident("i8")))
+      let i8_min = just(Lone(Ident(StrID::from("i8"))))
         .then(colon())
         .then(colon())
-        .then(just(Lone(Ident("MIN"))))
+        .then(just(Lone(Ident(StrID::from("MIN")))))
         .to(ConstExpr::Value(i8::MIN as i32));
-      let i16_min = just(Lone(Ident("i16")))
+      let i16_min = just(Lone(Ident(StrID::from("i16"))))
         .then(colon())
         .then(colon())
-        .then(just(Lone(Ident("MIN"))))
+        .then(just(Lone(Ident(StrID::from("MIN")))))
         .to(ConstExpr::Value(i16::MIN as i32));
       let magic_constant = choice((u8_max, u16_max, i8_max, i16_max, i8_min, i16_min));
 
       let ident = ident().map(Self::Ident);
 
-      let lit = num_lit().validate(|lit, span, emitter| match lit_to_value(lit) {
-        Ok(i) => Self::Value(i),
-        Err(e) => {
-          emitter.emit(Rich::custom(span, format!("LiteralParseError:{e:?}")));
-          Self::Err
-        }
-      });
+      let lit =
+        num_lit().validate(|lit, span, emitter| match lit_to_value(lit.as_str()) {
+          Ok(i) => Self::Value(i),
+          Err(e) => {
+            emitter.emit(Rich::custom(span, format!("LiteralParseError:{e:?}")));
+            Self::Err
+          }
+        });
 
       let parens = expr.clone().nested_in(select_ref! {
         Parens(tokens) = span => {
@@ -235,6 +238,8 @@ impl ConstExpr {
     })
   }
 }
+
+type CowStr = std::borrow::Cow<'static, str>;
 
 /// Parse a numeric literal info a value we can work with.
 ///

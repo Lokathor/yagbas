@@ -1,5 +1,3 @@
-use crate::static_str::StaticStr;
-
 use super::*;
 
 use chumsky::{extra::ParserExtra, input::SpannedInput, prelude::*, *};
@@ -23,14 +21,14 @@ pub const fn id2<A, B>(a: A, b: B) -> (A, B) {
 }
 
 pub fn ident<'a>(
-) -> impl Parser<'a, TokenTreeSlice<'a>, StaticStr, ErrRichTokenTree<'a>> + Clone + Copy {
+) -> impl Parser<'a, TokenTreeSlice<'a>, StrID, ErrRichTokenTree<'a>> + Clone + Copy {
   select! {
     Lone(Ident(i)) => i,
   }
 }
 
 pub fn num_lit<'a>(
-) -> impl Parser<'a, TokenTreeSlice<'a>, StaticStr, ErrRichTokenTree<'a>> + Clone + Copy {
+) -> impl Parser<'a, TokenTreeSlice<'a>, StrID, ErrRichTokenTree<'a>> + Clone + Copy {
   select! {
     Lone(NumLit(n)) => n,
   }

@@ -1,4 +1,4 @@
-use crate::const_expr::ConstExpr;
+use crate::{const_expr::ConstExpr, str_id::StrID};
 
 use super::*;
 
@@ -36,7 +36,7 @@ impl StaticExpr {
 
   fn raw_bytes<'a>(
   ) -> impl Parser<'a, TokenTreeSlice<'a>, Self, ErrRichTokenTree<'a>> + Clone {
-    let name = just(Lone(Ident("raw_bytes"))).ignored();
+    let name = just(Lone(Ident(StrID::from("raw_bytes")))).ignored();
     let bang = bang().ignored();
     let bytes = ConstExpr::parser()
       .map_with_span(id2)
