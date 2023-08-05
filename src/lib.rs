@@ -6,6 +6,8 @@ use chumsky::{prelude::*, span::SimpleSpan, *};
 pub mod str_id;
 use str_id::StrID;
 
+pub mod src_file_info;
+
 pub mod token;
 use token::{Token, Token::*};
 
