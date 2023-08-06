@@ -5,7 +5,7 @@ use chumsky::{
 
 use crate::{
   token::{Token, Token::*},
-  ErrRichToken, TokenSlice,
+  ErrRichToken,
 };
 
 #[inline]
@@ -13,6 +13,8 @@ use crate::{
 pub const fn id2<A, B>(a: A, b: B) -> (A, B) {
   (a, b)
 }
+
+pub type TokenSliceInput<'a> = SpannedInput<Token, SimpleSpan, &'a [(Token, SimpleSpan)]>;
 
 /// A lone token or a list of token trees within one of three groupings.
 ///
@@ -85,7 +87,8 @@ impl core::fmt::Debug for TokenTree {
 }
 impl TokenTree {
   /// Parses for just one token tree.
-  pub fn parser<'a>() -> impl Parser<'a, TokenSlice<'a>, Self, ErrRichToken<'a>> + Clone {
+  pub fn parser<'a>(
+  ) -> impl Parser<'a, TokenSliceInput<'a>, Self, ErrRichToken<'a>> + Clone {
     recursive(|tt| {
       let token_list =
         tt.map_with_span(id2).repeated().collect::<Vec<(TokenTree, SimpleSpan)>>();
