@@ -1,9 +1,12 @@
+use crate::file_spans::FileSpanned;
+
 use super::*;
 
 use chumsky::{extra::ParserExtra, input::SpannedInput, prelude::*, *};
 
 pub type ErrRichToken<'a> = extra::Err<Rich<'a, Token>>;
 pub type ErrRichTokenTree<'a> = extra::Err<Rich<'a, TokenTree>>;
+
 pub type TokenSlice<'a> = SpannedInput<Token, SimpleSpan, &'a [(Token, SimpleSpan)]>;
 pub type InputSlice<'a, T> = SpannedInput<T, SimpleSpan, &'a [(T, SimpleSpan)]>;
 pub type TokenTreeSlice<'a> =

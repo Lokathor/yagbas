@@ -11,25 +11,32 @@ use bimap::BiMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SrcFileInfo {
-  canonical_path: PathBuf,
+  path_buf: PathBuf,
   file_text: String,
   line_bytes: Vec<usize>,
 }
 impl SrcFileInfo {
-  pub fn read_path<ARP>(arp: ARP) -> Result<Self, std::io::Error>
-  where
-    ARP: AsRef<Path>,
-  {
-    let path = arp.as_ref();
-    let canonical_path = path.canonicalize()?;
-    let file_text = std::fs::read_to_string(&canonical_path)?;
+  pub fn read_path<ARP>(arp: impl AsRef<Path>) -> Result<Self, std::io::Error> {
+    let path_buf = arp.as_ref().to_owned();
+    let file_text = std::fs::read_to_string(&path_buf)?;
     let mut line_bytes = Vec::new();
     let mut total = 0;
     for line in file_text.lines() {
       line_bytes.push(total);
       total += line.len();
     }
-    Ok(Self { canonical_path, file_text, line_bytes })
+    Ok(Self { path_buf, file_text, line_bytes })
+  }
+
+  #[inline]
+  #[must_use]
+  pub fn path(&self) -> &Path {
+    &self.path_buf
+  }
+  #[inline]
+  #[must_use]
+  pub fn text(&self) -> &str {
+    &self.file_text
   }
 
   #[inline]
@@ -52,7 +59,7 @@ static NEXT_INFO_ID: AtomicUsize = AtomicUsize::new(1);
 static INFO_CACHE: OnceLock<RwLock<BiMap<SrcFileInfoID, &'static SrcFileInfo>>> =
   OnceLock::new();
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct SrcFileInfoID(NonZeroUsize);
 impl SrcFileInfoID {
@@ -73,9 +80,11 @@ impl SrcFileInfoID {
   #[inline]
   #[must_use]
   #[track_caller]
-  pub fn as_info(self) -> &'static SrcFileInfo {
+  pub fn get_info(self) -> &'static SrcFileInfo {
     let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
+    // Note(Lokathor): This shouldn't ever panic because all ID values should
+    // have been made when inserting the info into the cache.
     read.get_by_left(&self).unwrap()
   }
 }
@@ -105,8 +114,8 @@ impl From<SrcFileInfo> for SrcFileInfoID {
   /// Convert any `SrcFileInfo` into its ID, automatically interning it if
   /// necessary.
   ///
-  /// Prefer this if you *expect* to need to intern the value, it will avoid a
-  /// clone.
+  /// Prefer this impl if you *expect* to need to intern the value, it will
+  /// avoid a clone.
   fn from(s: SrcFileInfo) -> Self {
     let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
@@ -119,6 +128,7 @@ impl From<SrcFileInfo> for SrcFileInfoID {
         *id
       } else {
         let id = Self::new();
+        // clone avoided!
         let leaked: &'static SrcFileInfo = Box::leak(Box::new(s));
         write.insert(id, leaked);
         id
