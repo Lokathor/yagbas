@@ -160,9 +160,9 @@ impl From<SrcFileInfo> for SrcFileInfoID {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileSpan {
-  id: SrcFileInfoID,
-  start: usize,
-  end: usize,
+  pub id: SrcFileInfoID,
+  pub start: usize,
+  pub end: usize,
 }
 impl chumsky::span::Span for FileSpan {
   type Offset = usize;
