@@ -4,10 +4,15 @@ use chumsky::{
 };
 
 use crate::{
-  id2,
   token::{Token, Token::*},
   ErrRichToken, TokenSlice,
 };
+
+#[inline]
+#[must_use]
+pub const fn id2<A, B>(a: A, b: B) -> (A, B) {
+  (a, b)
+}
 
 /// A lone token or a list of token trees within one of three groupings.
 ///
@@ -82,7 +87,8 @@ impl TokenTree {
   /// Parses for just one token tree.
   pub fn parser<'a>() -> impl Parser<'a, TokenSlice<'a>, Self, ErrRichToken<'a>> + Clone {
     recursive(|tt| {
-      let token_list = tt.map_with_span(id2).repeated().collect::<Vec<_>>();
+      let token_list =
+        tt.map_with_span(id2).repeated().collect::<Vec<(TokenTree, SimpleSpan)>>();
 
       // Looks like `[ ... ]`
       let brackets = token_list

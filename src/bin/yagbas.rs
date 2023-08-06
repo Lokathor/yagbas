@@ -12,8 +12,7 @@ use std::{
   path::Path,
 };
 use yagbas::{
-  item::{parse_module_items, Item},
-  src_files::{SrcFileInfo, SrcFileInfoID},
+  src_files::{FileSpanned, SrcFileInfo, SrcFileInfoID},
   token::{tokenize_module, Token},
   token_tree::grow_token_trees,
 };
@@ -99,6 +98,7 @@ fn build_process_file(filename: &String) {
   }
 }
 
+#[cfg(FALSE)]
 fn _build_process_file_old(filename: &String) {
   println!("== {filename}:");
   let module_src: String = match std::fs::read_to_string(filename) {

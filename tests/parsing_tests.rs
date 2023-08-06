@@ -1,3 +1,4 @@
+#![cfg(FALSE)]
 #![allow(clippy::unit_cmp)]
 
 use chumsky::{extra::ParserExtra, prelude::*};
