@@ -8,6 +8,9 @@ use std::{
 };
 
 use bimap::BiMap;
+use chumsky::span::Span;
+
+use crate::token::Token;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SrcFileInfo {
@@ -16,12 +19,17 @@ pub struct SrcFileInfo {
   line_bytes: Vec<usize>,
 }
 impl SrcFileInfo {
-  pub fn read_path<ARP>(arp: impl AsRef<Path>) -> Result<Self, std::io::Error> {
-    let path_buf = arp.as_ref().to_owned();
+  pub fn read_path<P>(p: &P) -> Result<Self, std::io::Error>
+  where
+    P: AsRef<Path> + ?Sized,
+  {
+    let path_buf = p.as_ref().to_owned();
     let file_text = std::fs::read_to_string(&path_buf)?;
     let mut line_bytes = Vec::new();
     let mut total = 0;
-    for line in file_text.lines() {
+    // Note(Lokathor): This works on both `\r\n` and `\n`, but will not generate
+    // the correct totals if the file uses bare `\r` for line endings.
+    for line in file_text.split_inclusive('\n') {
       line_bytes.push(total);
       total += line.len();
     }
@@ -43,12 +51,12 @@ impl SrcFileInfo {
   #[must_use]
   pub fn line_col(&self, byte: usize) -> (usize, usize) {
     match self.line_bytes.binary_search(&byte) {
-      Ok(line) => (line, 0),
+      Ok(line) => (1 + line, 1),
       Err(could_be) => {
         let line = could_be.wrapping_sub(1);
         let line_start = self.line_bytes.get(line).copied().unwrap_or(0);
         let col = byte.saturating_sub(line_start);
-        (line, col)
+        (1 + line, 1 + col)
       }
     }
   }
@@ -86,6 +94,19 @@ impl SrcFileInfoID {
     // Note(Lokathor): This shouldn't ever panic because all ID values should
     // have been made when inserting the info into the cache.
     read.get_by_left(&self).unwrap()
+  }
+
+  #[inline]
+  #[must_use]
+  pub fn get_tokens(&self) -> Vec<FileSpanned<Token>> {
+    let info = self.get_info();
+    Token::lexer(&info.file_text)
+      .spanned()
+      .map(|(result, range)| {
+        let token = result.unwrap_or(Token::TokenError);
+        FileSpanned::new((token, *self), range)
+      })
+      .collect()
   }
 }
 impl<'a> From<&'a SrcFileInfo> for SrcFileInfoID {
@@ -136,3 +157,117 @@ impl From<SrcFileInfo> for SrcFileInfoID {
     }
   }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FileSpan {
+  id: SrcFileInfoID,
+  start: usize,
+  end: usize,
+}
+impl chumsky::span::Span for FileSpan {
+  type Offset = usize;
+  type Context = SrcFileInfoID;
+  #[inline]
+  #[must_use]
+  fn new(context: Self::Context, range: std::ops::Range<Self::Offset>) -> Self {
+    Self { id: context, start: range.start, end: range.end }
+  }
+  #[inline]
+  #[must_use]
+  fn start(&self) -> Self::Offset {
+    self.start
+  }
+  #[inline]
+  #[must_use]
+  fn end(&self) -> Self::Offset {
+    self.end
+  }
+  #[inline]
+  #[must_use]
+  fn context(&self) -> Self::Context {
+    self.id
+  }
+}
+impl core::fmt::Display for FileSpan {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let info = self.id.get_info();
+    let path = info.path();
+    let (line, col) = info.line_col(self.start);
+    write!(f, "{path}:{line}:{col}", path = path.display())
+  }
+}
+
+#[derive(Clone, Copy)]
+pub struct FileSpanned<T> {
+  pub _payload: T,
+  pub _span: FileSpan,
+}
+impl<T> chumsky::span::Span for FileSpanned<T>
+where
+  T: Clone,
+{
+  type Offset = usize;
+  type Context = (T, SrcFileInfoID);
+  #[inline]
+  #[must_use]
+  fn new((t, id): (T, SrcFileInfoID), range: std::ops::Range<Self::Offset>) -> Self {
+    Self { _payload: t, _span: FileSpan::new(id, range) }
+  }
+  #[inline]
+  #[must_use]
+  fn start(&self) -> Self::Offset {
+    self._span.start()
+  }
+  #[inline]
+  #[must_use]
+  fn end(&self) -> Self::Offset {
+    self._span.end()
+  }
+  #[inline]
+  #[must_use]
+  fn context(&self) -> Self::Context {
+    (self._payload.clone(), self._span.id)
+  }
+}
+impl<T> core::ops::Deref for FileSpanned<T> {
+  type Target = T;
+  #[inline]
+  #[must_use]
+  fn deref(&self) -> &Self::Target {
+    &self._payload
+  }
+}
+impl<T> core::ops::DerefMut for FileSpanned<T> {
+  #[inline]
+  #[must_use]
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self._payload
+  }
+}
+impl<T> core::fmt::Debug for FileSpanned<T>
+where
+  T: core::fmt::Debug,
+{
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    core::fmt::Debug::fmt(&self._payload, f)
+  }
+}
+impl<T> core::fmt::Display for FileSpanned<T>
+where
+  T: core::fmt::Display,
+{
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    core::fmt::Display::fmt(&self._payload, f)
+  }
+}
+impl<T> core::cmp::PartialEq for FileSpanned<T>
+where
+  T: core::cmp::PartialEq,
+{
+  #[inline]
+  #[must_use]
+  fn eq(&self, other: &Self) -> bool {
+    self._payload == other._payload
+  }
+}
+impl<T> core::cmp::Eq for FileSpanned<T> where T: Eq {}

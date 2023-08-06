@@ -9,9 +9,11 @@ use chumsky::{
 use std::{
   borrow::Cow,
   collections::{hash_map::Entry, HashMap},
+  path::Path,
 };
 use yagbas::{
   item::{parse_module_items, Item},
+  src_files::{SrcFileInfo, SrcFileInfoID},
   token::{tokenize_module, Token},
   token_tree::grow_token_trees,
 };
@@ -75,7 +77,7 @@ pub fn build(args: BuildArgs) {
   println!("{args:?}");
 
   if args.files.is_empty() {
-    eprintln!("Error: Must provide at least one source file.");
+    eprintln!("Build Error: Must provide at least one source file.");
     return;
   }
 
@@ -83,6 +85,21 @@ pub fn build(args: BuildArgs) {
 }
 
 fn build_process_file(filename: &String) {
+  println!("== {filename}:");
+  let file_info_id = match SrcFileInfo::read_path(&filename) {
+    Ok(info) => SrcFileInfoID::from(info),
+    Err(io_error) => {
+      eprintln!("File IO Error: {io_error}");
+      return;
+    }
+  };
+  let tokens = file_info_id.get_tokens();
+  for token in &tokens {
+    println!("{}> {:?}", token._span, token._payload);
+  }
+}
+
+fn _build_process_file_old(filename: &String) {
   println!("== {filename}:");
   let module_src: String = match std::fs::read_to_string(filename) {
     Ok(s) => s,

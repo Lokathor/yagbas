@@ -1,5 +1,3 @@
-use crate::file_spans::FileSpanned;
-
 use super::*;
 
 use chumsky::{extra::ParserExtra, input::SpannedInput, prelude::*, *};
