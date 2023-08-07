@@ -266,6 +266,7 @@ where
     core::fmt::Display::fmt(&self._payload, f)
   }
 }
+
 impl<T> core::cmp::PartialEq for FileSpanned<T>
 where
   T: core::cmp::PartialEq,
@@ -277,3 +278,14 @@ where
   }
 }
 impl<T> core::cmp::Eq for FileSpanned<T> where T: Eq {}
+
+impl<T> core::cmp::PartialEq<T> for FileSpanned<T>
+where
+  T: core::cmp::PartialEq,
+{
+  #[inline]
+  #[must_use]
+  fn eq(&self, other: &T) -> bool {
+    self._payload.eq(other)
+  }
+}
