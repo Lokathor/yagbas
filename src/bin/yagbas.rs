@@ -12,8 +12,8 @@ use std::{
   path::Path,
 };
 use yagbas::{
-  src_files::{FileSpanned, SrcFileInfo, SrcFileInfoID},
-  token::{tokenize_module, Token},
+  src_files::{FileSpan, FileSpanned, SrcFileInfo, SrcID},
+  token::Token,
   token_tree::grow_token_trees,
 };
 
@@ -86,15 +86,27 @@ pub fn build(args: BuildArgs) {
 fn build_process_file(filename: &String) {
   println!("== {filename}:");
   let file_info_id = match SrcFileInfo::read_path(&filename) {
-    Ok(info) => SrcFileInfoID::from(info),
+    Ok(info) => SrcID::from(info),
     Err(io_error) => {
       eprintln!("File IO Error: {io_error}");
       return;
     }
   };
-  let tokens: Vec<FileSpanned<Token>> = file_info_id.get_tokens();
-  for token in &tokens {
-    println!("{}> {:?}", token._span, token._payload);
+  let tokens: Vec<(Token, FileSpan)> = file_info_id.get_tokens();
+  for (token, filespan) in &tokens {
+    println!("{filespan}> {token:?}");
+  }
+  let (trees, tree_errors) = grow_token_trees(&tokens);
+  for tree in &trees {
+    println!("TT: {tree:?}");
+  }
+  for tree_error in &tree_errors {
+    let span = tree_error.span();
+    let found = tree_error.found();
+    let reason = tree_error.reason();
+    println!("span: {span}");
+    println!("found: {found:?}");
+    println!("reason: {reason:?}");
   }
 }
 

@@ -64,13 +64,12 @@ impl SrcFileInfo {
 
 static NEXT_INFO_ID: AtomicUsize = AtomicUsize::new(1);
 
-static INFO_CACHE: OnceLock<RwLock<BiMap<SrcFileInfoID, &'static SrcFileInfo>>> =
-  OnceLock::new();
+static INFO_CACHE: OnceLock<RwLock<BiMap<SrcID, &'static SrcFileInfo>>> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct SrcFileInfoID(NonZeroUsize);
-impl SrcFileInfoID {
+pub struct SrcID(NonZeroUsize);
+impl SrcID {
   #[inline]
   fn try_new() -> Option<Self> {
     NonZeroUsize::new(NEXT_INFO_ID.fetch_add(1, Ordering::Relaxed)).map(Self)
@@ -98,18 +97,19 @@ impl SrcFileInfoID {
 
   #[inline]
   #[must_use]
-  pub fn get_tokens(&self) -> Vec<FileSpanned<Token>> {
+  pub fn get_tokens(&self) -> Vec<(Token, FileSpan)> {
     let info = self.get_info();
     Token::lexer(&info.file_text)
       .spanned()
       .map(|(result, range)| {
         let token = result.unwrap_or(Token::TokenError);
-        FileSpanned::new((token, *self), range)
+        let filespan = FileSpan::new(*self, range);
+        (token, filespan)
       })
       .collect()
   }
 }
-impl<'a> From<&'a SrcFileInfo> for SrcFileInfoID {
+impl<'a> From<&'a SrcFileInfo> for SrcID {
   /// Convert any `&SrcFileInfo` into its ID, automatically interning it if
   /// necessary.
   fn from(s: &'a SrcFileInfo) -> Self {
@@ -131,7 +131,7 @@ impl<'a> From<&'a SrcFileInfo> for SrcFileInfoID {
     }
   }
 }
-impl From<SrcFileInfo> for SrcFileInfoID {
+impl From<SrcFileInfo> for SrcID {
   /// Convert any `SrcFileInfo` into its ID, automatically interning it if
   /// necessary.
   ///
@@ -158,15 +158,15 @@ impl From<SrcFileInfo> for SrcFileInfoID {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileSpan {
-  pub id: SrcFileInfoID,
+  pub id: SrcID,
   pub start: usize,
   pub end: usize,
 }
 impl chumsky::span::Span for FileSpan {
   type Offset = usize;
-  type Context = SrcFileInfoID;
+  type Context = SrcID;
   #[inline]
   #[must_use]
   fn new(context: Self::Context, range: std::ops::Range<Self::Offset>) -> Self {
@@ -188,6 +188,12 @@ impl chumsky::span::Span for FileSpan {
     self.id
   }
 }
+impl core::fmt::Debug for FileSpan {
+  #[inline]
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    core::fmt::Display::fmt(self, f)
+  }
+}
 impl core::fmt::Display for FileSpan {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let info = self.id.get_info();
@@ -207,10 +213,10 @@ where
   T: Clone,
 {
   type Offset = usize;
-  type Context = (T, SrcFileInfoID);
+  type Context = (T, SrcID);
   #[inline]
   #[must_use]
-  fn new((t, id): (T, SrcFileInfoID), range: std::ops::Range<Self::Offset>) -> Self {
+  fn new((t, id): (T, SrcID), range: std::ops::Range<Self::Offset>) -> Self {
     Self { _payload: t, _span: FileSpan::new(id, range) }
   }
   #[inline]

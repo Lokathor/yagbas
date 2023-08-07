@@ -334,10 +334,3 @@ impl core::fmt::Debug for Token {
     }
   }
 }
-
-pub fn tokenize_module(module_src: &str) -> Vec<(Token, SimpleSpan)> {
-  Token::lexer(module_src)
-    .spanned()
-    .map(|(r, span)| (r.unwrap_or(Token::TokenError), SimpleSpan::from(span)))
-    .collect()
-}
