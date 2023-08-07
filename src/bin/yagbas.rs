@@ -92,7 +92,7 @@ fn build_process_file(filename: &String) {
       return;
     }
   };
-  let tokens: Vec<(Token, FileSpan)> = file_info_id.get_tokens();
+  let tokens: Vec<(Token, FileSpan)> = file_info_id.iter_tokens().collect();
   for (token, filespan) in &tokens {
     println!("{filespan}> {token:?}");
   }

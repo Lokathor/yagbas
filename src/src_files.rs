@@ -46,6 +46,16 @@ impl SrcFileInfo {
   pub fn text(&self) -> &str {
     &self.file_text
   }
+  #[inline]
+  #[must_use]
+  #[track_caller]
+  pub fn get_id(self) -> SrcID {
+    let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
+    let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
+    // Note(Lokathor): This shouldn't ever panic because all ID values should
+    // have been made when inserting the info into the cache.
+    *read.get_by_right(&self).unwrap()
+  }
 
   #[inline]
   #[must_use]
@@ -96,17 +106,15 @@ impl SrcID {
   }
 
   #[inline]
-  #[must_use]
-  pub fn get_tokens(&self) -> Vec<(Token, FileSpan)> {
+  pub fn iter_tokens(&self) -> impl Iterator<Item = (Token, FileSpan)> + Clone + '_ {
     let info = self.get_info();
-    Token::lexer(&info.file_text)
-      .spanned()
-      .map(|(result, range)| {
-        let token = result.unwrap_or(Token::TokenError);
-        let filespan = FileSpan::new(*self, range);
-        (token, filespan)
-      })
-      .collect()
+    let id = *self;
+    let mut lexer = Token::lexer(&info.file_text);
+    core::iter::from_fn(move || {
+      let token = lexer.next()?.unwrap_or(Token::TokenError);
+      let filespan = FileSpan::new(id, lexer.span());
+      Some((token, filespan))
+    })
   }
 }
 impl<'a> From<&'a SrcFileInfo> for SrcID {
