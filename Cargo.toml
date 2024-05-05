@@ -10,12 +10,12 @@ license = "Zlib OR Apache-2.0 OR MIT"
 opt-level = 3
 
 [profile.release]
-codegen-units=1
-lto=true
+codegen-units = 1
+lto = true
 
 [dependencies]
-bimap = "0.6.3"
-chumsky = { version = "1.0.0-alpha.4", features = ["label"] }
 clap = { version = "4.3.10", features = ["derive"] }
-logos = "0.13.0"
-rayon = "1.7.0"
+#bimap = "0.6.3"
+#chumsky = { version = "1.0.0-alpha.4", features = ["label"] }
+#logos = "0.13.0"
+#rayon = "1.7.0"
