@@ -40,13 +40,13 @@ impl StrID {
 }
 impl core::fmt::Debug for StrID {
   #[inline]
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> core::fmt::Result {
     core::fmt::Debug::fmt(&self.as_str(), f)
   }
 }
 impl core::fmt::Display for StrID {
   #[inline]
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> core::fmt::Result {
     core::fmt::Display::fmt(&self.as_str(), f)
   }
 }
