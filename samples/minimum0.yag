@@ -1,3 +1,4 @@
+// an extremely minimal source file that's only for parser testing
 
 fn main() {
   foo()
