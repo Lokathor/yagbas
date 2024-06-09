@@ -58,12 +58,12 @@ impl FnDecl {
     let line_sep = select! {
       Lone(Newline) => (),
       Lone(Semicolon) => (),
-    }
-    .ignored();
+    };
     let statements = Statement::parser()
-      .map_with(|item, ex| (item, ex.span()))
-      .padded_by(line_sep)
-      .repeated()
+      .map_with(|statement, ex| (statement, ex.span()))
+      .separated_by(line_sep)
+      .allow_leading()
+      .allow_trailing()
       .collect::<Vec<_>>()
       .nested_in(select_ref! {
         Braces(b) = ex => {
