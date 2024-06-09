@@ -82,6 +82,7 @@ impl FnDecl {
 #[derive(Debug, Clone)]
 pub enum Statement {
   Call { target: StrID, args: Vec<(TokenTree, FileSpan)> },
+  Return,
 }
 impl Statement {
   pub fn s_call<'a>(
@@ -94,11 +95,16 @@ impl Statement {
     };
     call_target.then(arguments).map(|(target, args)| Statement::Call { target, args })
   }
+  pub fn s_return<'a>(
+  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+    just(Lone(KwReturn)).to(Self::Return)
+  }
 
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone {
     let call = Self::s_call();
+    let return_ = Self::s_return();
 
-    choice((call,))
+    choice((call, return_))
   }
 }
