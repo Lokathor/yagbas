@@ -23,6 +23,10 @@ pub enum Token {
   KwReturn,
   #[regex(r"static")]
   KwStatic,
+  #[regex(r"u16")]
+  KwU16,
+  #[regex(r"u8")]
+  KwU8,
 
   #[regex(r"\[", priority = 3)]
   OpBracket,
@@ -121,7 +125,13 @@ pub enum Token {
   #[token(r"*/", priority = 2)]
   CommentBlockEnd,
 
-  /// A standard ascii identifier from C-style langs: `[_a-zA-Z][_a-zA-Z0-9]*`
+  /// A C-like alphanumeric string *other than* a keyword.
+  ///
+  /// ```text
+  /// [_a-zA-Z][_a-zA-Z0-9]*
+  /// ```
+  ///
+  /// Basically, an Ident is something you could use as the name of a function.
   #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*", |lex| StrID::from(lex.slice()), priority=2)]
   Ident(StrID),
 
