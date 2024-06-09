@@ -79,7 +79,7 @@ impl FnDecl {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
   Call { target: StrID, args: Vec<(TokenTree, FileSpan)> },
   Return,
