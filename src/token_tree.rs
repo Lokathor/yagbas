@@ -37,10 +37,11 @@ pub enum TokenTree {
 use TokenTree::*;
 impl core::fmt::Debug for TokenTree {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let skip_threshold = 100;
     match self {
       Lone(t) => core::fmt::Debug::fmt(&t, f),
       Parens(ts) => {
-        if ts.len() > 10 {
+        if ts.len() > skip_threshold {
           write!(f, "(...{} elements...)", ts.len())
         } else {
           write!(f, "(")?;
@@ -55,7 +56,7 @@ impl core::fmt::Debug for TokenTree {
         }
       }
       Brackets(ts) => {
-        if ts.len() > 10 {
+        if ts.len() > skip_threshold {
           write!(f, "[...{} elements...]", ts.len())
         } else {
           write!(f, "[")?;
@@ -70,7 +71,7 @@ impl core::fmt::Debug for TokenTree {
         }
       }
       Braces(ts) => {
-        if ts.len() > 10 {
+        if ts.len() > skip_threshold {
           write!(f, "{{...{} elements...}}", ts.len())
         } else {
           write!(f, "{{")?;
@@ -93,15 +94,17 @@ impl TokenTree {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenSliceInput<'a>, Self, ErrRichToken<'a>> + Clone {
     recursive(|tt| {
-      let token_list =
-        tt.map_with_span(id2).repeated().collect::<Vec<(TokenTree, FileSpan)>>();
+      let token_list = tt
+        .map_with(|token, ex| id2(token, ex.span()))
+        .repeated()
+        .collect::<Vec<(TokenTree, FileSpan)>>();
 
       // Looks like `[ ... ]`
       let open_bracket = select! {
-        Punct('[') => (),
+        OpBracket => (),
       };
       let close_bracket = select! {
-        Punct(']') => (),
+        ClBracket => (),
       };
       let brackets = token_list
         .clone()
@@ -110,36 +113,27 @@ impl TokenTree {
 
       // Looks like `{ ... }`
       let open_brace = select! {
-        Punct('{') => (),
+        OpBrace => (),
       };
       let close_brace = select! {
-        Punct('}') => (),
+        ClBrace => (),
       };
       let braces =
         token_list.clone().delimited_by(open_brace, close_brace).map(TokenTree::Braces);
 
       // Looks like `( ... )`
       let open_paren = select! {
-        Punct('(') => (),
+        OpParen => (),
       };
       let close_paren = select! {
-        Punct(')') => (),
+        ClParen => (),
       };
       let parens =
         token_list.clone().delimited_by(open_paren, close_paren).map(TokenTree::Parens);
 
       // Looks like something that does *NOT* open or close one of the other types.
-      let single = none_of([
-        Punct('['),
-        Punct(']'),
-        Punct('{'),
-        Punct('}'),
-        Punct('('),
-        Punct(')'),
-        CommentBlockStart,
-        CommentBlockEnd,
-      ])
-      .map(TokenTree::Lone);
+      let single = none_of([OpBracket, ClBracket, OpBrace, ClBrace, OpParen, ClParen])
+        .map(TokenTree::Lone);
 
       // Looks like `//`
       let single_comment = select! {
@@ -179,7 +173,7 @@ pub fn grow_token_trees(
     via_parser(any().repeated().at_least(1).to(TokenTree::TreeError));
   let parser = TokenTree::parser()
     .recover_with(recover_strategy)
-    .map_with_span(id2)
+    .map_with(|token_tree, ex| id2(token_tree, ex.span()))
     .repeated()
     .collect::<Vec<(TokenTree, FileSpan)>>();
   let input = tokens.spanned(end_span);

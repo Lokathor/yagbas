@@ -1,6 +1,11 @@
+#![allow(unused)]
+
 use clap::{Args, Parser, Subcommand};
-use logos::Logos;
-use yagbas::lexer::Token;
+use yagbas::{
+  src_files::{FileSpan, SrcFileInfo, SrcID},
+  token::Token,
+  token_tree::{grow_token_trees, TokenTree},
+};
 
 #[test]
 fn verify_cli() {
@@ -39,12 +44,41 @@ pub fn main() {
   }
 }
 
-fn build(args: BuildArgs) {
-  println!("args: {args:?}");
-  for file in &args.files {
-    println!("== `{file}`");
-    let string = std::fs::read_to_string(file).unwrap();
-    let tokens: Vec<Token> = Token::lexer(&string).map(|r| r.unwrap()).collect();
-    println!("{tokens:?}");
+pub fn build(args: BuildArgs) {
+  println!("{args:?}");
+
+  if args.files.is_empty() {
+    eprintln!("Build Error: Must provide at least one source file.");
+    return;
+  }
+
+  // TODO: rayon this maybe.
+  let _todo: Vec<_> = args.files.iter().map(build_process_file).collect();
+}
+
+fn build_process_file(filename: &String) {
+  println!("== {filename}:");
+  let file_info_id = match SrcFileInfo::read_path(&filename) {
+    Ok(info) => SrcID::from(info),
+    Err(io_error) => {
+      eprintln!("File IO Error: {io_error}");
+      return;
+    }
+  };
+  let tokens: Vec<(Token, FileSpan)> = file_info_id.iter_tokens().collect();
+  for (token, filespan) in &tokens {
+    //println!("{filespan}> {token:?}");
+  }
+  let (trees, tree_errors) = grow_token_trees(&tokens);
+  for (token_tree, file_span) in &trees {
+    println!("{file_span:?}> {token_tree:?}");
+  }
+  for tree_error in &tree_errors {
+    let span = tree_error.span();
+    let found = tree_error.found();
+    let reason = tree_error.reason();
+    println!("span: {span}");
+    println!("found: {found:?}");
+    println!("reason: {reason:?}");
   }
 }

@@ -1,5 +1,15 @@
 // Conversion of https://gbdev.io/gb-asm-tutorial/assets/hello-world.asm
 
+const u16 TILE_BLOCK_2 = $9000
+const u16 TILE_MAP_0 = $9800
+const u16 NR52 = $FF26
+const u16 LCDC = $FF40
+const u16 LY = $FF44
+const u16 BGP = $FF47
+
+const u8 LCDCF_ON = %10000000
+const u8 LCDCF_BGON = %00000001
+
 fn main() {
   // Shut down audio circuitry
   a = 0
@@ -20,13 +30,13 @@ fn main() {
 
   // Copy the tile data
 	de = Tiles
-	hl = $9000
+	hl = TILE_BLOCK_2
 	bc = size_of!(Tiles)
   copy_data()
 
   // Copy the tilemap
 	de = Tilemap
-	hl = $9800
+	hl = TILE_MAP_0
 	bc = size_of!(Tilemap)
   copy_data()
 
@@ -35,7 +45,7 @@ fn main() {
   [LCDC] = a
 
   // During the first (blank) frame, initialize display registers
-  a = %11100100
+  a = %11_10_01_00
   [BGP] = a
 
   loop {}

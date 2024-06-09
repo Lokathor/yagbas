@@ -17,7 +17,5 @@ lto = true
 bimap = "0.6.3"
 clap = { version = "4.3.10", features = ["derive"] }
 logos = "0.14.0"
-#bimap = "0.6.3"
-#chumsky = { version = "1.0.0-alpha.4", features = ["label"] }
-#logos = "0.13.0"
+chumsky = { version = "1.0.0-alpha.7", features = ["label"] }
 #rayon = "1.7.0"
