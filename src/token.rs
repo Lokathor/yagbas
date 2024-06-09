@@ -100,6 +100,8 @@ pub enum Token {
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)", |lex| StrID::from(lex.slice()), priority=3)]
   NumLit(StrID),
 
+  #[regex(r":", priority = 2)]
+  Colon,
   #[regex(r",", priority = 2)]
   Comma,
   #[regex(r"=", priority = 2)]
@@ -114,6 +116,8 @@ pub enum Token {
   Pipe,
   #[regex(r"\+", priority = 2)]
   Plus,
+  #[regex(r";", priority = 2)]
+  Semicolon,
 
   /// `//` starts a single-line comment, which goes to the end of the line.
   #[regex(r"//[^\r\n]*", priority = 2)]

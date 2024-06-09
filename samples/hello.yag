@@ -1,14 +1,14 @@
 // Conversion of https://gbdev.io/gb-asm-tutorial/assets/hello-world.asm
 
-const u16 TILE_BLOCK_2 = $9000
-const u16 TILE_MAP_0 = $9800
-const u16 NR52 = $FF26
-const u16 LCDC = $FF40
-const u16 LY = $FF44
-const u16 BGP = $FF47
+const TILE_BLOCK_2: u16 = $9000
+const TILE_MAP_0: u16 = $9800
+const NR52: u16 = $FF26
+const LCDC: u16 = $FF40
+const LY: u16 = $FF44
+const BGP: u16 = $FF47
 
-const u8 LCDCF_ON = %10000000
-const u8 LCDCF_BGON = %00000001
+const LCDCF_ON: u8 = %10000000
+const LCDCF_BGON: u8 = %00000001
 
 fn main() {
   // Shut down audio circuitry
@@ -67,7 +67,7 @@ fn copy_data() {
   }
 }
 
-static [u8] Tiles = [
+static Tiles: [u8] = [
 	$00,$ff, $00,$ff, $00,$ff, $00,$ff, $00,$ff, $00,$ff, $00,$ff, $00,$ff,
 	$00,$ff, $00,$80, $00,$80, $00,$80, $00,$80, $00,$80, $00,$80, $00,$80,
 	$00,$ff, $00,$7e, $00,$7e, $00,$7e, $00,$7e, $00,$7e, $00,$7e, $00,$7e,
@@ -140,7 +140,7 @@ static [u8] Tiles = [
 	$01,$ff, $80,$ff, $01,$ff, $80,$ff, $01,$ff, $80,$ff, $01,$ff, $00,$ff,
 ]
 
-static [u8] Tilemap = [
+static Tilemap: [u8] = [
 	$00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00,  0,0,0,0,0,0,0,0,0,0,0,0,
 	$00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00,  0,0,0,0,0,0,0,0,0,0,0,0,
 	$00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00,  0,0,0,0,0,0,0,0,0,0,0,0,
