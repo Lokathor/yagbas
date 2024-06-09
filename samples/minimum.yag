@@ -1,0 +1,9 @@
+
+fn main() {
+  foo()
+}
+
+// this separate fn forces us to handle linking
+fn foo() {
+  return
+}

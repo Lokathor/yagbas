@@ -2,9 +2,10 @@
 
 use clap::{Args, Parser, Subcommand};
 use yagbas::{
+  item::parse_token_trees_to_items,
   src_files::{FileSpan, SrcFileInfo, SrcID},
   token::Token,
-  token_tree::{grow_token_trees, TokenTree},
+  token_tree::{parse_tokens_to_token_trees, TokenTree},
 };
 
 #[test]
@@ -66,19 +67,13 @@ fn build_process_file(filename: &String) {
     }
   };
   let tokens: Vec<(Token, FileSpan)> = file_info_id.iter_tokens().collect();
-  for (token, filespan) in &tokens {
-    //println!("{filespan}> {token:?}");
-  }
-  let (trees, tree_errors) = grow_token_trees(&tokens);
-  for (token_tree, file_span) in &trees {
-    println!("{file_span:?}> {token_tree:?}");
-  }
+  let (token_trees, tree_errors) = parse_tokens_to_token_trees(&tokens);
   for tree_error in &tree_errors {
-    let span = tree_error.span();
-    let found = tree_error.found();
-    let reason = tree_error.reason();
-    println!("span: {span}");
-    println!("found: {found:?}");
-    println!("reason: {reason:?}");
+    println!("== Tree Error: {tree_error:?}");
   }
+  let (items, item_errors) = parse_token_trees_to_items(&token_trees);
+  for item_error in &item_errors {
+    println!("== Item Error: {item_errors:?}");
+  }
+  println!("{items:?}");
 }

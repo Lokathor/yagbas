@@ -96,7 +96,7 @@ impl TokenTree {
 }
 
 #[allow(clippy::type_complexity)]
-pub fn grow_token_trees(
+pub fn parse_tokens_to_token_trees(
   tokens: &[(Token, FileSpan)],
 ) -> (Vec<(TokenTree, FileSpan)>, Vec<Rich<'static, Token, FileSpan>>) {
   if tokens.is_empty() {

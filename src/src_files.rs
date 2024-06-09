@@ -36,6 +36,20 @@ impl SrcFileInfo {
     Ok(Self { path_buf, file_text, line_bytes })
   }
 
+  pub fn in_memory(s: &str) -> Self {
+    let path_buf = PathBuf::from("<in_memory>");
+    let file_text = s.to_string();
+    let mut line_bytes = Vec::new();
+    let mut total = 0;
+    // Note(Lokathor): This works on both `\r\n` and `\n`, but will not generate
+    // the correct totals if the file uses bare `\r` for line endings.
+    for line in file_text.split_inclusive('\n') {
+      line_bytes.push(total);
+      total += line.len();
+    }
+    Self { path_buf, file_text, line_bytes }
+  }
+
   #[inline]
   #[must_use]
   pub fn path(&self) -> &Path {
