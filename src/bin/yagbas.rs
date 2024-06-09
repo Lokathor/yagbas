@@ -1,9 +1,13 @@
 #![allow(unused)]
+#![allow(clippy::type_complexity)]
+
+use std::collections::HashMap;
 
 use clap::{Args, Parser, Subcommand};
 use yagbas::{
-  item::parse_token_trees_to_items,
+  item::{parse_token_trees_to_items, FnDecl, Item, Statement},
   src_files::{FileSpan, SrcFileInfo, SrcID},
+  str_id::StrID,
   token::Token,
   token_tree::{parse_tokens_to_token_trees, TokenTree},
 };
@@ -75,7 +79,49 @@ fn build_process_file(filename: &String) {
   for item_error in &item_errors {
     println!("== Item Error: {item_errors:?}");
   }
-  for item in &items {
-    println!("I> {item:?}");
+  let mut code_chunks: HashMap<StrID, Vec<u8>> = HashMap::new();
+  let mut label_fixes: Vec<LabelFix> = Vec::new();
+  for (item, file_span) in &items {
+    match item {
+      Item::Fn(FnDecl { name, args, statements }) => {
+        assert!(args.is_empty());
+        let (chunk, fixes) = do_codegen(*name, statements);
+        code_chunks.insert(*name, chunk);
+        label_fixes.extend(fixes);
+      }
+      Item::ItemError => println!("ItemError@{file_span}"),
+    };
   }
+  println!("{code_chunks:X?}");
+  println!("{label_fixes:?}");
+}
+
+#[derive(Debug, Clone)]
+struct LabelFix {
+  source_id: StrID,
+  offset_within_source: usize,
+  target_id: StrID,
+}
+
+/// Gives the output bytes for a fn and all the (label, offset) pairs within the
+/// fn we need to update after fns are placed into the rom.
+fn do_codegen(
+  source_id: StrID, statements: &[(Statement, FileSpan)],
+) -> (Vec<u8>, Vec<LabelFix>) {
+  let mut out = Vec::new();
+  let mut link_notes = Vec::new();
+  for (statement, _file_span) in statements {
+    match statement {
+      Statement::Call { target, .. } => {
+        link_notes.push(LabelFix {
+          source_id,
+          offset_within_source: out.len() + 1,
+          target_id: *target,
+        });
+        out.extend(&[0xCD, 0xFF, 0xFF])
+      }
+      Statement::Return => out.extend(&[0xC9]),
+    }
+  }
+  (out, link_notes)
 }

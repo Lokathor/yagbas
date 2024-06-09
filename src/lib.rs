@@ -1,5 +1,6 @@
 #![allow(clippy::let_and_return)]
 #![allow(unused_imports)]
+#![allow(clippy::type_complexity)]
 
 use chumsky::{extra::Err, input::SpannedInput, prelude::*};
 use item::Item;

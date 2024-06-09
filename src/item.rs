@@ -84,7 +84,13 @@ impl FnDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
+  /// `call LABEL`, unconditional call
+  ///
+  /// * Bytes: `0xCD, ADDR_LOW, ADDR_HIGH`
   Call { target: StrID, args: Vec<(TokenTree, FileSpan)> },
+  /// `ret`, unconditional return
+  ///
+  /// * Bytes: `0xC9`
   Return,
 }
 impl Statement {
