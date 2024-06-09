@@ -75,5 +75,7 @@ fn build_process_file(filename: &String) {
   for item_error in &item_errors {
     println!("== Item Error: {item_errors:?}");
   }
-  println!("{items:?}");
+  for item in &items {
+    println!("I> {item:?}");
+  }
 }
