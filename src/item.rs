@@ -15,8 +15,11 @@ pub fn parse_token_trees_to_items(
   } else {
     return (Vec::new(), Vec::new());
   };
-  let parser =
-    Item::parser().map_with(|item, ex| (item, ex.span())).repeated().collect::<Vec<_>>();
+  let parser = Item::parser()
+    .map_with(|item, ex| (item, ex.span()))
+    .padded_by(just(Lone(Newline)).repeated())
+    .repeated()
+    .collect::<Vec<_>>();
   let input = token_trees.spanned(last_span);
   let (items, errors) = parser.parse(input).into_output_errors();
   (
