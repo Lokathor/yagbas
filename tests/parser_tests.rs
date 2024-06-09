@@ -4,6 +4,7 @@ use yagbas::{
   token_tree::{parse_tokens_to_token_trees, TokenTree},
 };
 
+#[track_caller]
 fn make_trees_no_errors(s: &str) -> Vec<(TokenTree, FileSpan)> {
   let file_info_id = SrcID::from(SrcFileInfo::in_memory(s));
   let tokens: Vec<_> = file_info_id.iter_tokens().collect();
@@ -12,6 +13,7 @@ fn make_trees_no_errors(s: &str) -> Vec<(TokenTree, FileSpan)> {
   token_trees
 }
 
+#[track_caller]
 fn parse_items_no_errors(s: &str) -> Vec<(Item, FileSpan)> {
   let trees = make_trees_no_errors(s);
   let (items, item_errors) = parse_token_trees_to_items(&trees);
