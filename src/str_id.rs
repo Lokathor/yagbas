@@ -1,6 +1,5 @@
 use bimap::BiMap;
 use core::{
-  borrow::Borrow,
   num::NonZeroUsize,
   sync::atomic::{AtomicUsize, Ordering},
 };

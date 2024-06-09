@@ -1,4 +1,6 @@
 use clap::{Args, Parser, Subcommand};
+use logos::Logos;
+use yagbas::lexer::Token;
 
 #[test]
 fn verify_cli() {
@@ -37,6 +39,12 @@ pub fn main() {
   }
 }
 
-fn build(_args: BuildArgs) {
-  println!("todo: implement building")
+fn build(args: BuildArgs) {
+  println!("args: {args:?}");
+  for file in &args.files {
+    println!("== `{file}`");
+    let string = std::fs::read_to_string(file).unwrap();
+    let tokens: Vec<Token> = Token::lexer(&string).map(|r| r.unwrap()).collect();
+    println!("{tokens:?}");
+  }
 }
