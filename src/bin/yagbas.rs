@@ -1,7 +1,10 @@
 #![allow(unused)]
 #![allow(clippy::type_complexity)]
 
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  path::{Path, PathBuf},
+};
 
 use clap::{Args, Parser, Subcommand};
 use yagbas::{
@@ -92,8 +95,45 @@ fn build_process_file(filename: &String) {
       Item::ItemError => println!("ItemError@{file_span}"),
     };
   }
-  println!("{code_chunks:X?}");
-  println!("{label_fixes:?}");
+
+  let entry_name = "@magic_entry_point";
+  let mut rom = vec![0_u8; 0x0150];
+  // hack in the entry point code: `di; jp main`
+  rom[0x0100] = 0xF3;
+  rom[0x0101] = 0xC3;
+  rom[0x0102] = 0xFF;
+  rom[0x0103] = 0xFF;
+  label_fixes.push(LabelFix {
+    source_id: StrID::from(entry_name),
+    offset_within_source: 2,
+    target_id: StrID::from("main"),
+  });
+
+  let mut chunk_locations: HashMap<StrID, usize> = HashMap::new();
+  chunk_locations.insert(StrID::from(entry_name), 0x0100);
+  for (name, data) in &code_chunks {
+    // TODO: we have to handle rom banking
+    chunk_locations.insert(*name, rom.len());
+    rom.extend(data);
+  }
+  println!("Final Rom Size: {}", rom.len());
+  for fix in &label_fixes {
+    let source_base: usize = *chunk_locations.get(&fix.source_id).unwrap();
+    let source_actual = source_base + fix.offset_within_source;
+    let target_usize: usize = *chunk_locations.get(&fix.target_id).unwrap();
+    let target_u16: u16 = target_usize.try_into().unwrap();
+    let target_bytes: [u8; 2] = target_u16.to_le_bytes();
+    rom[source_actual..(source_actual + 2)].copy_from_slice(&target_bytes);
+  }
+  // TODO: header fixing steps
+
+  let file_path = PathBuf::from(filename);
+  let mut path_buf = PathBuf::new();
+  path_buf.push("target");
+  path_buf.push(file_path.file_name().unwrap());
+  path_buf.set_extension("gb");
+  println!("out_file: {path_buf:?}");
+  std::fs::write(&path_buf, &rom).unwrap();
 }
 
 #[derive(Debug, Clone)]
@@ -109,11 +149,11 @@ fn do_codegen(
   source_id: StrID, statements: &[(Statement, FileSpan)],
 ) -> (Vec<u8>, Vec<LabelFix>) {
   let mut out = Vec::new();
-  let mut link_notes = Vec::new();
+  let mut label_fixes = Vec::new();
   for (statement, _file_span) in statements {
     match statement {
       Statement::Call { target, .. } => {
-        link_notes.push(LabelFix {
+        label_fixes.push(LabelFix {
           source_id,
           offset_within_source: out.len() + 1,
           target_id: *target,
@@ -123,5 +163,5 @@ fn do_codegen(
       Statement::Return => out.extend(&[0xC9]),
     }
   }
-  (out, link_notes)
+  (out, label_fixes)
 }
