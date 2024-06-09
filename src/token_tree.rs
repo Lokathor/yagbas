@@ -5,19 +5,9 @@ use chumsky::{
 
 use crate::{
   src_files::FileSpan,
-  token::{Token, Token::*},
-  ErrRichToken,
+  token::Token::{self, *},
+  ErrRichToken, TokenSliceInput,
 };
-
-#[inline]
-#[must_use]
-const fn id2<A, B>(a: A, b: B) -> (A, B) {
-  (a, b)
-}
-
-pub type TokenSliceInput<'a> = SpannedInput<Token, FileSpan, &'a [(Token, FileSpan)]>;
-pub type TokenTreeSliceInput<'a> =
-  SpannedInput<TokenTree, FileSpan, &'a [(TokenTree, FileSpan)]>;
 
 /// A lone token or a list of token trees within one of three groupings.
 ///
@@ -34,68 +24,13 @@ pub enum TokenTree {
   Braces(Vec<(TokenTree, FileSpan)>),
   TreeError,
 }
-use TokenTree::*;
-impl core::fmt::Debug for TokenTree {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let skip_threshold = 100;
-    match self {
-      Lone(t) => core::fmt::Debug::fmt(&t, f),
-      Parens(ts) => {
-        if ts.len() > skip_threshold {
-          write!(f, "(...{} elements...)", ts.len())
-        } else {
-          write!(f, "(")?;
-          for (i, (tt, _span)) in ts.iter().enumerate() {
-            if i > 0 {
-              write!(f, " ")?;
-            }
-            write!(f, "{tt:?}")?;
-          }
-          write!(f, ")")?;
-          Ok(())
-        }
-      }
-      Brackets(ts) => {
-        if ts.len() > skip_threshold {
-          write!(f, "[...{} elements...]", ts.len())
-        } else {
-          write!(f, "[")?;
-          for (i, (tt, _span)) in ts.iter().enumerate() {
-            if i > 0 {
-              write!(f, " ")?;
-            }
-            write!(f, "{tt:?}")?;
-          }
-          write!(f, "]")?;
-          Ok(())
-        }
-      }
-      Braces(ts) => {
-        if ts.len() > skip_threshold {
-          write!(f, "{{...{} elements...}}", ts.len())
-        } else {
-          write!(f, "{{")?;
-          for (i, (tt, _span)) in ts.iter().enumerate() {
-            if i > 0 {
-              write!(f, " ")?;
-            }
-            write!(f, "{tt:?}")?;
-          }
-          write!(f, "}}")?;
-          Ok(())
-        }
-      }
-      TreeError => write!(f, "TreeError"),
-    }
-  }
-}
 impl TokenTree {
   /// Parses for just one token tree.
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenSliceInput<'a>, Self, ErrRichToken<'a>> + Clone {
     recursive(|tt| {
       let token_list = tt
-        .map_with(|token, ex| id2(token, ex.span()))
+        .map_with(|token, ex| (token, ex.span()))
         .repeated()
         .collect::<Vec<(TokenTree, FileSpan)>>();
 
@@ -173,7 +108,7 @@ pub fn grow_token_trees(
     via_parser(any().repeated().at_least(1).to(TokenTree::TreeError));
   let parser = TokenTree::parser()
     .recover_with(recover_strategy)
-    .map_with(|token_tree, ex| id2(token_tree, ex.span()))
+    .map_with(|token_tree, ex| (token_tree, ex.span()))
     .repeated()
     .collect::<Vec<(TokenTree, FileSpan)>>();
   let input = tokens.spanned(end_span);
@@ -182,4 +117,59 @@ pub fn grow_token_trees(
     trees.unwrap_or_default(),
     errors.into_iter().map(|r| r.into_owned()).collect::<Vec<_>>(),
   )
+}
+
+impl core::fmt::Debug for TokenTree {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let skip_threshold = 100;
+    match self {
+      Self::Lone(t) => core::fmt::Debug::fmt(&t, f),
+      Self::Parens(ts) => {
+        if ts.len() > skip_threshold {
+          write!(f, "(...{} elements...)", ts.len())
+        } else {
+          write!(f, "(")?;
+          for (i, (tt, _span)) in ts.iter().enumerate() {
+            if i > 0 {
+              write!(f, " ")?;
+            }
+            write!(f, "{tt:?}")?;
+          }
+          write!(f, ")")?;
+          Ok(())
+        }
+      }
+      Self::Brackets(ts) => {
+        if ts.len() > skip_threshold {
+          write!(f, "[...{} elements...]", ts.len())
+        } else {
+          write!(f, "[")?;
+          for (i, (tt, _span)) in ts.iter().enumerate() {
+            if i > 0 {
+              write!(f, " ")?;
+            }
+            write!(f, "{tt:?}")?;
+          }
+          write!(f, "]")?;
+          Ok(())
+        }
+      }
+      Self::Braces(ts) => {
+        if ts.len() > skip_threshold {
+          write!(f, "{{...{} elements...}}", ts.len())
+        } else {
+          write!(f, "{{")?;
+          for (i, (tt, _span)) in ts.iter().enumerate() {
+            if i > 0 {
+              write!(f, " ")?;
+            }
+            write!(f, "{tt:?}")?;
+          }
+          write!(f, "}}")?;
+          Ok(())
+        }
+      }
+      Self::TreeError => write!(f, "TreeError"),
+    }
+  }
 }
