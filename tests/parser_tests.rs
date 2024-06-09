@@ -28,10 +28,10 @@ fn can_parse_empty_main_fn() {
   let items = parse_items_no_errors(src);
   match items.as_slice() {
     [(item, _file_span)] => match item {
-      Item::Fn(f) => {
-        assert_eq!(f.name.as_str(), "main");
-        assert!(f.args.is_empty());
-        assert!(f.statements.is_empty());
+      Item::Fn(FnDecl { name, args, statements }) => {
+        assert_eq!(name.as_str(), "main");
+        assert!(args.is_empty());
+        assert!(statements.is_empty());
       }
       other => panic!("wrong item kind found: {other:?}"),
     },
@@ -43,10 +43,10 @@ fn can_parse_empty_main_fn() {
   let items = parse_items_no_errors(src);
   match items.as_slice() {
     [(item, _file_span)] => match item {
-      Item::Fn(f) => {
-        assert_eq!(f.name.as_str(), "main");
-        assert!(f.args.is_empty());
-        assert!(f.statements.is_empty());
+      Item::Fn(FnDecl { name, args, statements }) => {
+        assert_eq!(name.as_str(), "main");
+        assert!(args.is_empty());
+        assert!(statements.is_empty());
       }
       other => panic!("wrong item kind found: {other:?}"),
     },
@@ -60,10 +60,10 @@ fn can_parse_empty_main_fn() {
   let items = parse_items_no_errors(src);
   match items.as_slice() {
     [(item, _file_span)] => match item {
-      Item::Fn(f) => {
-        assert_eq!(f.name.as_str(), "main");
-        assert!(f.args.is_empty());
-        assert!(f.statements.is_empty());
+      Item::Fn(FnDecl { name, args, statements }) => {
+        assert_eq!(name.as_str(), "main");
+        assert!(args.is_empty());
+        assert!(statements.is_empty());
       }
       other => panic!("wrong item kind found: {other:?}"),
     },
@@ -78,10 +78,10 @@ fn can_parse_return_statement() {
   let items = parse_items_no_errors(src);
   match items.as_slice() {
     [(item, _file_span)] => match item {
-      Item::Fn(f) => {
-        assert_eq!(f.name.as_str(), "main");
-        assert!(f.args.is_empty());
-        match f.statements.as_slice() {
+      Item::Fn(FnDecl { name, args, statements }) => {
+        assert_eq!(name.as_str(), "main");
+        assert!(args.is_empty());
+        match statements.as_slice() {
           [(st, _file_span)] => assert_eq!(*st, Statement::Return),
           [] => panic!("no statements!"),
           other => panic!("too many statements: {other:?}"),
