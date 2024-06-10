@@ -79,6 +79,9 @@ fn build_process_file(filename: &String) {
     println!("== Tree Error: {tree_error:?}");
   }
   let (items, item_errors) = parse_token_trees_to_items(&token_trees);
+  for item in &items {
+    println!("I> {item:?}");
+  }
   for item_error in &item_errors {
     println!("== Item Error: {item_errors:?}");
   }

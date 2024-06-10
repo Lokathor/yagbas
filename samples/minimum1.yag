@@ -1,9 +1,8 @@
 // an extremely minimal source file that's only for parser testing
 
 fn main() {
-  loop {
-    foo()
-  }
+  loop{loop{} loop{loop{} loop{}}}
+  loop { foo() }
 }
 
 // this separate fn forces us to handle linking

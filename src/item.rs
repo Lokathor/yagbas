@@ -89,7 +89,7 @@ pub enum Statement {
   /// `call LABEL`, unconditional call
   ///
   /// * Bytes: `0xCD, ADDR_LOW, ADDR_HIGH`
-  Call { target: StrID, args: Vec<(TokenTree, FileSpan)> },
+  Call { target: StrID, args: Vec<(TokenTree, FileSpan)> }, /* TODO: conditional calls */
   /// `ret`, unconditional return
   ///
   /// * Bytes: `0xC9`
@@ -98,58 +98,43 @@ pub enum Statement {
   Loop(Vec<(Statement, FileSpan)>),
 }
 impl Statement {
-  pub fn s_call<'a>(
-  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
-  {
-    let call_target = select! {
-      Lone(Ident(i)) => i
-    };
-    let arguments = select! {
-      Parens(p) => p
-    };
-    call_target
-      .then(arguments)
-      .map(|(target, args)| Statement::Call { target, args })
-  }
-  pub fn s_return<'a>(
-  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
-  {
-    // using a select makes it half the size of a `just`
-    select! {
-      Lone(KwReturn) => ()
-    }
-    .to(Self::Return)
-  }
-
+  /// Parses one statement from a fn body.
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
   {
-    recursive(|tt| {
-      let statement_list = tt
-        .map_with(|token, ex| (token, ex.span()))
-        .repeated()
-        .collect::<Vec<(TokenTree, FileSpan)>>();
-
-      let line_sep = select! {
-        Lone(Newline) => (),
-        Lone(Semicolon) => (),
+    recursive(|statement| {
+      let return_p = select! {Lone(KwReturn) => ()}.to(Statement::Return);
+      let call_p = {
+        let call_target = select! {
+          Lone(Ident(i)) => i
+        };
+        let arguments = select! {
+          Parens(p) => p
+        };
+        call_target
+          .then(arguments)
+          .map(|(target, args)| Statement::Call { target, args })
       };
-
-      let call = Self::s_call();
-      let return_ = Self::s_return();
-      let loop_ = {
-        let kw_loop = just(Lone(KwLoop));
+      let loop_p = {
+        let kw_loop = select! {
+          Lone(KwLoop) => ()
+        };
         kw_loop
-          .ignore_then(statement_list.clone().nested_in(select_ref! {
-            Braces(b) = ex => {
-              b.spanned(ex.span())
-            }
-          }))
-          .map(Self::Loop)
+          .ignore_then(
+            statement
+              .clone()
+              .map_with(|statement, ex| (statement, ex.span()))
+              .repeated()
+              .collect::<Vec<_>>()
+              .nested_in(select_ref! {
+                Braces(b) = ex => {
+                  b.spanned(ex.span())
+                }
+              }),
+          )
+          .map(Statement::Loop)
       };
-
-      let x = choice((call, return_, loop_)).padded_by(line_sep.repeated());
-
+      let x = choice((return_p, call_p, loop_p));
       x
     })
   }
