@@ -102,7 +102,7 @@ impl Statement {
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
   {
-    recursive(|statement| {
+    recursive(|inner_self| {
       let return_p = select! {Lone(KwReturn) => ()}.to(Statement::Return);
       let call_p = {
         let call_target = select! {
@@ -121,7 +121,7 @@ impl Statement {
         };
         kw_loop
           .ignore_then(
-            statement
+            inner_self
               .clone()
               .map_with(|statement, ex| (statement, ex.span()))
               .repeated()
