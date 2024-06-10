@@ -85,8 +85,8 @@ pub enum Token {
   #[token("nz", priority = 3)]
   #[token("NZ", priority = 3)]
   KwNZ,
-  // Note(Lokathor): `carry` condition and `c` register both tokenize as KwC. The
-  // context makes it clear what the user meant.
+  // Note(Lokathor): `carry` condition and `c` register both tokenize as KwC.
+  // The context makes it clear what the user meant.
   #[token("nc", priority = 3)]
   #[token("NC", priority = 3)]
   KwNC,
@@ -146,7 +146,9 @@ impl Token {
   /// Allows the [lexer][Logos::lexer] method to be called without needing to
   /// import the trait.
   #[inline(always)]
-  pub fn lexer<'source>(source: &'source <Self as Logos>::Source) -> Lexer<'source, Self>
+  pub fn lexer<'source>(
+    source: &'source <Self as Logos>::Source,
+  ) -> Lexer<'source, Self>
   where
     <Self as Logos<'source>>::Extras: Default,
   {

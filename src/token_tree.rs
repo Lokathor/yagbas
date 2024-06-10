@@ -53,8 +53,10 @@ impl TokenTree {
       let close_brace = select! {
         ClBrace => (),
       };
-      let braces =
-        token_list.clone().delimited_by(open_brace, close_brace).map(TokenTree::Braces);
+      let braces = token_list
+        .clone()
+        .delimited_by(open_brace, close_brace)
+        .map(TokenTree::Braces);
 
       // Looks like `( ... )`
       let open_paren = select! {
@@ -63,12 +65,16 @@ impl TokenTree {
       let close_paren = select! {
         ClParen => (),
       };
-      let parens =
-        token_list.clone().delimited_by(open_paren, close_paren).map(TokenTree::Parens);
+      let parens = token_list
+        .clone()
+        .delimited_by(open_paren, close_paren)
+        .map(TokenTree::Parens);
 
-      // Looks like something that does *NOT* open or close one of the other types.
-      let single = none_of([OpBracket, ClBracket, OpBrace, ClBrace, OpParen, ClParen])
-        .map(TokenTree::Lone);
+      // Looks like something that does *NOT* open or close one of the other
+      // types.
+      let single =
+        none_of([OpBracket, ClBracket, OpBrace, ClBrace, OpParen, ClParen])
+          .map(TokenTree::Lone);
 
       // Looks like `//`
       let single_comment = select! {
@@ -88,7 +94,8 @@ impl TokenTree {
       // Either type of comment
       let comment = single_comment.or(block_comment);
 
-      let x = choice((brackets, braces, parens, single)).padded_by(comment.repeated());
+      let x = choice((brackets, braces, parens, single))
+        .padded_by(comment.repeated());
 
       x
     })

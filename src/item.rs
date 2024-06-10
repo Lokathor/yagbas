@@ -35,7 +35,8 @@ pub enum Item {
 }
 impl Item {
   pub fn parser<'a>(
-  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
+  {
     let fn_decl = FnDecl::parser().map(Self::Fn);
 
     choice((fn_decl,))
@@ -50,7 +51,8 @@ pub struct FnDecl {
 }
 impl FnDecl {
   pub fn parser<'a>(
-  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
+  {
     let kw_fn = just(Lone(KwFn));
     let fn_name = select! {
       Lone(Ident(i)) => i
@@ -95,22 +97,27 @@ pub enum Statement {
 }
 impl Statement {
   pub fn s_call<'a>(
-  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
+  {
     let call_target = select! {
       Lone(Ident(i)) => i
     };
     let arguments = select! {
       Parens(p) => p
     };
-    call_target.then(arguments).map(|(target, args)| Statement::Call { target, args })
+    call_target
+      .then(arguments)
+      .map(|(target, args)| Statement::Call { target, args })
   }
   pub fn s_return<'a>(
-  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
+  {
     just(Lone(KwReturn)).to(Self::Return)
   }
 
   pub fn parser<'a>(
-  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone {
+  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
+  {
     let call = Self::s_call();
     let return_ = Self::s_return();
 

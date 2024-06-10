@@ -88,7 +88,8 @@ impl SrcFileInfo {
 
 static NEXT_INFO_ID: AtomicUsize = AtomicUsize::new(1);
 
-static INFO_CACHE: OnceLock<RwLock<BiMap<SrcID, &'static SrcFileInfo>>> = OnceLock::new();
+static INFO_CACHE: OnceLock<RwLock<BiMap<SrcID, &'static SrcFileInfo>>> =
+  OnceLock::new();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -120,7 +121,9 @@ impl SrcID {
   }
 
   #[inline]
-  pub fn iter_tokens(&self) -> impl Iterator<Item = (Token, FileSpan)> + Clone + '_ {
+  pub fn iter_tokens(
+    &self,
+  ) -> impl Iterator<Item = (Token, FileSpan)> + Clone + '_ {
     let info = self.get_info();
     let id = *self;
     let mut lexer = Token::lexer(&info.file_text);

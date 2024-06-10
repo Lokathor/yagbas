@@ -59,8 +59,9 @@ impl<'a> From<&'a str> for StrID {
     } else {
       drop(read);
       let mut write = rw_lock.write().unwrap_or_else(PoisonError::into_inner);
-      // It's *possible* that the string was inserted after we dropped the reader
-      // before we acquired the writer, so we must check a second time.
+      // It's *possible* that the string was inserted after we dropped the
+      // reader before we acquired the writer, so we must check a second
+      // time.
       if let Some(id) = write.get_by_right(s) {
         *id
       } else {
