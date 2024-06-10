@@ -94,6 +94,8 @@ pub enum Statement {
   ///
   /// * Bytes: `0xC9`
   Return,
+  /// Performs the inner statements and then jumps to the start of the loop
+  Loop(Vec<(Statement, FileSpan)>),
 }
 impl Statement {
   pub fn s_call<'a>(
@@ -114,13 +116,36 @@ impl Statement {
   {
     just(Lone(KwReturn)).to(Self::Return)
   }
+  pub fn s_loop<'a>(
+  ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
+  {
+    let kw_loop = just(Lone(KwLoop));
+    let line_sep = select! {
+      Lone(Newline) => (),
+      Lone(Semicolon) => (),
+    };
+    let statements = Statement::parser()
+      .map_with(|statement, ex| (statement, ex.span()))
+      .separated_by(line_sep)
+      .allow_leading()
+      .allow_trailing()
+      .collect::<Vec<_>>()
+      .nested_in(select_ref! {
+        Braces(b) = ex => {
+          b.spanned(ex.span())
+        }
+      });
+
+    kw_loop.ignore_then(statements).map(Self::Loop)
+  }
 
   pub fn parser<'a>(
   ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
   {
     let call = Self::s_call();
     let return_ = Self::s_return();
+    let loop_ = Self::s_loop();
 
-    choice((call, return_))
+    choice((call, return_, loop_))
   }
 }

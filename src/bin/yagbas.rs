@@ -82,6 +82,7 @@ fn build_process_file(filename: &String) {
   for item_error in &item_errors {
     println!("== Item Error: {item_errors:?}");
   }
+  assert!(item_errors.is_empty());
   let mut code_chunks: HashMap<StrID, Vec<u8>> = HashMap::new();
   let mut label_fixes: Vec<LabelFix> = Vec::new();
   for (item, file_span) in &items {
@@ -102,6 +103,7 @@ fn build_process_file(filename: &String) {
     source_id: StrID::from(entry_name),
     offset_within_source: 2,
     target_id: StrID::from("main"),
+    target_offset: 0,
   });
 
   let mut chunk_locations: HashMap<StrID, usize> = HashMap::new();
@@ -113,10 +115,13 @@ fn build_process_file(filename: &String) {
   }
   println!("Final Rom Size: {}", rom.len());
   assert!(rom.len() <= (32 * 1024), "Exceeded no-banking capacity");
+  println!("{chunk_locations:?}");
   for fix in &label_fixes {
     let source_base: usize = *chunk_locations.get(&fix.source_id).unwrap();
     let source_actual = source_base + fix.offset_within_source;
-    let target_usize: usize = *chunk_locations.get(&fix.target_id).unwrap();
+    println!("{:?}", fix.target_id);
+    let target_usize: usize =
+      *chunk_locations.get(&fix.target_id).unwrap() + fix.target_offset;
     let target_u16: u16 = target_usize.try_into().unwrap();
     let target_bytes: [u8; 2] = target_u16.to_le_bytes();
     rom[source_actual..(source_actual + 2)].copy_from_slice(&target_bytes);
@@ -136,6 +141,7 @@ struct LabelFix {
   source_id: StrID,
   offset_within_source: usize,
   target_id: StrID,
+  target_offset: usize,
 }
 
 /// Gives the output bytes for a fn and all the (label, offset) pairs within the
@@ -152,10 +158,26 @@ fn do_codegen(
           source_id,
           offset_within_source: out.len() + 1,
           target_id: *target,
+          target_offset: 0,
         });
         out.extend(&[0xCD, 0xFF, 0xFF])
       }
       Statement::Return => out.extend(&[0xC9]),
+      Statement::Loop(content) => {
+        let (loop_bytes, mut loop_fixes) = do_codegen(source_id, statements);
+        for fix in &mut loop_fixes {
+          fix.offset_within_source += out.len();
+        }
+        label_fixes.push(LabelFix {
+          source_id,
+          offset_within_source: out.len(),
+          target_id: source_id,
+          target_offset: out.len() + loop_bytes.len(),
+        });
+        out.extend(loop_bytes);
+        label_fixes.extend(loop_fixes);
+        out.extend(&[0xC3, 0xFF, 0xFF])
+      }
     }
   }
   (out, label_fixes)
