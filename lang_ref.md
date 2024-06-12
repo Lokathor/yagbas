@@ -2,9 +2,9 @@
 
 Yagbas is a programming language that targets the Game Boy and Game Boy Color.
 
-Because of the limited capabilities of these devices, yagbas is not as flexible as a "general purpose" sort of language. It's probably easiest to explain yagbas as being "mostly assembly, but with slightly better control flow syntax". The language is intended to look "kinda like Rust does".
+Because of the limited capabilities of these devices, yagbas is not as flexible as a "general purpose" sort of language. It's probably easiest to explain yagbas as being "nearly assembly, but with slightly better control flow syntax". The language is intended to look kinda like Rust does, when possible.
 
-* Source code files for yagbas must be UTF-8 encoded text files.
+* Source code files for yagbas must be written using UTF-8 encoded text files. Yagbas itself only relies on the Ascii subset of UTF-8, but code comments can be written using the full unicode range.
 * `\r\n`, `\r`, and `\n` are all treated as "a newline" in yagbas.
 * Newlines act as an implicit separation between statements in code, but whitespace is not otherwise significant. Explicit statement separation can be done with semicolon characters when desired.
 * By convention semicolons are not used, and each statement is simply put on a separate source line.
