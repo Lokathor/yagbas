@@ -14,8 +14,6 @@ use crate::{
 /// Collecting a raw token list into token trees ensures that all the
 /// opening/closing markers of all the groupings are balanced before trying to
 /// do any more advanced parsing.
-///
-/// * See: [make_token_trees]
 #[derive(Clone, PartialEq, Eq)]
 pub enum TokenTree {
   Lone(Token),
