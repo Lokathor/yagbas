@@ -48,14 +48,6 @@ fn NAME() {
 
 Function names are conventionally in `snake_case`. The opening brace is generally placed on the same line as the function name. Indentation is generally 2 spaces per code block level.
 
-### Constants
-
-todo
-
-### Statics
-
-todo
-
 ## Statements
 
 A function contains 1 or more statements. Statements in yagbas map fairly directly to Game Boy assembly, though some statements expand to more than one assembly instruction.
