@@ -163,3 +163,25 @@ fn can_parse_call_statement() {
     other => panic!("too many items: {other:?}"),
   }
 }
+
+#[test]
+fn can_parse_loops() {
+  let src = r#" fn main() { loop {} } "#;
+  let items = parse_items_no_errors(src);
+  match items.as_slice() {
+    [(item, _file_span)] => match item {
+      Item::Fn(FnDecl { name, args, statements }) => {
+        assert_eq!(name.as_str(), "main");
+        assert!(args.is_empty());
+        match statements.as_slice() {
+          [(st, _file_span)] => assert!(matches!(*st, Statement::Loop(_))),
+          [] => panic!("no statements!"),
+          other => panic!("too many statements: {other:?}"),
+        }
+      }
+      other => panic!("wrong item kind found: {other:?}"),
+    },
+    [] => panic!("no items found!"),
+    other => panic!("too many items: {other:?}"),
+  }
+}

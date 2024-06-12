@@ -1,0 +1,13 @@
+[book]
+title = "Yagbas Language Reference"
+authors = ["Lokathor"]
+language = "en"
+multilingual = false
+src = "lang_ref"
+
+[build]
+build-dir = "target/lang_ref"
+create-missing = false
+
+[output.html]
+git-repository-url = "https://github.com/Lokathor/yagbas"
