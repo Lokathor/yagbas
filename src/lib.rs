@@ -2,6 +2,14 @@
 #![allow(clippy::let_and_return)]
 #![allow(clippy::type_complexity)]
 
+//! Yagbas is a compiler for a language of the same name.
+//!
+//! * This package is on crates.io so that people can `cargo install yagbas` and
+//!   get the compiler that way.
+//! * Only the compiler is covered by the semantic version number.
+//! * The library content of the `yagbas` package is **NOT** covered by the
+//!   semantic version of the package.
+
 use chumsky::{extra::Err, input::SpannedInput, prelude::*};
 use item::Item;
 use src_files::FileSpan;
