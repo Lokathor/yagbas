@@ -21,3 +21,16 @@ The conventional code style for functions is as follows:
 * Names are `snake_case`
 * Indentation is 2 spaces
 * The opening brace is on the same line as the function name
+
+## `fn main()`
+
+The `main` function has a special meaning.
+
+After booting, the Game Boy jumps to the "Entry Point" of the ROM ($0100) and
+begins running there. However, the entry point can only be 4 bytes long, because
+after that is the rest of the ROM header rather than meaningful instructions.
+The Entry Point is expected to jump to the actual beginning of the program.
+
+The yagbas compiler always uses `di; jp main` as the effective code for the
+entry point. If your program does not include a `main` function, compilation
+will cause an error.
