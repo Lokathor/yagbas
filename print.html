@@ -228,6 +228,15 @@ parentheses, but in the current version they are always empty.</p>
 <li>Indentation is 2 spaces</li>
 <li>The opening brace is on the same line as the function name</li>
 </ul>
+<h2 id="fn-main"><a class="header" href="#fn-main"><code>fn main()</code></a></h2>
+<p>The <code>main</code> function has a special meaning.</p>
+<p>After booting, the Game Boy jumps to the "Entry Point" of the ROM ($0100) and
+begins running there. However, the entry point can only be 4 bytes long, because
+after that is the rest of the ROM header rather than meaningful instructions.
+The Entry Point is expected to jump to the actual beginning of the program.</p>
+<p>The yagbas compiler always uses <code>di; jp main</code> as the effective code for the
+entry point. If your program does not include a <code>main</code> function, compilation
+will cause an error.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="statements"><a class="header" href="#statements">Statements</a></h1>
 <p>A function contains 1 or more statements.</p>
 <p>Statements in yagbas map fairly directly to Game Boy assembly, though many
