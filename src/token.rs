@@ -13,6 +13,8 @@ pub enum Token {
   KwBreak,
   #[regex(r"const")]
   KwConst,
+  #[regex(r"continue")]
+  KwContinue,
   #[regex(r"fn")]
   KwFn,
   #[regex(r"if")]

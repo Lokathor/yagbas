@@ -181,6 +181,8 @@ fn do_codegen(
         label_fixes.extend(loop_fixes);
         out.extend(&[0xC3, 0xFF, 0xFF])
       }
+      Statement::Break => todo!(),
+      Statement::Continue => todo!(),
     }
   }
   (out, label_fixes)

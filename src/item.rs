@@ -96,6 +96,10 @@ pub enum Statement {
   Return,
   /// Performs the inner statements and then jumps to the start of the loop
   Loop(Vec<(Statement, FileSpan)>),
+  /// Jumps to the end of the loop
+  Break,
+  /// Restarts a loop.
+  Continue,
 }
 impl Statement {
   /// Parses one statement from a fn body.
@@ -104,6 +108,8 @@ impl Statement {
   {
     recursive(|inner_self| {
       let return_p = select! {Lone(KwReturn) => ()}.to(Statement::Return);
+      let break_p = select! {Lone(KwBreak) => ()}.to(Statement::Break);
+      let continue_p = select! {Lone(KwContinue) => ()}.to(Statement::Continue);
       let call_p = {
         let call_target = select! {
           Lone(Ident(i)) => i
@@ -134,7 +140,7 @@ impl Statement {
           )
           .map(Statement::Loop)
       };
-      let x = choice((return_p, call_p, loop_p));
+      let x = choice((return_p, break_p, continue_p, call_p, loop_p));
       x
     })
   }

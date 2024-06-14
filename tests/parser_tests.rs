@@ -2,22 +2,16 @@ use yagbas::{
   item::{parse_token_trees_to_items, FnDecl, Item, Statement},
   src_files::{FileSpan, SrcFileInfo, SrcID},
   str_id::StrID,
-  token_tree::{parse_tokens_to_token_trees, TokenTree},
+  token_tree::parse_tokens_to_token_trees,
 };
 
 #[track_caller]
-fn make_trees_no_errors(s: &str) -> Vec<(TokenTree, FileSpan)> {
+fn parse_items_no_errors(s: &str) -> Vec<(Item, FileSpan)> {
   let file_info_id = SrcID::from(SrcFileInfo::in_memory(s));
   let tokens: Vec<_> = file_info_id.iter_tokens().collect();
   let (token_trees, tree_errors) = parse_tokens_to_token_trees(&tokens);
   assert!(tree_errors.is_empty());
-  token_trees
-}
-
-#[track_caller]
-fn parse_items_no_errors(s: &str) -> Vec<(Item, FileSpan)> {
-  let trees = make_trees_no_errors(s);
-  let (items, item_errors) = parse_token_trees_to_items(&trees);
+  let (items, item_errors) = parse_token_trees_to_items(&token_trees);
   assert!(item_errors.is_empty(), "{item_errors:?}");
   items
 }
@@ -183,5 +177,48 @@ fn can_parse_loops() {
     },
     [] => panic!("no items found!"),
     other => panic!("too many items: {other:?}"),
+  }
+
+  let src = r#"
+    fn main() {
+      loop{loop{} loop{loop{} loop{}}}
+      loop { foo() }
+    }
+  "#;
+  let items = parse_items_no_errors(src);
+  match items.as_slice() {
+    [(item, _)] => match item {
+      Item::Fn(FnDecl { name, args, statements }) => {
+        assert_eq!(name.as_str(), "main");
+        assert!(args.is_empty());
+        match statements.as_slice() {
+          [(Statement::Loop(l0), _), (Statement::Loop(l1), _)] => {
+            match l0.as_slice() {
+              [(Statement::Loop(l0), _), (Statement::Loop(l1), _)] => {
+                assert!(l0.is_empty());
+                match l1.as_slice() {
+                  [(Statement::Loop(l0), _), (Statement::Loop(l1), _)] => {
+                    assert!(l0.is_empty());
+                    assert!(l1.is_empty());
+                  }
+                  other => panic!("unknown: {other:?}"),
+                };
+              }
+              other => panic!("unknown: {other:?}"),
+            };
+            match l1.as_slice() {
+              [(Statement::Call { target, args }, _)] => {
+                assert_eq!(*target, StrID::from("foo"));
+                assert!(args.is_empty());
+              }
+              other => panic!("unknown: {other:?}"),
+            };
+          }
+          other => panic!("unknown: {other:?}"),
+        }
+      }
+      other => panic!("unknown: {other:?}"),
+    },
+    other => panic!("unknown: {other:?}"),
   }
 }
