@@ -239,8 +239,8 @@ entry point. If your program does not include a <code>main</code> function, comp
 will cause an error.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="statements"><a class="header" href="#statements">Statements</a></h1>
 <p>A function contains 1 or more statements.</p>
-<p>Statements in yagbas map fairly directly to Game Boy assembly, though many
-statements expand to more than one assembly instruction during compilation.</p>
+<p>Statements in yagbas map fairly directly to Game Boy assembly, though many types
+of statements expand to more than one assembly instruction during compilation.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="function-calls"><a class="header" href="#function-calls">Function Calls</a></h1>
 <h2 id="calling-another-function"><a class="header" href="#calling-another-function">Calling Another Function</a></h2>
 <p>One function can call to another by writing the name of the function to call and
@@ -260,6 +260,8 @@ something within the parentheses, but currently they are always empty.</p>
   // statements here.
 }
 </code></pre>
+<p>Use the <code>break</code> keyword to jump to the end of a loop.</p>
+<p>Use the <code>continue</code> keyword to jump to the start of a loop.</p>
 
                     </main>
 
