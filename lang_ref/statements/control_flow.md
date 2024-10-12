@@ -9,3 +9,7 @@ loop {
   // statements here.
 }
 ```
+
+Use the `break` keyword to jump to the end of a loop.
+
+Use the `continue` keyword to jump to the start of a loop.
