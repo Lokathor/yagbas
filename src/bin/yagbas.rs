@@ -87,7 +87,7 @@ fn build_process_file(filename: &String) {
   }
   assert!(item_errors.is_empty());
   let mut code_chunks: HashMap<StrID, Vec<u8>> = HashMap::new();
-  let mut label_fixes: Vec<LabelFix> = Vec::new();
+  let mut label_fixes: Vec<LabelUse> = Vec::new();
   for (item, file_span) in &items {
     match item {
       Item::Fn(FnDecl { name, args, statements }) => {
@@ -103,7 +103,7 @@ fn build_process_file(filename: &String) {
 
   let mut rom = build_header("temporary99", 0);
   let entry_name = "@magic_entry_point";
-  label_fixes.push(LabelFix {
+  label_fixes.push(LabelUse {
     source_id: StrID::from(entry_name),
     offset_within_source: 2,
     target_id: StrID::from("main"),
@@ -140,8 +140,9 @@ fn build_process_file(filename: &String) {
   std::fs::write(&path_buf, &rom).unwrap();
 }
 
+/// Data about where the code is targeting a given label.
 #[derive(Debug, Clone)]
-struct LabelFix {
+struct LabelUse {
   source_id: StrID,
   offset_within_source: usize,
   target_id: StrID,
@@ -152,13 +153,13 @@ struct LabelFix {
 /// fn we need to update after fns are placed into the rom.
 fn do_codegen(
   source_id: StrID, statements: &[(Statement, FileSpan)],
-) -> (Vec<u8>, Vec<LabelFix>) {
+) -> (Vec<u8>, Vec<LabelUse>) {
   let mut out = Vec::new();
   let mut label_fixes = Vec::new();
   for (statement, _file_span) in statements {
     match statement {
       Statement::Call { target, .. } => {
-        label_fixes.push(LabelFix {
+        label_fixes.push(LabelUse {
           source_id,
           offset_within_source: out.len() + 1,
           target_id: *target,
@@ -172,7 +173,7 @@ fn do_codegen(
         for fix in &mut loop_fixes {
           fix.offset_within_source += out.len();
         }
-        label_fixes.push(LabelFix {
+        label_fixes.push(LabelUse {
           source_id,
           offset_within_source: out.len(),
           target_id: source_id,
