@@ -1,0 +1,11 @@
+// an extremely minimal source file that's only for parser testing
+
+fn main() {
+  loop{loop{break} loop{loop{ break } loop{break  }}}
+  loop { foo() }
+}
+
+// this separate fn forces us to handle linking
+fn foo() {
+  return
+}

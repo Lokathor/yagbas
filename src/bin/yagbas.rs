@@ -99,6 +99,7 @@ fn build_process_file(filename: &String) {
       Item::ItemError => println!("ItemError@{file_span}"),
     };
   }
+  println!("all code generated...");
 
   let mut rom = build_header("temporary99", 0);
   let entry_name = "@magic_entry_point";
@@ -167,7 +168,7 @@ fn do_codegen(
       }
       Statement::Return => out.extend(&[0xC9]),
       Statement::Loop(content) => {
-        let (loop_bytes, mut loop_fixes) = do_codegen(source_id, statements);
+        let (loop_bytes, mut loop_fixes) = do_codegen(source_id, content);
         for fix in &mut loop_fixes {
           fix.offset_within_source += out.len();
         }
