@@ -125,12 +125,18 @@ impl Statement {
         let kw_loop = select! {
           Lone(KwLoop) => ()
         };
+        let line_sep = select! {
+          Lone(Newline) => (),
+          Lone(Semicolon) => (),
+        };
         kw_loop
           .ignore_then(
             inner_self
               .clone()
               .map_with(|statement, ex| (statement, ex.span()))
-              .repeated()
+              .separated_by(line_sep)
+              .allow_leading()
+              .allow_trailing()
               .collect::<Vec<_>>()
               .nested_in(select_ref! {
                 Braces(b) = ex => {
@@ -138,7 +144,7 @@ impl Statement {
                 }
               }),
           )
-          .map(Statement::Loop)
+          .map(|body| Statement::Loop(body))
       };
       let x = choice((return_p, break_p, continue_p, call_p, loop_p));
       x
