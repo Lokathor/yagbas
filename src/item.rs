@@ -134,7 +134,7 @@ impl Statement {
             inner_self
               .clone()
               .map_with(|statement, ex| (statement, ex.span()))
-              .separated_by(line_sep)
+              .separated_by(line_sep.repeated().at_least(1).ignored())
               .allow_leading()
               .allow_trailing()
               .collect::<Vec<_>>()
@@ -144,7 +144,7 @@ impl Statement {
                 }
               }),
           )
-          .map(|body| Statement::Loop(body))
+          .map(Statement::Loop)
       };
       let x = choice((return_p, break_p, continue_p, call_p, loop_p));
       x
