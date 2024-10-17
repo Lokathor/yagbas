@@ -74,6 +74,7 @@ fn build_process_file(filename: &String) {
     }
   };
   let tokens: Vec<(Token, FileSpan)> = file_info_id.iter_tokens().collect();
+  //eprintln!("Tokens: {tokens:?}");
   let (token_trees, tree_errors) = parse_tokens_to_token_trees(&tokens);
   for tree_error in &tree_errors {
     println!("== Tree Error: {tree_error:?}");
@@ -83,7 +84,7 @@ fn build_process_file(filename: &String) {
     println!("I> {item:?}");
   }
   for item_error in &item_errors {
-    println!("== Item Error: {item_errors:?}");
+    println!("== ItemError: {item_error:?}");
   }
   assert!(item_errors.is_empty());
   let mut code_chunks: HashMap<StrID, Vec<u8>> = HashMap::new();

@@ -66,7 +66,7 @@ impl FnDecl {
     };
     let statements = Statement::parser()
       .map_with(|statement, ex| (statement, ex.span()))
-      .separated_by(line_sep)
+      .separated_by(line_sep)//.repeated().at_least(1))
       .allow_leading()
       .allow_trailing()
       .collect::<Vec<_>>()
@@ -74,7 +74,9 @@ impl FnDecl {
         Braces(b) = ex => {
           b.spanned(ex.span())
         }
-      });
+      })
+      .labelled("fn_statements")
+      .as_context();
 
     kw_fn
       .ignore_then(fn_name)
@@ -134,7 +136,7 @@ impl Statement {
             inner_self
               .clone()
               .map_with(|statement, ex| (statement, ex.span()))
-              .separated_by(line_sep.repeated().at_least(1).ignored())
+              .separated_by(line_sep.repeated().at_least(1))
               .allow_leading()
               .allow_trailing()
               .collect::<Vec<_>>()
