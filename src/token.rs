@@ -81,14 +81,16 @@ pub enum Token {
   #[token("HL", priority = 3)]
   KwHL,
 
+  // Note(Lokathor): Conditions are Carry/NoCarry and Zero/NotZero. The carry
+  // condition and `c` register name both tokenize as `KwC` (above), and then
+  // context makes it clear what the user meant. That's why there's only three
+  // new condition tokens here.
   #[token("z", priority = 3)]
   #[token("Z", priority = 3)]
   KwZ,
   #[token("nz", priority = 3)]
   #[token("NZ", priority = 3)]
   KwNZ,
-  // Note(Lokathor): `carry` condition and `c` register both tokenize as KwC.
-  // The context makes it clear what the user meant.
   #[token("nc", priority = 3)]
   #[token("NC", priority = 3)]
   KwNC,
