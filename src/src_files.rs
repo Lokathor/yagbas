@@ -292,7 +292,7 @@ where
   }
 }
 
-impl<T> core::cmp::PartialEq for FileSpanned<T>
+impl<T> core::cmp::PartialEq<Self> for FileSpanned<T>
 where
   T: core::cmp::PartialEq,
 {
