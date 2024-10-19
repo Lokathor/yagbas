@@ -116,7 +116,7 @@ impl Statement {
   ) -> impl Parser<'a, TokenTreeSliceInput<'a>, Self, ErrRichTokenTree<'a>> + Clone
   {
     recursive(|inner_self| {
-      let return_p = select! {Lone(KwReturn) => ()}.to(Statement::Return);
+      let return_p = select! {Lone(KwReturn) => Statement::Return};
       let break_p = select! {Lone(KwBreak) => ()}.to(Statement::Break);
       let continue_p = select! {Lone(KwContinue) => ()}.to(Statement::Continue);
       let call_p = {
