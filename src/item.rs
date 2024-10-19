@@ -1,4 +1,5 @@
 use super::*;
+use src_files::FileSpanned;
 use str_id::StrID;
 use Token::*;
 use TokenTree::*;
@@ -7,7 +8,7 @@ use TokenTree::*;
 #[allow(clippy::type_complexity)]
 pub fn parse_token_trees_to_items(
   token_trees: &[(TokenTree, FileSpan)],
-) -> (Vec<(Item, FileSpan)>, Vec<Rich<'static, TokenTree, FileSpan>>) {
+) -> (Vec<FileSpanned<Item>>, Vec<Rich<'static, TokenTree, FileSpan>>) {
   let last_span = if let Some((_tt, file_span)) = token_trees.last() {
     let mut x = *file_span;
     x.start = x.end;
@@ -16,7 +17,7 @@ pub fn parse_token_trees_to_items(
     return (Vec::new(), Vec::new());
   };
   let parser = Item::parser()
-    .map_with(|item, ex| (item, ex.span()))
+    .map_with(|item, ex| FileSpanned { _payload: item, _span: ex.span() })
     .padded_by(just(Lone(Newline)).repeated())
     .repeated()
     .collect::<Vec<_>>();
@@ -28,7 +29,7 @@ pub fn parse_token_trees_to_items(
   )
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Item {
   Fn(FnDecl),
   ItemError,
@@ -46,8 +47,8 @@ impl Item {
 #[derive(Debug, Clone)]
 pub struct FnDecl {
   pub name: StrID,
-  pub args: Vec<(TokenTree, FileSpan)>,
-  pub statements: Vec<(Statement, FileSpan)>,
+  pub args: Vec<FileSpanned<TokenTree>>,
+  pub statements: Vec<FileSpanned<Statement>>,
 }
 impl FnDecl {
   pub fn parser<'a>(
@@ -58,15 +59,21 @@ impl FnDecl {
       Lone(Ident(i)) => i
     };
     let arguments = select! {
-      Parens(p) => p
+      Parens(p) => p.into_iter().map(|(statement, filespan)| FileSpanned {
+        _payload: statement,
+        _span: filespan,
+      }).collect::<Vec<_>>()
     };
     let line_sep = select! {
       Lone(Newline) => (),
       Lone(Semicolon) => (),
     };
     let statements = Statement::parser()
-      .map_with(|statement, ex| (statement, ex.span()))
-      .separated_by(line_sep)//.repeated().at_least(1))
+      .map_with(|statement, ex| FileSpanned {
+        _payload: statement,
+        _span: ex.span(),
+      })
+      .separated_by(line_sep.repeated().at_least(1))
       .allow_leading()
       .allow_trailing()
       .collect::<Vec<_>>()
@@ -97,10 +104,10 @@ pub enum Statement {
   /// * Bytes: `0xC9`
   Return,
   /// Performs the inner statements and then jumps to the start of the loop
-  Loop(Vec<(Statement, FileSpan)>),
+  Loop(Vec<FileSpanned<Statement>>),
   /// Jumps to the end of the loop
   Break,
-  /// Restarts a loop.
+  /// Jumps to the start of the loop
   Continue,
 }
 impl Statement {
@@ -135,7 +142,10 @@ impl Statement {
           .ignore_then(
             inner_self
               .clone()
-              .map_with(|statement, ex| (statement, ex.span()))
+              .map_with(|statement, ex| FileSpanned {
+                _payload: statement,
+                _span: ex.span(),
+              })
               .separated_by(line_sep.repeated().at_least(1))
               .allow_leading()
               .allow_trailing()
