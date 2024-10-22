@@ -114,7 +114,7 @@ fn can_parse_call_statement() {
   let src = r#" fn main() { foo() } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [(item, _file_span)] => match item {
+    [item] => match &item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
@@ -138,7 +138,7 @@ fn can_parse_call_statement() {
   } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [(item, _file_span)] => match item {
+    [item] => match &item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
@@ -163,7 +163,7 @@ fn can_parse_loops() {
   let src = r#" fn main() { loop {} } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [(item, _file_span)] => match item {
+    [item] => match &item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
@@ -187,7 +187,7 @@ fn can_parse_loops() {
   "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [(item, _)] => match item {
+    [item] => match &item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
