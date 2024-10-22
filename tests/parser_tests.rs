@@ -192,12 +192,12 @@ fn can_parse_loops() {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
         match statements.as_slice() {
-          [(Statement::Loop(l0), _), (Statement::Loop(l1), _)] => {
+          [Statement::Loop(l0), Statement::Loop(l1)] => {
             match l0.as_slice() {
-              [(Statement::Loop(l0), _), (Statement::Loop(l1), _)] => {
+              [Statement::Loop(l0), Statement::Loop(l1)] => {
                 assert!(l0.is_empty());
                 match l1.as_slice() {
-                  [(Statement::Loop(l0), _), (Statement::Loop(l1), _)] => {
+                  [Statement::Loop(l0), Statement::Loop(l1)] => {
                     assert!(l0.is_empty());
                     assert!(l1.is_empty());
                   }
@@ -207,7 +207,7 @@ fn can_parse_loops() {
               other => panic!("unknown: {other:?}"),
             };
             match l1.as_slice() {
-              [(Statement::Call { target, args }, _)] => {
+              [Statement::Call { target, args }] => {
                 assert_eq!(*target, StrID::from("foo"));
                 assert!(args.is_empty());
               }
