@@ -1,12 +1,12 @@
 use yagbas::{
   item::{parse_token_trees_to_items, FnDecl, Item, Statement},
-  src_files::{FileSpan, SrcFileInfo, SrcID},
+  src_files::{FileSpan, Filespanned, SrcFileInfo, SrcID},
   str_id::StrID,
   token_tree::parse_tokens_to_token_trees,
 };
 
 #[track_caller]
-fn parse_items_no_errors(s: &str) -> Vec<(Item, FileSpan)> {
+fn parse_items_no_errors(s: &str) -> Vec<FileSpanned<Item>> {
   let file_info_id = SrcID::from(SrcFileInfo::in_memory(s));
   let tokens: Vec<_> = file_info_id.iter_tokens().collect();
   let (token_trees, tree_errors) = parse_tokens_to_token_trees(&tokens);
@@ -21,7 +21,7 @@ fn can_parse_empty_main_fn() {
   let src = r#" fn main() {} "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [(item, _file_span)] => match item {
+    [item] => match item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
@@ -36,7 +36,7 @@ fn can_parse_empty_main_fn() {
   let src = r#" fn main() { } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [(item, _file_span)] => match item {
+    [item] => match item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
@@ -53,7 +53,7 @@ fn can_parse_empty_main_fn() {
   } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [(item, _file_span)] => match item {
+    [item] => match item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
