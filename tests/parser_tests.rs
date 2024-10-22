@@ -1,6 +1,6 @@
 use yagbas::{
   item::{parse_token_trees_to_items, FnDecl, Item, Statement},
-  src_files::{FileSpan, Filespanned, SrcFileInfo, SrcID},
+  src_files::{FileSpan, FileSpanned, SrcFileInfo, SrcID},
   str_id::StrID,
   token_tree::parse_tokens_to_token_trees,
 };
