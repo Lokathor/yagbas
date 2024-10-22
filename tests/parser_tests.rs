@@ -1,6 +1,6 @@
 use yagbas::{
   item::{parse_token_trees_to_items, FnDecl, Item, Statement},
-  src_files::{FileSpan, FileSpanned, SrcFileInfo, SrcID},
+  src_files::{FileSpanned, SrcFileInfo, SrcID},
   str_id::StrID,
   token_tree::parse_tokens_to_token_trees,
 };
@@ -71,7 +71,7 @@ fn can_parse_return_statement() {
   let src = r#" fn main() { return } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [(item, _file_span)] => match item {
+    [item] => match item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
