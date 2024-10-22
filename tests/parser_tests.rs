@@ -21,7 +21,7 @@ fn can_parse_empty_main_fn() {
   let src = r#" fn main() {} "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [item] => match item._payload {
+    [item] => match &item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
@@ -36,7 +36,7 @@ fn can_parse_empty_main_fn() {
   let src = r#" fn main() { } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [item] => match item._payload {
+    [item] => match &item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
@@ -53,7 +53,7 @@ fn can_parse_empty_main_fn() {
   } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [item] => match item._payload {
+    [item] => match &item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
@@ -71,7 +71,7 @@ fn can_parse_return_statement() {
   let src = r#" fn main() { return } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [item] => match item._payload {
+    [item] => match &item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
@@ -92,7 +92,7 @@ fn can_parse_return_statement() {
   } "#;
   let items = parse_items_no_errors(src);
   match items.as_slice() {
-    [(item, _file_span)] => match item {
+    [item] => match &item._payload {
       Item::Fn(FnDecl { name, args, statements }) => {
         assert_eq!(name.as_str(), "main");
         assert!(args.is_empty());
