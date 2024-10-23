@@ -13,4 +13,5 @@ pub enum Asm {
   Label(StrID),
   Call(Cond, StrID),
   Return(Cond, StrID),
+  Jump(Cond, StrID),
 }
