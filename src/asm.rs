@@ -1,4 +1,6 @@
 
+use crate::str_id::StrID;
+
 #[derive(Debug, Clone, Copy)]
 pub enum Cond {
   Zero,
