@@ -18,6 +18,7 @@ use src_files::FileSpan;
 use token::Token;
 use token_tree::TokenTree;
 
+pub mod asm;
 pub mod item;
 pub mod src_files;
 pub mod str_id;
