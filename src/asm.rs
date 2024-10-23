@@ -13,6 +13,7 @@ pub enum Cond {
 #[derive(Debug, Clone, Copy)]
 pub enum Asm {
   Label(StrID),
+  Nop,
   Call(Cond, StrID),
   Return(Cond, StrID),
   Jump(Cond, StrID),
