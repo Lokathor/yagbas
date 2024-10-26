@@ -1,3 +1,6 @@
+use crate::token::Token;
+use bimap::BiMap;
+use chumsky::span::Span;
 use std::{
   num::NonZeroUsize,
   path::{Path, PathBuf},
@@ -7,19 +10,17 @@ use std::{
   },
 };
 
-use bimap::BiMap;
-use chumsky::span::Span;
-
-use crate::token::Token;
+static INFO_CACHE: OnceLock<RwLock<BiMap<SrcID, &'static SrcFile>>> =
+  OnceLock::new();
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SrcFileInfo {
+pub struct SrcFile {
   path_buf: PathBuf,
   file_text: String,
   line_bytes: Vec<usize>,
 }
-impl SrcFileInfo {
-  pub fn read_path<P>(p: &P) -> Result<Self, std::io::Error>
+impl SrcFile {
+  pub fn read_from_path<P>(p: &P) -> Result<Self, std::io::Error>
   where
     P: AsRef<Path> + ?Sized,
   {
@@ -33,7 +34,9 @@ impl SrcFileInfo {
       line_bytes.push(total);
       total += line.len();
     }
-    Ok(Self { path_buf, file_text, line_bytes })
+    let output = Self { path_buf, file_text, line_bytes };
+    let _ = SrcID::from(&output);
+    Ok(output)
   }
 
   pub fn in_memory(s: &str) -> Self {
@@ -47,7 +50,9 @@ impl SrcFileInfo {
       line_bytes.push(total);
       total += line.len();
     }
-    Self { path_buf, file_text, line_bytes }
+    let output = Self { path_buf, file_text, line_bytes };
+    let _ = SrcID::from(&output);
+    output
   }
 
   #[inline]
@@ -55,19 +60,21 @@ impl SrcFileInfo {
   pub fn path(&self) -> &Path {
     &self.path_buf
   }
+
   #[inline]
   #[must_use]
   pub fn text(&self) -> &str {
     &self.file_text
   }
+
   #[inline]
   #[must_use]
   #[track_caller]
-  pub fn get_id(self) -> SrcID {
+  pub fn get_id(&self) -> SrcID {
     let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
     // Note(Lokathor): This shouldn't ever panic because all ID values should
-    // have been made when inserting the info into the cache.
+    // have been initialized by the SrcFile constructor functions.
     *read.get_by_right(&self).unwrap()
   }
 
@@ -84,12 +91,20 @@ impl SrcFileInfo {
       }
     }
   }
+
+  #[inline]
+  pub fn iter_tokens(
+    &self,
+  ) -> impl Iterator<Item = FileSpanned<Token>> + Clone + '_ {
+    let id = self.get_id();
+    let mut lexer = Token::lexer(&self.file_text);
+    core::iter::from_fn(move || {
+      let token = lexer.next()?.unwrap_or(Token::TokenError);
+      let span = FileSpan::new(id, lexer.span());
+      Some(FileSpanned::new(token, span))
+    })
+  }
 }
-
-static NEXT_INFO_ID: AtomicUsize = AtomicUsize::new(1);
-
-static INFO_CACHE: OnceLock<RwLock<BiMap<SrcID, &'static SrcFileInfo>>> =
-  OnceLock::new();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -97,6 +112,8 @@ pub struct SrcID(NonZeroUsize);
 impl SrcID {
   #[inline]
   fn try_new() -> Option<Self> {
+    static NEXT_INFO_ID: AtomicUsize = AtomicUsize::new(1);
+
     NonZeroUsize::new(NEXT_INFO_ID.fetch_add(1, Ordering::Relaxed)).map(Self)
   }
   #[inline]
@@ -112,32 +129,18 @@ impl SrcID {
   #[inline]
   #[must_use]
   #[track_caller]
-  pub fn get_info(self) -> &'static SrcFileInfo {
+  pub fn get_info(self) -> &'static SrcFile {
     let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
     // Note(Lokathor): This shouldn't ever panic because all ID values should
     // have been made when inserting the info into the cache.
     read.get_by_left(&self).unwrap()
   }
-
-  #[inline]
-  pub fn iter_tokens(
-    &self,
-  ) -> impl Iterator<Item = (Token, FileSpan)> + Clone + '_ {
-    let info = self.get_info();
-    let id = *self;
-    let mut lexer = Token::lexer(&info.file_text);
-    core::iter::from_fn(move || {
-      let token = lexer.next()?.unwrap_or(Token::TokenError);
-      let filespan = FileSpan::new(id, lexer.span());
-      Some((token, filespan))
-    })
-  }
 }
-impl<'a> From<&'a SrcFileInfo> for SrcID {
+impl<'a> From<&'a SrcFile> for SrcID {
   /// Convert any `&SrcFileInfo` into its ID, automatically interning it if
   /// necessary.
-  fn from(s: &'a SrcFileInfo) -> Self {
+  fn from(s: &'a SrcFile) -> Self {
     let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
     if let Some(id) = read.get_by_right(s) {
@@ -149,20 +152,20 @@ impl<'a> From<&'a SrcFileInfo> for SrcID {
         *id
       } else {
         let id = Self::new();
-        let leaked: &'static SrcFileInfo = Box::leak(Box::new(s.clone()));
+        let leaked: &'static SrcFile = Box::leak(Box::new(s.clone()));
         write.insert(id, leaked);
         id
       }
     }
   }
 }
-impl From<SrcFileInfo> for SrcID {
+impl From<SrcFile> for SrcID {
   /// Convert any `SrcFileInfo` into its ID, automatically interning it if
   /// necessary.
   ///
   /// Prefer this impl if you *expect* to need to intern the value, it will
   /// avoid a clone.
-  fn from(s: SrcFileInfo) -> Self {
+  fn from(s: SrcFile) -> Self {
     let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
     if let Some(id) = read.get_by_right(&s) {
@@ -175,7 +178,7 @@ impl From<SrcFileInfo> for SrcID {
       } else {
         let id = Self::new();
         // clone avoided!
-        let leaked: &'static SrcFileInfo = Box::leak(Box::new(s));
+        let leaked: &'static SrcFile = Box::leak(Box::new(s));
         write.insert(id, leaked);
         id
       }
@@ -232,6 +235,13 @@ impl core::fmt::Display for FileSpan {
 pub struct FileSpanned<T> {
   pub _payload: T,
   pub _span: FileSpan,
+}
+impl<T> FileSpanned<T> {
+  #[inline]
+  #[must_use]
+  pub const fn new(t: T, span: FileSpan) -> Self {
+    Self { _payload: t, _span: span }
+  }
 }
 impl<T> chumsky::span::Span for FileSpanned<T>
 where
@@ -291,7 +301,6 @@ where
     core::fmt::Display::fmt(&self._payload, f)
   }
 }
-
 impl<T> core::cmp::PartialEq<Self> for FileSpanned<T>
 where
   T: core::cmp::PartialEq,
@@ -303,7 +312,6 @@ where
   }
 }
 impl<T> core::cmp::Eq for FileSpanned<T> where T: Eq {}
-
 impl<T> core::cmp::PartialEq<T> for FileSpanned<T>
 where
   T: core::cmp::PartialEq,
