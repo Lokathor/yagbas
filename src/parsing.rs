@@ -107,18 +107,26 @@ pub fn item_p<'src, I>(
 where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
 {
-  let f = function_p().map(Item::Function);
+  let f = function_p(make_token_tree_input).map(Item::Function);
 
   let x = choice((f,));
 
   x
 }
 
+fn make_token_tree_input(
+  eoi: FileSpan, toks: &[FileSpanned<TokenTree>],
+) -> impl BorrowInput<'_, Token = TokenTree, Span = FileSpan> + ValueInput<'_> {
+  toks.map(eoi, |fs| (&fs._payload, &fs._span))
+}
+
 /// Parses [TokenTree] into specifically a [Function]
-pub fn function_p<'src, I>(
+pub fn function_p<'src, I, M>(
+  make_input: M,
 ) -> impl Parser<'src, I, Function, ErrRichTokenTree<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(FileSpan, &'src [FileSpanned<TokenTree>]) -> I + Clone + 'src,
 {
   let kw_fn = select! {
     Lone(KwFn) => ()
@@ -126,7 +134,7 @@ where
   let fn_name = select! {
     Lone(Ident(i)) => i
   }
-  .map_with(|tts, e| FileSpanned::new(tts, e.span()));
+  .map_with(|str_id, ex| FileSpanned::new(str_id, ex.span()));
   let arguments = select! {
     Parens(p) => p
   };
@@ -139,11 +147,9 @@ where
     .separated_by(line_sep.repeated().at_least(1))
     .allow_leading()
     .allow_trailing()
-    .collect::<Vec<_>>()
+    .collect::<Vec<FileSpanned<Statement>>>()
     .nested_in(select_ref! {
-      Braces(b) = ex => {
-        b.map(ex.span(), |fs| (&fs._payload, &fs._span))
-      }
+      Braces(b) = ex => make_input(ex.span(), b)
     })
     .labelled("fn_statements")
     .as_context();
