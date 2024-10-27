@@ -1,6 +1,11 @@
-use crate::token::Token;
+use crate::{parsing::token_tree_p, token::Token, token_tree::TokenTree};
 use bimap::BiMap;
-use chumsky::span::Span;
+use chumsky::{
+  error::Rich,
+  input::{BorrowInput, Input},
+  prelude::*,
+  span::Span,
+};
 use std::{
   num::NonZeroUsize,
   path::{Path, PathBuf},
@@ -104,6 +109,35 @@ impl SrcFile {
       Some(FileSpanned::new(token, span))
     })
   }
+
+  #[must_use]
+  pub fn parse_token_trees(&self) -> TokenTreeParseResult {
+    let tokens: Vec<FileSpanned<Token>> = self.iter_tokens().collect();
+    if tokens.is_empty() {
+      return TokenTreeParseResult::default();
+    }
+    let last_span = tokens.last().map(|token| token._span).unwrap();
+    let end_span = FileSpan { start: last_span.end, ..last_span };
+    let recover_strategy =
+      via_parser(any().repeated().at_least(1).to(TokenTree::TreeError));
+    let (opt_output, errors) = token_tree_p()
+      .recover_with(recover_strategy)
+      .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
+      .repeated()
+      .collect()
+      .parse(Input::map(&tokens[..], end_span, |fs| (&fs._payload, &fs._span)))
+      .into_output_errors();
+    let trees: Vec<FileSpanned<TokenTree>> = opt_output.unwrap_or_default();
+    let errors: Vec<Rich<'static, Token, FileSpan>> =
+      errors.into_iter().map(|e| e.into_owned()).collect();
+    TokenTreeParseResult { trees, errors }
+  }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TokenTreeParseResult {
+  pub trees: Vec<FileSpanned<TokenTree>>,
+  pub errors: Vec<Rich<'static, Token, FileSpan>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

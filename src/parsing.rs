@@ -1,7 +1,8 @@
 use crate::{
+  item::{Function, Item, Statement},
   src_files::{FileSpan, FileSpanned},
-  token::Token,
-  token_tree::TokenTree,
+  token::Token::{self, *},
+  token_tree::TokenTree::{self, *},
 };
 use chumsky::{
   extra::Err,
@@ -98,4 +99,67 @@ where
 
     x
   })
+}
+
+/// Parses [TokenTree] into any kind of [Item]
+pub fn item_p<'src, I>(
+) -> impl Parser<'src, I, Item, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  let f = function_p().map(Item::Function);
+
+  let x = choice((f,));
+
+  x
+}
+
+/// Parses [TokenTree] into specifically a [Function]
+pub fn function_p<'src, I>(
+) -> impl Parser<'src, I, Function, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  let kw_fn = select! {
+    Lone(KwFn) => ()
+  };
+  let fn_name = select! {
+    Lone(Ident(i)) => i
+  }
+  .map_with(|tts, e| FileSpanned::new(tts, e.span()));
+  let arguments = select! {
+    Parens(p) => p
+  };
+  let line_sep = select! {
+    Lone(Newline) => (),
+    Lone(Semicolon) => (),
+  };
+  let statements = statement_p()
+    .map_with(|statement, ex| FileSpanned::new(statement, ex.span()))
+    .separated_by(line_sep.repeated().at_least(1))
+    .allow_leading()
+    .allow_trailing()
+    .collect::<Vec<_>>()
+    .nested_in(select_ref! {
+      Braces(b) = ex => {
+        b.map(ex.span(), |fs| (&fs._payload, &fs._span))
+      }
+    })
+    .labelled("fn_statements")
+    .as_context();
+
+  let x = kw_fn.ignore_then(fn_name).then(arguments).then(statements).map(
+    |((name, arguments), statements)| Function { name, arguments, statements },
+  );
+
+  x
+}
+
+/// Parses [TokenTree] into specifically a [Statement]
+pub fn statement_p<'src, I>(
+) -> impl Parser<'src, I, Statement, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  todo()
 }

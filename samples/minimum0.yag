@@ -1,10 +1,20 @@
-// an extremely minimal source file that's only for parser testing
+// comment
+fn main() {}
 
-fn main() {
-  foo()
+fn main2() {
 }
 
-// this separate fn forces us to handle linking
-fn foo() {
+fn main3() {
+  return
+}
+
+fn main4() {
+  return
+  return
+}
+
+fn main5() {
+  return
+  
   return
 }

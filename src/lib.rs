@@ -19,7 +19,7 @@ use token::Token;
 use token_tree::TokenTree;
 
 pub mod asm;
-//pub mod item;
+pub mod item;
 pub mod parsing;
 pub mod src_files;
 pub mod str_id;
