@@ -15,9 +15,9 @@ use chumsky::{
 #[derive(Clone, PartialEq, Eq)]
 pub enum TokenTree {
   Lone(Token),
-  Parens(Vec<(TokenTree, FileSpan)>),
-  Brackets(Vec<(TokenTree, FileSpan)>),
-  Braces(Vec<(TokenTree, FileSpan)>),
+  Parens(Vec<FileSpanned<TokenTree>>),
+  Brackets(Vec<FileSpanned<TokenTree>>),
+  Braces(Vec<FileSpanned<TokenTree>>),
   TreeError,
 }
 
@@ -31,7 +31,7 @@ impl core::fmt::Debug for TokenTree {
           write!(f, "(...{} elements...)", ts.len())
         } else {
           write!(f, "(")?;
-          for (i, (tt, _span)) in ts.iter().enumerate() {
+          for (i, tt) in ts.iter().enumerate() {
             if i > 0 {
               write!(f, " ")?;
             }
@@ -46,7 +46,7 @@ impl core::fmt::Debug for TokenTree {
           write!(f, "[...{} elements...]", ts.len())
         } else {
           write!(f, "[")?;
-          for (i, (tt, _span)) in ts.iter().enumerate() {
+          for (i, tt) in ts.iter().enumerate() {
             if i > 0 {
               write!(f, " ")?;
             }
@@ -61,7 +61,7 @@ impl core::fmt::Debug for TokenTree {
           write!(f, "{{...{} elements...}}", ts.len())
         } else {
           write!(f, "{{")?;
-          for (i, (tt, _span)) in ts.iter().enumerate() {
+          for (i, tt) in ts.iter().enumerate() {
             if i > 0 {
               write!(f, " ")?;
             }
