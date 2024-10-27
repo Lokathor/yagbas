@@ -1,9 +1,6 @@
-use crate::{
-  token::Token,
-  token_tree::{TokenTree, TokenTreeOutput},
-};
+use crate::token::Token;
 use bimap::BiMap;
-use chumsky::{error::Rich, span::Span};
+use chumsky::span::Span;
 use std::{
   num::NonZeroUsize,
   path::{Path, PathBuf},
@@ -106,10 +103,6 @@ impl SrcFile {
       let span = FileSpan::new(id, lexer.span());
       Some(FileSpanned::new(token, span))
     })
-  }
-
-  pub fn parse_token_trees(&self) -> TokenTreeOutput {
-    todo!()
   }
 }
 
