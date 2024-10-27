@@ -30,8 +30,9 @@ pub fn parse_token_trees_to_items(
 }
 
 /// Parses one separator between statements.
-pub fn statement_sep<'a>() ->
-  impl Parser<'a, TokenTreeSliceInput<'a>, (), ErrRichTokenTree<'a>> + Clone {
+pub fn statement_sep<'a>(
+) -> impl Parser<'a, TokenTreeSliceInput<'a>, (), ErrRichTokenTree<'a>> + Clone
+{
   select! {
     Lone(Newline) => (),
     Lone(Semicolon) => (),
