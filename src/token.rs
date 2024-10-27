@@ -1,5 +1,6 @@
-use crate::str_id::StrID;
 use logos::{Lexer, Logos};
+
+use crate::str_id::StrID;
 
 /// The fundamental tokens of Yagbas source code.
 ///
