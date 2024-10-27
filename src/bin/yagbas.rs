@@ -8,11 +8,10 @@ use std::{
 
 use clap::{Args, Parser, Subcommand};
 use yagbas::{
-  item::{parse_token_trees_to_items, FnDecl, Item, Statement},
   src_files::{FileSpan, FileSpanned, SrcFile, SrcID},
   str_id::StrID,
   token::Token,
-  token_tree::{parse_tokens_to_token_trees, TokenTree},
+  token_tree::TokenTree,
 };
 
 #[test]
