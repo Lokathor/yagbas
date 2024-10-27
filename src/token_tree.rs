@@ -4,7 +4,7 @@ use chumsky::{
 };
 
 use crate::{
-  src_files::FileSpan,
+  src_files::{FileSpan, FileSpanned},
   token::Token::{self, *},
   ErrRichToken, TokenSliceInput,
 };
@@ -17,20 +17,24 @@ use crate::{
 #[derive(Clone, PartialEq, Eq)]
 pub enum TokenTree {
   Lone(Token),
-  Parens(Vec<(TokenTree, FileSpan)>),
-  Brackets(Vec<(TokenTree, FileSpan)>),
-  Braces(Vec<(TokenTree, FileSpan)>),
+  Parens(Vec<FileSpanned<TokenTree>>),
+  Brackets(Vec<FileSpanned<TokenTree>>),
+  Braces(Vec<FileSpanned<TokenTree>>),
   TreeError,
 }
 impl TokenTree {
   /// Parses for just one token tree.
-  pub fn parser<'a>(
-  ) -> impl Parser<'a, TokenSliceInput<'a>, Self, ErrRichToken<'a>> + Clone {
+  pub fn parser<'a>() -> impl Parser<
+    'a,
+    SpannedInput<Token, FileSpan, &'a [FileSpanned<Token>]>,
+    Self,
+    ErrRichToken<'a>,
+  > + Clone {
     recursive(|tt| {
       let token_list = tt
-        .map_with(|token, ex| (token, ex.span()))
+        .map_with(|token, ex| FileSpanned::new(token, ex.span()))
         .repeated()
-        .collect::<Vec<(TokenTree, FileSpan)>>();
+        .collect::<Vec<FileSpanned<TokenTree>>>();
 
       // Looks like `[ ... ]`
       let open_bracket = select! {
@@ -100,14 +104,19 @@ impl TokenTree {
   }
 }
 
-#[allow(clippy::type_complexity)]
+#[derive(Debug, Clone, Default)]
+pub struct TokenTreeOutput {
+  pub trees: Vec<FileSpanned<TokenTree>>,
+  pub errors: Vec<Rich<'static, Token, FileSpan>>,
+}
+
 pub fn parse_tokens_to_token_trees(
-  tokens: &[(Token, FileSpan)],
-) -> (Vec<(TokenTree, FileSpan)>, Vec<Rich<'static, Token, FileSpan>>) {
+  tokens: &[FileSpanned<Token>],
+) -> TokenTreeOutput {
   if tokens.is_empty() {
-    return (Vec::new(), Vec::new());
+    TokenTreeOutput::default();
   }
-  let last_span = *tokens.last().map(|(_, s)| s).unwrap();
+  let last_span = tokens.last().unwrap()._span;
   let end_span = FileSpan { start: last_span.end, ..last_span };
   let recover_strategy =
     via_parser(any().repeated().at_least(1).to(TokenTree::TreeError));
@@ -118,10 +127,7 @@ pub fn parse_tokens_to_token_trees(
     .collect::<Vec<(TokenTree, FileSpan)>>();
   let input = tokens.spanned(end_span);
   let (trees, errors) = parser.parse(input).into_output_errors();
-  (
-    trees.unwrap_or_default(),
-    errors.into_iter().map(|r| r.into_owned()).collect::<Vec<_>>(),
-  )
+  TokenTreeOutput { trees: trees.unwrap_or_default(), errors }
 }
 
 impl core::fmt::Debug for TokenTree {
@@ -134,7 +140,7 @@ impl core::fmt::Debug for TokenTree {
           write!(f, "(...{} elements...)", ts.len())
         } else {
           write!(f, "(")?;
-          for (i, (tt, _span)) in ts.iter().enumerate() {
+          for (i, tt) in ts.iter().enumerate() {
             if i > 0 {
               write!(f, " ")?;
             }
@@ -149,7 +155,7 @@ impl core::fmt::Debug for TokenTree {
           write!(f, "[...{} elements...]", ts.len())
         } else {
           write!(f, "[")?;
-          for (i, (tt, _span)) in ts.iter().enumerate() {
+          for (i, tt) in ts.iter().enumerate() {
             if i > 0 {
               write!(f, " ")?;
             }
@@ -164,7 +170,7 @@ impl core::fmt::Debug for TokenTree {
           write!(f, "{{...{} elements...}}", ts.len())
         } else {
           write!(f, "{{")?;
-          for (i, (tt, _span)) in ts.iter().enumerate() {
+          for (i, tt) in ts.iter().enumerate() {
             if i > 0 {
               write!(f, " ")?;
             }
