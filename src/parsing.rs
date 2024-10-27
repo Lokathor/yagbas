@@ -13,7 +13,7 @@ pub type ErrRichToken<'src> = Err<Rich<'src, Token, FileSpan>>;
 pub type ErrRichTokenTree<'src> = Err<Rich<'src, TokenTree, FileSpan>>;
 
 /// Parses [Token] into [TokenTree].
-pub fn token_tree_p<'src, I, M>(
+pub fn token_tree_p<'src, I>(
 ) -> impl Parser<'src, I, TokenTree, ErrRichToken<'src>> + Clone
 where
   I: BorrowInput<'src, Token = Token, Span = FileSpan> + ValueInput<'src>,
@@ -21,6 +21,8 @@ where
   use crate::Token::*;
 
   recursive(|tt| {
+    let base = tt.map_with(|tts, e| FileSpanned::new(tts, e.span())).repeated();
+
     // Looks like `{ ... }`
     let braces = {
       let open_bracket = select! {
@@ -29,9 +31,8 @@ where
       let close_bracket = select! {
         ClBrace => (),
       };
-      tt.clone()
-        .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
-        .repeated()
+      base
+        .clone()
         .collect()
         .delimited_by(open_bracket, close_bracket)
         .map(TokenTree::Braces)
@@ -45,9 +46,8 @@ where
       let close_bracket = select! {
         ClBracket => (),
       };
-      tt.clone()
-        .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
-        .repeated()
+      base
+        .clone()
         .collect()
         .delimited_by(open_bracket, close_bracket)
         .map(TokenTree::Brackets)
@@ -61,9 +61,8 @@ where
       let close_paren = select! {
         ClParen => (),
       };
-      tt.clone()
-        .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
-        .repeated()
+      base
+        .clone()
         .collect()
         .delimited_by(open_paren, close_paren)
         .map(TokenTree::Parens)
@@ -88,12 +87,8 @@ where
       let block_end = select! {
         CommentBlockEnd => (),
       };
-      let block_comment = tt
-        .clone()
-        .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
-        .repeated()
-        .delimited_by(block_start, block_end)
-        .ignored();
+      let block_comment =
+        base.clone().delimited_by(block_start, block_end).ignored();
 
       single_comment.or(block_comment)
     };

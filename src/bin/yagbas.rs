@@ -80,13 +80,28 @@ pub fn do_trees(args: TreesArgs) {
     };
     let tokens: Vec<FileSpanned<Token>> = src_file.iter_tokens().collect();
     if tokens.is_empty() {
+      println!("{filename}: no tokens present");
       continue;
     }
+    use chumsky::{
+      input::{BorrowInput, Input},
+      prelude::*,
+    };
     let last_span = tokens.last().map(|token| token._span).unwrap();
     let end_span = FileSpan { start: last_span.end, ..last_span };
-    use chumsky::{input::BorrowInput, prelude::Parser};
-    let parse_result = token_tree_p()
-      .parse(tokens.as_slice().map(end_span, |fs| (fs._payload, fs._span)));
-    println!("{filename}: {parse_result:?}");
+    let recover_strategy =
+      via_parser(any().repeated().at_least(1).to(TokenTree::TreeError));
+    let (opt_output, errors) = token_tree_p()
+      .recover_with(recover_strategy)
+      .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
+      .repeated()
+      .collect()
+      .parse(Input::map(&tokens[..], end_span, |fs| (&fs._payload, &fs._span)))
+      .into_output_errors();
+    let output: Vec<FileSpanned<TokenTree>> = opt_output.unwrap_or_default();
+    println!("{filename}: {output:?}");
+    if !errors.is_empty() {
+      println!("{filename}: ERRORS: {errors:?}");
+    }
   }
 }
