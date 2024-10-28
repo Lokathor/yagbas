@@ -10,15 +10,26 @@ pub fn get_next_loop_id() -> usize {
 #[derive(Debug, Clone)]
 pub enum Statement {
   Return,
-  Loop { name: StrID, id: usize, statements: Vec<FileSpanned<Statement>> },
+  Loop(Loop),
   Call { target: StrID, args: Vec<FileSpanned<TokenTree>> },
   StatementError,
 }
-impl Statement {
+
+#[derive(Debug, Clone)]
+pub struct Loop {
+  pub name: StrID,
+  pub id: usize,
+  pub statements: Vec<FileSpanned<Statement>>,
+}
+impl Loop {
   #[inline]
-  pub fn new_loop(
+  pub fn new(statements: Vec<FileSpanned<Statement>>) -> Self {
+    Self::new_with_name(StrID::from(""), statements)
+  }
+  #[inline]
+  pub fn new_with_name(
     name: StrID, statements: Vec<FileSpanned<Statement>>,
   ) -> Self {
-    Self::Loop { name, statements, id: get_next_loop_id() }
+    Self { name, statements, id: get_next_loop_id() }
   }
 }
