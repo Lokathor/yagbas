@@ -1,4 +1,7 @@
-use crate::{src_files::FileSpanned, str_id::StrID, token_tree::TokenTree};
+use crate::{
+  src_files::FileSpanned, statement::Statement, str_id::StrID,
+  token_tree::TokenTree,
+};
 
 #[derive(Debug, Clone)]
 pub enum Item {
@@ -10,11 +13,5 @@ pub enum Item {
 pub struct Function {
   pub name: FileSpanned<StrID>,
   pub arguments: Vec<FileSpanned<TokenTree>>,
-  pub statements: Vec<FileSpanned<Statement>>,
-}
-
-#[derive(Debug, Clone)]
-pub enum Statement {
-  Return,
-  StatementError,
+  pub statements: Vec<FileSpanned<TokenTree>>,
 }

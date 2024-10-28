@@ -8,7 +8,10 @@ use std::{
 };
 use yagbas::{
   parsing::token_tree_p,
-  src_files::{FileSpan, FileSpanned, SrcFile, SrcID, TokenTreeParseResult},
+  src_files::{
+    FileSpan, FileSpanned, ItemParseResult, SrcFile, SrcID,
+    TokenTreeParseResult,
+  },
   str_id::StrID,
   token::Token,
   token_tree::TokenTree,
@@ -33,6 +36,8 @@ pub enum Commands {
   Tokenize(TokenizeArgs),
   /// Prints all token trees within the source files given.
   Trees(TreesArgs),
+  /// Prints all items within the source files given.
+  Items(ItemsArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -47,11 +52,18 @@ pub struct TreesArgs {
   pub files: Vec<String>,
 }
 
+#[derive(Args, Debug, Clone)]
+pub struct ItemsArgs {
+  /// One or more source files to make into items.
+  pub files: Vec<String>,
+}
+
 pub fn main() {
   let cli = Cli::parse();
   match cli.command {
     Commands::Tokenize(args) => do_tokenize(args),
     Commands::Trees(args) => do_trees(args),
+    Commands::Items(args) => do_items(args),
   }
 }
 
@@ -78,10 +90,28 @@ pub fn do_trees(args: TreesArgs) {
         continue;
       }
     };
-    let TokenTreeParseResult { trees, errors } = src_file.parse_token_trees();
+    let TokenTreeParseResult { trees, tree_errors } =
+      src_file.parse_token_trees();
     println!("{filename}: {trees:?}");
-    if !errors.is_empty() {
-      println!("{filename}: ERRORS: {errors:?}");
+    if !tree_errors.is_empty() {
+      println!("{filename}: ERRORS: {tree_errors:?}");
+    }
+  }
+}
+
+pub fn do_items(args: ItemsArgs) {
+  for filename in &args.files {
+    let src_file = match SrcFile::read_from_path(&filename) {
+      Ok(src_file) => src_file,
+      Err(io_error) => {
+        eprintln!("{filename}: File IO Error: {io_error}");
+        continue;
+      }
+    };
+    let ItemParseResult { items, item_errors } = src_file.parse_items();
+    println!("=ITEMS {filename}: {items:?}");
+    if !item_errors.is_empty() {
+      println!("=ITEMS {filename}: ERRORS: {item_errors:?}");
     }
   }
 }

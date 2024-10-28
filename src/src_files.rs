@@ -1,4 +1,9 @@
-use crate::{parsing::token_tree_p, token::Token, token_tree::TokenTree};
+use crate::{
+  item::Item,
+  parsing::{item_p, newline_p, token_tree_p},
+  token::Token,
+  token_tree::TokenTree,
+};
 use bimap::BiMap;
 use chumsky::{
   error::Rich,
@@ -130,14 +135,45 @@ impl SrcFile {
     let trees: Vec<FileSpanned<TokenTree>> = opt_output.unwrap_or_default();
     let errors: Vec<Rich<'static, Token, FileSpan>> =
       errors.into_iter().map(|e| e.into_owned()).collect();
-    TokenTreeParseResult { trees, errors }
+    TokenTreeParseResult { trees, tree_errors: errors }
+  }
+
+  #[must_use]
+  pub fn parse_items(&self) -> ItemParseResult {
+    let TokenTreeParseResult { trees, tree_errors } = self.parse_token_trees();
+    if trees.is_empty() {
+      // TODO: tree errors need to convert "up" into this thing's errors.
+      return ItemParseResult::default();
+    }
+    let last_span = trees.last().map(|token| token._span).unwrap();
+    let end_span = FileSpan { start: last_span.end, ..last_span };
+    let recover_strategy =
+      via_parser(any().repeated().at_least(1).to(Item::ItemError));
+    let (opt_output, item_errors_unowned) = item_p()
+      .padded_by(newline_p().repeated())
+      .recover_with(recover_strategy)
+      .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
+      .repeated()
+      .collect()
+      .parse(Input::map(&trees[..], end_span, |fs| (&fs._payload, &fs._span)))
+      .into_output_errors();
+    let items: Vec<FileSpanned<Item>> = opt_output.unwrap_or_default();
+    let item_errors: Vec<Rich<'static, TokenTree, FileSpan>> =
+      item_errors_unowned.into_iter().map(|e| e.into_owned()).collect();
+    ItemParseResult { items, item_errors }
   }
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct TokenTreeParseResult {
   pub trees: Vec<FileSpanned<TokenTree>>,
-  pub errors: Vec<Rich<'static, Token, FileSpan>>,
+  pub tree_errors: Vec<Rich<'static, Token, FileSpan>>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ItemParseResult {
+  pub items: Vec<FileSpanned<Item>>,
+  pub item_errors: Vec<Rich<'static, TokenTree, FileSpan>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
