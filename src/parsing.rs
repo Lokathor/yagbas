@@ -143,8 +143,15 @@ where
   let kw_return = select! {
     Lone(KwReturn) => Statement::Return
   };
+  let call = ident_p()
+    .then(select! {
+      Parens(p) = ex => p,
+    })
+    .map(|(target, args)| Statement::Call { target, args });
 
-  let x = choice((kw_return,));
+  // TODO: loop support, but that makes the parser recursive.
+
+  let x = choice((kw_return, call));
 
   x
 }
