@@ -7,7 +7,7 @@ use crate::{
 use bimap::BiMap;
 use chumsky::{
   error::Rich,
-  input::{BorrowInput, Input},
+  input::{BorrowInput, Input, ValueInput},
   prelude::*,
   span::Span,
 };
@@ -149,19 +149,28 @@ impl SrcFile {
     let end_span = FileSpan { start: last_span.end, ..last_span };
     let recover_strategy =
       via_parser(any().repeated().at_least(1).to(Item::ItemError));
-    let (opt_output, item_errors_unowned) = item_p()
+    let items_parser = item_p(make_input)
       .padded_by(newline_p().repeated())
       .recover_with(recover_strategy)
       .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
       .repeated()
-      .collect()
-      .parse(Input::map(&trees[..], end_span, |fs| (&fs._payload, &fs._span)))
+      .collect();
+    let (opt_output, item_errors_unowned) = items_parser
+      .parse(make_input(trees.as_slice(), end_span))
       .into_output_errors();
     let items: Vec<FileSpanned<Item>> = opt_output.unwrap_or_default();
     let item_errors: Vec<Rich<'static, TokenTree, FileSpan>> =
       item_errors_unowned.into_iter().map(|e| e.into_owned()).collect();
     ItemParseResult { items, item_errors }
   }
+}
+
+#[allow(clippy::needless_lifetimes)]
+fn make_input<'src>(
+  tokens: &'src [FileSpanned<TokenTree>], eoi: FileSpan,
+) -> impl BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>
+{
+  tokens.map(eoi, |fsd| (&fsd._payload, &fsd._span))
 }
 
 #[derive(Debug, Clone, Default)]

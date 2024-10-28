@@ -102,34 +102,55 @@ where
 }
 
 /// Parses [TokenTree] into any [Item]
-pub fn item_p<'src, I>(
+pub fn item_p<'src, I, M>(
+  make_input: M,
 ) -> impl Parser<'src, I, Item, ErrRichTokenTree<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Clone + 'src,
 {
-  let function = function_p().map(Item::Function);
+  let function = function_p(make_input).map(Item::Function);
 
-  let x = choice((function,));
+  let x = choice((function,)).labelled("item").as_context();
 
   x
 }
 
 /// Parses [TokenTree] into specifically a [Function]
-pub fn function_p<'src, I>(
+pub fn function_p<'src, I, M>(
+  make_input: M,
 ) -> impl Parser<'src, I, Function, ErrRichTokenTree<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Clone + 'src,
 {
-  let name = ident_p().map_with(|i, e| FileSpanned::new(i, e.span()));
-  let args = select! {
-    Parens(p) = ex => p,
-  };
-  let statements = select! {
-    Braces(b) = ex => b,
-  };
-  let x = kw_fn_p().ignore_then(name).then(args).then(statements).map(
-    |((name, arguments), statements)| Function { name, arguments, statements },
-  );
+  let name = ident_p()
+    .map_with(|i, e| FileSpanned::new(i, e.span()))
+    .labelled("fn_name")
+    .as_context();
+  let args = parenthesis_p().labelled("fn_args").as_context();
+  let fn_body = statement_p()
+    .nested_in(select_ref! {
+      Braces(b) = ex => make_input(b, ex.span()),
+    })
+    .map_with(|s: Statement, e| FileSpanned::new(s, e.span()))
+    .separated_by(statement_sep_p().repeated().at_least(1))
+    .allow_leading()
+    .allow_trailing()
+    .collect()
+    .labelled("fn_body")
+    .as_context();
+  let x = kw_fn_p()
+    .ignore_then(name)
+    .then(args)
+    .then(fn_body)
+    .map(|((name, arguments), statements)| Function {
+      name,
+      arguments,
+      statements,
+    })
+    .labelled("function")
+    .as_context();
 
   x
 }
@@ -141,9 +162,7 @@ where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
 {
   let call = ident_p()
-    .then(select! {
-      Parens(p) = ex => p,
-    })
+    .then(parenthesis_p())
     .map(|(target, args)| Statement::Call { target, args });
 
   // TODO: loop support, but that makes the parser recursive.
@@ -160,7 +179,19 @@ where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
 {
   select! {
-    Lone(Newline) => ()
+    Lone(Newline) => (),
+  }
+}
+
+/// Parses a `Lone(Newline)` or `Lone(Semicolon)`, which is then discarded.
+pub fn statement_sep_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Newline) => (),
+    Lone(Semicolon) => (),
   }
 }
 
@@ -171,7 +202,7 @@ where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
 {
   select! {
-    Lone(KwFn) => ()
+    Lone(KwFn) => (),
   }
 }
 
@@ -182,7 +213,7 @@ where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
 {
   select! {
-    Lone(KwReturn) => Statement::Return
+    Lone(KwReturn) => Statement::Return,
   }
 }
 
@@ -193,6 +224,17 @@ where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
 {
   select! {
-    Lone(Ident(i)) => i
+    Lone(Ident(i)) => i,
+  }
+}
+
+/// Parses `Lone(Ident(i))` and returns `i`.
+pub fn parenthesis_p<'src, I>(
+) -> impl Parser<'src, I, Vec<FileSpanned<TokenTree>>, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Parens(p) = ex => p,
   }
 }

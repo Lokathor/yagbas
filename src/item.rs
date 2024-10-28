@@ -13,5 +13,5 @@ pub enum Item {
 pub struct Function {
   pub name: FileSpanned<StrID>,
   pub arguments: Vec<FileSpanned<TokenTree>>,
-  pub statements: Vec<FileSpanned<TokenTree>>,
+  pub statements: Vec<FileSpanned<Statement>>,
 }
