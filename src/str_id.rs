@@ -80,3 +80,10 @@ impl AsRef<str> for StrID {
     self.as_str()
   }
 }
+impl Default for StrID {
+  #[inline]
+  #[must_use]
+  fn default() -> Self {
+    Self::from("")
+  }
+}

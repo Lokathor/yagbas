@@ -1,0 +1,60 @@
+// sample file for the `loop` statement
+
+fn just_loop_fn() {loop{}}
+
+fn loop_with_newlines() {
+  loop{}
+}
+
+fn loop_with_newlines_in_the_loop() {
+  loop{
+  }
+}
+
+fn loop_with_return() {
+  loop{return}
+}
+
+fn loop_with_newlines_return() {
+  loop {
+    return
+  }
+}
+
+fn loop_return2() {
+  loop {
+    return
+    return
+  }
+}
+
+fn loop_return2_semicolon() {
+  loop {
+    return;
+    return;
+  }
+}
+
+fn loop_return3_mixed() {
+  loop {
+    return;
+    return
+    return;
+  }
+}
+
+fn loop_return4_mixed() {
+  loop {
+    return; return;
+    return
+    return;
+  }
+}
+
+fn named_loop() {
+  'the_name: loop {
+    return; return;
+    return
+    return;
+  }
+}

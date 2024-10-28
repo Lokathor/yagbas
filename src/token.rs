@@ -120,6 +120,8 @@ pub enum Token {
   Pipe,
   #[regex(r"\+", priority = 2)]
   Plus,
+  #[regex(r"'", priority = 2)]
+  Quote,
   #[regex(r";", priority = 2)]
   Semicolon,
 

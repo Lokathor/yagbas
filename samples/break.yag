@@ -1,0 +1,10 @@
+// sample file for the `break` statement
+// ignore that we need to put breaks inside loops normally
+
+fn just_break_fn() {
+  break
+}
+
+fn break_to_label() {
+  break 'target
+}

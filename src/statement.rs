@@ -4,8 +4,10 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug, Clone)]
 pub enum Statement {
   Return,
-  Loop(Loop),
   Call { target: StrID, args: Vec<FileSpanned<TokenTree>> },
+  Loop(Loop),
+  Continue(StrID),
+  Break(StrID),
   StatementError,
 }
 
