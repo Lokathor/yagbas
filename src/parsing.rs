@@ -26,47 +26,65 @@ where
 
     // Looks like `{ ... }`
     let braces = {
-      let open_bracket = select! {
+      let open_brace = select! {
         OpBrace => (),
-      };
-      let close_bracket = select! {
+      }
+      .labelled("open_brace")
+      .as_context();
+      let close_brace = select! {
         ClBrace => (),
-      };
+      }
+      .labelled("close_brace")
+      .as_context();
       base
         .clone()
         .collect()
-        .delimited_by(open_bracket, close_bracket)
+        .delimited_by(open_brace, close_brace)
         .map(TokenTree::Braces)
+        .labelled("braces_group")
+        .as_context()
     };
 
     // Looks like `[ ... ]`
     let brackets = {
       let open_bracket = select! {
         OpBracket => (),
-      };
+      }
+      .labelled("open_bracket")
+      .as_context();
       let close_bracket = select! {
         ClBracket => (),
-      };
+      }
+      .labelled("close_bracket")
+      .as_context();
       base
         .clone()
         .collect()
         .delimited_by(open_bracket, close_bracket)
         .map(TokenTree::Brackets)
+        .labelled("brackets_group")
+        .as_context()
     };
 
     // Looks like `( ... )`
     let parens = {
       let open_paren = select! {
         OpParen => (),
-      };
+      }
+      .labelled("open_paren")
+      .as_context();
       let close_paren = select! {
         ClParen => (),
-      };
+      }
+      .labelled("close_paren")
+      .as_context();
       base
         .clone()
         .collect()
         .delimited_by(open_paren, close_paren)
         .map(TokenTree::Parens)
+        .labelled("parens_group")
+        .as_context()
     };
 
     // Looks like something that does *NOT* open or close one of the other
@@ -88,14 +106,20 @@ where
       let block_end = select! {
         CommentBlockEnd => (),
       };
-      let block_comment =
-        base.clone().delimited_by(block_start, block_end).ignored();
+      let block_comment = base
+        .clone()
+        .delimited_by(block_start, block_end)
+        .ignored()
+        .labelled("block_comment")
+        .as_context();
 
       single_comment.or(block_comment)
     };
 
-    let x =
-      choice((brackets, braces, parens, single)).padded_by(comment.repeated());
+    let x = choice((brackets, braces, parens, single))
+      .padded_by(comment.repeated())
+      .labelled("token_tree")
+      .as_context();
 
     x
   })

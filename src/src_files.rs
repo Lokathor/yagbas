@@ -103,52 +103,75 @@ impl SrcFile {
   }
 
   #[inline]
-  pub fn iter_tokens(
-    &self,
-  ) -> impl Iterator<Item = FileSpanned<Token>> + Clone + '_ {
-    let id = self.get_id();
+  pub fn lex_tokens(&self) -> LexOutput {
+    let mut output = LexOutput::default();
     let mut lexer = Token::lexer(&self.file_text);
-    core::iter::from_fn(move || {
-      let token = lexer.next()?.unwrap_or(Token::TokenError);
-      let span = FileSpan::new(id, lexer.span());
-      Some(FileSpanned::new(token, span))
-    })
+    let id = self.get_id();
+    while let Some(res) = lexer.next() {
+      let file_span = FileSpan::new(id, lexer.span());
+      match res {
+        Ok(token) => {
+          output.tokens.push(FileSpanned::new(token, file_span));
+        }
+        Err(()) => {
+          output.tokens.push(FileSpanned::new(Token::TokenError, file_span));
+          output.lex_errors.push(file_span);
+        }
+      }
+    }
+    output
   }
 
   #[must_use]
   pub fn parse_token_trees(&self) -> TokenTreeParseResult {
-    let tokens: Vec<FileSpanned<Token>> = self.iter_tokens().collect();
-    if tokens.is_empty() {
-      return TokenTreeParseResult::default();
+    let LexOutput { tokens, lex_errors } = self.lex_tokens();
+    for lex_error in lex_errors {
+      println!("=LEXING ERROR: {lex_error:?}");
     }
-    let last_span = tokens.last().map(|token| token._span).unwrap();
-    let end_span = FileSpan { start: last_span.end, ..last_span };
+    let end_span = FileSpan {
+      id: self.get_id(),
+      start: self.text().len(),
+      end: self.text().len(),
+    };
     let recover_strategy =
       via_parser(any().repeated().at_least(1).to(TokenTree::TreeError));
-    let (opt_output, errors) = token_tree_p()
+    let tree_parser = token_tree_p()
       .recover_with(recover_strategy)
       .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
       .repeated()
-      .collect()
+      .collect();
+    let (opt_output, errors) = tree_parser
       .parse(Input::map(&tokens[..], end_span, |fs| (&fs._payload, &fs._span)))
       .into_output_errors();
     let trees: Vec<FileSpanned<TokenTree>> = opt_output.unwrap_or_default();
-    let errors: Vec<Rich<'static, Token, FileSpan>> =
+    let tree_errors: Vec<Rich<'static, Token, FileSpan>> =
       errors.into_iter().map(|e| e.into_owned()).collect();
-    TokenTreeParseResult { trees, tree_errors: errors }
+    TokenTreeParseResult { trees, tree_errors }
   }
 
   #[must_use]
   pub fn parse_items(&self) -> ItemParseResult {
     let TokenTreeParseResult { trees, tree_errors } = self.parse_token_trees();
-    if trees.is_empty() {
-      // TODO: tree errors need to convert "up" into this thing's errors.
-      return ItemParseResult::default();
+    for tree_error in tree_errors {
+      println!("=TREE ERROR: {tree_error:?}");
     }
-    let last_span = trees.last().map(|token| token._span).unwrap();
-    let end_span = FileSpan { start: last_span.end, ..last_span };
-    let recover_strategy =
-      via_parser(any().repeated().at_least(1).to(Item::ItemError));
+    let end_span = FileSpan {
+      id: self.get_id(),
+      start: self.text().len(),
+      end: self.text().len(),
+    };
+    let recover_strategy = {
+      // the recover point is back at the start of the failed item, so eat one
+      // item start token, then eat all tokens that *don't* start the next item,
+      // and now we've recovered.
+      let item_start = select! {
+        TokenTree::Lone(Token::KwFn) => (),
+        TokenTree::Lone(Token::KwStatic) => ()
+      };
+      let skip_item =
+        item_start.then(any().and_is(item_start.not()).repeated());
+      via_parser(skip_item.to(Item::ItemError))
+    };
     let items_parser = item_p(make_input)
       .padded_by(newline_p().repeated())
       .recover_with(recover_strategy)
@@ -171,6 +194,12 @@ fn make_input<'src>(
 ) -> impl BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>
 {
   tokens.map(eoi, |fsd| (&fsd._payload, &fsd._span))
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct LexOutput {
+  pub tokens: Vec<FileSpanned<Token>>,
+  pub lex_errors: Vec<FileSpan>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -208,7 +237,7 @@ impl SrcID {
   #[inline]
   #[must_use]
   #[track_caller]
-  pub fn get_info(self) -> &'static SrcFile {
+  pub fn get_src_file(self) -> &'static SrcFile {
     let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
     // Note(Lokathor): This shouldn't ever panic because all ID values should
@@ -264,6 +293,11 @@ impl From<SrcFile> for SrcID {
     }
   }
 }
+impl core::fmt::Display for SrcID {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    core::fmt::Display::fmt(&self.get_src_file().path().display(), f)
+  }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileSpan {
@@ -303,7 +337,7 @@ impl core::fmt::Debug for FileSpan {
 }
 impl core::fmt::Display for FileSpan {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let info = self.id.get_info();
+    let info = self.id.get_src_file();
     let path = info.path();
     let (line, col) = info.line_col(self.start);
     write!(f, "{path}:{line}:{col}", path = path.display())

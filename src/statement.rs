@@ -29,7 +29,7 @@ impl Loop {
 
   #[inline]
   pub fn new(statements: Vec<FileSpanned<Statement>>) -> Self {
-    Self::new_with_name(StrID::from(""), statements)
+    Self::new_with_name(StrID::default(), statements)
   }
   #[inline]
   pub fn new_with_name(

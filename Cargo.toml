@@ -19,4 +19,5 @@ bimap = "0.6.3"
 clap = { version = "4.3.10", features = ["derive"] }
 logos = "0.14.0"
 chumsky = { git = "https://github.com/zesterer/chumsky", features = ["label"] }
+ariadne = { git = "https://github.com/zesterer/ariadne" }
 #rayon = "1.7.0"

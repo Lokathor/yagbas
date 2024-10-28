@@ -1,6 +1,9 @@
 #![allow(unused)]
 #![allow(clippy::type_complexity)]
 
+use ariadne::{
+  sources, CharSet, Color, Config, Label, Report, ReportKind, Source,
+};
 use clap::{Args, Parser, Subcommand};
 use std::{
   collections::HashMap,
@@ -9,7 +12,7 @@ use std::{
 use yagbas::{
   parsing::token_tree_p,
   src_files::{
-    FileSpan, FileSpanned, ItemParseResult, SrcFile, SrcID,
+    FileSpan, FileSpanned, ItemParseResult, LexOutput, SrcFile, SrcID,
     TokenTreeParseResult,
   },
   str_id::StrID,
@@ -76,8 +79,11 @@ pub fn do_tokenize(args: TokenizeArgs) {
         continue;
       }
     };
-    let tokens: Vec<FileSpanned<Token>> = src_file.iter_tokens().collect();
+    let LexOutput { tokens, lex_errors } = src_file.lex_tokens();
     println!("{filename}: {tokens:?}");
+    if !lex_errors.is_empty() {
+      println!("{filename}: ERRORS: {lex_errors:?}");
+    }
   }
 }
 
@@ -93,8 +99,41 @@ pub fn do_trees(args: TreesArgs) {
     let TokenTreeParseResult { trees, tree_errors } =
       src_file.parse_token_trees();
     println!("{filename}: {trees:?}");
-    if !tree_errors.is_empty() {
-      println!("{filename}: ERRORS: {tree_errors:?}");
+    let id = src_file.get_id();
+    let mut err_cache = sources(vec![(id, src_file.text())]);
+    for tree_error in tree_errors {
+      let file_span: &FileSpan = tree_error.span();
+      let span = file_span.start..file_span.end;
+      let reason = tree_error.reason();
+      let message: String = match reason {
+        chumsky::error::RichReason::ExpectedFound { expected, found: None } => {
+          format!("Expected: {expected:?}, Found: the end of the file")
+        }
+        chumsky::error::RichReason::ExpectedFound {
+          expected,
+          found: Some(t),
+        } => {
+          format!("Expected: {expected:?}, Found: {t:?}")
+        }
+        chumsky::error::RichReason::Custom(s) => s.to_string(),
+        chumsky::error::RichReason::Many(vec) => format!("{vec:?}"),
+      };
+      Report::build(ReportKind::Error, (id, span.clone()))
+        .with_message("Token Tree Building")
+        .with_config(
+          Config::default()
+            .with_compact(true)
+            .with_color(false)
+            .with_char_set(CharSet::Ascii),
+        )
+        .with_label(Label::new((id, span.clone())).with_message(message))
+        .with_labels(tree_error.contexts().map(|(name, span)| {
+          Label::new((id, file_span.start..file_span.end))
+            .with_message(format!("while parsing this {name}"))
+        }))
+        .finish()
+        .eprint(&mut err_cache)
+        .unwrap();
     }
   }
 }
