@@ -130,14 +130,14 @@ where
     .as_context();
   let args = parenthesis_p().labelled("fn_args").as_context();
   let fn_body = statement_p()
-    .nested_in(select_ref! {
-      Braces(b) = ex => make_input(b, ex.span()),
-    })
     .map_with(|s: Statement, e| FileSpanned::new(s, e.span()))
     .separated_by(statement_sep_p().repeated().at_least(1))
     .allow_leading()
     .allow_trailing()
     .collect()
+    .nested_in(select_ref! {
+      Braces(b) = ex => make_input(b, ex.span()),
+    })
     .labelled("fn_body")
     .as_context();
   let x = kw_fn_p()
