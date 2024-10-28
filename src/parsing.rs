@@ -140,9 +140,6 @@ pub fn statement_p<'src, I>(
 where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
 {
-  let kw_return = select! {
-    Lone(KwReturn) => Statement::Return
-  };
   let call = ident_p()
     .then(select! {
       Parens(p) = ex => p,
@@ -151,7 +148,7 @@ where
 
   // TODO: loop support, but that makes the parser recursive.
 
-  let x = choice((kw_return, call));
+  let x = choice((kw_return_p(), call));
 
   x
 }
@@ -175,6 +172,17 @@ where
 {
   select! {
     Lone(KwFn) => ()
+  }
+}
+
+/// Parses a `Lone(KwReturn)` and returns `Statement::Return` instead.
+pub fn kw_return_p<'src, I>(
+) -> impl Parser<'src, I, Statement, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwReturn) => Statement::Return
   }
 }
 
