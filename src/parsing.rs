@@ -135,7 +135,7 @@ where
 {
   let function = function_p(make_input).map(Item::Function);
 
-  let x = choice((function,)).labelled("item").as_context();
+  let x = choice((function,));
 
   x
 }
@@ -152,7 +152,7 @@ where
     .map_with(|i, e| FileSpanned::new(i, e.span()))
     .labelled("fn_name")
     .as_context();
-  let args = parenthesis_p().labelled("fn_args").as_context();
+  let args = parenthesis_p().labelled("fn_arg_parens").as_context();
   let fn_body = statement_p(make_input)
     .map_with(|s: Statement, e| FileSpanned::new(s, e.span()))
     .separated_by(statement_sep_p().repeated().at_least(1))

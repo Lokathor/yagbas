@@ -329,6 +329,27 @@ impl chumsky::span::Span for FileSpan {
     self.id
   }
 }
+impl ariadne::Span for FileSpan {
+  type SourceId = SrcID;
+
+  #[inline]
+  #[must_use]
+  fn source(&self) -> &Self::SourceId {
+    &self.id
+  }
+
+  #[inline]
+  #[must_use]
+  fn start(&self) -> usize {
+    self.start
+  }
+
+  #[inline]
+  #[must_use]
+  fn end(&self) -> usize {
+    self.end
+  }
+}
 impl core::fmt::Debug for FileSpan {
   #[inline]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
