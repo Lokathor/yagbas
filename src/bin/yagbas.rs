@@ -71,23 +71,6 @@ pub fn main() {
   }
 }
 
-pub fn do_tokenize(args: TokenizeArgs) {
-  for filename in &args.files {
-    let src_file = match SrcFile::read_from_path(&filename) {
-      Ok(src_file) => src_file,
-      Err(io_error) => {
-        eprintln!("{filename}: File IO Error: {io_error}");
-        continue;
-      }
-    };
-    let LexOutput { tokens, lex_errors } = src_file.lex_tokens();
-    println!("{filename}: {tokens:?}");
-    if !lex_errors.is_empty() {
-      println!("{filename}: ERRORS: {lex_errors:?}");
-    }
-  }
-}
-
 fn report_these_errors<T>(
   id: SrcID, errors: &[Rich<'static, T, FileSpan, &str>],
 ) where
@@ -110,6 +93,23 @@ fn report_these_errors<T>(
       .finish()
       .eprint(&mut the_cache)
       .unwrap();
+  }
+}
+
+pub fn do_tokenize(args: TokenizeArgs) {
+  for filename in &args.files {
+    let src_file = match SrcFile::read_from_path(&filename) {
+      Ok(src_file) => src_file,
+      Err(io_error) => {
+        eprintln!("{filename}: File IO Error: {io_error}");
+        continue;
+      }
+    };
+    let LexOutput { tokens, lex_errors } = src_file.lex_tokens();
+    println!("{filename}: {tokens:?}");
+    if !lex_errors.is_empty() {
+      println!("{filename}: ERRORS: {lex_errors:?}");
+    }
   }
 }
 
