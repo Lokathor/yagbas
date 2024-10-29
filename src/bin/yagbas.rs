@@ -60,9 +60,9 @@ pub enum Commands {
 
 #[derive(Args, Debug, Clone)]
 pub struct TokenizeArgs {
-  /// Output size for messages
-  #[arg(long, default_value_t = MessageSize::Compact)]
-  pub message_size: MessageSize,
+  /// Output size for messages (default: compact)
+  #[arg(long)]
+  pub message_size: Option<MessageSize>,
 
   /// One or more source files to tokenize.
   pub files: Vec<String>,
@@ -70,9 +70,9 @@ pub struct TokenizeArgs {
 
 #[derive(Args, Debug, Clone)]
 pub struct TreesArgs {
-  /// Output size for messages
-  #[arg(long, default_value_t = MessageSize::Compact)]
-  pub message_size: MessageSize,
+  /// Output size for messages (default: compact)
+  #[arg(long)]
+  pub message_size: Option<MessageSize>,
 
   /// One or more source files to tokenize.
   pub files: Vec<String>,
@@ -80,9 +80,9 @@ pub struct TreesArgs {
 
 #[derive(Args, Debug, Clone)]
 pub struct ItemsArgs {
-  /// Output size for messages
-  #[arg(long, default_value_t = MessageSize::Compact)]
-  pub message_size: MessageSize,
+  /// Output size for messages (default: compact)
+  #[arg(long)]
+  pub message_size: Option<MessageSize>,
 
   /// One or more source files to tokenize.
   pub files: Vec<String>,
@@ -99,9 +99,20 @@ pub fn main() {
 
 fn report_these_errors<T>(
   id: SrcID, errors: &[Rich<'static, T, FileSpan, &str>],
+  message_size: MessageSize,
 ) where
   T: core::fmt::Debug,
 {
+  let compact_messages: bool = match message_size {
+    MessageSize::OneLine => {
+      for error in errors {
+        println!("{id}: {error:?}");
+      }
+      return;
+    }
+    MessageSize::Bulky => false,
+    MessageSize::Compact => true,
+  };
   let mut the_cache = sources(vec![(id, id.get_src_file().text())]);
   for error in errors {
     let file_span: FileSpan = *error.span();
@@ -111,7 +122,7 @@ fn report_these_errors<T>(
         Config::default()
           .with_color(false)
           .with_char_set(CharSet::Ascii)
-          .with_compact(true),
+          .with_compact(compact_messages),
       )
       .with_labels(error.contexts().map(|(context, file_span)| {
         Label::new(*file_span).with_message(format!("while parsing {context}"))
@@ -152,7 +163,11 @@ pub fn do_trees(args: TreesArgs) {
       src_file.parse_token_trees();
     println!("=TREES {filename}: {trees:?}");
     if !tree_errors.is_empty() {
-      report_these_errors(src_file.get_id(), &tree_errors)
+      report_these_errors(
+        src_file.get_id(),
+        &tree_errors,
+        args.message_size.unwrap_or_default(),
+      )
     }
   }
 }
@@ -169,7 +184,11 @@ pub fn do_items(args: ItemsArgs) {
     let ItemParseResult { items, item_errors } = src_file.parse_items();
     println!("=ITEMS {filename}: {items:?}");
     if !item_errors.is_empty() {
-      report_these_errors(src_file.get_id(), &item_errors)
+      report_these_errors(
+        src_file.get_id(),
+        &item_errors,
+        args.message_size.unwrap_or_default(),
+      )
     }
   }
 }
