@@ -1,6 +1,10 @@
 use crate::{src_files::FileSpanned, str_id::StrID, token_tree::TokenTree};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+/// A "single chunk of code" in yagbas.
+///
+/// Most statements are "one line" of code, but the variants for control flow
+/// have a body of inner statements that they cover.
 #[derive(Debug, Clone)]
 pub enum Statement {
   Return,
@@ -36,5 +40,18 @@ impl Loop {
     name: StrID, statements: Vec<FileSpanned<Statement>>,
   ) -> Self {
     Self { name, statements, id: Self::get_next_id() }
+  }
+
+  #[inline]
+  pub fn make_start_name(&self) -> String {
+    let x = self.id;
+    let name = self.name;
+    format!(".loop{x}#{name}#start")
+  }
+  #[inline]
+  pub fn make_end_name(&self) -> String {
+    let x = self.id;
+    let name = self.name;
+    format!(".loop{x}#{name}#end")
   }
 }
