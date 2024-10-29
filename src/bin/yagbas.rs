@@ -5,7 +5,7 @@ use ariadne::{
   sources, CharSet, Color, Config, Label, Report, ReportKind, Source,
 };
 use chumsky::{error::Rich, span::Span};
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::{
   collections::HashMap,
   path::{Path, PathBuf},
@@ -27,6 +27,20 @@ fn verify_cli() {
   Cli::command().debug_assert()
 }
 
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum MessageSize {
+  Bulky,
+  #[default]
+  Compact,
+  OneLine,
+}
+impl core::fmt::Display for MessageSize {
+  #[inline]
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    core::fmt::Debug::fmt(self, f)
+  }
+}
+
 #[derive(Parser, Debug, Clone)]
 #[command(version, about)]
 pub struct Cli {
@@ -46,19 +60,31 @@ pub enum Commands {
 
 #[derive(Args, Debug, Clone)]
 pub struct TokenizeArgs {
+  /// Output size for messages
+  #[arg(long, default_value_t = MessageSize::Compact)]
+  pub message_size: MessageSize,
+
   /// One or more source files to tokenize.
   pub files: Vec<String>,
 }
 
 #[derive(Args, Debug, Clone)]
 pub struct TreesArgs {
-  /// One or more source files to make into token trees.
+  /// Output size for messages
+  #[arg(long, default_value_t = MessageSize::Compact)]
+  pub message_size: MessageSize,
+
+  /// One or more source files to tokenize.
   pub files: Vec<String>,
 }
 
 #[derive(Args, Debug, Clone)]
 pub struct ItemsArgs {
-  /// One or more source files to make into items.
+  /// Output size for messages
+  #[arg(long, default_value_t = MessageSize::Compact)]
+  pub message_size: MessageSize,
+
+  /// One or more source files to tokenize.
   pub files: Vec<String>,
 }
 
