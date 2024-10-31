@@ -298,6 +298,12 @@ impl core::fmt::Display for SrcID {
     core::fmt::Display::fmt(&self.get_src_file().path().display(), f)
   }
 }
+impl Default for SrcID {
+  #[inline]
+  fn default() -> Self {
+    SrcID::from(SrcFile::in_memory(""))
+  }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileSpan {

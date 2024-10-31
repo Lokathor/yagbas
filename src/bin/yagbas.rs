@@ -11,6 +11,7 @@ use std::{
   path::{Path, PathBuf},
 };
 use yagbas::{
+  checks::check_multiple_definitions,
   parsing::token_tree_p,
   src_files::{
     FileSpan, FileSpanned, ItemParseResult, LexOutput, SrcFile, SrcID,
@@ -56,6 +57,8 @@ pub enum Commands {
   Trees(TreesArgs),
   /// Prints all items within the source files given.
   Items(ItemsArgs),
+  /// Checks source for problems without generating code.
+  Check(CheckArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -88,12 +91,23 @@ pub struct ItemsArgs {
   pub files: Vec<String>,
 }
 
+#[derive(Args, Debug, Clone)]
+pub struct CheckArgs {
+  /// Output size for messages (default: compact)
+  #[arg(long)]
+  pub message_size: Option<MessageSize>,
+
+  /// One or more source files to tokenize.
+  pub files: Vec<String>,
+}
+
 pub fn main() {
   let cli = Cli::parse();
   match cli.command {
     Commands::Tokenize(args) => do_tokenize(args),
     Commands::Trees(args) => do_trees(args),
     Commands::Items(args) => do_items(args),
+    Commands::Check(args) => do_check(args),
   }
 }
 
@@ -189,6 +203,32 @@ pub fn do_items(args: ItemsArgs) {
         &item_errors,
         args.message_size.unwrap_or_default(),
       )
+    }
+  }
+}
+
+pub fn do_check(args: CheckArgs) {
+  for filename in &args.files {
+    let src_file = match SrcFile::read_from_path(&filename) {
+      Ok(src_file) => src_file,
+      Err(io_error) => {
+        eprintln!("{filename}: File IO Error: {io_error}");
+        continue;
+      }
+    };
+    let ItemParseResult { items, item_errors } = src_file.parse_items();
+    if !item_errors.is_empty() {
+      report_these_errors(
+        src_file.get_id(),
+        &item_errors,
+        args.message_size.unwrap_or_default(),
+      )
+    } else {
+      let multi_def_errors = check_multiple_definitions(&items);
+      for multi_def_error in multi_def_errors {
+        // TODO: this message isn't helpful.
+        println!("{multi_def_error:?}");
+      }
     }
   }
 }
