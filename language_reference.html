@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Statements - Yagbas Language Reference</title>
+        <title>Language Reference - Yagbas Language Reference</title>
 
 
         <!-- Custom HTML head -->
@@ -12,21 +12,21 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon.svg">
-        <link rel="shortcut icon" href="../favicon.png">
-        <link rel="stylesheet" href="../css/variables.css">
-        <link rel="stylesheet" href="../css/general.css">
-        <link rel="stylesheet" href="../css/chrome.css">
-        <link rel="stylesheet" href="../css/print.css" media="print">
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="../fonts/fonts.css">
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="../highlight.css">
-        <link rel="stylesheet" href="../tomorrow-night.css">
-        <link rel="stylesheet" href="../ayu-highlight.css">
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -35,7 +35,7 @@
     <div id="body-container">
         <!-- Provide site root to javascript -->
         <script>
-            var path_to_root = "../";
+            var path_to_root = "";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
@@ -88,7 +88,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="../source_files.html"><strong aria-hidden="true">1.</strong> Source Files</a></li><li class="chapter-item expanded "><a href="../items/index.html"><strong aria-hidden="true">2.</strong> Items</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../items/functions.html"><strong aria-hidden="true">2.1.</strong> Functions</a></li></ol></li><li class="chapter-item expanded "><a href="../statements/index.html" class="active"><strong aria-hidden="true">3.</strong> Statements</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../statements/function_calls.html"><strong aria-hidden="true">3.1.</strong> Function Calls</a></li><li class="chapter-item expanded "><a href="../statements/control_flow.html"><strong aria-hidden="true">3.2.</strong> Control Flow</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="language_reference.html" class="active"><strong aria-hidden="true">1.</strong> Language Reference</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -144,7 +144,7 @@
                     <h1 class="menu-title">Yagbas Language Reference</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
                         <a href="https://github.com/Lokathor/yagbas" title="Git repository" aria-label="Git repository">
@@ -176,22 +176,93 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="statements"><a class="header" href="#statements">Statements</a></h1>
-<p>A function contains 1 or more statements.</p>
-<p>Statements in yagbas map fairly directly to Game Boy assembly, though many types
-of statements expand to more than one assembly instruction during compilation.</p>
+                        <h1 id="language-reference"><a class="header" href="#language-reference">Language Reference</a></h1>
+<h2 id="tokens"><a class="header" href="#tokens">Tokens</a></h2>
+<h3 id="comments"><a class="header" href="#comments">Comments</a></h3>
+<p>Multi line comments start with <code>/*</code> and end with <code>*/</code>. They can be nested within each other.</p>
+<pre><code class="language-rs">/* multi line
+comment */
+</code></pre>
+<p>Single line comments start with <code>//</code> and go to the end of the line.</p>
+<pre><code class="language-rs">// single line comment
+</code></pre>
+<h3 id="registers"><a class="header" href="#registers">Registers</a></h3>
+<p>Register names can be all lowercase or all caps.</p>
+<ul>
+<li><code>a</code> / <code>A</code></li>
+<li><code>f</code> / <code>F</code></li>
+<li><code>b</code> / <code>B</code></li>
+<li><code>c</code> / <code>C</code></li>
+<li><code>d</code> / <code>D</code></li>
+<li><code>e</code> / <code>E</code></li>
+<li><code>h</code> / <code>H</code></li>
+<li><code>l</code> / <code>L</code></li>
+<li><code>af</code> / <code>AF</code></li>
+<li><code>bc</code> / <code>BC</code></li>
+<li><code>de</code> / <code>DE</code></li>
+<li><code>hl</code> / <code>HL</code></li>
+</ul>
+<h3 id="conditions"><a class="header" href="#conditions">Conditions</a></h3>
+<p>Conditions can similarly be all lowercase or all caps</p>
+<ul>
+<li><code>c</code> / <code>C</code></li>
+<li><code>z</code> / <code>Z</code></li>
+<li><code>nc</code> / <code>NC</code></li>
+<li><code>nz</code> / <code>NZ</code></li>
+</ul>
+<h3 id="keywords"><a class="header" href="#keywords">Keywords</a></h3>
+<p>All other keywords only allow a lowercase spelling</p>
+<ul>
+<li><code>break</code></li>
+<li><code>const</code></li>
+<li><code>continue</code></li>
+<li><code>fn</code></li>
+<li><code>loop</code></li>
+<li><code>return</code></li>
+<li><code>static</code></li>
+</ul>
+<h3 id="numbers"><a class="header" href="#numbers">Numbers</a></h3>
+<p>Numbers can be written in decimal, hexadecimal, or binary.</p>
+<ul>
+<li>Decimal numbers must start with a digit.</li>
+<li>Hexadecimal numbers are prefixed with <code>$</code></li>
+<li>Binary numbers are prefixed with <code>%</code></li>
+</ul>
+<pre><code>123
+$AB12
+%101011
+</code></pre>
+<p>Underscores can be used within a number literal, and they don't affect the value
+the literal represents.</p>
+<pre><code>1_234 == 1234
+</code></pre>
+<h3 id="identifiers"><a class="header" href="#identifiers">Identifiers</a></h3>
+<p>Identifiers in Yagbas work essentially like Rust and C style identifiers.</p>
+<ul>
+<li>They must start with an underscore or an ascii letter.</li>
+<li>They can contain underscores, ascii letters, or digits.</li>
+</ul>
+<h3 id="token-tree-groupings"><a class="header" href="#token-tree-groupings">Token Tree Groupings</a></h3>
+<p>Certain punctuation will open and close a "token tree" group.</p>
+<ul>
+<li><code>(</code> and <code>)</code></li>
+<li><code>{</code> and <code>}</code></li>
+<li><code>[</code> and <code>]</code></li>
+<li><code>/*</code> and <code>*/</code></li>
+</ul>
+<p>Token trees can contain inner token trees, but the group markers must balance
+out. If they are unbalanced then essentially the entire rest of the file cannot
+be processed by the parser.</p>
+<h2 id="items"><a class="header" href="#items">Items</a></h2>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../items/functions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="introduction.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../statements/function_calls.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -199,13 +270,10 @@ of statements expand to more than one assembly instruction during compilation.</
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../items/functions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="introduction.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../statements/function_calls.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
             </nav>
 
         </div>
@@ -218,13 +286,13 @@ of statements expand to more than one assembly instruction during compilation.</
         </script>
 
 
-        <script src="../elasticlunr.min.js"></script>
-        <script src="../mark.min.js"></script>
-        <script src="../searcher.js"></script>
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
 
-        <script src="../clipboard.min.js"></script>
-        <script src="../highlight.js"></script>
-        <script src="../book.js"></script>
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
 
         <!-- Custom JS scripts -->
 
