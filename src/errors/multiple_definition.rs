@@ -1,3 +1,7 @@
+use std::collections::{hash_map::Entry, HashMap};
+
+use crate::item::Item;
+
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -32,5 +36,27 @@ impl MultipleDefinition {
       .with_message(format!("Multiple Definitions given for `{}`", self.name))
       .with_labels(self.file_spans.iter().copied().map(Label::new))
       .finish()
+  }
+}
+
+pub fn check_multiple_definitions(
+  items: &[FileSpanned<Item>], err_bucket: &mut Vec<YagError>,
+) {
+  let mut definition_sites: HashMap<StrID, Vec<FileSpan>> = HashMap::new();
+  for item in items {
+    if let Some(name) = item.get_name() {
+      match definition_sites.entry(name._payload) {
+        Entry::Occupied(mut oe) => oe.get_mut().push(name._span),
+        Entry::Vacant(ve) => drop(ve.insert(vec![name._span])),
+      }
+    }
+  }
+  for (name, sites) in definition_sites.into_iter() {
+    if sites.len() > 1 {
+      err_bucket.push(YagError::MultipleDefinition(MultipleDefinition {
+        name,
+        file_spans: sites,
+      }))
+    }
   }
 }

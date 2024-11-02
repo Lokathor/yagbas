@@ -16,7 +16,6 @@ use src_files::FileSpanned;
 use str_id::StrID;
 
 pub mod asm;
-pub mod checks;
 pub mod errors;
 pub mod item;
 pub mod parsing;

@@ -11,8 +11,7 @@ use std::{
   path::{Path, PathBuf},
 };
 use yagbas::{
-  checks::check_multiple_definitions,
-  errors::YagError,
+  errors::{check_multiple_definitions, YagError},
   parsing::token_tree_p,
   src_files::{FileSpan, FileSpanned, SrcFile, SrcID},
   str_id::StrID,
