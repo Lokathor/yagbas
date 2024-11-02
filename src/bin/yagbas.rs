@@ -12,11 +12,9 @@ use std::{
 };
 use yagbas::{
   checks::check_multiple_definitions,
+  errors::YagError,
   parsing::token_tree_p,
-  src_files::{
-    FileSpan, FileSpanned, ItemParseResult, LexOutput, SrcFile, SrcID,
-    TokenTreeParseResult,
-  },
+  src_files::{FileSpan, FileSpanned, SrcFile, SrcID},
   str_id::StrID,
   token::Token,
   token_tree::TokenTree,
@@ -147,88 +145,120 @@ fn report_these_errors<T>(
   }
 }
 
+fn report_all_the_errors(
+  src_files: Vec<SrcFile>, err_bucket: Vec<YagError>,
+  message_size: Option<MessageSize>,
+) {
+  let mut ariadne_cache = sources(
+    src_files.iter().map(|src_file| (src_file.get_id(), src_file.text())),
+  );
+  let base_config =
+    Config::new().with_char_set(CharSet::Ascii).with_color(false);
+  match message_size.unwrap_or_default() {
+    MessageSize::OneLine => {
+      for err in err_bucket {
+        eprintln!("{}", err.one_line());
+      }
+    }
+    MessageSize::Bulky => {
+      for err in err_bucket {
+        let config = base_config.with_compact(false);
+        err.build_report(config).eprint(&mut ariadne_cache);
+      }
+    }
+    MessageSize::Compact => {
+      for err in err_bucket {
+        let config = base_config.with_compact(true);
+        err.build_report(config).eprint(&mut ariadne_cache);
+      }
+    }
+  }
+}
+
 pub fn do_tokenize(args: TokenizeArgs) {
+  let mut src_files = Vec::new();
+  let mut err_bucket = Vec::new();
   for filename in &args.files {
     let src_file = match SrcFile::read_from_path(&filename) {
       Ok(src_file) => src_file,
       Err(io_error) => {
-        eprintln!("{filename}: File IO Error: {io_error}");
+        err_bucket.push(YagError::FileIO {
+          filename: filename.to_string(),
+          message: io_error.to_string(),
+        });
         continue;
       }
     };
-    let LexOutput { tokens, lex_errors } = src_file.lex_tokens();
+    let tokens = src_file.lex_tokens(&mut err_bucket);
+    src_files.push(src_file);
+    //
     println!("{filename}: {tokens:?}");
-    if !lex_errors.is_empty() {
-      println!("{filename}: ERRORS: {lex_errors:?}");
-    }
   }
+  report_all_the_errors(src_files, err_bucket, args.message_size);
 }
 
 pub fn do_trees(args: TreesArgs) {
+  let mut src_files = Vec::new();
+  let mut err_bucket = Vec::new();
   for filename in &args.files {
     let src_file = match SrcFile::read_from_path(&filename) {
       Ok(src_file) => src_file,
       Err(io_error) => {
-        eprintln!("{filename}: File IO Error: {io_error}");
+        err_bucket.push(YagError::FileIO {
+          filename: filename.to_string(),
+          message: io_error.to_string(),
+        });
         continue;
       }
     };
-    let TokenTreeParseResult { trees, tree_errors } =
-      src_file.parse_token_trees();
+    let trees = src_file.parse_token_trees(&mut err_bucket);
+    src_files.push(src_file);
+    //
     println!("=TREES {filename}: {trees:?}");
-    if !tree_errors.is_empty() {
-      report_these_errors(
-        src_file.get_id(),
-        &tree_errors,
-        args.message_size.unwrap_or_default(),
-      )
-    }
   }
+  report_all_the_errors(src_files, err_bucket, args.message_size);
 }
 
 pub fn do_items(args: ItemsArgs) {
+  let mut src_files = Vec::new();
+  let mut err_bucket = Vec::new();
   for filename in &args.files {
     let src_file = match SrcFile::read_from_path(&filename) {
       Ok(src_file) => src_file,
       Err(io_error) => {
-        eprintln!("{filename}: File IO Error: {io_error}");
+        err_bucket.push(YagError::FileIO {
+          filename: filename.to_string(),
+          message: io_error.to_string(),
+        });
         continue;
       }
     };
-    let ItemParseResult { items, item_errors } = src_file.parse_items();
+    let items = src_file.parse_items(&mut err_bucket);
+    src_files.push(src_file);
+    //
     println!("=ITEMS {filename}: {items:?}");
-    if !item_errors.is_empty() {
-      report_these_errors(
-        src_file.get_id(),
-        &item_errors,
-        args.message_size.unwrap_or_default(),
-      )
-    }
   }
+  report_all_the_errors(src_files, err_bucket, args.message_size);
 }
 
 pub fn do_check(args: CheckArgs) {
+  let mut src_files = Vec::new();
+  let mut err_bucket = Vec::new();
   for filename in &args.files {
     let src_file = match SrcFile::read_from_path(&filename) {
       Ok(src_file) => src_file,
       Err(io_error) => {
-        eprintln!("{filename}: File IO Error: {io_error}");
+        err_bucket.push(YagError::FileIO {
+          filename: filename.to_string(),
+          message: io_error.to_string(),
+        });
         continue;
       }
     };
-    let ItemParseResult { items, item_errors } = src_file.parse_items();
-    if !item_errors.is_empty() {
-      report_these_errors(
-        src_file.get_id(),
-        &item_errors,
-        args.message_size.unwrap_or_default(),
-      )
-    } else {
-      let multi_def_errors = check_multiple_definitions(&items);
-      for multi_def_error in multi_def_errors {
-        // TODO: this message isn't helpful.
-        println!("{multi_def_error:?}");
-      }
-    }
+    let items = src_file.parse_items(&mut err_bucket);
+    src_files.push(src_file);
+    //
+    check_multiple_definitions(&items, &mut err_bucket);
   }
+  report_all_the_errors(src_files, err_bucket, args.message_size);
 }

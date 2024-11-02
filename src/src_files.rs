@@ -1,4 +1,5 @@
 use crate::{
+  errors::YagError,
   item::Item,
   parsing::{item_p, newline_p, token_tree_p},
   token::Token,
@@ -103,19 +104,21 @@ impl SrcFile {
   }
 
   #[inline]
-  pub fn lex_tokens(&self) -> LexOutput {
-    let mut output = LexOutput::default();
+  pub fn lex_tokens(
+    &self, err_bucket: &mut Vec<YagError>,
+  ) -> Vec<FileSpanned<Token>> {
+    let mut output = Vec::new();
     let mut lexer = Token::lexer(&self.file_text);
     let id = self.get_id();
     while let Some(res) = lexer.next() {
       let file_span = FileSpan::new(id, lexer.span());
       match res {
         Ok(token) => {
-          output.tokens.push(FileSpanned::new(token, file_span));
+          output.push(FileSpanned::new(token, file_span));
         }
         Err(()) => {
-          output.tokens.push(FileSpanned::new(Token::TokenError, file_span));
-          output.lex_errors.push(file_span);
+          output.push(FileSpanned::new(Token::TokenError, file_span));
+          err_bucket.push(YagError::Tokenization(file_span));
         }
       }
     }
@@ -123,11 +126,10 @@ impl SrcFile {
   }
 
   #[must_use]
-  pub fn parse_token_trees(&self) -> TokenTreeParseResult {
-    let LexOutput { tokens, lex_errors } = self.lex_tokens();
-    for lex_error in lex_errors {
-      println!("=LEXING ERROR: {lex_error:?}");
-    }
+  pub fn parse_token_trees(
+    &self, err_bucket: &mut Vec<YagError>,
+  ) -> Vec<FileSpanned<TokenTree>> {
+    let tokens = self.lex_tokens(err_bucket);
     let end_span = FileSpan {
       id: self.get_id(),
       start: self.text().len(),
@@ -144,17 +146,16 @@ impl SrcFile {
       .parse(Input::map(&tokens[..], end_span, |fs| (&fs._payload, &fs._span)))
       .into_output_errors();
     let trees: Vec<FileSpanned<TokenTree>> = opt_output.unwrap_or_default();
-    let tree_errors: Vec<Rich<'static, Token, FileSpan>> =
-      errors.into_iter().map(|e| e.into_owned()).collect();
-    TokenTreeParseResult { trees, tree_errors }
+    err_bucket
+      .extend(errors.into_iter().map(|e| YagError::TokenTree(e.into_owned())));
+    trees
   }
 
   #[must_use]
-  pub fn parse_items(&self) -> ItemParseResult {
-    let TokenTreeParseResult { trees, tree_errors } = self.parse_token_trees();
-    for tree_error in tree_errors {
-      println!("=TREE ERROR: {tree_error:?}");
-    }
+  pub fn parse_items(
+    &self, err_bucket: &mut Vec<YagError>,
+  ) -> Vec<FileSpanned<Item>> {
+    let trees = self.parse_token_trees(err_bucket);
     let end_span = FileSpan {
       id: self.get_id(),
       start: self.text().len(),
@@ -182,9 +183,10 @@ impl SrcFile {
       .parse(make_input(trees.as_slice(), end_span))
       .into_output_errors();
     let items: Vec<FileSpanned<Item>> = opt_output.unwrap_or_default();
-    let item_errors: Vec<Rich<'static, TokenTree, FileSpan>> =
-      item_errors_unowned.into_iter().map(|e| e.into_owned()).collect();
-    ItemParseResult { items, item_errors }
+    err_bucket.extend(
+      item_errors_unowned.into_iter().map(|e| YagError::Item(e.into_owned())),
+    );
+    items
   }
 }
 
@@ -194,24 +196,6 @@ fn make_input<'src>(
 ) -> impl BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>
 {
   tokens.map(eoi, |fsd| (&fsd._payload, &fsd._span))
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct LexOutput {
-  pub tokens: Vec<FileSpanned<Token>>,
-  pub lex_errors: Vec<FileSpan>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct TokenTreeParseResult {
-  pub trees: Vec<FileSpanned<TokenTree>>,
-  pub tree_errors: Vec<Rich<'static, Token, FileSpan>>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ItemParseResult {
-  pub items: Vec<FileSpanned<Item>>,
-  pub item_errors: Vec<Rich<'static, TokenTree, FileSpan>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -305,7 +289,7 @@ impl Default for SrcID {
   }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileSpan {
   pub id: SrcID,
   pub start: usize,

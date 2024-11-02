@@ -5,6 +5,8 @@ fn empty_fn() {}
 fn newline_fn() {
 }
 
+fn empty_fn() {}
+
 fn just_return_fn() {return}
 
 fn return_with_newlines() {
