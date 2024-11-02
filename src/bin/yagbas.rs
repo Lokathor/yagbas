@@ -109,42 +109,6 @@ pub fn main() {
   }
 }
 
-fn report_these_errors<T>(
-  id: SrcID, errors: &[Rich<'static, T, FileSpan, &str>],
-  message_size: MessageSize,
-) where
-  T: core::fmt::Debug,
-{
-  let compact_messages: bool = match message_size {
-    MessageSize::OneLine => {
-      for error in errors {
-        println!("{id}: {error:?}");
-      }
-      return;
-    }
-    MessageSize::Bulky => false,
-    MessageSize::Compact => true,
-  };
-  let mut the_cache = sources(vec![(id, id.get_src_file().text())]);
-  for error in errors {
-    let file_span: FileSpan = *error.span();
-    Report::build(ReportKind::Error, file_span)
-      .with_message(format!("{error:?}"))
-      .with_config(
-        Config::default()
-          .with_color(false)
-          .with_char_set(CharSet::Ascii)
-          .with_compact(compact_messages),
-      )
-      .with_labels(error.contexts().map(|(context, file_span)| {
-        Label::new(*file_span).with_message(format!("while parsing {context}"))
-      }))
-      .finish()
-      .eprint(&mut the_cache)
-      .unwrap();
-  }
-}
-
 fn report_all_the_errors(
   src_files: Vec<SrcFile>, err_bucket: Vec<YagError>,
   message_size: Option<MessageSize>,
