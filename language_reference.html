@@ -186,6 +186,9 @@ comment */
 <p>Single line comments start with <code>//</code> and go to the end of the line.</p>
 <pre><code class="language-rs">// single line comment
 </code></pre>
+<p>A single line comment marker takes priority over multi line comment markers, and
+will "comment out" a multi line comment open or close marker that appears after
+it on the same line.</p>
 <h3 id="registers"><a class="header" href="#registers">Registers</a></h3>
 <p>Register names can be all lowercase or all caps.</p>
 <ul>
@@ -210,6 +213,8 @@ comment */
 <li><code>nc</code> / <code>NC</code></li>
 <li><code>nz</code> / <code>NZ</code></li>
 </ul>
+<p>Note that <code>c</code> is both a register name and a condition name. The meaning of the
+token is always sufficiently clear from the surrounding context.</p>
 <h3 id="keywords"><a class="header" href="#keywords">Keywords</a></h3>
 <p>All other keywords only allow a lowercase spelling</p>
 <ul>
@@ -241,6 +246,7 @@ the literal represents.</p>
 <ul>
 <li>They must start with an underscore or an ascii letter.</li>
 <li>They can contain underscores, ascii letters, or digits.</li>
+<li>They can't be any other keyword, such as <code>a</code>, <code>nz</code>, or <code>break</code>.</li>
 </ul>
 <h3 id="token-tree-groupings"><a class="header" href="#token-tree-groupings">Token Tree Groupings</a></h3>
 <p>Certain punctuation will open and close a "token tree" group.</p>
@@ -254,6 +260,59 @@ the literal represents.</p>
 out. If they are unbalanced then essentially the entire rest of the file cannot
 be processed by the parser.</p>
 <h2 id="items"><a class="header" href="#items">Items</a></h2>
+<p>Items are defined at the top level of a source file.</p>
+<p>The order that items are defined in has no effect.</p>
+<h3 id="functions"><a class="header" href="#functions">Functions</a></h3>
+<p>Functions define executable code that runs as part of the program.</p>
+<pre><code>fn NAME() {
+  // statement 1
+  // statement 2
+  // ...
+  // statement n
+}
+</code></pre>
+<p>Each function has a name and a body. The body of the function contains the
+statements to execute in order to make the program do whatever it's supposed to.</p>
+<p>Statements are written one per line. If more than one statement is desired on
+the same line then a <code>;</code> can be used, but this is not the standard style.</p>
+<h2 id="statements"><a class="header" href="#statements">Statements</a></h2>
+<h3 id="calls-and-returns"><a class="header" href="#calls-and-returns">Calls and Returns</a></h3>
+<p>Function calls are written with the name of the function call followed by parenthesis.</p>
+<pre><code>some_function()
+</code></pre>
+<p>A function returns to its caller with the <code>return</code> keyword.</p>
+<pre><code>return
+</code></pre>
+<h3 id="loop-break-and-continue"><a class="header" href="#loop-break-and-continue">Loop, Break, and Continue</a></h3>
+<p>A loop is used to execute a block of statements over and over.</p>
+<pre><code>loop {
+  // statement 1
+  // statement 2
+  // ...
+  // statement n
+}
+</code></pre>
+<p>Within a loop, the <code>break</code> keyword can be used to skip the rest of the loop body
+and jump to after the loop. Similarly, the <code>continue</code> keyword can be used to
+jump back to the start of the loop body. When one loop is contained in another,
+<code>break</code> and <code>continue</code> go to the end or start of the innermost loop.</p>
+<p>Loops can optionally have a name given to them:</p>
+<pre><code>'name: loop {
+  // ...
+}
+</code></pre>
+<p>When a loop has a name, then <code>break</code> and <code>continue</code> can go to the end or start
+of that loop by giving that name after the keyword.</p>
+<pre><code>'foo: loop {
+  loop {
+    break 'foo // this goes to the end of the "foo" loop
+  }
+  return // this line is skipped by the `break` above.
+}
+</code></pre>
+<p>This allows the program to jump from one loop nested inside of another "all the
+way" to the start or end of an outer loop.</p>
+<p>The <code>break</code> and <code>continue</code> keywords cannot be used outside of a loop.</p>
 
                     </main>
 
