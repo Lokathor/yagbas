@@ -1,0 +1,11 @@
+// example assignments
+
+fn reg8() {
+  a = 1;
+  b = 2
+  c = 3
+  d = -4
+  e = 255
+  h = -128
+  l = 127
+}
