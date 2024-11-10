@@ -1,6 +1,6 @@
 use crate::{
+  ast::token::Token::{self, *},
   src_files::{FileSpan, FileSpanned},
-  token::Token::{self, *},
 };
 use chumsky::{
   input::{BorrowInput, Input, ValueInput},

@@ -1,6 +1,6 @@
 use std::collections::{hash_map::Entry, HashMap};
 
-use crate::item::Item;
+use crate::ast::Item;
 
 use super::*;
 

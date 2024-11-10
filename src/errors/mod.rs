@@ -2,10 +2,9 @@ use ariadne::{Cache, CharSet, Config, Label, Report, ReportKind};
 use chumsky::error::Rich;
 
 use crate::{
+  ast::{token::Token, token_tree::TokenTree},
   src_files::{FileSpan, FileSpanned, SrcID},
   str_id::StrID,
-  token::Token,
-  token_tree::TokenTree,
 };
 
 mod multiple_definition;
