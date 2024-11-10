@@ -42,15 +42,12 @@ impl MultipleDefinition {
 pub fn check_multiple_definitions(
   items: &[FileSpanned<Item>], err_bucket: &mut Vec<YagError>,
 ) {
+  // Build a mapping for each name, where its defined.
   let mut definition_sites: HashMap<StrID, Vec<FileSpan>> = HashMap::new();
-  for item in items {
-    if let Some(name) = item.get_name() {
-      match definition_sites.entry(name._payload) {
-        Entry::Occupied(mut oe) => oe.get_mut().push(name._span),
-        Entry::Vacant(ve) => drop(ve.insert(vec![name._span])),
-      }
-    }
+  for name in items.iter().filter_map(|i| i.get_name()) {
+    definition_sites.entry(name._payload).or_default().push(name._span);
   }
+  // now if any name is defined in more than one place we record an error.
   for (name, sites) in definition_sites.into_iter() {
     if sites.len() > 1 {
       err_bucket.push(YagError::MultipleDefinition(MultipleDefinition {
