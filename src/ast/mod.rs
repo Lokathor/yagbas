@@ -30,6 +30,17 @@ pub struct Function {
   pub statements: Vec<FileSpanned<Statement>>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Reg8 {
+  A,
+  B,
+  C,
+  D,
+  E,
+  H,
+  L,
+}
+
 /// A "single chunk of code" in yagbas.
 ///
 /// Most statements are "one line" of code, but the variants for control flow
@@ -41,6 +52,7 @@ pub enum Statement {
   Loop(Loop),
   Continue(StrID),
   Break(StrID),
+  Assign8Const { target: Reg8, value: StrID },
   StatementError,
 }
 

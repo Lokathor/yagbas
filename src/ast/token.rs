@@ -168,4 +168,11 @@ impl Token {
   ) -> Lexer<'source, Self> {
     <Self as Logos>::lexer_with_extras(source, extras)
   }
+
+  #[inline]
+  #[must_use]
+  pub fn is_reg8(self) -> bool {
+    use Token::*;
+    matches!(self, KwA | KwB | KwC | KwD | KwE | KwH | KwL)
+  }
 }

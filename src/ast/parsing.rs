@@ -1,5 +1,5 @@
 use crate::{
-  ast::{Function, Item, Loop, Statement},
+  ast::{Function, Item, Loop, Reg8, Statement},
   src_files::{FileSpan, FileSpanned},
   str_id::StrID,
 };
@@ -254,7 +254,21 @@ where
       .labelled("call_stmt")
       .as_context();
 
-    let x = choice((kw_return_p(), call, loop_stmt, continue_stmt, break_stmt));
+    let assign8_const = reg8_p()
+      .then_ignore(equal_p())
+      .then(num_lit_p())
+      .map(|(target, value)| Statement::Assign8Const { target, value })
+      .labelled("assign8_const")
+      .as_context();
+
+    let x = choice((
+      kw_return_p(),
+      call,
+      loop_stmt,
+      continue_stmt,
+      break_stmt,
+      assign8_const,
+    ));
 
     x
   })
@@ -349,6 +363,17 @@ where
   }
 }
 
+/// Parses a `Lone(Equal)`, which is then discarded.
+pub fn equal_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Equal) => (),
+  }
+}
+
 /// Parses a `Lone(KwReturn)` and returns `Statement::Return` instead.
 pub fn kw_return_p<'src, I>(
 ) -> impl Parser<'src, I, Statement, ErrRichTokenTree<'src>> + Clone
@@ -368,6 +393,33 @@ where
 {
   select! {
     Lone(Ident(i)) => i,
+  }
+}
+
+/// Parses an 8-bit register keyword and returns it.
+pub fn reg8_p<'src, I>(
+) -> impl Parser<'src, I, Reg8, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwA) => Reg8::A,
+    Lone(KwB) => Reg8::B,
+    Lone(KwC) => Reg8::C,
+    Lone(KwD) => Reg8::D,
+    Lone(KwE) => Reg8::E,
+    Lone(KwH) => Reg8::H,
+    Lone(KwL) => Reg8::L,
+  }
+}
+
+pub fn num_lit_p<'src, I>(
+) -> impl Parser<'src, I, StrID, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(NumLit(str_id)) => str_id,
   }
 }
 

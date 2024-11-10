@@ -1,11 +1,18 @@
 // example assignments
 
-fn reg8() {
+fn reg8_const() {
   a = 1;
   b = 2
   c = 3
-  d = -4
+  //d = -4
   e = 255
-  h = -128
+  //h = -128
   l = 127
+}
+
+fn reg8_reg8() {
+  //a = a
+  //b = c
+  //c = h
+  //l = e
 }
