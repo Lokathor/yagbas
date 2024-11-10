@@ -12,9 +12,6 @@
 //!   reading right now) is **NOT** covered by the semantic version of the
 //!   package.
 
-use src_files::FileSpanned;
-use str_id::StrID;
-
 pub mod asm;
 pub mod errors;
 pub mod item;
