@@ -12,11 +12,8 @@ use std::{
 };
 use yagbas::{
   errors::{check_multiple_definitions, YagError},
-  parsing::token_tree_p,
   src_files::{FileSpan, FileSpanned, SrcFile, SrcID},
   str_id::StrID,
-  token::Token,
-  token_tree::TokenTree,
 };
 
 #[test]
