@@ -5,11 +5,4 @@ fn foo() {
 
 fn bar() {
   foo()
-  zap()
-  zap()
-  zap()
-}
-
-fn other_function() {
-  zap()
 }
