@@ -11,7 +11,7 @@ use std::{
   path::{Path, PathBuf},
 };
 use yagbas::{
-  errors::{check_multiple_definitions, YagError},
+  errors::{check_call_targets, check_multiple_definitions, YagError},
   src_files::{FileSpan, FileSpanned, SrcFile, SrcID},
   str_id::StrID,
 };
@@ -219,6 +219,7 @@ pub fn do_check(args: CheckArgs) {
     src_files.push(src_file);
     //
     check_multiple_definitions(&items, &mut err_bucket);
+    check_call_targets(&items, &mut err_bucket);
   }
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }

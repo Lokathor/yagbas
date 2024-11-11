@@ -2,13 +2,17 @@ use ariadne::{Cache, CharSet, Config, Label, Report, ReportKind};
 use chumsky::error::Rich;
 
 use crate::{
-  ast::{token::Token, token_tree::TokenTree},
+  ast::{token::Token, token_tree::TokenTree, Item},
   src_files::{FileSpan, FileSpanned, SrcID},
   str_id::StrID,
 };
+use std::collections::{hash_map::Entry, HashMap};
 
 mod multiple_definition;
 pub use multiple_definition::*;
+
+mod call_target_illegal;
+pub use call_target_illegal::*;
 
 #[derive(Debug, Clone)]
 pub enum YagError {
@@ -17,6 +21,7 @@ pub enum YagError {
   TokenTree(Rich<'static, Token, FileSpan, &'static str>),
   Item(Rich<'static, TokenTree, FileSpan, &'static str>),
   MultipleDefinition(MultipleDefinition),
+  CallTargetIllegal(CallTargetIllegal),
 }
 impl YagError {
   pub fn one_line(&self) -> String {
@@ -31,6 +36,9 @@ impl YagError {
       YagError::Item(rich) => format!("Error: Item: {rich:?}"),
       YagError::MultipleDefinition(multiple_definition) => {
         multiple_definition.one_line()
+      }
+      YagError::CallTargetIllegal(call_target_legal) => {
+        call_target_legal.one_line()
       }
     }
   }
@@ -70,6 +78,9 @@ impl YagError {
         .finish(),
       YagError::MultipleDefinition(multiple_definition) => {
         multiple_definition.build_report(config)
+      }
+      YagError::CallTargetIllegal(call_target_legal) => {
+        call_target_legal.build_report(config)
       }
     }
   }

@@ -2,7 +2,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use token_tree::TokenTree;
 
-use crate::{src_files::FileSpanned, str_id::StrID};
+use crate::{
+  src_files::{FileSpan, FileSpanned},
+  str_id::StrID,
+};
 
 pub mod parsing;
 pub mod token;
@@ -14,12 +17,49 @@ pub enum Item {
   ItemError,
 }
 impl Item {
-  /// The name of the item, but item errors do not have a name.
+  /// The name of the item, if any.
+  ///
+  /// Currently, only errors do not have a name.
+  #[inline]
+  #[must_use]
   pub fn get_name(&self) -> Option<FileSpanned<StrID>> {
     match self {
       Item::Function(Function { name, .. }) => Some(*name),
       Item::ItemError => None,
     }
+  }
+
+  /// Gets the `Function` contained, if any.
+  #[inline]
+  #[must_use]
+  pub fn get_function(&self) -> Option<&Function> {
+    match self {
+      Self::Function(f) => Some(f),
+      _ => None,
+    }
+  }
+
+  #[inline]
+  #[must_use]
+  pub fn kind(&self) -> ItemKind {
+    match self {
+      Item::Function(function) => ItemKind::Function,
+      Item::ItemError => ItemKind::Error,
+    }
+  }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ItemKind {
+  Function,
+  Const,
+  Static,
+  Error,
+}
+impl core::fmt::Display for ItemKind {
+  #[inline]
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    core::fmt::Debug::fmt(self, f)
   }
 }
 
@@ -28,6 +68,27 @@ pub struct Function {
   pub name: FileSpanned<StrID>,
   pub arguments: Vec<FileSpanned<TokenTree>>,
   pub statements: Vec<FileSpanned<Statement>>,
+}
+impl Function {
+  #[inline]
+  #[must_use]
+  pub fn get_name(&self) -> StrID {
+    self.name._payload
+  }
+
+  #[inline]
+  #[must_use]
+  pub fn targets_called(&self) -> Vec<FileSpanned<StrID>> {
+    self
+      .statements
+      .iter()
+      .flat_map(|s| {
+        s.targets_called()
+          .into_iter()
+          .map(|_payload| FileSpanned { _payload, _span: s._span })
+      })
+      .collect()
+  }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -54,6 +115,19 @@ pub enum Statement {
   Break(StrID),
   Assign8Const { target: Reg8, value: StrID },
   StatementError,
+}
+impl Statement {
+  #[inline]
+  #[must_use]
+  pub fn targets_called(&self) -> Vec<StrID> {
+    match self {
+      Statement::Call { target, .. } => vec![*target],
+      Statement::Loop(Loop { statements, .. }) => {
+        statements.iter().flat_map(|s| s.targets_called()).collect()
+      }
+      _ => Vec::new(),
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
