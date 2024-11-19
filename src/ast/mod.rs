@@ -7,6 +7,7 @@ use crate::{
   str_id::StrID,
 };
 
+pub mod const_expr;
 pub mod parsing;
 pub mod token;
 pub mod token_tree;
