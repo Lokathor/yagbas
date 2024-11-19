@@ -2,6 +2,7 @@
 #![allow(clippy::ptr_arg)]
 #![allow(clippy::let_and_return)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::double_parens)]
 
 //! Yagbas is a compiler for a language of the same name.
 //!

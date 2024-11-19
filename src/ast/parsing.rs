@@ -10,8 +10,9 @@ use chumsky::{
 };
 
 use super::{
-  token::{Token, Token::*},
-  token_tree::{TokenTree, TokenTree::*},
+  const_expr::ConstExpr,
+  token::Token::{self, *},
+  token_tree::TokenTree::{self, *},
 };
 
 pub type ErrRichToken<'src> = Err<Rich<'src, Token, FileSpan>>;
@@ -256,8 +257,11 @@ where
 
     let assign8_const = reg8_p()
       .then_ignore(equal_p())
-      .then(num_lit_p())
-      .map(|(target, value)| Statement::AssignReg8Const { target, value })
+      .then(const_expr_p())
+      .map(|(target, expression)| Statement::AssignReg8Const {
+        target,
+        value: expression,
+      })
       .labelled("assign8_const")
       .as_context();
 
@@ -272,6 +276,28 @@ where
 
     x
   })
+}
+
+/// Parses a single constant expression.
+pub fn const_expr_p<'src, I>(
+) -> impl Parser<'src, I, ConstExpr, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  use chumsky::pratt::*;
+
+  let atom = num_lit_p().map(ConstExpr::Literal);
+
+  let expr = atom.pratt((
+    infix(left(1), plus_p(), |l, _op, r, extra| {
+      FileSpanned::new(ConstExpr::Add(Box::new(l), Box::new(r)), extra.span())
+    }),
+    infix(left(1), minus_p(), |l, _op, r, extra| {
+      FileSpanned::new(ConstExpr::Sub(Box::new(l), Box::new(r)), extra.span())
+    }),
+  ));
+
+  expr
 }
 
 /// Parses a `Lone(Newline)`, which is then discarded.
@@ -374,6 +400,28 @@ where
   }
 }
 
+/// Parses a `Lone(Plus)`, which is then discarded.
+pub fn plus_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Plus) => (),
+  }
+}
+
+/// Parses a `Lone(Minus)`, which is then discarded.
+pub fn minus_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Minus) => (),
+  }
+}
+
 /// Parses a `Lone(KwReturn)` and returns `Statement::Return` instead.
 pub fn kw_return_p<'src, I>(
 ) -> impl Parser<'src, I, Statement, ErrRichTokenTree<'src>> + Clone
@@ -413,6 +461,7 @@ where
   }
 }
 
+/// Parses `Lone(NumLit(x))`, returning `x`.
 pub fn num_lit_p<'src, I>(
 ) -> impl Parser<'src, I, StrID, ErrRichTokenTree<'src>> + Clone
 where

@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use const_expr::ConstExpr;
 use token_tree::TokenTree;
 
 use crate::{
@@ -114,7 +115,7 @@ pub enum Statement {
   Loop(Loop),
   Continue(StrID),
   Break(StrID),
-  AssignReg8Const { target: Reg8, value: StrID },
+  AssignReg8Const { target: Reg8, value: ConstExpr },
   StatementError,
 }
 impl Statement {
