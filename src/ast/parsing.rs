@@ -257,7 +257,7 @@ where
     let assign8_const = reg8_p()
       .then_ignore(equal_p())
       .then(num_lit_p())
-      .map(|(target, value)| Statement::Assign8Const { target, value })
+      .map(|(target, value)| Statement::AssignReg8Const { target, value })
       .labelled("assign8_const")
       .as_context();
 

@@ -113,7 +113,7 @@ pub enum Statement {
   Loop(Loop),
   Continue(StrID),
   Break(StrID),
-  Assign8Const { target: Reg8, value: StrID },
+  AssignReg8Const { target: Reg8, value: StrID },
   StatementError,
 }
 impl Statement {
