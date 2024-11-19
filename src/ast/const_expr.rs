@@ -4,10 +4,10 @@ use super::*;
 pub enum ConstExpr {
   Literal(StrID),
   Ident(StrID),
-  Add(Box<Self>, Box<Self>),
-  Sub(Box<Self>, Box<Self>),
-  Neg(Box<Self>),
-  Mul(Box<Self>, Box<Self>),
-  Div(Box<Self>, Box<Self>),
+  Add(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
+  Sub(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
+  Neg(Box<FileSpanned<Self>>),
+  Mul(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
+  Div(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
   ConstExprError,
 }
