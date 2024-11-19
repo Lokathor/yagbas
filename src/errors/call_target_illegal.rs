@@ -1,5 +1,3 @@
-use crate::ast::ItemKind;
-
 use super::*;
 
 #[derive(Debug, Clone)]

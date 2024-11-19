@@ -2,10 +2,11 @@ use ariadne::{Cache, CharSet, Config, Label, Report, ReportKind};
 use chumsky::error::Rich;
 
 use crate::{
-  ast::{token::Token, token_tree::TokenTree, Item},
+  ast::{token::Token, token_tree::TokenTree, Item, ItemKind},
   src_files::{FileSpan, FileSpanned, SrcID},
   str_id::StrID,
 };
+use core::fmt::Write;
 use std::collections::{hash_map::Entry, HashMap};
 
 mod multiple_definition;
@@ -13,6 +14,9 @@ pub use multiple_definition::*;
 
 mod call_target_illegal;
 pub use call_target_illegal::*;
+
+mod break_continue_illegal;
+pub use break_continue_illegal::*;
 
 #[derive(Debug, Clone)]
 pub enum YagError {
@@ -22,6 +26,7 @@ pub enum YagError {
   Item(Rich<'static, TokenTree, FileSpan, &'static str>),
   MultipleDefinition(MultipleDefinition),
   CallTargetIllegal(CallTargetIllegal),
+  BreakContinueIllegal(BreakContinueIllegal),
 }
 impl YagError {
   pub fn one_line(&self) -> String {
@@ -39,6 +44,9 @@ impl YagError {
       }
       YagError::CallTargetIllegal(call_target_legal) => {
         call_target_legal.one_line()
+      }
+      YagError::BreakContinueIllegal(break_continue_illegal) => {
+        break_continue_illegal.one_line()
       }
     }
   }
@@ -81,6 +89,9 @@ impl YagError {
       }
       YagError::CallTargetIllegal(call_target_legal) => {
         call_target_legal.build_report(config)
+      }
+      YagError::BreakContinueIllegal(break_continue_illegal) => {
+        break_continue_illegal.build_report(config)
       }
     }
   }
