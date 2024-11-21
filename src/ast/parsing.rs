@@ -258,10 +258,7 @@ where
     let assign8_const = reg8_p()
       .then_ignore(equal_p())
       .then(const_expr_p())
-      .map(|(target, expression)| Statement::AssignReg8Const {
-        target,
-        value: expression,
-      })
+      .map(|(target, value)| Statement::AssignReg8Const { target, value })
       .labelled("assign8_const")
       .as_context();
 
@@ -280,13 +277,15 @@ where
 
 /// Parses a single constant expression.
 pub fn const_expr_p<'src, I>(
-) -> impl Parser<'src, I, ConstExpr, ErrRichTokenTree<'src>> + Clone
+) -> impl Parser<'src, I, FileSpanned<ConstExpr>, ErrRichTokenTree<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
 {
   use chumsky::pratt::*;
 
-  let atom = num_lit_p().map(ConstExpr::Literal);
+  let atom = num_lit_p().map_with(|n, extras| {
+    FileSpanned::new(ConstExpr::Literal(n), extras.span())
+  });
 
   let expr = atom.pratt((
     infix(left(1), plus_p(), |l, _op, r, extra| {
