@@ -16,6 +16,7 @@ pub mod token_tree;
 #[derive(Debug, Clone)]
 pub enum Item {
   Function(Function),
+  NamedConst(NamedConst),
   ItemError,
 }
 impl Item {
@@ -28,6 +29,7 @@ impl Item {
     match self {
       Item::Function(Function { name, .. }) => Some(*name),
       Item::ItemError => None,
+      Item::NamedConst(NamedConst { name, .. }) => Some(*name),
     }
   }
 
@@ -47,6 +49,7 @@ impl Item {
     match self {
       Item::Function(function) => ItemKind::Function,
       Item::ItemError => ItemKind::Error,
+      Item::NamedConst(named_const) => ItemKind::NamedConst,
     }
   }
 }
@@ -54,7 +57,7 @@ impl Item {
 #[derive(Debug, Clone, Copy)]
 pub enum ItemKind {
   Function,
-  Const,
+  NamedConst,
   Static,
   Error,
 }
@@ -91,6 +94,13 @@ impl Function {
       })
       .collect()
   }
+}
+
+/// A named constant expression.
+#[derive(Debug, Clone)]
+pub struct NamedConst {
+  pub name: FileSpanned<StrID>,
+  pub expr: FileSpanned<ConstExpr>,
 }
 
 #[derive(Debug, Clone, Copy)]

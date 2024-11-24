@@ -1,0 +1,7 @@
+
+// Audio Master Control
+const NR52 = $FF26
+
+fn main() {
+  a = 0
+}

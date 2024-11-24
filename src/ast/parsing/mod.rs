@@ -13,6 +13,7 @@ use super::{
   const_expr::ConstExpr,
   token::Token::{self, *},
   token_tree::TokenTree::{self, *},
+  NamedConst,
 };
 
 pub type ErrRichToken<'src> = Err<Rich<'src, Token, FileSpan>>;
@@ -30,8 +31,9 @@ where
   M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
 {
   let function = function_p(make_input).map(Item::Function);
+  let named_const = named_const_p(make_input).map(Item::NamedConst);
 
-  let x = choice((function,));
+  let x = choice((function, named_const));
 
   x
 }
@@ -65,6 +67,35 @@ where
     |((name, arguments), statements)| Function { name, arguments, statements },
   )
   .labelled("function")
+  .as_context();
+
+  x
+}
+
+/// Parses [TokenTree] into specifically a [NamedConst]
+pub fn named_const_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, NamedConst, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
+{
+  let name = ident_p()
+    .map_with(|i, e| FileSpanned::new(i, e.span()))
+    .labelled("const_name")
+    .as_context();
+  let expr = const_expr_p(make_input).labelled("const_expression").as_context();
+  // Note(Lokathor): This stupid thing is because RA is weird sometimes.
+  // https://github.com/rust-lang/rust-analyzer/issues/18542
+  let x = Parser::map(
+    kw_const_p()
+      .ignore_then(name)
+      .then_ignore(equal_p())
+      .then(expr)
+      .then_ignore(statement_sep_p()),
+    |(name, expr)| NamedConst { name, expr },
+  )
+  .labelled("named_const")
   .as_context();
 
   x
@@ -235,6 +266,17 @@ where
 {
   select! {
     Lone(KwFn) => (),
+  }
+}
+
+/// Parses a `Lone(KwConst)`, which is then discarded.
+pub fn kw_const_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwConst) => (),
   }
 }
 
