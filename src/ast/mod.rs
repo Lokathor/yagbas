@@ -111,11 +111,18 @@ pub enum Reg8 {
 #[derive(Debug, Clone)]
 pub enum Statement {
   Return,
-  Call { target: StrID, args: Vec<FileSpanned<TokenTree>> },
+  Call {
+    target: StrID,
+    args: Vec<FileSpanned<TokenTree>>,
+  },
   Loop(Loop),
   Continue(StrID),
   Break(StrID),
-  AssignReg8Const { target: Reg8, value: FileSpanned<ConstExpr> },
+  /// Assign an 8-bit register the given constant value.
+  AssignReg8Const {
+    target: Reg8,
+    value: FileSpanned<ConstExpr>,
+  },
   StatementError,
 }
 impl Statement {
