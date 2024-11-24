@@ -38,9 +38,17 @@ where
 
     // Looks like something that does *NOT* open or close one of the other
     // types.
-    let single =
-      none_of([OpBracket, ClBracket, OpBrace, ClBrace, OpParen, ClParen])
-        .map(TokenTree::Lone);
+    let single = none_of([
+      OpBracket,
+      ClBracket,
+      OpBrace,
+      ClBrace,
+      OpParen,
+      ClParen,
+      CommentBlockStart,
+      CommentBlockEnd,
+    ])
+    .map(TokenTree::Lone);
 
     // comments get stripped from the output.
     let comment = {
