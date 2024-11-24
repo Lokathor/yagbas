@@ -264,6 +264,19 @@ be processed by the parser.</p>
 statements to execute in order to make the program do whatever it's supposed to.</p>
 <p>Statements are written one per line. If more than one statement is desired on
 the same line then a <code>;</code> can be used, but this is not the standard style.</p>
+<h2 id="expressions"><a class="header" href="#expressions">Expressions</a></h2>
+<p>Expressions are used primarily to evaluate constant values for use during compilation.</p>
+<p>Constant expressions are number literal values, constant identifiers, or
+parenthesis groups holding a constant expression. Constant expressions can be
+combined together using various math operators.</p>
+<p>Runtime expressions allow register names, and in some cases allow operators to
+be used to combine constants with a register value.</p>
+<p>Operators in Yagbas follow the same precedence ordering used by Rust. Operators
+at the same precedence level work left to right by default.</p>
+<ul>
+<li>Unary <code>-</code> (negation)</li>
+<li><code>+</code> and <code>-</code></li>
+</ul>
 <h2 id="statements"><a class="header" href="#statements">Statements</a></h2>
 <h3 id="calls-and-returns"><a class="header" href="#calls-and-returns">Calls and Returns</a></h3>
 <p>Function calls are written with the name of the function call followed by parenthesis.</p>
