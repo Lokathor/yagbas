@@ -22,56 +22,33 @@ pub enum TokenTree {
 }
 
 impl core::fmt::Debug for TokenTree {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let skip_threshold = 100;
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::Lone(t) => core::fmt::Debug::fmt(&t, f),
-      Self::Parens(ts) => {
-        if ts.len() > skip_threshold {
-          write!(f, "(...{} elements...)", ts.len())
-        } else {
-          write!(f, "(")?;
-          for (i, tt) in ts.iter().enumerate() {
-            if i > 0 {
-              write!(f, " ")?;
-            }
-            write!(f, "{tt:?}")?;
-          }
-          write!(f, ")")?;
-          Ok(())
-        }
-      }
-      Self::Brackets(ts) => {
-        if ts.len() > skip_threshold {
-          write!(f, "[...{} elements...]", ts.len())
-        } else {
-          write!(f, "[")?;
-          for (i, tt) in ts.iter().enumerate() {
-            if i > 0 {
-              write!(f, " ")?;
-            }
-            write!(f, "{tt:?}")?;
-          }
-          write!(f, "]")?;
-          Ok(())
-        }
-      }
-      Self::Braces(ts) => {
-        if ts.len() > skip_threshold {
-          write!(f, "{{...{} elements...}}", ts.len())
-        } else {
-          write!(f, "{{")?;
-          for (i, tt) in ts.iter().enumerate() {
-            if i > 0 {
-              write!(f, " ")?;
-            }
-            write!(f, "{tt:?}")?;
-          }
-          write!(f, "}}")?;
-          Ok(())
-        }
-      }
+      Self::Parens(tts) => fmt_tt_list("(", ")", tts, f),
+      Self::Brackets(tts) => fmt_tt_list("[", "]", tts, f),
+      Self::Braces(tts) => fmt_tt_list("{", "}", tts, f),
       Self::TreeError => write!(f, "TreeError"),
     }
   }
+}
+
+fn fmt_tt_list(
+  open: &str, close: &str, tts: &[FileSpanned<TokenTree>],
+  f: &mut core::fmt::Formatter<'_>,
+) -> core::fmt::Result {
+  let skip_threshold = 100;
+  write!(f, "{open}")?;
+  if tts.len() > skip_threshold {
+    write!(f, "...{} elements...", tts.len())?;
+  } else {
+    for (i, tt) in tts.iter().enumerate() {
+      if i > 0 {
+        write!(f, ", ")?;
+      }
+      core::fmt::Debug::fmt(&tt, f)?;
+    }
+  }
+  write!(f, "{close}")?;
+  Ok(())
 }
