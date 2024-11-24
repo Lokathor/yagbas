@@ -129,6 +129,23 @@ statements to execute in order to make the program do whatever it's supposed to.
 Statements are written one per line. If more than one statement is desired on
 the same line then a `;` can be used, but this is not the standard style.
 
+## Expressions
+
+Expressions are used primarily to evaluate constant values for use during compilation.
+
+Constant expressions are number literal values, constant identifiers, or
+parenthesis groups holding a constant expression. Constant expressions can be
+combined together using various math operators.
+
+Runtime expressions allow register names, and in some cases allow operators to
+be used to combine constants with a register value.
+
+Operators in Yagbas follow the same precedence ordering used by Rust. Operators
+at the same precedence level work left to right by default.
+
+* Unary `-` (negation)
+* `+` and `-`
+
 ## Statements
 
 ### Calls and Returns
