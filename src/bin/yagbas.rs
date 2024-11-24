@@ -49,7 +49,7 @@ pub struct Cli {
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
   /// Prints all tokens within the source files given.
-  Tokenize(TokenizeArgs),
+  Tokens(TokensArgs),
   /// Prints all token trees within the source files given.
   Trees(TreesArgs),
   /// Prints all items within the source files given.
@@ -59,12 +59,12 @@ pub enum Commands {
 }
 
 #[derive(Args, Debug, Clone)]
-pub struct TokenizeArgs {
+pub struct TokensArgs {
   /// Output size for messages (default: compact)
   #[arg(long)]
   pub message_size: Option<MessageSize>,
 
-  /// One or more source files to tokenize.
+  /// One or more source files to print tokens for.
   pub files: Vec<String>,
 }
 
@@ -101,7 +101,7 @@ pub struct CheckArgs {
 pub fn main() {
   let cli = Cli::parse();
   match cli.command {
-    Commands::Tokenize(args) => do_tokenize(args),
+    Commands::Tokens(args) => do_tokenize(args),
     Commands::Trees(args) => do_trees(args),
     Commands::Items(args) => do_items(args),
     Commands::Check(args) => do_check(args),
@@ -138,7 +138,7 @@ fn report_all_the_errors(
   }
 }
 
-pub fn do_tokenize(args: TokenizeArgs) {
+pub fn do_tokenize(args: TokensArgs) {
   let mut src_files = Vec::new();
   let mut err_bucket = Vec::new();
   for filename in &args.files {
