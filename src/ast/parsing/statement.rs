@@ -76,12 +76,12 @@ where
       .labelled("call_stmt")
       .as_context();
 
-    let assign8_const = reg8_p()
+    let load_reg8_const = reg8_p()
       .map_with(|r, extras| FileSpanned::new(r, extras.span()))
       .then_ignore(equal_p())
       .then(const_expr_p(make_input))
-      .map(|(target, value)| Statement::AssignReg8Const { target, value })
-      .labelled("assign8_const")
+      .map(|(reg8, expr)| Statement::LoadReg8Const { reg8, expr })
+      .labelled("load_reg8_const")
       .as_context();
 
     let store_a_to_const_addr = const_expr_p(make_input)
@@ -108,7 +108,7 @@ where
       loop_stmt,
       continue_stmt,
       break_stmt,
-      assign8_const,
+      load_reg8_const,
       store_a_to_const_addr,
       load_a_from_const_addr,
     ))

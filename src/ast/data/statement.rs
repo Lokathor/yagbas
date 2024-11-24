@@ -18,10 +18,10 @@ pub enum Statement {
   Loop(Loop),
   Continue(StrID),
   Break(StrID),
-  /// Assign an 8-bit register the given constant value.
-  AssignReg8Const {
-    target: FileSpanned<Reg8>,
-    value: FileSpanned<ConstExpr>,
+  /// Load an 8-bit register with the given constant.
+  LoadReg8Const {
+    reg8: FileSpanned<Reg8>,
+    expr: FileSpanned<ConstExpr>,
   },
   /// Store the `a` value to a constant address.
   ///
