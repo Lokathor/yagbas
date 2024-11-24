@@ -94,7 +94,7 @@ impl YagError {
               [] => {
                 Cow::Borrowed("some unknown thing (this is probably a bug)")
               }
-              [one_thing] => Cow::Owned(format!("`{one_thing:?}`")),
+              [one_thing] => Cow::Owned(format!("{one_thing}")),
               many_things => {
                 let mut s = String::new();
                 let (last, leading) = many_things.split_last().unwrap();
