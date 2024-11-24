@@ -2,7 +2,7 @@
 fn main() {
   // shut down the audio
   a = 0
-  //todo [NR52] = a
+  [NR52] = a
 
   // Wait for vblank and turn off the LCD
   loop {
@@ -12,7 +12,7 @@ fn main() {
     //todo }
   }
   a = 0
-  //todo [LCDC] = a
+  [LCDC] = a
 
   // Copy Tile Data
   //todo

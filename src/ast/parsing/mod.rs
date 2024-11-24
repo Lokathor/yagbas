@@ -287,6 +287,17 @@ where
   }
 }
 
+/// Parses a `Lone(KwA)`, which is then discarded.
+pub fn kw_a_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwA) => (),
+  }
+}
+
 /// Parses `Lone(Ident(i))` and returns `i`.
 pub fn ident_p<'src, I>(
 ) -> impl Parser<'src, I, StrID, ErrRichTokenTree<'src>> + Clone

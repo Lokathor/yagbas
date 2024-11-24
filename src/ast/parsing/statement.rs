@@ -84,6 +84,14 @@ where
       .labelled("assign8_const")
       .as_context();
 
+    let store_a_to_const_addr = const_expr_p(make_input)
+      .nested_in(nested_brace_content_p(make_input))
+      .then_ignore(equal_p())
+      .then_ignore(kw_a_p())
+      .map(Statement::StoreAToConstAddress)
+      .labelled("store_a_to_const_addr")
+      .as_context();
+
     let x = choice((
       kw_return_p(),
       call,
@@ -91,6 +99,7 @@ where
       continue_stmt,
       break_stmt,
       assign8_const,
+      store_a_to_const_addr,
     ));
 
     x

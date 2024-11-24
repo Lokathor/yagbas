@@ -5,10 +5,9 @@ use super::*;
 /// Most statements are "one line" of code, but the variants for control flow
 /// have a body of inner statements that they cover.
 ///
-/// * **Span Policy:** It's assumed that `Statement` values will be stored by
-///   other stuff as `FileSpanned<Statement>`. This means that 1-field variants
-///   don't store a filespan around that single field. All other variants should
-///   filespan each of their fields.
+/// * **Span Policy:** Span the heck out of this crap. The only time we don't
+///   need a span is when we're storing a single-field variant that's a struct
+///   which already has spans on its own fields.
 #[derive(Debug, Clone)]
 pub enum Statement {
   Return,
@@ -29,7 +28,7 @@ pub enum Statement {
   /// ```yagbas
   /// [CONST_EXPR] = a
   /// ```
-  StoreAToConstAddress(ConstExpr),
+  StoreAToConstAddress(FileSpanned<ConstExpr>),
   StatementError,
 }
 impl Statement {
