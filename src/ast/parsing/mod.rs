@@ -361,6 +361,19 @@ where
   }
 }
 
+/// Lets you `select_ref!` the content out of some `Brackets`
+pub fn nested_bracket_content_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, I, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
+{
+  select_ref! {
+    Brackets(b) = ex => make_input(b, ex.span()),
+  }
+}
+
 /// Lets you `select_ref!` the content out of some `Parens`
 pub fn nested_parens_content_p<'src, I, M>(
   make_input: M,

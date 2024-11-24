@@ -85,7 +85,7 @@ where
       .as_context();
 
     let store_a_to_const_addr = const_expr_p(make_input)
-      .nested_in(nested_brace_content_p(make_input))
+      .nested_in(nested_bracket_content_p(make_input))
       .then_ignore(equal_p())
       .then_ignore(kw_a_p())
       .map(Statement::StoreAToConstAddress)
