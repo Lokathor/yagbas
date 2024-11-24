@@ -165,17 +165,14 @@ where
     .nested_in(nested_brace_content_p(make_input))
     .labelled("fn_body")
     .as_context();
-  let x = kw_fn_p()
-    .ignore_then(name)
-    .then(args)
-    .then(fn_body)
-    .map(|((name, arguments), statements)| Function {
-      name,
-      arguments,
-      statements,
-    })
-    .labelled("function")
-    .as_context();
+  // Note(Lokathor): This stupid thing is because RA is weird sometimes.
+  // https://github.com/rust-lang/rust-analyzer/issues/18542
+  let x = Parser::map(
+    kw_fn_p().ignore_then(name).then(args).then(fn_body),
+    |((name, arguments), statements)| Function { name, arguments, statements },
+  )
+  .labelled("function")
+  .as_context();
 
   x
 }
@@ -257,7 +254,7 @@ where
 
     let assign8_const = reg8_p()
       .then_ignore(equal_p())
-      .then(const_expr_p())
+      .then(const_expr_p(make_input))
       .map(|(target, value)| Statement::AssignReg8Const { target, value })
       .labelled("assign8_const")
       .as_context();
@@ -276,27 +273,41 @@ where
 }
 
 /// Parses a single constant expression.
-pub fn const_expr_p<'src, I>(
+pub fn const_expr_p<'src, I, M>(
+  make_input: M,
 ) -> impl Parser<'src, I, FileSpanned<ConstExpr>, ErrRichTokenTree<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
 {
   use chumsky::pratt::*;
 
-  let atom = num_lit_p().map_with(|n, extras| {
-    FileSpanned::new(ConstExpr::Literal(n), extras.span())
-  });
+  recursive(|expr| {
+    let atom = {
+      let num_lit = num_lit_p().map_with(|n, extras| {
+        FileSpanned::new(ConstExpr::Literal(n), extras.span())
+      });
+      let ident = ident_p().map_with(|i, extras| {
+        FileSpanned::new(ConstExpr::Ident(i), extras.span())
+      });
+      let parens = expr
+        .nested_in(nested_parens_content_p(make_input))
+        .map_with(|x, extras| FileSpanned::new(x, extras.span()));
 
-  let expr = atom.pratt((
-    infix(left(1), plus_p(), |l, _op, r, extra| {
-      FileSpanned::new(ConstExpr::Add(Box::new(l), Box::new(r)), extra.span())
-    }),
-    infix(left(1), minus_p(), |l, _op, r, extra| {
-      FileSpanned::new(ConstExpr::Sub(Box::new(l), Box::new(r)), extra.span())
-    }),
-  ));
+      choice((num_lit, ident, parens))
+    };
 
-  expr
+    let with_pratt = atom.pratt((
+      infix(left(1), plus_p(), |l, _op, r, extra| {
+        FileSpanned::new(ConstExpr::Add(Box::new(l), Box::new(r)), extra.span())
+      }),
+      infix(left(1), minus_p(), |l, _op, r, extra| {
+        FileSpanned::new(ConstExpr::Sub(Box::new(l), Box::new(r)), extra.span())
+      }),
+    ));
+
+    with_pratt
+  })
 }
 
 /// Parses a `Lone(Newline)`, which is then discarded.
@@ -492,5 +503,18 @@ where
 {
   select_ref! {
     Braces(b) = ex => make_input(b, ex.span()),
+  }
+}
+
+/// Lets you `select_ref!` the content out of some `Parens`
+pub fn nested_parens_content_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, I, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
+{
+  select_ref! {
+    Parens(b) = ex => make_input(b, ex.span()),
   }
 }
