@@ -111,7 +111,9 @@ where
       assign8_const,
       store_a_to_const_addr,
       load_a_from_const_addr,
-    ));
+    ))
+    .labelled("statement")
+    .as_context();
 
     x
   })
