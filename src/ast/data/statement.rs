@@ -24,6 +24,12 @@ pub enum Statement {
     target: FileSpanned<Reg8>,
     value: FileSpanned<ConstExpr>,
   },
+  /// Store the `a` value to a constant address.
+  ///
+  /// ```yagbas
+  /// [CONST_EXPR] = a
+  /// ```
+  StoreAToConstAddress(ConstExpr),
   StatementError,
 }
 impl Statement {
