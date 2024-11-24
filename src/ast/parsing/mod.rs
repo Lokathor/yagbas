@@ -196,6 +196,28 @@ where
   }
 }
 
+/// Parses a `Lone(KwIf)`, which is then discarded.
+pub fn kw_if_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwIf) => (),
+  }
+}
+
+/// Parses a `Lone(KwElse)`, which is then discarded.
+pub fn kw_else_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwElse) => (),
+  }
+}
+
 /// Parses a `Lone(KwContinue)`, which is then discarded.
 pub fn kw_continue_p<'src, I>(
 ) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone

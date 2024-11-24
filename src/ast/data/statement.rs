@@ -18,6 +18,7 @@ pub enum Statement {
   Loop(Loop),
   Continue(StrID),
   Break(StrID),
+  IfElse(IfElse),
   /// Load an 8-bit register with the given constant.
   LoadReg8Const {
     reg8: FileSpanned<Reg8>,

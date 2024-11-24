@@ -7,9 +7,9 @@ fn main() {
   // Wait for vblank and turn off the LCD
   loop {
     a = [LY]
-    //todo if a >= 144 {
-    //todo   break
-    //todo }
+    if a >= 144 {
+      break
+    }
   }
   a = 0
   [LCDC] = a

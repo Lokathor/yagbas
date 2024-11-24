@@ -117,10 +117,10 @@ impl YagError {
           _ => format!("{rich:?}"),
         })
         .with_label(Label::new(*rich.span()).with_message("unexpected"))
-        .with_labels(rich.contexts().map(|(context, file_span)| {
-          Label::new(*file_span)
-            .with_message(format!("while parsing {context}"))
-        }))
+        //.with_labels(rich.contexts().map(|(context, file_span)| {
+        //  Label::new(*file_span)
+        //    .with_message(format!("while parsing {context}"))
+        //}))
         .finish(),
       YagError::MultipleDefinition(multiple_definition) => {
         multiple_definition.build_report(config)

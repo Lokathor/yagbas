@@ -19,6 +19,8 @@ pub enum Token {
   KwFn,
   #[regex(r"if")]
   KwIf,
+  #[regex(r"else")]
+  KwElse,
   #[regex(r"loop")]
   KwLoop,
   #[regex(r"return")]
@@ -124,6 +126,10 @@ pub enum Token {
   Quote,
   #[regex(r";", priority = 2)]
   Semicolon,
+  #[regex(r">", priority = 2)]
+  GreaterThan,
+  #[regex(r"<", priority = 2)]
+  LessThan,
 
   /// `//` starts a single-line comment, which goes to the end of the line.
   #[regex(r"//[^\r\n]*", priority = 2)]
@@ -185,6 +191,7 @@ impl core::fmt::Display for Token {
       Token::KwContinue => write!(f, "continue"),
       Token::KwFn => write!(f, "fn"),
       Token::KwIf => write!(f, "if"),
+      Token::KwElse => write!(f, "else"),
       Token::KwLoop => write!(f, "loop"),
       Token::KwReturn => write!(f, "return"),
       Token::KwStatic => write!(f, "static"),
@@ -228,6 +235,8 @@ impl core::fmt::Display for Token {
       Token::CommentBlockEnd => write!(f, "*/"),
       Token::Ident(str_id) => write!(f, "{str_id}"),
       Token::TokenError => write!(f, "TokenError"),
+      Token::GreaterThan => write!(f, ">"),
+      Token::LessThan => write!(f, "<"),
     }
   }
 }
