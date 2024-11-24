@@ -18,115 +18,8 @@ use super::{
 pub type ErrRichToken<'src> = Err<Rich<'src, Token, FileSpan>>;
 pub type ErrRichTokenTree<'src> = Err<Rich<'src, TokenTree, FileSpan>>;
 
-/// Parses [Token] into [TokenTree].
-pub fn token_tree_p<'src, I>(
-) -> impl Parser<'src, I, TokenTree, ErrRichToken<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = Token, Span = FileSpan> + ValueInput<'src>,
-{
-  recursive(|tt| {
-    let base = tt.map_with(|tts, e| FileSpanned::new(tts, e.span())).repeated();
-
-    // Looks like `{ ... }`
-    let braces = {
-      let open_brace = select! {
-        OpBrace => (),
-      }
-      .labelled("open_brace")
-      .as_context();
-      let close_brace = select! {
-        ClBrace => (),
-      }
-      .labelled("close_brace")
-      .as_context();
-      base
-        .clone()
-        .collect()
-        .delimited_by(open_brace, close_brace)
-        .map(TokenTree::Braces)
-        .labelled("braces_group")
-        .as_context()
-    };
-
-    // Looks like `[ ... ]`
-    let brackets = {
-      let open_bracket = select! {
-        OpBracket => (),
-      }
-      .labelled("open_bracket")
-      .as_context();
-      let close_bracket = select! {
-        ClBracket => (),
-      }
-      .labelled("close_bracket")
-      .as_context();
-      base
-        .clone()
-        .collect()
-        .delimited_by(open_bracket, close_bracket)
-        .map(TokenTree::Brackets)
-        .labelled("brackets_group")
-        .as_context()
-    };
-
-    // Looks like `( ... )`
-    let parens = {
-      let open_paren = select! {
-        OpParen => (),
-      }
-      .labelled("open_paren")
-      .as_context();
-      let close_paren = select! {
-        ClParen => (),
-      }
-      .labelled("close_paren")
-      .as_context();
-      base
-        .clone()
-        .collect()
-        .delimited_by(open_paren, close_paren)
-        .map(TokenTree::Parens)
-        .labelled("parens_group")
-        .as_context()
-    };
-
-    // Looks like something that does *NOT* open or close one of the other
-    // types.
-    let single =
-      none_of([OpBracket, ClBracket, OpBrace, ClBrace, OpParen, ClParen])
-        .map(TokenTree::Lone);
-
-    // comments get stripped from the output.
-    let comment = {
-      // Looks like `//`
-      let single_comment = select! {
-        CommentSingle => (),
-      };
-      // Looks like `/* ... */`
-      let block_start = select! {
-        CommentBlockStart => (),
-      };
-      let block_end = select! {
-        CommentBlockEnd => (),
-      };
-      let block_comment = base
-        .clone()
-        .delimited_by(block_start, block_end)
-        .ignored()
-        .labelled("block_comment")
-        .as_context();
-
-      single_comment.or(block_comment)
-    };
-
-    let x = choice((brackets, braces, parens, single))
-      .padded_by(comment.repeated())
-      .labelled("token_tree")
-      .as_context();
-
-    x
-  })
-}
+mod token_tree;
+pub use token_tree::*;
 
 /// Parses [TokenTree] into any [Item]
 pub fn item_p<'src, I, M>(
@@ -290,18 +183,19 @@ where
       let ident = ident_p().map_with(|i, extras| {
         FileSpanned::new(ConstExpr::Ident(i), extras.span())
       });
-      let parens = expr
-        .nested_in(nested_parens_content_p(make_input))
-        .map_with(|x, extras| FileSpanned::new(x, extras.span()));
+      let parens = expr.nested_in(nested_parens_content_p(make_input));
 
       choice((num_lit, ident, parens))
     };
 
     let with_pratt = atom.pratt((
-      infix(left(1), plus_p(), |l, _op, r, extra| {
+      prefix(13, minus_p(), |_op, x, extra| {
+        FileSpanned::new(ConstExpr::Neg(Box::new(x)), extra.span())
+      }),
+      infix(left(10), plus_p(), |l, _op, r, extra| {
         FileSpanned::new(ConstExpr::Add(Box::new(l), Box::new(r)), extra.span())
       }),
-      infix(left(1), minus_p(), |l, _op, r, extra| {
+      infix(left(10), minus_p(), |l, _op, r, extra| {
         FileSpanned::new(ConstExpr::Sub(Box::new(l), Box::new(r)), extra.span())
       }),
     ));
