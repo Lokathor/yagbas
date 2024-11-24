@@ -169,7 +169,8 @@ impl SrcFile {
       // and now we've recovered.
       let item_start = select! {
         TokenTree::Lone(Token::KwFn) => (),
-        TokenTree::Lone(Token::KwStatic) => ()
+        TokenTree::Lone(Token::KwConst) => (),
+        TokenTree::Lone(Token::KwStatic) => (),
       };
       let skip_item =
         item_start.then(any().and_is(item_start.not()).repeated());
