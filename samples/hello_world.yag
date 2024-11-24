@@ -1,4 +1,34 @@
 
+fn main() {
+  // shut down the audio
+  a = 0
+  //todo [NR52] = a
+
+  // Wait for vblank and turn off the LCD
+  loop {
+    //todo a = [LY]
+    //todo if a >= 144 {
+    //todo   break
+    //todo }
+  }
+  a = 0
+  //todo [LCDC] = a
+
+  // Copy Tile Data
+  //todo
+
+  // Copy Tilemap Data
+  //todo
+
+  loop{}
+}
+
+// tile data
+//todo
+
+// tilemap data
+//todo
+
 // Audio Master Control
 const NR52 = $FF26
 
@@ -8,19 +38,5 @@ const LCDC = $FF40
 // LCD Y coordinate (aka "current scanline")
 const LY = $FF44
 
-fn main() {
-
-  // shut down the audio
-  a = 0
-  //[NR52] = a
-
-  // only turn off the LCD during vblank
-  loop {
-    //a = [LY]
-    //if a >= 144 {
-    //  break
-    //}
-  }
-  a = 0
-  //[LCDC] = a
-}
+// Background Palette
+const BGP = $FF47
