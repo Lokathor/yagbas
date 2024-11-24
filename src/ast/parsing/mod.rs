@@ -171,12 +171,14 @@ where
     };
 
     let call = ident_p()
+      .map_with(|i, extras| FileSpanned::new(i, extras.span()))
       .then(parenthesis_p())
       .map(|(target, args)| Statement::Call { target, args })
       .labelled("call_stmt")
       .as_context();
 
     let assign8_const = reg8_p()
+      .map_with(|r, extras| FileSpanned::new(r, extras.span()))
       .then_ignore(equal_p())
       .then(const_expr_p(make_input))
       .map(|(target, value)| Statement::AssignReg8Const { target, value })

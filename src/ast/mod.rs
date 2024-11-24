@@ -87,15 +87,7 @@ impl Function {
   #[inline]
   #[must_use]
   pub fn targets_called(&self) -> Vec<FileSpanned<StrID>> {
-    self
-      .statements
-      .iter()
-      .flat_map(|s| {
-        s.targets_called()
-          .into_iter()
-          .map(|_payload| FileSpanned { _payload, _span: s._span })
-      })
-      .collect()
+    self.statements.iter().flat_map(|s| s.targets_called()).collect()
   }
 }
 
