@@ -6,7 +6,7 @@ fn main() {
 
   // Wait for vblank and turn off the LCD
   loop {
-    //todo a = [LY]
+    a = [LY]
     //todo if a >= 144 {
     //todo   break
     //todo }

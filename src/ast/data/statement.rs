@@ -29,6 +29,12 @@ pub enum Statement {
   /// [CONST_EXPR] = a
   /// ```
   StoreAToConstAddress(FileSpanned<ConstExpr>),
+  /// Load a constant address into `a`.
+  ///
+  /// ```yagbas
+  /// a = [CONST_EXPR]
+  /// ```
+  LoadAFromConstAddress(FileSpanned<ConstExpr>),
   StatementError,
 }
 impl Statement {

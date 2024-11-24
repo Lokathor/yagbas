@@ -92,6 +92,16 @@ where
       .labelled("store_a_to_const_addr")
       .as_context();
 
+    let load_a_from_const_addr = kw_a_p()
+      .ignore_then(equal_p())
+      .ignore_then(
+        const_expr_p(make_input)
+          .nested_in(nested_bracket_content_p(make_input)),
+      )
+      .map(Statement::LoadAFromConstAddress)
+      .labelled("load_a_from_const_addr")
+      .as_context();
+
     let x = choice((
       kw_return_p(),
       call,
@@ -100,6 +110,7 @@ where
       break_stmt,
       assign8_const,
       store_a_to_const_addr,
+      load_a_from_const_addr,
     ));
 
     x
