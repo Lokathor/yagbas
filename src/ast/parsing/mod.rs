@@ -54,7 +54,15 @@ where
     .labelled("fn_name")
     .as_context();
   let args = parenthesis_p().labelled("fn_arg_parens").as_context();
+  let statement_recover_strategy = via_parser(
+    any()
+      .and_is(statement_sep_p().not())
+      .repeated()
+      .at_least(1)
+      .to(Statement::StatementError),
+  );
   let fn_body = statement_p(make_input)
+    .recover_with(statement_recover_strategy)
     .map_with(|s: Statement, e| FileSpanned::new(s, e.span()))
     .separated_by(statement_sep_p().repeated().at_least(1))
     .allow_leading()
