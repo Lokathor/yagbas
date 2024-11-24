@@ -2,7 +2,8 @@
 #![allow(clippy::type_complexity)]
 
 use ariadne::{
-  sources, CharSet, Color, Config, Label, Report, ReportKind, Source,
+  sources, CharSet, Color, Config, Label, LabelAttach, Report, ReportKind,
+  Source,
 };
 use chumsky::{error::Rich, span::Span};
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -115,8 +116,10 @@ fn report_all_the_errors(
   let mut ariadne_cache = sources(
     src_files.iter().map(|src_file| (src_file.get_id(), src_file.text())),
   );
-  let base_config =
-    Config::new().with_char_set(CharSet::Ascii).with_color(false);
+  let base_config = Config::new()
+    .with_char_set(CharSet::Ascii)
+    .with_color(false)
+    .with_label_attach(LabelAttach::Start);
   match message_size.unwrap_or_default() {
     MessageSize::OneLine => {
       for err in err_bucket {

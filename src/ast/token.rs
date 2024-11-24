@@ -176,3 +176,58 @@ impl Token {
     matches!(self, KwA | KwB | KwC | KwD | KwE | KwH | KwL)
   }
 }
+
+impl core::fmt::Display for Token {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    match self {
+      Token::KwBreak => write!(f, "break"),
+      Token::KwConst => write!(f, "const"),
+      Token::KwContinue => write!(f, "continue"),
+      Token::KwFn => write!(f, "fn"),
+      Token::KwIf => write!(f, "if"),
+      Token::KwLoop => write!(f, "loop"),
+      Token::KwReturn => write!(f, "return"),
+      Token::KwStatic => write!(f, "static"),
+      Token::KwU16 => write!(f, "u16"),
+      Token::KwU8 => write!(f, "u8"),
+      Token::OpBracket => write!(f, "{{"),
+      Token::ClBracket => write!(f, "}}"),
+      Token::OpBrace => write!(f, "["),
+      Token::ClBrace => write!(f, "]"),
+      Token::OpParen => write!(f, "("),
+      Token::ClParen => write!(f, ")"),
+      Token::KwA => write!(f, "a"),
+      Token::KwF => write!(f, "f"),
+      Token::KwB => write!(f, "b"),
+      Token::KwC => write!(f, "c"),
+      Token::KwD => write!(f, "d"),
+      Token::KwE => write!(f, "e"),
+      Token::KwH => write!(f, "h"),
+      Token::KwL => write!(f, "l"),
+      Token::KwAF => write!(f, "af"),
+      Token::KwBC => write!(f, "bc"),
+      Token::KwDE => write!(f, "de"),
+      Token::KwHL => write!(f, "hl"),
+      Token::KwZ => write!(f, "z"),
+      Token::KwNZ => write!(f, "nz"),
+      Token::KwNC => write!(f, "nc"),
+      Token::NumLit(str_id) => write!(f, "{str_id}"),
+      Token::Colon => write!(f, ":"),
+      Token::Comma => write!(f, ","),
+      Token::Equal => write!(f, "="),
+      Token::Exclamation => write!(f, "!"),
+      Token::Minus => write!(f, "-"),
+      #[allow(clippy::write_with_newline)]
+      Token::Newline => write!(f, "\n"),
+      Token::Pipe => write!(f, "|"),
+      Token::Plus => write!(f, "+"),
+      Token::Quote => write!(f, "'"),
+      Token::Semicolon => write!(f, ";"),
+      Token::CommentSingle => write!(f, "//"),
+      Token::CommentBlockStart => write!(f, "/*"),
+      Token::CommentBlockEnd => write!(f, "*/"),
+      Token::Ident(str_id) => write!(f, "{str_id}"),
+      Token::TokenError => write!(f, "TokenError"),
+    }
+  }
+}

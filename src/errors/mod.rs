@@ -7,7 +7,10 @@ use crate::{
   str_id::StrID,
 };
 use core::fmt::Write;
-use std::collections::{hash_map::Entry, HashMap};
+use std::{
+  borrow::Cow,
+  collections::{hash_map::Entry, HashMap},
+};
 
 mod multiple_definition;
 pub use multiple_definition::*;
@@ -78,7 +81,42 @@ impl YagError {
       }
       YagError::Item(rich) => Report::build(ReportKind::Error, *rich.span())
         .with_config(config)
-        .with_message(format!("{rich:?}"))
+        .with_message(match rich.reason() {
+          chumsky::error::RichReason::ExpectedFound { expected, found } => {
+            let found = match found {
+              None => Cow::Borrowed("the end of input"),
+              Some(pat) => {
+                let ref_tt: &TokenTree = pat;
+                Cow::Owned(format!("`{ref_tt}`"))
+              }
+            };
+            let expected = match expected.as_slice() {
+              [] => {
+                Cow::Borrowed("some unknown thing (this is probably a bug)")
+              }
+              [one_thing] => Cow::Owned(format!("`{one_thing:?}`")),
+              many_things => {
+                let mut s = String::new();
+                let (last, leading) = many_things.split_last().unwrap();
+                for (i, thing) in leading.iter().enumerate() {
+                  use core::fmt::Write;
+                  if i > 0 {
+                    write!(s, ", ").ok();
+                  }
+                  write!(s, "{thing}").ok();
+                }
+                if leading.len() > 1 {
+                  write!(s, ",").ok();
+                }
+                write!(s, " or {last:?}").ok();
+                Cow::Owned(s)
+              }
+            };
+            format!("Found {found}, but expected {expected}")
+          }
+          _ => format!("{rich:?}"),
+        })
+        .with_label(Label::new(*rich.span()).with_message("unexpected"))
         .with_labels(rich.contexts().map(|(context, file_span)| {
           Label::new(*file_span)
             .with_message(format!("while parsing {context}"))

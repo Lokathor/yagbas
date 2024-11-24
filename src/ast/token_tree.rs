@@ -25,15 +25,26 @@ impl core::fmt::Debug for TokenTree {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     match self {
       Self::Lone(t) => core::fmt::Debug::fmt(&t, f),
-      Self::Parens(tts) => fmt_tt_list("(", ")", tts, f),
-      Self::Brackets(tts) => fmt_tt_list("[", "]", tts, f),
-      Self::Braces(tts) => fmt_tt_list("{", "}", tts, f),
+      Self::Parens(tts) => fmt_tt_list::<false>("(", ")", tts, f),
+      Self::Brackets(tts) => fmt_tt_list::<false>("[", "]", tts, f),
+      Self::Braces(tts) => fmt_tt_list::<false>("{", "}", tts, f),
+      Self::TreeError => write!(f, "TreeError"),
+    }
+  }
+}
+impl core::fmt::Display for TokenTree {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    match self {
+      Self::Lone(t) => core::fmt::Display::fmt(&t, f),
+      Self::Parens(tts) => fmt_tt_list::<true>("(", ")", tts, f),
+      Self::Brackets(tts) => fmt_tt_list::<true>("[", "]", tts, f),
+      Self::Braces(tts) => fmt_tt_list::<true>("{", "}", tts, f),
       Self::TreeError => write!(f, "TreeError"),
     }
   }
 }
 
-fn fmt_tt_list(
+fn fmt_tt_list<const DISPLAY: bool>(
   open: &str, close: &str, tts: &[FileSpanned<TokenTree>],
   f: &mut core::fmt::Formatter<'_>,
 ) -> core::fmt::Result {
@@ -44,9 +55,13 @@ fn fmt_tt_list(
   } else {
     for (i, tt) in tts.iter().enumerate() {
       if i > 0 {
-        write!(f, ", ")?;
+        write!(f, " ")?;
       }
-      core::fmt::Debug::fmt(&tt, f)?;
+      if DISPLAY {
+        core::fmt::Display::fmt(&tt, f)?;
+      } else {
+        core::fmt::Debug::fmt(&tt, f)?;
+      }
     }
   }
   write!(f, "{close}")?;
