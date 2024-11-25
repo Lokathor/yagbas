@@ -130,6 +130,8 @@ pub enum Token {
   GreaterThan,
   #[regex(r"<", priority = 2)]
   LessThan,
+  #[regex(r"&", priority = 2)]
+  Ampersand,
 
   /// `//` starts a single-line comment, which goes to the end of the line.
   #[regex(r"//[^\r\n]*", priority = 2)]
@@ -237,6 +239,7 @@ impl core::fmt::Display for Token {
       Token::TokenError => write!(f, "TokenError"),
       Token::GreaterThan => write!(f, ">"),
       Token::LessThan => write!(f, "<"),
+      Token::Ampersand => write!(f, "&"),
     }
   }
 }
