@@ -4,10 +4,10 @@ fn main() {
   a = 0
   [NR52] = a
 
-  // Wait for vblank and turn off the LCD
+  // Wait for vblank start to turn off the LCD
   loop {
     a = [LY]
-    if a >= 144 {
+    if a == 144 {
       break
     }
   }
