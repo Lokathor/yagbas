@@ -1,0 +1,14 @@
+
+fn just_if() {
+  if a >= 144 {
+    a = 0
+  }
+}
+
+fn if_else() {
+  if a < 10 {
+    a = 0
+  } else {
+    a = 50
+  }
+}
