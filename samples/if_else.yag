@@ -1,8 +1,21 @@
 
 fn just_if() {
-  if a >= 144 {
-    a = 0
-  }
+  if a == 144 {}
+  if a != 144 {}
+  if a < 144 {}
+  if a >= 144 {}
+  
+  //
+  if a == b {}
+  if a != c {}
+  if a < d {}
+  if a >= e {}
+  
+  //
+  if a == [hl] {}
+  if a != [hl] {}
+  if a < [hl] {}
+  if a >= [hl] {}
 }
 
 fn if_else() {

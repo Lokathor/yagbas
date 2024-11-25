@@ -1,4 +1,4 @@
-use crate::ast::IfElse;
+use crate::ast::{CompareTest, IfElse};
 
 use super::*;
 
@@ -16,6 +16,12 @@ where
       .repeated()
       .at_least(1)
       .to(Statement::StatementError),
+  );
+  let if_test_recover_strategy = via_parser(
+    any()
+      .and_is(braces_p::<'_, I>().not())
+      .repeated()
+      .to(CompareTest::CompareTestError),
   );
 
   recursive(|statements| {
@@ -114,10 +120,9 @@ where
       .as_context();
 
     let if_else = {
-      let if_test = select! {Lone(x) => x}
+      let if_test = compare_test_p(make_input)
+        .recover_with(if_test_recover_strategy)
         .map_with(|x, e| FileSpanned::new(x, e.span()))
-        .repeated()
-        .collect()
         .labelled("if_test")
         .as_context();
       let if_body = statements
