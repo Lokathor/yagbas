@@ -101,17 +101,6 @@ pub struct NamedConst {
   pub expr: FileSpanned<ConstExpr>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Reg8 {
-  A,
-  B,
-  C,
-  D,
-  E,
-  H,
-  L,
-}
-
 #[derive(Debug, Clone)]
 pub struct Loop {
   pub name: StrID,

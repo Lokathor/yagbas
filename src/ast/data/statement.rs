@@ -10,32 +10,18 @@ use super::*;
 ///   which already has spans on its own fields.
 #[derive(Debug, Clone)]
 pub enum Statement {
+  Call { target: FileSpanned<StrID>, args: Vec<FileSpanned<TokenTree>> },
   Return,
-  Call {
-    target: FileSpanned<StrID>,
-    args: Vec<FileSpanned<TokenTree>>,
-  },
   Loop(Loop),
   Continue(StrID),
   Break(StrID),
   IfElse(IfElse),
-  /// Load an 8-bit register with the given constant.
-  LoadReg8Const {
-    reg8: FileSpanned<Reg8>,
-    expr: FileSpanned<ConstExpr>,
-  },
-  /// Store the `a` value to a constant address.
-  ///
-  /// ```yagbas
-  /// [CONST_EXPR] = a
-  /// ```
+  Assignment(),
+
+  LoadReg8Const { reg8: FileSpanned<Reg8>, expr: FileSpanned<ConstExpr> },
   StoreAToConstAddress(FileSpanned<ConstExpr>),
-  /// Load a constant address into `a`.
-  ///
-  /// ```yagbas
-  /// a = [CONST_EXPR]
-  /// ```
   LoadAFromConstAddress(FileSpanned<ConstExpr>),
+
   StatementError,
 }
 impl Statement {
