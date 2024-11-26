@@ -1,7 +1,0 @@
-
-ld
-cp
-jp
-inc
-dec
-or
