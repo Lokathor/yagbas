@@ -20,6 +20,7 @@ pub use data::*;
 pub enum Item {
   Function(Function),
   NamedConst(NamedConst),
+  Static(Static),
   ItemError,
 }
 impl Item {
@@ -33,6 +34,7 @@ impl Item {
       Item::Function(Function { name, .. }) => Some(*name),
       Item::ItemError => None,
       Item::NamedConst(NamedConst { name, .. }) => Some(*name),
+      Item::Static(Static { name, .. }) => Some(*name),
     }
   }
 
@@ -50,9 +52,10 @@ impl Item {
   #[must_use]
   pub fn kind(&self) -> ItemKind {
     match self {
-      Item::Function(function) => ItemKind::Function,
+      Item::Function(_) => ItemKind::Function,
       Item::ItemError => ItemKind::Error,
-      Item::NamedConst(named_const) => ItemKind::NamedConst,
+      Item::NamedConst(_) => ItemKind::NamedConst,
+      Item::Static(_) => ItemKind::Static,
     }
   }
 }

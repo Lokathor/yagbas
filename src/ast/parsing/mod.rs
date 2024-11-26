@@ -31,6 +31,9 @@ pub use compare_test_parser::*;
 mod lone_tokens;
 pub use lone_tokens::*;
 
+mod static_parser;
+pub use static_parser::*;
+
 /// Parses [TokenTree] into any [Item]
 pub fn item_p<'src, I, M>(
   make_input: M,
@@ -41,8 +44,9 @@ where
 {
   let function = function_p(make_input).map(Item::Function);
   let named_const = named_const_p(make_input).map(Item::NamedConst);
+  let static_ = static_p(make_input).map(Item::Static);
 
-  let x = choice((function, named_const));
+  let x = choice((function, named_const, static_));
 
   x
 }

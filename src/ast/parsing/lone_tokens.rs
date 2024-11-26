@@ -198,6 +198,50 @@ where
   }
 }
 
+/// Parses a `Lone(KwU8)`, which is then discarded.
+pub fn kw_u8_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwU8) => (),
+  }
+}
+
+/// Parses a `Lone(Semicolon)`, which is then discarded.
+pub fn semicolon_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Semicolon) => (),
+  }
+}
+
+/// Parses a `Lone(Comma)`, which is then discarded.
+pub fn comma_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Comma) => (),
+  }
+}
+
+/// Parses a `Lone(KwStatic)`, which is then discarded.
+pub fn kw_static_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwStatic) => (),
+  }
+}
+
 /// Parses a `Lone(KwHL)`, which is then discarded.
 pub fn kw_hl_p<'src, I>(
 ) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
