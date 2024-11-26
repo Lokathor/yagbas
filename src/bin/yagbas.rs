@@ -228,5 +228,9 @@ pub fn do_check(args: CheckArgs) {
     check_call_targets(&items, &mut err_bucket);
     check_break_continue_illegal(&items, &mut err_bucket);
   }
-  report_all_the_errors(src_files, err_bucket, args.message_size);
+  if err_bucket.is_empty() {
+    println!("yagbas: No errors detected.")
+  } else {
+    report_all_the_errors(src_files, err_bucket, args.message_size);
+  }
 }

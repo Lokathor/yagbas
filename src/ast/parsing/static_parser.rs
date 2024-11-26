@@ -22,7 +22,7 @@ where
     .labelled("static_type")
     .as_context();
   let static_exp = const_expr_p(make_input)
-    .separated_by(comma_p().padded_by(newline_p().repeated()))
+    .separated_by(comma_p().or(newline_p()).repeated())
     .allow_leading()
     .allow_trailing()
     .collect()
