@@ -12,20 +12,20 @@ ident = ?
 
 const_expression = ?
 
-fn_item = `fn` ident ( ) { [statement, 0 or more] }
+fn_item = `fn` ident ( ) { statements }
 
 statement = reg_statement
           | mem_statement
-          | if_statement
-          | loop_statement
+          | keyword_statement
 
-reg_statement = ?
+reg_statement = register op expression
 
-mem_statement = ?
+mem_statement = `[` mem_target_expr `]` op expression
 
-if_statement = ?
-
-loop_statement = ?
+keyword_statement = `if` test_expr { statements }
+                  | `loop` { statements }
+                  | `break`
+                  | `continue`
 
 static_item = `static` ident : type_signature = static_expression
 
