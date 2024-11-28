@@ -51,6 +51,7 @@ impl core::fmt::Display for StrID {
 }
 impl<'a> From<&'a str> for StrID {
   /// Convert any `&str` into its ID, automatically interning it if necessary.
+  #[inline]
   fn from(s: &'a str) -> Self {
     let rw_lock = STR_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
