@@ -1,3 +1,8 @@
+use chumsky::{
+  extra::ParserExtra,
+  input::{Input, MapExtra},
+};
+
 use crate::{file_span::FileSpan, src_file::SrcID};
 
 #[derive(Clone, Copy)]
@@ -10,6 +15,17 @@ impl<T> FileSpanned<T> {
   #[must_use]
   pub const fn new(t: T, span: FileSpan) -> Self {
     Self { _payload: t, _span: span }
+  }
+  #[inline]
+  #[must_use]
+  pub fn from_extras<'src, I, E>(
+    t: T, extras: &mut MapExtra<'src, '_, I, E>,
+  ) -> Self
+  where
+    I: Input<'src, Span = FileSpan>,
+    E: ParserExtra<'src, I>,
+  {
+    Self::new(t, extras.span())
   }
 }
 impl<T> chumsky::span::Span for FileSpanned<T>
