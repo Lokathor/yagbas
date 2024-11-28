@@ -7,7 +7,7 @@ where
   I: BorrowInput<'src, Token = Token, Span = FileSpan> + ValueInput<'src>,
 {
   recursive(|tt| {
-    let base = tt.map_with(|tts, e| FileSpanned::new(tts, e.span())).repeated();
+    let base = tt.map_with(FileSpanned::from_extras).repeated();
 
     // Looks like `{ ... }`
     let braces = base
@@ -84,7 +84,7 @@ where
 
     x
   })
-  .map_with(|tt, ex| FileSpanned::new(tt, ex.span()))
+  .map_with(FileSpanned::from_extras)
   .labelled("token_tree")
   .as_context()
 }
