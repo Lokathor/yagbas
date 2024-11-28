@@ -12,10 +12,7 @@ use std::{
   path::{Path, PathBuf},
 };
 use yagbas::{
-  errors::{
-    check_break_continue_illegal, check_call_targets,
-    check_multiple_definitions, YagError,
-  },
+  errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
   src_file::{SrcFile, SrcID},
@@ -226,9 +223,8 @@ pub fn do_check(args: CheckArgs) {
     let items = src_file.parse_items(&mut err_bucket);
     src_files.push(src_file);
     //
-    check_multiple_definitions(&items, &mut err_bucket);
-    check_call_targets(&items, &mut err_bucket);
-    check_break_continue_illegal(&items, &mut err_bucket);
+
+    // todo: place checks here
   }
   if err_bucket.is_empty() {
     println!("yagbas: No errors detected.")

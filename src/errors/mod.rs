@@ -14,24 +14,12 @@ use std::{
   collections::{hash_map::Entry, HashMap},
 };
 
-mod multiple_definition;
-pub use multiple_definition::*;
-
-mod call_target_illegal;
-pub use call_target_illegal::*;
-
-mod break_continue_illegal;
-pub use break_continue_illegal::*;
-
 #[derive(Debug, Clone)]
 pub enum YagError {
   FileIO { filename: String, message: String },
   Tokenization(FileSpan),
   TokenTree(Rich<'static, Token, FileSpan, &'static str>),
   Item(Rich<'static, TokenTree, FileSpan, &'static str>),
-  MultipleDefinition(MultipleDefinition),
-  CallTargetIllegal(CallTargetIllegal),
-  BreakContinueIllegal(BreakContinueIllegal),
 }
 impl YagError {
   pub fn one_line(&self) -> String {
@@ -44,15 +32,6 @@ impl YagError {
       }
       YagError::TokenTree(rich) => format!("Error: Token Tree: {rich:?}"),
       YagError::Item(rich) => format!("Error: Item: {rich:?}"),
-      YagError::MultipleDefinition(multiple_definition) => {
-        multiple_definition.one_line()
-      }
-      YagError::CallTargetIllegal(call_target_legal) => {
-        call_target_legal.one_line()
-      }
-      YagError::BreakContinueIllegal(break_continue_illegal) => {
-        break_continue_illegal.one_line()
-      }
     }
   }
 
@@ -124,15 +103,6 @@ impl YagError {
         //    .with_message(format!("while parsing {context}"))
         //}))
         .finish(),
-      YagError::MultipleDefinition(multiple_definition) => {
-        multiple_definition.build_report(config)
-      }
-      YagError::CallTargetIllegal(call_target_legal) => {
-        call_target_legal.build_report(config)
-      }
-      YagError::BreakContinueIllegal(break_continue_illegal) => {
-        break_continue_illegal.build_report(config)
-      }
     }
   }
 }
