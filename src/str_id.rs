@@ -85,6 +85,6 @@ impl Default for StrID {
   #[inline]
   #[must_use]
   fn default() -> Self {
-    Self::from("")
+    Self::from(<&str>::default())
   }
 }
