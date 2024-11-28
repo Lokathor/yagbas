@@ -1,7 +1,7 @@
 use chumsky::{
   error::Rich,
   extra::Err,
-  input::{BorrowInput, Input, ValueInput},
+  input::{BorrowInput, Input, MappedInput, ValueInput},
   prelude::*,
   Parser,
 };
@@ -15,12 +15,29 @@ use token_tree::*;
 pub type ErrRichToken<'src> = Err<Rich<'src, Token, FileSpan>>;
 pub type ErrRichTokenTree<'src> = Err<Rich<'src, TokenTree, FileSpan>>;
 
+/// Makes a token tree slice into an [Input](chumsky::input::Input).
+///
+/// This is used by all our parsers that need to look at the content of a token
+/// tree group.
+///
+/// * When making a parser that looks at the content of a token tree group, we
+///   need to run a parser on that inner content.
+/// * Running a parser on the content of a tree group uses `Input::map` to turn
+///   our custom `FileSpanned<T>` type (which chumsky doesn't know about) into
+///   `(T, FileSpan)` (which is what chumsky is expecting).
+/// * If any part of such a parser is recursive (eg, statements, expressions,
+///   etc) then we'd get a type error because Rust doesn't see two calls to
+///   `Input::map` with different closures as being the same type just because
+///   the two closures have the exact same expression.
+/// * So we force all our calls to any parser that uses grouped content to go
+///   through this one specific function, which gives them all the exact same
+///   mapping closure, which lets Rust see that they're all the same type.
 #[allow(clippy::needless_lifetimes)]
-pub fn make_input<'src>(
-  tokens: &'src [FileSpanned<TokenTree>], eoi: FileSpan,
+pub fn make_tt_input<'src>(
+  trees: &'src [FileSpanned<TokenTree>], eoi: FileSpan,
 ) -> impl BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>
 {
-  tokens.map(eoi, |fsd| (&fsd._payload, &fsd._span))
+  Input::map(trees, eoi, |fsd| (&fsd._payload, &fsd._span))
 }
 
 #[inline]
@@ -60,9 +77,13 @@ pub fn grow_token_trees(
     any()
       .repeated()
       .at_least(1)
-      .map_with(|_, ex| FileSpanned::new(TokenTree::TreeError, ex.span())),
+      .to(TokenTree::TreeError)
+      .map_with(FileSpanned::from_extras),
   );
   let tree_parser = token_tree_p().recover_with(recovery).repeated().collect();
+  // Note(Lokathor): This looks *close* to what `make_tt_input` does, but this
+  // goes from Tokens to TokenTrees, instead of from TokenTrees to something
+  // else, so we can't use `make_tt_input` here.
   let (opt_output, errors) = tree_parser
     .parse(Input::map(tokens, end_span, |fs| (&fs._payload, &fs._span)))
     .into_output_errors();
