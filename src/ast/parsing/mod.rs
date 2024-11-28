@@ -1,5 +1,7 @@
 use crate::{
-  ast::{Function, Item, Loop, Reg8, Statement},
+  ast::{
+    Function, Item, Loop, Reg8, Statement, Token, Token::*, TokenTree::*, *,
+  },
   src_files::{FileSpan, FileSpanned},
   str_id::StrID,
 };
@@ -7,13 +9,6 @@ use chumsky::{
   extra::Err,
   input::{BorrowInput, ValueInput},
   prelude::*,
-};
-
-use super::{
-  const_expr::ConstExpr,
-  token::Token::{self, *},
-  token_tree::TokenTree::{self, *},
-  NamedConst,
 };
 
 pub type ErrRichToken<'src> = Err<Rich<'src, Token, FileSpan>>;

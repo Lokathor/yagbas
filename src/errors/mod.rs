@@ -2,7 +2,7 @@ use ariadne::{Cache, CharSet, Config, Label, Report, ReportKind};
 use chumsky::error::Rich;
 
 use crate::{
-  ast::{token::Token, token_tree::TokenTree, Item, ItemKind},
+  ast::{Item, ItemKind, Token, TokenTree},
   src_files::{FileSpan, FileSpanned, SrcID},
   str_id::StrID,
 };

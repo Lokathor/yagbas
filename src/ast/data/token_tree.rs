@@ -1,5 +1,5 @@
 use crate::{
-  ast::token::Token::{self, *},
+  ast::Token,
   src_files::{FileSpan, FileSpanned},
 };
 use chumsky::{
