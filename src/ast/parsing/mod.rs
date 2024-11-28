@@ -60,6 +60,9 @@ pub fn lex_module_text(
   output
 }
 
+/// Converts a slice of tokens into a vec of token trees.
+///
+/// The token tree creation step has *exceptionally* bad error recovery.
 pub fn grow_token_trees(
   tokens: &[FileSpanned<Token>], err_bucket: &mut Vec<YagError>,
 ) -> Vec<FileSpanned<TokenTree>> {
