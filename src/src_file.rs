@@ -1,8 +1,5 @@
 use crate::{
-  ast::{
-    parsing::{item_p, newline_p, token_tree_p},
-    Item, Token, TokenTree,
-  },
+  ast::data::{Token, TokenTree},
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
@@ -33,12 +30,20 @@ pub struct SrcFile {
   line_bytes: Vec<usize>,
 }
 impl SrcFile {
-  pub fn read_from_path<P>(p: &P) -> Result<Self, std::io::Error>
+  pub fn read_from_path<P>(p: &P) -> Result<Self, YagError>
   where
     P: AsRef<Path> + ?Sized,
   {
     let path_buf = p.as_ref().to_owned();
-    let file_text = std::fs::read_to_string(&path_buf)?;
+    let file_text = match std::fs::read_to_string(&path_buf) {
+      Ok(string) => string,
+      Err(e) => {
+        return Err(YagError::FileIO {
+          filename: format!("{}", path_buf.display()),
+          message: e.to_string(),
+        })
+      }
+    };
     let mut line_bytes = Vec::new();
     let mut total = 0;
     // Note(Lokathor): This works on both `\r\n` and `\n`, but will not generate
@@ -104,101 +109,6 @@ impl SrcFile {
       }
     }
   }
-
-  #[inline]
-  pub fn lex_tokens(
-    &self, err_bucket: &mut Vec<YagError>,
-  ) -> Vec<FileSpanned<Token>> {
-    let mut output = Vec::new();
-    let mut lexer = Token::lexer(&self.file_text);
-    let id = self.get_id();
-    while let Some(res) = lexer.next() {
-      let file_span = FileSpan::new(id, lexer.span());
-      match res {
-        Ok(token) => {
-          output.push(FileSpanned::new(token, file_span));
-        }
-        Err(()) => {
-          output.push(FileSpanned::new(Token::TokenError, file_span));
-          err_bucket.push(YagError::Tokenization(file_span));
-        }
-      }
-    }
-    output
-  }
-
-  #[must_use]
-  pub fn parse_token_trees(
-    &self, err_bucket: &mut Vec<YagError>,
-  ) -> Vec<FileSpanned<TokenTree>> {
-    let tokens = self.lex_tokens(err_bucket);
-    let end_span = FileSpan {
-      id: self.get_id(),
-      start: self.text().len(),
-      end: self.text().len(),
-    };
-    let recover_strategy =
-      via_parser(any().repeated().at_least(1).to(TokenTree::TreeError));
-    let tree_parser = token_tree_p()
-      .recover_with(recover_strategy)
-      .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
-      .repeated()
-      .collect();
-    let (opt_output, errors) = tree_parser
-      .parse(Input::map(&tokens[..], end_span, |fs| (&fs._payload, &fs._span)))
-      .into_output_errors();
-    let trees: Vec<FileSpanned<TokenTree>> = opt_output.unwrap_or_default();
-    err_bucket
-      .extend(errors.into_iter().map(|e| YagError::TokenTree(e.into_owned())));
-    trees
-  }
-
-  #[must_use]
-  pub fn parse_items(
-    &self, err_bucket: &mut Vec<YagError>,
-  ) -> Vec<FileSpanned<Item>> {
-    let trees = self.parse_token_trees(err_bucket);
-    let end_span = FileSpan {
-      id: self.get_id(),
-      start: self.text().len(),
-      end: self.text().len(),
-    };
-    let recover_strategy = {
-      // the recover point is back at the start of the failed item, so eat one
-      // item start token, then eat all tokens that *don't* start the next item,
-      // and now we've recovered.
-      let item_start = select! {
-        TokenTree::Lone(Token::KwFn) => (),
-        TokenTree::Lone(Token::KwConst) => (),
-        TokenTree::Lone(Token::KwStatic) => (),
-      };
-      let skip_item =
-        item_start.then(any().and_is(item_start.not()).repeated());
-      via_parser(skip_item.to(Item::ItemError))
-    };
-    let items_parser = item_p(make_input)
-      .padded_by(newline_p().repeated())
-      .recover_with(recover_strategy)
-      .map_with(|token_tree, ex| FileSpanned::new(token_tree, ex.span()))
-      .repeated()
-      .collect();
-    let (opt_output, item_errors_unowned) = items_parser
-      .parse(make_input(trees.as_slice(), end_span))
-      .into_output_errors();
-    let items: Vec<FileSpanned<Item>> = opt_output.unwrap_or_default();
-    err_bucket.extend(
-      item_errors_unowned.into_iter().map(|e| YagError::Item(e.into_owned())),
-    );
-    items
-  }
-}
-
-#[allow(clippy::needless_lifetimes)]
-fn make_input<'src>(
-  tokens: &'src [FileSpanned<TokenTree>], eoi: FileSpan,
-) -> impl BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>
-{
-  tokens.map(eoi, |fsd| (&fsd._payload, &fsd._span))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

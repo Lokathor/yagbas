@@ -6,13 +6,22 @@ pub struct FileSpan {
   pub start: usize,
   pub end: usize,
 }
+impl FileSpan {
+  #[inline]
+  #[must_use]
+  pub const fn new(id: SrcID, range: core::ops::Range<usize>) -> Self {
+    Self { id, start: range.start, end: range.end }
+  }
+}
 impl chumsky::span::Span for FileSpan {
   type Offset = usize;
   type Context = SrcID;
   #[inline]
   #[must_use]
-  fn new(context: Self::Context, range: std::ops::Range<Self::Offset>) -> Self {
-    Self { id: context, start: range.start, end: range.end }
+  fn new(
+    context: Self::Context, range: core::ops::Range<Self::Offset>,
+  ) -> Self {
+    Self::new(context, range)
   }
   #[inline]
   #[must_use]

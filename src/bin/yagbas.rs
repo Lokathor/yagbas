@@ -12,6 +12,7 @@ use std::{
   path::{Path, PathBuf},
 };
 use yagbas::{
+  ast::parsing::{grow_token_trees, lex_module_text},
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
@@ -52,10 +53,6 @@ pub enum Commands {
   Tokens(TokensArgs),
   /// Prints all token trees within the source files given.
   Trees(TreesArgs),
-  /// Prints all items within the source files given.
-  Items(ItemsArgs),
-  /// Checks source for problems without generating code.
-  Check(CheckArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -74,37 +71,15 @@ pub struct TreesArgs {
   #[arg(long)]
   pub message_size: Option<MessageSize>,
 
-  /// One or more source files to tokenize.
-  pub files: Vec<String>,
-}
-
-#[derive(Args, Debug, Clone)]
-pub struct ItemsArgs {
-  /// Output size for messages (default: compact)
-  #[arg(long)]
-  pub message_size: Option<MessageSize>,
-
-  /// One or more source files to tokenize.
-  pub files: Vec<String>,
-}
-
-#[derive(Args, Debug, Clone)]
-pub struct CheckArgs {
-  /// Output size for messages (default: compact)
-  #[arg(long)]
-  pub message_size: Option<MessageSize>,
-
-  /// One or more source files to tokenize.
+  /// One or more source files to print tokens for.
   pub files: Vec<String>,
 }
 
 pub fn main() {
   let cli = Cli::parse();
   match cli.command {
-    Commands::Tokens(args) => do_tokenize(args),
+    Commands::Tokens(args) => do_tokens(args),
     Commands::Trees(args) => do_trees(args),
-    Commands::Items(args) => do_items(args),
-    Commands::Check(args) => do_check(args),
   }
 }
 
@@ -140,24 +115,21 @@ fn report_all_the_errors(
   }
 }
 
-pub fn do_tokenize(args: TokensArgs) {
+pub fn do_tokens(args: TokensArgs) {
   let mut src_files = Vec::new();
   let mut err_bucket = Vec::new();
-  for filename in &args.files {
-    let src_file = match SrcFile::read_from_path(&filename) {
-      Ok(src_file) => src_file,
-      Err(io_error) => {
-        err_bucket.push(YagError::FileIO {
-          filename: filename.to_string(),
-          message: io_error.to_string(),
-        });
-        continue;
+  for read_result in args.files.iter().map(SrcFile::read_from_path) {
+    match read_result {
+      Err(e) => err_bucket.push(e),
+      Ok(src_file) => {
+        let tokens =
+          lex_module_text(src_file.text(), src_file.get_id(), &mut err_bucket);
+        //
+        let filename = src_file.path().display();
+        println!("=TOKENS {filename}: {tokens:?}");
+        src_files.push(src_file);
       }
-    };
-    let tokens = src_file.lex_tokens(&mut err_bucket);
-    src_files.push(src_file);
-    //
-    println!("{filename}: {tokens:?}");
+    }
   }
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }
@@ -165,70 +137,19 @@ pub fn do_tokenize(args: TokensArgs) {
 pub fn do_trees(args: TreesArgs) {
   let mut src_files = Vec::new();
   let mut err_bucket = Vec::new();
-  for filename in &args.files {
-    let src_file = match SrcFile::read_from_path(&filename) {
-      Ok(src_file) => src_file,
-      Err(io_error) => {
-        err_bucket.push(YagError::FileIO {
-          filename: filename.to_string(),
-          message: io_error.to_string(),
-        });
-        continue;
+  for read_result in args.files.iter().map(SrcFile::read_from_path) {
+    match read_result {
+      Err(e) => err_bucket.push(e),
+      Ok(src_file) => {
+        let tokens =
+          lex_module_text(src_file.text(), src_file.get_id(), &mut err_bucket);
+        let trees = grow_token_trees(&tokens, &mut err_bucket);
+        //
+        let filename = src_file.path().display();
+        println!("=TREES {filename}: {trees:?}");
+        src_files.push(src_file);
       }
-    };
-    let trees = src_file.parse_token_trees(&mut err_bucket);
-    src_files.push(src_file);
-    //
-    println!("=TREES {filename}: {trees:?}");
+    }
   }
   report_all_the_errors(src_files, err_bucket, args.message_size);
-}
-
-pub fn do_items(args: ItemsArgs) {
-  let mut src_files = Vec::new();
-  let mut err_bucket = Vec::new();
-  for filename in &args.files {
-    let src_file = match SrcFile::read_from_path(&filename) {
-      Ok(src_file) => src_file,
-      Err(io_error) => {
-        err_bucket.push(YagError::FileIO {
-          filename: filename.to_string(),
-          message: io_error.to_string(),
-        });
-        continue;
-      }
-    };
-    let items = src_file.parse_items(&mut err_bucket);
-    src_files.push(src_file);
-    //
-    println!("=ITEMS {filename}: {items:?}");
-  }
-  report_all_the_errors(src_files, err_bucket, args.message_size);
-}
-
-pub fn do_check(args: CheckArgs) {
-  let mut src_files = Vec::new();
-  let mut err_bucket = Vec::new();
-  for filename in &args.files {
-    let src_file = match SrcFile::read_from_path(&filename) {
-      Ok(src_file) => src_file,
-      Err(io_error) => {
-        err_bucket.push(YagError::FileIO {
-          filename: filename.to_string(),
-          message: io_error.to_string(),
-        });
-        continue;
-      }
-    };
-    let items = src_file.parse_items(&mut err_bucket);
-    src_files.push(src_file);
-    //
-
-    // todo: place checks here
-  }
-  if err_bucket.is_empty() {
-    println!("yagbas: No errors detected.")
-  } else {
-    report_all_the_errors(src_files, err_bucket, args.message_size);
-  }
 }
