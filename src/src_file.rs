@@ -4,6 +4,8 @@ use crate::{
     Item, Token, TokenTree,
   },
   errors::YagError,
+  file_span::FileSpan,
+  file_spanned::FileSpanned,
 };
 use bimap::BiMap;
 use chumsky::{
@@ -233,6 +235,7 @@ impl SrcID {
 impl<'a> From<&'a SrcFile> for SrcID {
   /// Convert any `&SrcFileInfo` into its ID, automatically interning it if
   /// necessary.
+  #[inline]
   fn from(s: &'a SrcFile) -> Self {
     let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
@@ -258,6 +261,7 @@ impl From<SrcFile> for SrcID {
   ///
   /// Prefer this impl if you *expect* to need to intern the value, it will
   /// avoid a clone.
+  #[inline]
   fn from(s: SrcFile) -> Self {
     let rw_lock = INFO_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
     let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
@@ -279,6 +283,7 @@ impl From<SrcFile> for SrcID {
   }
 }
 impl core::fmt::Display for SrcID {
+  #[inline]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     core::fmt::Display::fmt(&self.get_src_file().path().display(), f)
   }
@@ -287,163 +292,5 @@ impl Default for SrcID {
   #[inline]
   fn default() -> Self {
     SrcID::from(SrcFile::in_memory(""))
-  }
-}
-
-#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FileSpan {
-  pub id: SrcID,
-  pub start: usize,
-  pub end: usize,
-}
-impl chumsky::span::Span for FileSpan {
-  type Offset = usize;
-  type Context = SrcID;
-  #[inline]
-  #[must_use]
-  fn new(context: Self::Context, range: std::ops::Range<Self::Offset>) -> Self {
-    Self { id: context, start: range.start, end: range.end }
-  }
-  #[inline]
-  #[must_use]
-  fn start(&self) -> Self::Offset {
-    self.start
-  }
-  #[inline]
-  #[must_use]
-  fn end(&self) -> Self::Offset {
-    self.end
-  }
-  #[inline]
-  #[must_use]
-  fn context(&self) -> Self::Context {
-    self.id
-  }
-}
-impl ariadne::Span for FileSpan {
-  type SourceId = SrcID;
-
-  #[inline]
-  #[must_use]
-  fn source(&self) -> &Self::SourceId {
-    &self.id
-  }
-
-  #[inline]
-  #[must_use]
-  fn start(&self) -> usize {
-    self.start
-  }
-
-  #[inline]
-  #[must_use]
-  fn end(&self) -> usize {
-    self.end
-  }
-}
-impl core::fmt::Debug for FileSpan {
-  #[inline]
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    core::fmt::Display::fmt(self, f)
-  }
-}
-impl core::fmt::Display for FileSpan {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let info = self.id.get_src_file();
-    let path = info.path();
-    let (line, col) = info.line_col(self.start);
-    write!(f, "{path}:{line}:{col}", path = path.display())
-  }
-}
-
-#[derive(Clone, Copy)]
-pub struct FileSpanned<T> {
-  pub _payload: T,
-  pub _span: FileSpan,
-}
-impl<T> FileSpanned<T> {
-  #[inline]
-  #[must_use]
-  pub const fn new(t: T, span: FileSpan) -> Self {
-    Self { _payload: t, _span: span }
-  }
-}
-impl<T> chumsky::span::Span for FileSpanned<T>
-where
-  T: Clone,
-{
-  type Offset = usize;
-  type Context = (T, SrcID);
-  #[inline]
-  #[must_use]
-  fn new((t, id): (T, SrcID), range: std::ops::Range<Self::Offset>) -> Self {
-    Self { _payload: t, _span: FileSpan::new(id, range) }
-  }
-  #[inline]
-  #[must_use]
-  fn start(&self) -> Self::Offset {
-    self._span.start()
-  }
-  #[inline]
-  #[must_use]
-  fn end(&self) -> Self::Offset {
-    self._span.end()
-  }
-  #[inline]
-  #[must_use]
-  fn context(&self) -> Self::Context {
-    (self._payload.clone(), self._span.id)
-  }
-}
-impl<T> core::ops::Deref for FileSpanned<T> {
-  type Target = T;
-  #[inline]
-  #[must_use]
-  fn deref(&self) -> &Self::Target {
-    &self._payload
-  }
-}
-impl<T> core::ops::DerefMut for FileSpanned<T> {
-  #[inline]
-  #[must_use]
-  fn deref_mut(&mut self) -> &mut Self::Target {
-    &mut self._payload
-  }
-}
-impl<T> core::fmt::Debug for FileSpanned<T>
-where
-  T: core::fmt::Debug,
-{
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    core::fmt::Debug::fmt(&self._payload, f)
-  }
-}
-impl<T> core::fmt::Display for FileSpanned<T>
-where
-  T: core::fmt::Display,
-{
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    core::fmt::Display::fmt(&self._payload, f)
-  }
-}
-impl<T> core::cmp::PartialEq<Self> for FileSpanned<T>
-where
-  T: core::cmp::PartialEq,
-{
-  #[inline]
-  #[must_use]
-  fn eq(&self, other: &Self) -> bool {
-    self._payload == other._payload
-  }
-}
-impl<T> core::cmp::Eq for FileSpanned<T> where T: Eq {}
-impl<T> core::cmp::PartialEq<T> for FileSpanned<T>
-where
-  T: core::cmp::PartialEq,
-{
-  #[inline]
-  #[must_use]
-  fn eq(&self, other: &T) -> bool {
-    self._payload.eq(other)
   }
 }

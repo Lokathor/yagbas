@@ -1,4 +1,4 @@
-use crate::ast::Statement;
+use crate::{ast::Statement, file_spanned::FileSpanned};
 
 use super::*;
 

@@ -16,7 +16,9 @@ use yagbas::{
     check_break_continue_illegal, check_call_targets,
     check_multiple_definitions, YagError,
   },
-  src_files::{FileSpan, FileSpanned, SrcFile, SrcID},
+  file_span::FileSpan,
+  file_spanned::FileSpanned,
+  src_file::{SrcFile, SrcID},
   str_id::StrID,
 };
 

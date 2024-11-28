@@ -1,9 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::{
-  src_files::{FileSpan, FileSpanned},
-  str_id::StrID,
-};
+use crate::{file_span::FileSpan, file_spanned::FileSpanned, str_id::StrID};
 
 pub mod parsing;
 

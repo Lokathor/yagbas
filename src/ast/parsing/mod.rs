@@ -2,7 +2,8 @@ use crate::{
   ast::{
     Function, Item, Loop, Reg8, Statement, Token, Token::*, TokenTree::*, *,
   },
-  src_files::{FileSpan, FileSpanned},
+  file_span::FileSpan,
+  file_spanned::FileSpanned,
   str_id::StrID,
 };
 use chumsky::{

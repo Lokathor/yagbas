@@ -3,7 +3,9 @@ use chumsky::error::Rich;
 
 use crate::{
   ast::{Item, ItemKind, Token, TokenTree},
-  src_files::{FileSpan, FileSpanned, SrcID},
+  file_span::FileSpan,
+  file_spanned::FileSpanned,
+  src_file::SrcID,
   str_id::StrID,
 };
 use core::fmt::Write;

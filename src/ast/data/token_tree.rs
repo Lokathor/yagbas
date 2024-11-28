@@ -1,7 +1,4 @@
-use crate::{
-  ast::Token,
-  src_files::{FileSpan, FileSpanned},
-};
+use crate::{ast::Token, file_span::FileSpan, file_spanned::FileSpanned};
 use chumsky::{
   input::{BorrowInput, Input, ValueInput},
   prelude::*,

@@ -1,3 +1,5 @@
+use crate::file_spanned::FileSpanned;
+
 use super::*;
 
 #[derive(Debug, Clone)]
