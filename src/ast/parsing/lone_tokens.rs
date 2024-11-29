@@ -1,7 +1,8 @@
 //! Parsing of individual [TokenTree::Lone] token values.
 //!
-//! * Notably: [`num_lit_p`], [`ident_p`], and [`register_p`] can match against
-//!   varying inputs, and the captured input is [FileSpanned] as their output.
+//! * The [`num_lit_p`], [`ident_p`], [`register_p`], and [`bool_p`] parsers can
+//!   match against varying inputs, and the captured input is [FileSpanned] as
+//!   their output.
 //! * The rest of them only parse for exactly one value (eg: a single period or
 //!   a single comma), and so all those parsers output nothing.
 
@@ -54,6 +55,20 @@ where
     Lone(KwHL) = ex => FileSpanned::new(Register::HL, ex.span()),
   }
   .labelled("register")
+  .as_context()
+}
+
+/// Parses either `Lone(bool)` value.
+pub fn bool_p<'src, I>(
+) -> impl Parser<'src, I, FileSpanned<bool>, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwTrue) = ex => FileSpanned::new(true, ex.span()),
+    Lone(KwFalse) = ex => FileSpanned::new(false, ex.span()),
+  }
+  .labelled("bool")
   .as_context()
 }
 

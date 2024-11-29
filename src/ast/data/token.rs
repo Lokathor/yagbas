@@ -15,6 +15,8 @@ pub enum Token {
   KwConst,
   #[regex(r"continue", priority = 4)]
   KwContinue,
+  #[regex(r"false", priority = 4)]
+  KwFalse,
   #[regex(r"fn", priority = 4)]
   KwFn,
   #[regex(r"if", priority = 4)]
@@ -27,6 +29,8 @@ pub enum Token {
   KwReturn,
   #[regex(r"static", priority = 4)]
   KwStatic,
+  #[regex(r"true", priority = 4)]
+  KwTrue,
 
   #[regex(r"\[", priority = 3)]
   OpBracket,
@@ -226,6 +230,8 @@ impl core::fmt::Display for Token {
       Token::GreaterThan => write!(f, ">"),
       Token::LessThan => write!(f, "<"),
       Token::Ampersand => write!(f, "&"),
+      Token::KwFalse => write!(f, "false"),
+      Token::KwTrue => write!(f, "true"),
     }
   }
 }
