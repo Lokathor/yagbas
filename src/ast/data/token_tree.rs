@@ -37,6 +37,7 @@ impl core::fmt::Display for TokenTree {
   }
 }
 
+#[inline]
 fn fmt_tt_list<const DISPLAY: bool>(
   open: &str, close: &str, tts: &[FileSpanned<TokenTree>],
   f: &mut core::fmt::Formatter<'_>,

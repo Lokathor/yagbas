@@ -8,8 +8,10 @@ use chumsky::{
 
 use super::*;
 
+pub mod lone_tokens;
 pub mod token_tree;
 
+use lone_tokens::*;
 use token_tree::*;
 
 pub type ErrRichToken<'src> = Err<Rich<'src, Token, FileSpan>>;

@@ -15,11 +15,12 @@
 //!   package.
 
 use crate::{
-  ast::data::{Token, Token::*, TokenTree},
+  ast::data::{Register, Token, Token::*, TokenTree, TokenTree::*},
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
   src_file::SrcID,
+  str_id::StrID,
 };
 
 pub mod ast;
