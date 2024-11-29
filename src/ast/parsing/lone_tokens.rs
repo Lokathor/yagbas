@@ -1,3 +1,10 @@
+//! Parsing of individual [TokenTree::Lone] token values.
+//!
+//! * Notably: [`num_lit_p`], [`ident_p`], and [`register_p`] can match against
+//!   varying inputs, and the captured input is [FileSpanned] as their output.
+//! * The rest of them only parse for exactly one value (eg: a single period or
+//!   a single comma), and so all those parsers output nothing.
+
 use super::*;
 
 /// Parses a `Lone(NumLit(i))`, keeping `i`.
@@ -324,7 +331,7 @@ where
 }
 
 /// Parses a `Lone(Ampersand)`, which is then discarded.
-pub fn ambersand_p<'src, I>(
+pub fn ampersand_p<'src, I>(
 ) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
