@@ -1,5 +1,3 @@
-use data::Condition;
-
 use super::*;
 
 /// Parses a `Lone(NumLit(i))`, keeping `i`.
