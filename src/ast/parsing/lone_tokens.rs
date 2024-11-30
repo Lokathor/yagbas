@@ -189,6 +189,19 @@ where
   .as_context()
 }
 
+/// Parses a `Lone(KwMut)`, which is then discarded.
+pub fn kw_mut_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(KwMut) => (),
+  }
+  .labelled("`mut`")
+  .as_context()
+}
+
 /// Parses a `Lone(Colon)`, which is then discarded.
 pub fn colon_p<'src, I>(
 ) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone

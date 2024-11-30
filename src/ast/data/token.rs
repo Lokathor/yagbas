@@ -31,6 +31,8 @@ pub enum Token {
   KwStatic,
   #[regex(r"true", priority = 4)]
   KwTrue,
+  #[regex(r"mut", priority = 4)]
+  KwMut,
 
   #[regex(r"\[", priority = 3)]
   OpBracket,
@@ -189,6 +191,7 @@ impl core::fmt::Display for Token {
       Token::KwLoop => write!(f, "loop"),
       Token::KwReturn => write!(f, "return"),
       Token::KwStatic => write!(f, "static"),
+      Token::KwMut => write!(f, "mut"),
       Token::OpBracket => write!(f, "{{"),
       Token::ClBracket => write!(f, "}}"),
       Token::OpBrace => write!(f, "["),
