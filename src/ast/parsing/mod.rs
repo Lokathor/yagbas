@@ -8,9 +8,11 @@ use chumsky::{
 
 use super::*;
 
+pub mod expression;
 pub mod lone_tokens;
 pub mod token_tree;
 
+use expression::*;
 use lone_tokens::*;
 use token_tree::*;
 
@@ -96,4 +98,43 @@ pub fn grow_token_trees(
   err_bucket
     .extend(errors.into_iter().map(|e| YagError::TokenTree(e.into_owned())));
   trees
+}
+
+/// Lets you `select_ref!` the content out of some `Braces`
+pub fn braces_content_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, I, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
+{
+  select_ref! {
+    Braces(b) = ex => make_input(b, ex.span()),
+  }
+}
+
+/// Lets you `select_ref!` the content out of some `Brackets`
+pub fn bracket_content_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, I, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
+{
+  select_ref! {
+    Brackets(b) = ex => make_input(b, ex.span()),
+  }
+}
+
+/// Lets you `select_ref!` the content out of some `Parens`
+pub fn parens_content_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, I, ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+  M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
+{
+  select_ref! {
+    Parens(b) = ex => make_input(b, ex.span()),
+  }
 }
