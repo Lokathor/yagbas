@@ -24,24 +24,15 @@ where
 
     let with_pratt = atom.pratt((
       //
-      infix(right(1), equal_p(), build_assign),
+      infix(right(1), equal_p(), |left, op, right, extras| {
+        FileSpanned::from_extras(
+          Expression::Assign(Box::new(left), Box::new(right)),
+          extras,
+        )
+      }),
     ));
 
     with_pratt
   })
   .map_with(FileSpanned::from_extras)
-}
-
-fn build_assign<
-  'src,
-  I: Input<'src, Span = FileSpan>,
-  E: chumsky::extra::ParserExtra<'src, I>,
->(
-  left: FileSpanned<Expression>, op: (), right: FileSpanned<Expression>,
-  extras: &mut MapExtra<'src, 'src, I, E>,
-) -> FileSpanned<Expression> {
-  FileSpanned::from_extras(
-    Expression::Assign(Box::new(left), Box::new(right)),
-    extras,
-  )
 }
