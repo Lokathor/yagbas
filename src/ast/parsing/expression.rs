@@ -17,9 +17,12 @@ where
       let i = ident_p().map(Expression::Ident);
       let n = num_lit_p().map(Expression::NumLit);
       let r = register_p().map(Expression::Register);
-      let p = expr.clone().nested_in(parens_content_p(make_input));
+      let p = expr
+        .clone()
+        .nested_in(parens_content_p(make_input))
+        .map(|fs_expr: FileSpanned<Expression>| fs_expr._payload);
 
-      choice((i, n, r, p))
+      choice((i, n, r, p)).map_with(FileSpanned::from_extras)
     };
 
     let with_pratt = atom.pratt((
@@ -34,5 +37,4 @@ where
 
     with_pratt
   })
-  .map_with(FileSpanned::from_extras)
 }
