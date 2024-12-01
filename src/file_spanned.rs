@@ -3,6 +3,8 @@ use chumsky::{
   input::{Input, MapExtra},
 };
 
+use super::*;
+
 use crate::{file_span::FileSpan, src_file::SrcID};
 
 #[derive(Clone, Copy)]

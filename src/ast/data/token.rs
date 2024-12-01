@@ -102,6 +102,10 @@ pub enum Token {
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)", |lex| StrID::from(lex.slice()), priority=3)]
   NumLit(StrID),
 
+  #[regex(r"\^", priority = 2)]
+  Caret,
+  #[regex(r"\.", priority = 2)]
+  Period,
   #[regex(r":", priority = 2)]
   Colon,
   #[regex(r",", priority = 2)]
@@ -122,6 +126,12 @@ pub enum Token {
   Quote,
   #[regex(r";", priority = 2)]
   Semicolon,
+  #[regex(r"\*", priority = 2)]
+  Asterisk,
+  #[regex(r"/", priority = 2)]
+  Slash,
+  #[regex(r"%", priority = 2)]
+  Percent,
   #[regex(r">", priority = 2)]
   GreaterThan,
   #[regex(r"<", priority = 2)]
@@ -235,6 +245,11 @@ impl core::fmt::Display for Token {
       Token::Ampersand => write!(f, "&"),
       Token::KwFalse => write!(f, "false"),
       Token::KwTrue => write!(f, "true"),
+      Token::Caret => write!(f, "^"),
+      Token::Asterisk => write!(f, "*"),
+      Token::Slash => write!(f, "/"),
+      Token::Percent => write!(f, "%"),
+      Token::Period => write!(f, "."),
     }
   }
 }

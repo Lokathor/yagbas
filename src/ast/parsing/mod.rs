@@ -1,7 +1,7 @@
 use chumsky::{
   error::Rich,
-  extra::Err,
-  input::{BorrowInput, Input, MappedInput, ValueInput},
+  extra::{Err, ParserExtra},
+  input::{BorrowInput, Input, MapExtra, MappedInput, ValueInput},
   prelude::*,
   Parser,
 };

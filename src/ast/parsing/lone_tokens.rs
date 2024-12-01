@@ -228,6 +228,58 @@ where
   .as_context()
 }
 
+/// Parses a `Lone(Asterisk)`, which is then discarded.
+pub fn asterisk_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Asterisk) => (),
+  }
+  .labelled("`*`")
+  .as_context()
+}
+
+/// Parses a `Lone(Period)`, which is then discarded.
+pub fn period_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Period) => (),
+  }
+  .labelled("`.`")
+  .as_context()
+}
+
+/// Parses a `Lone(Slash)`, which is then discarded.
+pub fn slash_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Slash) => (),
+  }
+  .labelled("`/`")
+  .as_context()
+}
+
+/// Parses a `Lone(Percent)`, which is then discarded.
+pub fn percent_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Percent) => (),
+  }
+  .labelled("`%`")
+  .as_context()
+}
+
 /// Parses a `Lone(Equal)`, which is then discarded.
 pub fn equal_p<'src, I>(
 ) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
@@ -369,4 +421,71 @@ where
   }
   .labelled("`&`")
   .as_context()
+}
+
+/// Parses a `Lone(Caret)`, which is then discarded.
+pub fn caret_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  select! {
+    Lone(Caret) => (),
+  }
+  .labelled("`^`")
+  .as_context()
+}
+
+/// Parses `==`, which is then discarded.
+pub fn cmp_eq_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  equal_p().ignore_then(equal_p()).labelled("`==`").as_context()
+}
+
+/// Parses `!=`, which is then discarded.
+pub fn cmp_ne_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  exclamation_p().ignore_then(equal_p()).labelled("`!=`").as_context()
+}
+
+/// Parses `<=`, which is then discarded.
+pub fn cmp_le_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  less_than_p().ignore_then(equal_p()).labelled("`<=`").as_context()
+}
+
+/// Parses `>=`, which is then discarded.
+pub fn cmp_ge_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  greater_than_p().ignore_then(equal_p()).labelled("`>=`").as_context()
+}
+
+/// Parses `<<`, which is then discarded.
+pub fn double_lt_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  less_than_p().ignore_then(less_than_p()).labelled("`<<`").as_context()
+}
+
+/// Parses `>>`, which is then discarded.
+pub fn double_gt_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  greater_than_p().ignore_then(greater_than_p()).labelled("`==`").as_context()
 }

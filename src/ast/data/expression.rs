@@ -7,13 +7,16 @@ pub enum Expression {
   Register(FileSpanned<Register>),
   Bool(FileSpanned<bool>),
 
+  /// `[x]`
+  Deref(Box<FileSpanned<Self>>),
+
   /// `x.y`
   Dot(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
 
   /// `-x`
-  Neg(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
+  Neg(Box<FileSpanned<Self>>),
   /// `&x`
-  Ref(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
+  Ref(Box<FileSpanned<Self>>),
 
   /// `x * y`
   Mul(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
