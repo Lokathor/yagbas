@@ -2,7 +2,16 @@
 
 ## Tokens
 
+Yagbas source code is read as utf8 data, and is then lexed into "tokens", which
+make up the program.
+
 ### Comments
+
+Single line comments start with `//` and go to the end of the line.
+
+```rs
+// single line comment
+```
 
 Multi line comments start with `/*` and end with `*/`. They can be nested within each other.
 
@@ -11,64 +20,57 @@ Multi line comments start with `/*` and end with `*/`. They can be nested within
 comment */
 ```
 
-Single line comments start with `//` and go to the end of the line.
-
-```rs
-// single line comment
-```
-
 A single line comment marker takes priority over multi line comment markers, and
 will "comment out" a multi line comment open or close marker that appears after
 it on the same line.
 
-### Registers
+Commented text has no effect on the program.
 
-Register names can be all lowercase or all caps.
+### Registers and Conditions
+
+Register names and Condition values can be written in uppercase or lowercase.
 
 * `a` / `A`
-* `f` / `F`
-* `b` / `B`
-* `c` / `C`
-* `d` / `D`
-* `e` / `E`
-* `h` / `H`
-* `l` / `L`
 * `af` / `AF`
+* `b` / `B`
 * `bc` / `BC`
+* `c` / `C` (used for both the register and the "carry" condition)
+* `d` / `D`
 * `de` / `DE`
+* `e` / `E`
+* `f` / `F`
+* `h` / `H`
 * `hl` / `HL`
+* `l` / `L`
+* `nc` / `NC` (no-carry condition)
+* `nz` / `NZ` (non-zero condition)
+* `z` / `Z` (zero condition)
 
-### Conditions
+### Other Keywords
 
-Conditions can similarly be all lowercase or all caps
-
-* `c` / `C`
-* `z` / `Z`
-* `nc` / `NC`
-* `nz` / `NZ`
-
-Note that `c` is both a register name and a condition name. The meaning of the
-token is always sufficiently clear from the surrounding context.
-
-### Keywords
-
-All other keywords only allow a lowercase spelling
+All other keywords must be written in lowercase.
 
 * `break`
 * `const`
 * `continue`
+* `else`
+* `false`
 * `fn`
+* `if`
 * `loop`
+* `mut`
 * `return`
 * `static`
+* `true`
 
-### Numbers
+### Number Literals
 
 Numbers can be written in decimal, hexadecimal, or binary.
 
-* Decimal numbers must start with a digit.
-* Hexadecimal numbers are prefixed with `$`
-* Binary numbers are prefixed with `%`
+* Decimal numbers must start with a decimal digit.
+* Hexadecimal numbers are prefixed with `$`, and then 1 or more hexadecimal
+  digits. Both uppercase and lowercase are allowed for digits `a` through `f`.
+* Binary numbers are prefixed with `%`, then either binary digit.
 
 ```
 123
@@ -76,131 +78,193 @@ $AB12
 %101011
 ```
 
-Underscores can be used within a number literal, and they don't affect the value
-the literal represents.
+Underscores can also be used within a number literal. They don't affect the
+value the literal represents, but they can make the number easier for the
+programmer to read.
 
 ```
-1_234 == 1234
+1_024 == 1024
 ```
 
 ### Identifiers
 
-Identifiers in Yagbas work essentially like Rust and C style identifiers.
+Identifiers in Yagbas work the same as in languages such as Rust, C, Java, etc.
 
 * They must start with an underscore or an ascii letter.
-* They can contain underscores, ascii letters, or digits.
-* They can't be any other keyword, such as `a`, `nz`, or `break`.
+* They can contain underscores, ascii letters, or decimal digits.
 
-### Token Tree Groupings
+## Token Trees
 
-Certain punctuation will open and close a "token tree" group.
+After tokenization, the tokens are arranged into "token trees". A token tree is
+either a "lone" token, or a list of token trees contained within one of the
+types of grouping markers.
 
-* `(` and `)`
-* `{` and `}`
-* `[` and `]`
-* `/*` and `*/`
+* `(` and `)`, "parens"
+* `{` and `}`, "braces"
+* `[` and `]`, "brackets"
+* `/*` and `*/`, "multi-line comments"
 
-Token trees can contain inner token trees, but the group markers must balance
-out. If they are unbalanced then essentially the entire rest of the file cannot
-be processed by the parser.
+The group markers must balance out or the token trees cannot be constructed
+correctly. The yagbas parser is able to recover from some parsing problems, but
+unbalanced token trees will often halt it in its tracks completely.
 
 ## Items
 
-Items are defined at the top level of a source file.
+Items are the things that a source file defines.
 
-The order that items are defined in has no effect.
+Items are conceptually unordered. They can refer to other items either before or
+after their own definition, and it makes no difference.
+
+Each item has a name. No two items can have the same name.
+
+### Consts
+
+A const names an expression so that it can be used elsewhere within the program.
+
+```
+const NAME = EXPRESSION
+```
+
+### Statics
+
+A static value declares bytes of non-code data that should be present for the
+program to use. This is how you declare tile data or other program data.
+
+A list of individual byte expressions appears in a comma separated list inside square brackets.
+
+```
+static NAME = [byte0, byte1, byte2, ..., byteN]
+```
+
+When necessary, the list can be broken across several lines. The final
+expression can also optionally have a trailing comma.
+
+```
+static NAME = [
+  byte0, byte1, byte2,
+  byte3, byte4, byte5,
+  byte6, ....., byteN,
+]
+```
 
 ### Functions
 
-Functions define executable code that runs as part of the program.
+Functions define executable code that can be run during the program.
 
 ```
 fn NAME() {
-  // statement 1
-  // statement 2
-  // ...
-  // statement n
+  statement0
+  statement1
+  ...
+  statementN
 }
 ```
 
-Each function has a name and a body. The body of the function contains the
-statements to execute in order to make the program do whatever it's supposed to.
+Each function has a name and a body.
 
-Statements are written one per line. If more than one statement is desired on
-the same line then a `;` can be used, but this is not the standard style.
-
-## Expressions
-
-Expressions are used primarily to evaluate constant values for use during compilation.
-
-Constant expressions are number literal values, constant identifiers, or
-parenthesis groups holding a constant expression. Constant expressions can be
-combined together using various math operators.
-
-Runtime expressions allow register names, and in some cases allow operators to
-be used to combine constants with a register value.
-
-Operators in Yagbas follow the same precedence ordering used by Rust. Operators
-at the same precedence level work left to right by default.
-
-* Unary `-` (negation)
-* `+` and `-`
+The body of the function consists of braces enclosing the statements to execute
+in order to perform the function's task. Statements are separated by either a
+newline or a semicolon.
 
 ## Statements
 
-### Calls and Returns
+### Expression Statements
 
-Function calls are written with the name of the function call followed by parenthesis.
-
-```
-some_function()
-```
-
-A function returns to its caller with the `return` keyword.
+An expression statement performs some expression, generally an assignment, as a
+statement.
 
 ```
-return
+a = 0
+b = 5
+```
+
+### If-Else
+
+If-else statements let some code be conditionally performed.
+
+```
+if a < 20 {
+  b = 15
+} else {
+  b = 20
+}
+```
+
+The `else` portion can be omitted.
+
+```
+if a == 0 {
+  b = 10
+}
+```
+
+As a small exception to the usual parsing of only one statement per newline or
+semicolon, there *can* be newlines after the braces of the `if` body and before
+the `else` keyword.
+
+```
+if a != 1 {
+  b = 3
+}
+else {
+  b = 4
+}
 ```
 
 ### Loop, Break, and Continue
 
-A loop is used to execute a block of statements over and over.
+A `loop` statement contains a list of inner statements.
 
 ```
 loop {
-  // statement 1
-  // statement 2
-  // ...
-  // statement n
-}
-```
-
-Within a loop, the `break` keyword can be used to skip the rest of the loop body
-and jump to after the loop. Similarly, the `continue` keyword can be used to
-jump back to the start of the loop body. When one loop is contained in another,
-`break` and `continue` go to the end or start of the innermost loop.
-
-Loops can optionally have a name given to them:
-
-```
-'name: loop {
   // ...
 }
 ```
 
-When a loop has a name, then `break` and `continue` can go to the end or start
-of that loop by giving that name after the keyword.
+* The statements of the loop are performed, and then control flow goes back to
+  the start of the loop.
+* `break` will skip control flow to the end of the loop.
+* `continue` will move control flow back to the start of the loop.
+* In both cases, when a loop contains another loop, they move to the start or
+  end of the inner-most loop.
+
+Loops can be named, allowing for `break` and `continue` to go to a loop outside
+the inner-most loop.
 
 ```
-'foo: loop {
-  loop {
-    break 'foo // this goes to the end of the "foo" loop
+'outer: loop {
+  'next: loop {
+    a = b
+    loop {
+      if a == 0 {
+        break 'next
+      } else {
+        break 'outer
+      }
+    }
   }
-  return // this line is skipped by the `break` above.
 }
 ```
 
-This allows the program to jump from one loop nested inside of another "all the
-way" to the start or end of an outer loop.
+### Call and Return
 
-The `break` and `continue` keywords cannot be used outside of a loop.
+A function can be called to move control flow from the current function to that
+other function. The function to call is named, followed by a pair of
+parenthesis.
+
+```
+foo()
+```
+
+When a function has completed its task it can `return` to the function that called it.
+
+```
+fn set_a_to_zero() {
+  a = 0
+  return
+}
+```
+
+## Expressions
+
+TODO
