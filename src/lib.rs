@@ -16,8 +16,8 @@
 
 use crate::{
   ast::data::{
-    Call, Expression, Function, IfElse, Item, Loop, Register, Statement, Token,
-    Token::*, TokenTree, TokenTree::*,
+    Call, Const, Expression, Function, IfElse, Item, Loop, Register, Statement,
+    Static, Token, Token::*, TokenTree, TokenTree::*,
   },
   errors::YagError,
   file_span::FileSpan,

@@ -14,6 +14,11 @@ macro_rules! prefix_maker {
     |op, atom, extras| FileSpanned::from_extras($f(Box::new(atom)), extras)
   };
 }
+macro_rules! postfix_maker {
+  ($f: path) => {
+    |atom, op, extras| FileSpanned::from_extras($f(Box::new(atom)), extras)
+  };
+}
 
 /// Parses a single expression, including all inner expressions.
 pub fn expression_p<'src, I, M>(
@@ -31,16 +36,26 @@ where
       let num = num_lit_p().map(Expression::NumLit);
       let reg = register_p().map(Expression::Register);
       let bool = bool_p().map(Expression::Bool);
+      let macro_ = ident_p()
+        .then_ignore(exclamation_p())
+        .then(select! {
+          Parens(p) = ex => p,
+        })
+        .map(|(name, args)| Expression::Macro(name, args));
       let deref = expr
         .clone()
-        .nested_in(bracket_content_p(make_input))
+        .nested_in(brackets_content_p(make_input))
         .map(|fs_expr| Expression::Deref(Box::new(fs_expr)));
       let parens = expr
         .clone()
         .nested_in(parens_content_p(make_input))
         .map(|fs_expr| fs_expr._payload);
 
-      choice((ident, num, reg, bool, deref, parens))
+      // Note(Lokathor): `macro_` must come before `ident` in the choice list.
+      // They both parse an identifier, but `macro_` also parses more after, so
+      // we must put the longest parser first to make sure that it can be
+      // checked before parsing just the one identifier.
+      choice((macro_, ident, num, reg, bool, deref, parens))
         .map_with(FileSpanned::from_extras)
     };
 
@@ -64,6 +79,8 @@ where
       infix(left(11), percent_p(), infix_maker!(Expression::Mod)),
       prefix(12, minus_p(), prefix_maker!(Expression::Neg)),
       prefix(12, ampersand_p(), prefix_maker!(Expression::Ref)),
+      postfix(12, plusplus_p(), postfix_maker!(Expression::Inc)),
+      postfix(12, minusminus_p(), postfix_maker!(Expression::Dec)),
       infix(left(15), period_p(), infix_maker!(Expression::Dot)),
     ));
 

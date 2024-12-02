@@ -9,8 +9,13 @@ where
   M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
 {
   let f = function_p(make_input).map(Item::Function);
+  let c = const_p(make_input).map(Item::Const);
+  let s = static_p(make_input).map(Item::Static);
 
-  choice((f,)).map_with(FileSpanned::from_extras).labelled("item").as_context()
+  choice((f, c, s))
+    .map_with(FileSpanned::from_extras)
+    .labelled("item")
+    .as_context()
 }
 
 /// Parses any keyword which starts a new item.

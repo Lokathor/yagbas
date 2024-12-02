@@ -489,3 +489,21 @@ where
 {
   greater_than_p().ignore_then(greater_than_p()).labelled("`==`").as_context()
 }
+
+/// Parses `++`, which is then discarded.
+pub fn plusplus_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  plus_p().ignore_then(plus_p()).labelled("`++`").as_context()
+}
+
+/// Parses `--`, which is then discarded.
+pub fn minusminus_p<'src, I>(
+) -> impl Parser<'src, I, (), ErrRichTokenTree<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>,
+{
+  minus_p().ignore_then(minus_p()).labelled("`--`").as_context()
+}

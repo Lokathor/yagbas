@@ -6,6 +6,7 @@ pub enum Expression {
   Ident(FileSpanned<StrID>),
   Register(FileSpanned<Register>),
   Bool(FileSpanned<bool>),
+  Macro(FileSpanned<StrID>, Vec<FileSpanned<TokenTree>>),
 
   /// `[x]`
   Deref(Box<FileSpanned<Self>>),
@@ -17,6 +18,10 @@ pub enum Expression {
   Neg(Box<FileSpanned<Self>>),
   /// `&x`
   Ref(Box<FileSpanned<Self>>),
+  /// `x++`
+  Inc(Box<FileSpanned<Self>>),
+  /// `x--`
+  Dec(Box<FileSpanned<Self>>),
 
   /// `x * y`
   Mul(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
