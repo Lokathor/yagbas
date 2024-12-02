@@ -15,7 +15,10 @@
 //!   package.
 
 use crate::{
-  ast::data::{Expression, Register, Token, Token::*, TokenTree, TokenTree::*},
+  ast::data::{
+    Expression, Function, Item, Register, Statement, Token, Token::*,
+    TokenTree, TokenTree::*,
+  },
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,

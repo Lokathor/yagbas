@@ -9,41 +9,23 @@ use chumsky::{
 use super::*;
 
 pub mod expression;
+pub mod function;
+pub mod item;
 pub mod lone_tokens;
+pub mod statement;
 pub mod token_tree;
 
-use expression::*;
-use lone_tokens::*;
-use token_tree::*;
+pub use expression::*;
+pub use function::*;
+pub use item::*;
+pub use lone_tokens::*;
+pub use statement::*;
+pub use token_tree::*;
 
 pub type ErrRichToken<'src> = Err<Rich<'src, Token, FileSpan>>;
 pub type ErrRichTokenTree<'src> = Err<Rich<'src, TokenTree, FileSpan>>;
 
-/// Makes a token tree slice into an [Input](chumsky::input::Input).
-///
-/// This is used by all our parsers that need to look at the content of a token
-/// tree group.
-///
-/// * When making a parser that looks at the content of a token tree group, we
-///   need to run a parser on that inner content.
-/// * Running a parser on the content of a tree group uses `Input::map` to turn
-///   our custom `FileSpanned<T>` type (which chumsky doesn't know about) into
-///   `(T, FileSpan)` (which is what chumsky is expecting).
-/// * If any part of such a parser is recursive (eg, statements, expressions,
-///   etc) then we'd get a type error because Rust doesn't see two calls to
-///   `Input::map` with different closures as being the same type just because
-///   the two closures have the exact same expression.
-/// * So we force all our calls to any parser that uses grouped content to go
-///   through this one specific function, which gives them all the exact same
-///   mapping closure, which lets Rust see that they're all the same type.
-#[allow(clippy::needless_lifetimes)]
-pub fn make_tt_input<'src>(
-  trees: &'src [FileSpanned<TokenTree>], eoi: FileSpan,
-) -> impl BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>
-{
-  Input::map(trees, eoi, |fsd| (&fsd._payload, &fsd._span))
-}
-
+/// Lex the textual content of a program module into tokens.
 #[inline]
 pub fn lex_module_text(
   text: &str, id: SrcID, err_bucket: &mut Vec<YagError>,
@@ -67,7 +49,7 @@ pub fn lex_module_text(
 /// Converts a slice of tokens into a vec of token trees.
 ///
 /// The token tree creation step has *exceptionally* bad error recovery.
-pub fn grow_token_trees(
+pub fn parse_token_trees(
   tokens: &[FileSpanned<Token>], err_bucket: &mut Vec<YagError>,
 ) -> Vec<FileSpanned<TokenTree>> {
   let end_span = match tokens.last() {
@@ -98,6 +80,63 @@ pub fn grow_token_trees(
   err_bucket
     .extend(errors.into_iter().map(|e| YagError::TokenTree(e.into_owned())));
   trees
+}
+
+pub fn parse_items(
+  trees: &[FileSpanned<TokenTree>], err_bucket: &mut Vec<YagError>,
+) -> Vec<FileSpanned<Item>> {
+  let end_span = match trees.last() {
+    None => return Vec::new(),
+    Some(t) => FileSpan {
+      id: t._span.id,
+      // Note(Lokathor): Yes, we're using `end` twice deliberately. Chumsky is
+      // a silly friend, this is just how it works.
+      start: t._span.end,
+      end: t._span.end,
+    },
+  };
+  let strategy = via_parser(
+    item_sep_p()
+      .then(any().and_is(item_sep_p().not()).repeated())
+      .map_with(|_, extras| FileSpanned::from_extras(Item::ItemError, extras)),
+  );
+  let items_parser = item_p(make_tt_input)
+    .padded_by(newline_p().repeated())
+    .recover_with(strategy)
+    .repeated()
+    .collect::<Vec<FileSpanned<Item>>>();
+  let (opt_output, item_errors_unowned) =
+    items_parser.parse(make_tt_input(trees, end_span)).into_output_errors();
+  let items: Vec<FileSpanned<Item>> = opt_output.unwrap_or_default();
+  err_bucket.extend(
+    item_errors_unowned.into_iter().map(|e| YagError::Item(e.into_owned())),
+  );
+  items
+}
+
+/// Makes a token tree slice into an [Input](chumsky::input::Input).
+///
+/// This is used by all our parsers that need to look at the content of a token
+/// tree group.
+///
+/// * When making a parser that looks at the content of a token tree group, we
+///   need to run a parser on that inner content.
+/// * Running a parser on the content of a tree group uses `Input::map` to turn
+///   our custom `FileSpanned<T>` type (which chumsky doesn't know about) into
+///   `(T, FileSpan)` (which is what chumsky is expecting).
+/// * If any part of such a parser is recursive (eg, statements, expressions,
+///   etc) then we'd get a type error because Rust doesn't see two calls to
+///   `Input::map` with different closures as being the same type just because
+///   the two closures have the exact same expression.
+/// * So we force all our calls to any parser that uses grouped content to go
+///   through this one specific function, which gives them all the exact same
+///   mapping closure, which lets Rust see that they're all the same type.
+#[allow(clippy::needless_lifetimes)]
+pub fn make_tt_input<'src>(
+  trees: &'src [FileSpanned<TokenTree>], eoi: FileSpan,
+) -> impl BorrowInput<'src, Token = TokenTree, Span = FileSpan> + ValueInput<'src>
+{
+  Input::map(trees, eoi, |fsd| (&fsd._payload, &fsd._span))
 }
 
 /// Lets you `select_ref!` the content out of some `Braces`

@@ -15,7 +15,7 @@ macro_rules! prefix_maker {
   };
 }
 
-/// Parses a single expression, including all inner-expressions.
+/// Parses a single expression, including all inner expressions.
 pub fn expression_p<'src, I, M>(
   make_input: M,
 ) -> impl Parser<'src, I, FileSpanned<Expression>, ErrRichTokenTree<'src>> + Clone
@@ -69,4 +69,6 @@ where
 
     with_pratt
   })
+  .labelled("expression")
+  .as_context()
 }
