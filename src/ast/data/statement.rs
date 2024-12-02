@@ -1,39 +1,13 @@
 use super::*;
 
-/// A "single chunk of code" in yagbas.
-///
-/// Most statements are "one line" of code, but the variants for control flow
-/// have a body of inner statements that they cover.
-///
-/// * **Span Policy:** Span the heck out of this crap. The only time we don't
-///   need a span is when we're storing a single-field variant that's a struct
-///   which already has spans on its own fields.
 #[derive(Debug, Clone)]
 pub enum Statement {
-  Call { target: FileSpanned<StrID>, args: Vec<FileSpanned<TokenTree>> },
+  Expression(FileSpanned<Expression>),
+  IfElse(FileSpanned<IfElse>),
+  Loop(FileSpanned<Loop>),
+  Break(FileSpanned<Option<FileSpanned<StrID>>>),
+  Continue(FileSpanned<Option<FileSpanned<StrID>>>),
+  Call(FileSpanned<Call>),
   Return,
-  Loop(Loop),
-  Continue(StrID),
-  Break(StrID),
-  IfElse(IfElse),
-  Assignment(),
-
-  LoadReg8Const { reg8: FileSpanned<Reg8>, expr: FileSpanned<ConstExpr> },
-  StoreAToConstAddress(FileSpanned<ConstExpr>),
-  LoadAFromConstAddress(FileSpanned<ConstExpr>),
-
   StatementError,
-}
-impl Statement {
-  #[inline]
-  #[must_use]
-  pub fn targets_called(&self) -> Vec<FileSpanned<StrID>> {
-    match self {
-      Statement::Call { target, .. } => vec![*target],
-      Statement::Loop(Loop { statements, .. }) => {
-        statements.iter().flat_map(|s| s.targets_called()).collect()
-      }
-      _ => Vec::new(),
-    }
-  }
 }

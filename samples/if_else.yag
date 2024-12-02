@@ -24,4 +24,12 @@ fn if_else() {
   } else {
     a = 50
   }
+
+  // `else` on a separate line is allowed
+  if a < 10 {
+    a = 1
+  }
+  else {
+    a = 2
+  }
 }

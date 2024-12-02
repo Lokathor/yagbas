@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub struct Static {
+pub struct Const {
   pub name: FileSpanned<StrID>,
-  pub bytes: Vec<FileSpanned<Expression>>,
+  pub expression: FileSpanned<Expression>,
 }

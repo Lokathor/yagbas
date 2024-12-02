@@ -7,30 +7,32 @@ use crate::str_id::StrID;
 /// Call [`Token::lexer`] to turn a source [`&str`] into a [`Lexer`], which can
 /// be used as an iterator that will correctly produce all the `Token` values.
 #[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[logos(skip r#"[[ \t]]"#)] // ignore this between tokens
+#[logos(skip r#"[[ \t]]"#)] // ignore space and tab between tokens
 pub enum Token {
-  #[regex(r"break")]
+  #[regex(r"break", priority = 4)]
   KwBreak,
-  #[regex(r"const")]
+  #[regex(r"const", priority = 4)]
   KwConst,
-  #[regex(r"continue")]
+  #[regex(r"continue", priority = 4)]
   KwContinue,
-  #[regex(r"fn")]
+  #[regex(r"false", priority = 4)]
+  KwFalse,
+  #[regex(r"fn", priority = 4)]
   KwFn,
-  #[regex(r"if")]
+  #[regex(r"if", priority = 4)]
   KwIf,
-  #[regex(r"else")]
+  #[regex(r"else", priority = 4)]
   KwElse,
-  #[regex(r"loop")]
+  #[regex(r"loop", priority = 4)]
   KwLoop,
-  #[regex(r"return")]
+  #[regex(r"return", priority = 4)]
   KwReturn,
-  #[regex(r"static")]
+  #[regex(r"static", priority = 4)]
   KwStatic,
-  #[regex(r"u16")]
-  KwU16,
-  #[regex(r"u8")]
-  KwU8,
+  #[regex(r"true", priority = 4)]
+  KwTrue,
+  #[regex(r"mut", priority = 4)]
+  KwMut,
 
   #[regex(r"\[", priority = 3)]
   OpBracket,
@@ -44,7 +46,6 @@ pub enum Token {
   OpParen,
   #[regex(r"\)", priority = 3)]
   ClParen,
-
   #[token("a", priority = 3)]
   #[token("A", priority = 3)]
   KwA,
@@ -69,7 +70,6 @@ pub enum Token {
   #[token("l", priority = 3)]
   #[token("L", priority = 3)]
   KwL,
-
   #[token("af", priority = 3)]
   #[token("AF", priority = 3)]
   KwAF,
@@ -82,11 +82,8 @@ pub enum Token {
   #[token("hl", priority = 3)]
   #[token("HL", priority = 3)]
   KwHL,
-
-  // Note(Lokathor): Conditions are Carry/NoCarry and Zero/NotZero. The carry
-  // condition and `c` register name both tokenize as `KwC` (above), and then
-  // context makes it clear what the user meant. That's why there's only three
-  // new condition tokens here.
+  // Note(Lokathor): We reuse `KwC` as the "carry" token, the context of
+  // checking either a register or a condition will always be clear.
   #[token("z", priority = 3)]
   #[token("Z", priority = 3)]
   KwZ,
@@ -96,7 +93,6 @@ pub enum Token {
   #[token("nc", priority = 3)]
   #[token("NC", priority = 3)]
   KwNC,
-
   /// Something that's supposed to be a number.
   ///
   /// * `$` or `%` followed by 1 or more word characters (including digits)
@@ -106,6 +102,10 @@ pub enum Token {
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)", |lex| StrID::from(lex.slice()), priority=3)]
   NumLit(StrID),
 
+  #[regex(r"\^", priority = 2)]
+  Caret,
+  #[regex(r"\.", priority = 2)]
+  Period,
   #[regex(r":", priority = 2)]
   Colon,
   #[regex(r",", priority = 2)]
@@ -126,13 +126,18 @@ pub enum Token {
   Quote,
   #[regex(r";", priority = 2)]
   Semicolon,
+  #[regex(r"\*", priority = 2)]
+  Asterisk,
+  #[regex(r"/", priority = 2)]
+  Slash,
+  #[regex(r"%", priority = 2)]
+  Percent,
   #[regex(r">", priority = 2)]
   GreaterThan,
   #[regex(r"<", priority = 2)]
   LessThan,
   #[regex(r"&", priority = 2)]
   Ampersand,
-
   /// `//` starts a single-line comment, which goes to the end of the line.
   #[regex(r"//[^\r\n]*", priority = 2)]
   CommentSingle,
@@ -142,7 +147,6 @@ pub enum Token {
   /// `*/`, the end of a multi-line comment
   #[token(r"*/", priority = 2)]
   CommentBlockEnd,
-
   /// A C-like alphanumeric string *other than* a keyword.
   ///
   /// ```text
@@ -197,8 +201,7 @@ impl core::fmt::Display for Token {
       Token::KwLoop => write!(f, "loop"),
       Token::KwReturn => write!(f, "return"),
       Token::KwStatic => write!(f, "static"),
-      Token::KwU16 => write!(f, "u16"),
-      Token::KwU8 => write!(f, "u8"),
+      Token::KwMut => write!(f, "mut"),
       Token::OpBracket => write!(f, "{{"),
       Token::ClBracket => write!(f, "}}"),
       Token::OpBrace => write!(f, "["),
@@ -240,6 +243,13 @@ impl core::fmt::Display for Token {
       Token::GreaterThan => write!(f, ">"),
       Token::LessThan => write!(f, "<"),
       Token::Ampersand => write!(f, "&"),
+      Token::KwFalse => write!(f, "false"),
+      Token::KwTrue => write!(f, "true"),
+      Token::Caret => write!(f, "^"),
+      Token::Asterisk => write!(f, "*"),
+      Token::Slash => write!(f, "/"),
+      Token::Percent => write!(f, "%"),
+      Token::Period => write!(f, "."),
     }
   }
 }

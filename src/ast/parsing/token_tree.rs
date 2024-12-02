@@ -2,12 +2,12 @@ use super::*;
 
 /// Parses [Token] into [TokenTree].
 pub fn token_tree_p<'src, I>(
-) -> impl Parser<'src, I, TokenTree, ErrRichToken<'src>> + Clone
+) -> impl Parser<'src, I, FileSpanned<TokenTree>, ErrRichToken<'src>> + Clone
 where
   I: BorrowInput<'src, Token = Token, Span = FileSpan> + ValueInput<'src>,
 {
   recursive(|tt| {
-    let base = tt.map_with(|tts, e| FileSpanned::new(tts, e.span())).repeated();
+    let base = tt.map_with(FileSpanned::from_extras).repeated();
 
     // Looks like `{ ... }`
     let braces = base
@@ -48,7 +48,9 @@ where
       CommentBlockStart,
       CommentBlockEnd,
     ])
-    .map(TokenTree::Lone);
+    .map(TokenTree::Lone)
+    .labelled("lone_token")
+    .as_context();
 
     // comments get stripped from the output.
     let comment = {
@@ -77,13 +79,14 @@ where
       single_comment.or(block_comment)
     };
 
-    let x = choice((brackets, braces, parens, single))
-      .padded_by(comment.repeated())
-      .labelled("token_tree")
-      .as_context();
+    let x =
+      choice((brackets, braces, parens, single)).padded_by(comment.repeated());
 
     x
   })
+  .map_with(FileSpanned::from_extras)
+  .labelled("token_tree")
+  .as_context()
 }
 
 /// Parses an `OpBrace`, which is then discarded.

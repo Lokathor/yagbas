@@ -1,11 +1,4 @@
-use crate::{
-  ast::token::Token::{self, *},
-  src_files::{FileSpan, FileSpanned},
-};
-use chumsky::{
-  input::{BorrowInput, Input, ValueInput},
-  prelude::*,
-};
+use super::*;
 
 /// A lone token or a list of token trees within one of three groupings.
 ///
@@ -44,6 +37,7 @@ impl core::fmt::Display for TokenTree {
   }
 }
 
+#[inline]
 fn fmt_tt_list<const DISPLAY: bool>(
   open: &str, close: &str, tts: &[FileSpanned<TokenTree>],
   f: &mut core::fmt::Formatter<'_>,
