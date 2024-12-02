@@ -68,8 +68,19 @@ where
       .map(Statement::Continue)
       .labelled("continue_statement")
       .as_context();
+    let call = ident_p()
+      .then(
+        select! {
+          Parens(p) = ex => p,
+        }
+        .labelled("call_args")
+        .as_context(),
+      )
+      .map_with(|(target, args), extras| {
+        Statement::Call(FileSpanned::from_extras(Call { target, args }, extras))
+      });
 
-    choice((expr, loop_, return_, break_, continue_))
+    choice((call, expr, loop_, return_, break_, continue_))
       .map_with(FileSpanned::from_extras)
   })
   .labelled("statement")
