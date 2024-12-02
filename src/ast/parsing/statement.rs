@@ -11,6 +11,15 @@ where
   M: Fn(&'src [FileSpanned<TokenTree>], FileSpan) -> I + Copy + 'src,
 {
   recursive(|stmt| {
+    let braced_statements = stmt
+      .clone()
+      .recover_with(statement_recovery_strategy!())
+      .separated_by(statement_sep_p().repeated().at_least(1))
+      .allow_leading()
+      .allow_trailing()
+      .collect()
+      .nested_in(braces_content_p(make_input));
+
     let expr = expression_p(make_input)
       .map(Statement::Expression)
       .labelled("expression_statement")
@@ -22,16 +31,7 @@ where
         .or_not()
         .map_with(FileSpanned::from_extras);
       let kw = kw_loop_p();
-      let body = stmt
-        .clone()
-        .recover_with(statement_recovery_strategy!())
-        .separated_by(statement_sep_p().repeated().at_least(1))
-        .allow_leading()
-        .allow_trailing()
-        .collect()
-        .nested_in(braces_content_p(make_input))
-        .labelled("loop_body")
-        .as_context();
+      let body = braced_statements.clone().labelled("loop_body").as_context();
       name
         .then_ignore(kw)
         .then(body)
@@ -79,8 +79,32 @@ where
       .map_with(|(target, args), extras| {
         Statement::Call(FileSpanned::from_extras(Call { target, args }, extras))
       });
+    let if_else = {
+      let if_body = braced_statements.clone().labelled("if_body").as_context();
+      let else_body =
+        braced_statements.clone().labelled("else_body").as_context();
 
-    choice((call, expr, loop_, return_, break_, continue_))
+      kw_if_p()
+        .ignore_then(expression_p(make_input))
+        .then(if_body)
+        .then(
+          newline_p()
+            .repeated()
+            .ignore_then(kw_else_p())
+            .ignore_then(else_body)
+            .or_not(),
+        )
+        .map_with(|((test, if_body), else_body), extras| {
+          Statement::IfElse(FileSpanned::from_extras(
+            IfElse { test, if_body, else_body },
+            extras,
+          ))
+        })
+    };
+
+    // Note(Lokathor): I'm not sure if it's significant that we try to parse a
+    // call before an expression, but they do both start with an `ident`, so
+    choice((call, expr, loop_, return_, break_, continue_, if_else))
       .map_with(FileSpanned::from_extras)
   })
   .labelled("statement")
