@@ -15,10 +15,63 @@ where
       .map(Statement::Expression)
       .labelled("expression_statement")
       .as_context();
+    let loop_ = {
+      let name = quote_p()
+        .ignore_then(ident_p())
+        .then_ignore(colon_p())
+        .or_not()
+        .map_with(FileSpanned::from_extras);
+      let kw = kw_loop_p();
+      let body = stmt
+        .clone()
+        .recover_with(statement_recovery_strategy!())
+        .separated_by(statement_sep_p().repeated().at_least(1))
+        .allow_leading()
+        .allow_trailing()
+        .collect()
+        .nested_in(braces_content_p(make_input))
+        .labelled("loop_body")
+        .as_context();
+      name
+        .then_ignore(kw)
+        .then(body)
+        .map_with(|(name, statements), extras| {
+          Statement::Loop(FileSpanned::from_extras(
+            Loop::new(name, statements),
+            extras,
+          ))
+        })
+        .labelled("loop_statement")
+        .as_context()
+    };
+    let return_ = kw_return_p()
+      .to(Statement::Return)
+      .labelled("return_statement")
+      .as_context();
+    let break_ = kw_break_p()
+      .ignore_then(
+        quote_p()
+          .ignore_then(ident_p())
+          .or_not()
+          .map_with(FileSpanned::from_extras),
+      )
+      .map(Statement::Break)
+      .labelled("break_statement")
+      .as_context();
+    let continue_ = kw_continue_p()
+      .ignore_then(
+        quote_p()
+          .ignore_then(ident_p())
+          .or_not()
+          .map_with(FileSpanned::from_extras),
+      )
+      .map(Statement::Continue)
+      .labelled("continue_statement")
+      .as_context();
 
-    choice((expr,))
+    choice((expr, loop_, return_, break_, continue_))
+      .map_with(FileSpanned::from_extras)
   })
-  .map_with(FileSpanned::from_extras)
   .labelled("statement")
   .as_context()
 }
