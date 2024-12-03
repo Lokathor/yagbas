@@ -184,14 +184,14 @@ pub fn do_items(args: ItemsArgs) {
 pub fn do_ast(args: AstArgs) {
   let mut err_bucket = Vec::new();
   let mut src_files = read_src_files(&args.files, &mut err_bucket);
-  let mut all_items = Vec::new();
+  let mut every_item = Vec::new();
   for src_file in &src_files {
     let tokens = lex_module_text(src_file, &mut err_bucket);
     let trees = parse_token_trees(&tokens, &mut err_bucket);
     let items = parse_items(&trees, &mut err_bucket);
-    all_items.extend(items);
+    every_item.extend(items);
   }
-  let ast = Ast::from_items(all_items, &mut err_bucket);
+  let ast = Ast::from_items(every_item, &mut err_bucket);
   println!("{ast:?}");
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }
