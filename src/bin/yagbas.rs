@@ -12,7 +12,10 @@ use std::{
   path::{Path, PathBuf},
 };
 use yagbas::{
-  ast::parsing::{lex_module_text, parse_items, parse_token_trees},
+  ast::{
+    parsing::{lex_module_text, parse_items, parse_token_trees},
+    Ast,
+  },
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
@@ -56,6 +59,8 @@ pub enum Commands {
   Trees(TreesArgs),
   /// Prints all items within the source files given.
   Items(ItemsArgs),
+  /// Prints the combined Abstract Syntax Tree of the input files.
+  Ast(AstArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -74,7 +79,7 @@ pub struct TreesArgs {
   #[arg(long)]
   pub message_size: Option<MessageSize>,
 
-  /// One or more source files to print tokens for.
+  /// One or more source files to print token trees for.
   pub files: Vec<String>,
 }
 
@@ -84,7 +89,17 @@ pub struct ItemsArgs {
   #[arg(long)]
   pub message_size: Option<MessageSize>,
 
-  /// One or more source files to print tokens for.
+  /// One or more source files to print items for.
+  pub files: Vec<String>,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct AstArgs {
+  /// Output size for messages (default: compact)
+  #[arg(long)]
+  pub message_size: Option<MessageSize>,
+
+  /// One or more source files to merge into an AST.
   pub files: Vec<String>,
 }
 
@@ -94,6 +109,7 @@ pub fn main() {
     Commands::Tokens(args) => do_tokens(args),
     Commands::Trees(args) => do_trees(args),
     Commands::Items(args) => do_items(args),
+    Commands::Ast(args) => do_ast(args),
   }
 }
 
@@ -162,5 +178,20 @@ pub fn do_items(args: ItemsArgs) {
     let items = parse_items(&trees, &mut err_bucket);
     println!("=ITEM {filename}: {items:?}");
   }
+  report_all_the_errors(src_files, err_bucket, args.message_size);
+}
+
+pub fn do_ast(args: AstArgs) {
+  let mut err_bucket = Vec::new();
+  let mut src_files = read_src_files(&args.files, &mut err_bucket);
+  let mut all_items = Vec::new();
+  for src_file in &src_files {
+    let tokens = lex_module_text(src_file, &mut err_bucket);
+    let trees = parse_token_trees(&tokens, &mut err_bucket);
+    let items = parse_items(&trees, &mut err_bucket);
+    all_items.extend(items);
+  }
+  let ast = Ast::from_items(all_items, &mut err_bucket);
+  println!("{ast:?}");
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }

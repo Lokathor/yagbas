@@ -111,3 +111,19 @@ where
     self._payload.eq(other)
   }
 }
+impl<T> core::cmp::Ord for FileSpanned<T>
+where
+  T: Ord,
+{
+  fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    self._payload.cmp(&other._payload)
+  }
+}
+impl<T> core::cmp::PartialOrd<Self> for FileSpanned<T>
+where
+  T: core::cmp::PartialOrd,
+{
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    self._payload.partial_cmp(&other._payload)
+  }
+}

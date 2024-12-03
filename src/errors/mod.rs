@@ -14,9 +14,11 @@ pub enum YagError {
   Tokenization(FileSpan),
   TokenTree(Rich<'static, Token, FileSpan, &'static str>),
   Item(Rich<'static, TokenTree, FileSpan, &'static str>),
+  MultipleDefinitions(Vec<FileSpanned<Item>>),
 }
 impl YagError {
   pub fn one_line(&self) -> String {
+    use core::fmt::Write;
     match self {
       YagError::FileIO { filename, message } => {
         format!("Error: {filename}: IO: {message}")
@@ -26,6 +28,19 @@ impl YagError {
       }
       YagError::TokenTree(rich) => format!("Error: Token Tree: {rich:?}"),
       YagError::Item(rich) => format!("Error: Item: {rich:?}"),
+      YagError::MultipleDefinitions(vec) => {
+        let name = vec[0].get_name().unwrap();
+        let mut s = format!(
+          "Error:: MultipleDefinitions: `{name}` defined more than once: "
+        );
+        for (i, span) in vec.iter().map(|v| v._span).enumerate() {
+          if i > 0 {
+            write!(s, ", ").ok();
+          }
+          write!(s, "{span}").ok();
+        }
+        s
+      }
     }
   }
 
@@ -91,12 +106,14 @@ impl YagError {
           }
           _ => format!("{rich:?}"),
         })
-        .with_label(Label::new(*rich.span()).with_message("unexpected"))
-        //.with_labels(rich.contexts().map(|(context, file_span)| {
-        //  Label::new(*file_span)
-        //    .with_message(format!("while parsing {context}"))
-        //}))
         .finish(),
+      YagError::MultipleDefinitions(vec) => {
+        Report::build(ReportKind::Error, vec[0]._span)
+          .with_config(config)
+          .with_message("Multiple Definitions Error")
+          .with_labels(vec.iter().map(|v| Label::new(v._span)))
+          .finish()
+      }
     }
   }
 }
