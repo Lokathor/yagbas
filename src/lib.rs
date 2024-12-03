@@ -22,7 +22,7 @@ use crate::{
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
-  src_file::SrcID,
+  src_file::{SrcFile, SrcID},
   str_id::StrID,
 };
 
@@ -30,5 +30,22 @@ pub mod ast;
 pub mod errors;
 pub mod file_span;
 pub mod file_spanned;
+pub mod mir;
 pub mod src_file;
 pub mod str_id;
+
+pub fn read_src_files(
+  paths: &[String], err_bucket: &mut Vec<YagError>,
+) -> Vec<SrcFile> {
+  paths
+    .iter()
+    .map(SrcFile::read_from_path)
+    .flat_map(|result| match result {
+      Err(e) => {
+        err_bucket.push(e);
+        None
+      }
+      Ok(t) => Some(t),
+    })
+    .collect()
+}

@@ -16,6 +16,7 @@ use yagbas::{
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
+  read_src_files,
   src_file::{SrcFile, SrcID},
   str_id::StrID,
 };
@@ -129,61 +130,37 @@ fn report_all_the_errors(
 }
 
 pub fn do_tokens(args: TokensArgs) {
-  let mut src_files = Vec::new();
   let mut err_bucket = Vec::new();
-  for read_result in args.files.iter().map(SrcFile::read_from_path) {
-    match read_result {
-      Err(e) => err_bucket.push(e),
-      Ok(src_file) => {
-        let tokens =
-          lex_module_text(src_file.text(), src_file.get_id(), &mut err_bucket);
-        //
-        let filename = src_file.path().display();
-        println!("=TOKENS {filename}: {tokens:?}");
-        src_files.push(src_file);
-      }
-    }
+  let mut src_files = read_src_files(&args.files, &mut err_bucket);
+  for src_file in &src_files {
+    let filename = src_file.path().display();
+    let tokens = lex_module_text(src_file, &mut err_bucket);
+    println!("=TOKENS {filename}: {tokens:?}");
   }
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }
 
 pub fn do_trees(args: TreesArgs) {
-  let mut src_files = Vec::new();
   let mut err_bucket = Vec::new();
-  for read_result in args.files.iter().map(SrcFile::read_from_path) {
-    match read_result {
-      Err(e) => err_bucket.push(e),
-      Ok(src_file) => {
-        let tokens =
-          lex_module_text(src_file.text(), src_file.get_id(), &mut err_bucket);
-        let trees = parse_token_trees(&tokens, &mut err_bucket);
-        //
-        let filename = src_file.path().display();
-        println!("=TREES {filename}: {trees:?}");
-        src_files.push(src_file);
-      }
-    }
+  let mut src_files = read_src_files(&args.files, &mut err_bucket);
+  for src_file in &src_files {
+    let filename = src_file.path().display();
+    let tokens = lex_module_text(src_file, &mut err_bucket);
+    let trees = parse_token_trees(&tokens, &mut err_bucket);
+    println!("=TREES {filename}: {trees:?}");
   }
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }
 
 pub fn do_items(args: ItemsArgs) {
-  let mut src_files = Vec::new();
   let mut err_bucket = Vec::new();
-  for read_result in args.files.iter().map(SrcFile::read_from_path) {
-    match read_result {
-      Err(e) => err_bucket.push(e),
-      Ok(src_file) => {
-        let tokens =
-          lex_module_text(src_file.text(), src_file.get_id(), &mut err_bucket);
-        let trees = parse_token_trees(&tokens, &mut err_bucket);
-        let items = parse_items(&trees, &mut err_bucket);
-        //
-        let filename = src_file.path().display();
-        println!("=ITEM {filename}: {items:?}");
-        src_files.push(src_file);
-      }
-    }
+  let mut src_files = read_src_files(&args.files, &mut err_bucket);
+  for src_file in &src_files {
+    let filename = src_file.path().display();
+    let tokens = lex_module_text(src_file, &mut err_bucket);
+    let trees = parse_token_trees(&tokens, &mut err_bucket);
+    let items = parse_items(&trees, &mut err_bucket);
+    println!("=ITEM {filename}: {items:?}");
   }
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }

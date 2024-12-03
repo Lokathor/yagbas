@@ -32,10 +32,11 @@ pub type ErrRichTokenTree<'src> = Err<Rich<'src, TokenTree, FileSpan>>;
 /// Lex the textual content of a program module into tokens.
 #[inline]
 pub fn lex_module_text(
-  text: &str, id: SrcID, err_bucket: &mut Vec<YagError>,
+  src_file: &SrcFile, err_bucket: &mut Vec<YagError>,
 ) -> Vec<FileSpanned<Token>> {
   let mut output = Vec::new();
-  for (res_token, range_span) in Token::lexer(text).spanned() {
+  let id = src_file.get_id();
+  for (res_token, range_span) in Token::lexer(src_file.text()).spanned() {
     let file_span = FileSpan::new(id, range_span);
     match res_token {
       Ok(token) => {
