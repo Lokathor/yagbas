@@ -7,12 +7,16 @@ pub mod parsing;
 
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
-  pub items: BTreeMap<StrID, FileSpanned<Item>>,
+  pub consts: BTreeMap<StrID, FileSpanned<Const>>,
+  pub functions: BTreeMap<StrID, FileSpanned<Function>>,
+  pub statics: BTreeMap<StrID, FileSpanned<Static>>,
 }
 impl Ast {
   pub fn from_items(
     items: Vec<FileSpanned<Item>>, err_bucket: &mut Vec<YagError>,
   ) -> Self {
+    // Note(Lokathor): Currently all items are in a single namespace, so here we
+    // verify that we don't define the same identifier more than once.
     let mut everything_map: BTreeMap<StrID, Vec<FileSpanned<Item>>> =
       BTreeMap::new();
     for item in items {
@@ -27,7 +31,12 @@ impl Ast {
       } else {
         let definition = definitions.pop().unwrap();
         let name = definition.get_name().unwrap();
-        assert!(out.items.insert(name, definition).is_none());
+        match definition._payload {
+          Item::Function(f) => assert!(out.functions.insert(name, f).is_none()),
+          Item::Const(c) => assert!(out.consts.insert(name, c).is_none()),
+          Item::Static(s) => assert!(out.statics.insert(name, s).is_none()),
+          Item::ItemError => unimplemented!(),
+        };
       }
     }
     out
