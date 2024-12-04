@@ -191,7 +191,9 @@ pub fn do_ast(args: AstArgs) {
     let items = parse_items(&trees, &mut err_bucket);
     every_item.extend(items);
   }
-  let ast = Ast::from_items(every_item, &mut err_bucket);
+  let mut ast = Ast::from_items(every_item, &mut err_bucket);
+  ast.run_const_eval(&mut err_bucket);
+  ast.run_static_eval(&mut err_bucket);
   println!("{ast:?}");
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }
