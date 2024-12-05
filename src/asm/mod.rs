@@ -1,7 +1,8 @@
 use super::*;
 
+/// Performs math using the A register along with some other value.
 #[derive(Debug, Clone, Copy)]
-pub enum MathOp {
+pub enum BinaryOp {
   AddCarry,
   Add,
   BitAnd,
@@ -12,8 +13,9 @@ pub enum MathOp {
   BitXor,
 }
 
+/// Manipulates the bits of a single value
 #[derive(Debug, Clone, Copy)]
-pub enum BitsOp {
+pub enum UnaryOp {
   Test(u8),
   Set(u8),
   Clear(u8),
@@ -27,6 +29,7 @@ pub enum BitsOp {
   ShiftRightLogical,
 }
 
+/// The standard 8-bit registers
 #[derive(Debug, Clone, Copy)]
 pub enum Reg8 {
   A,
@@ -37,12 +40,16 @@ pub enum Reg8 {
   H,
   L,
 }
+
+/// The standard 16-bit register pairs
 #[derive(Debug, Clone, Copy)]
 pub enum Reg16 {
   BC,
   DE,
   HL,
 }
+
+/// The conditions for calls and jumps
 #[derive(Debug, Clone, Copy)]
 pub enum Condition {
   Carry,
@@ -52,11 +59,13 @@ pub enum Condition {
   Always,
 }
 
+/// A value that can be expressed in a single line of assembly.
 #[derive(Debug, Clone)]
-pub enum Mir {
-  MathAReg8(MathOp, Reg8),
-  MathAHlt(MathOp),
-  MathAImm8(MathOp, u8),
+pub enum Asm {
+  Label(StrID),
+  MathAReg8(BinaryOp, Reg8),
+  MathAHlt(BinaryOp),
+  MathAImm8(BinaryOp, u8),
   IncReg8(Reg8),
   IncHlt,
   DecReg8(Reg8),
@@ -64,8 +73,8 @@ pub enum Mir {
   AddHlImm16(u16),
   IncReg16(Reg16),
   DecReg16(Reg16),
-  BitOpReg8(BitsOp, Reg8),
-  BitOpHlt(BitsOp),
+  BitOpReg8(UnaryOp, Reg8),
+  BitOpHlt(UnaryOp),
   RotateLeftA,
   RotateLeftCarrylessA,
   RotateRightA,
@@ -88,9 +97,9 @@ pub enum Mir {
   LoadHlDecA,
   LoadAHlInc,
   LoadAHlDec,
-  Call(Condition, StrID),
+  CallLabel(Condition, StrID),
   JumpHL,
-  Jump(Condition, StrID),
+  JumpLabel(Condition, StrID),
   Return(Condition),
   ReturnFromInterrupt,
   ResetVector(u8),

@@ -27,11 +27,11 @@ use crate::{
   str_id::StrID,
 };
 
+pub mod asm;
 pub mod ast;
 pub mod errors;
 pub mod file_span;
 pub mod file_spanned;
-pub mod mir;
 pub mod src_file;
 pub mod str_id;
 
