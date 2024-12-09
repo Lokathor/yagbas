@@ -12,11 +12,10 @@ pub struct Ast {
   pub consts: BTreeMap<StrID, FileSpanned<Const>>,
   pub functions: BTreeMap<StrID, FileSpanned<Function>>,
   pub statics: BTreeMap<StrID, FileSpanned<Static>>,
+  pub err_bucket: Vec<YagError>,
 }
 impl Ast {
-  pub fn from_items(
-    items: Vec<FileSpanned<Item>>, err_bucket: &mut Vec<YagError>,
-  ) -> Self {
+  pub fn from_items(items: Vec<FileSpanned<Item>>) -> Self {
     // Note(Lokathor): Currently all items are in a single namespace, so here we
     // verify that we don't define the same identifier more than once.
     let mut everything_map: BTreeMap<StrID, Vec<FileSpanned<Item>>> =
@@ -30,7 +29,7 @@ impl Ast {
     for mut definitions in everything_map.into_values() {
       assert!(!definitions.is_empty());
       if definitions.len() > 1 {
-        err_bucket.push(YagError::MultipleDefinitions(definitions))
+        out.err_bucket.push(YagError::MultipleDefinitions(definitions))
       } else {
         let definition = definitions.pop().unwrap();
         let name = definition.get_name().unwrap();
@@ -45,7 +44,7 @@ impl Ast {
     out
   }
 
-  pub fn run_const_eval(&mut self, err_bucket: &mut Vec<YagError>) {
+  pub fn run_const_eval(&mut self) {
     for (k, v) in self.consts.iter_mut() {
       let c = &mut v._payload;
       match c.expression._payload {
@@ -61,7 +60,7 @@ impl Ast {
     }
   }
 
-  pub fn run_static_eval(&mut self, err_bucket: &mut Vec<YagError>) {
+  pub fn run_static_eval(&mut self) {
     for (k, v) in self.statics.iter_mut() {
       let s = &mut v._payload;
       let bytes = s
