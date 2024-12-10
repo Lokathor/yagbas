@@ -112,4 +112,44 @@ impl Expression {
       }
     }
   }
+
+  /// Maps the closure over any `Macro` atoms within the expression.
+  pub fn map_num_lit<F>(&mut self, op: &mut F)
+  where
+    F: FnMut(FileSpanned<StrID>) -> Expression,
+  {
+    use Expression::*;
+    match self {
+      NumLit(num) => {
+        let take_num = FileSpanned::take(num);
+        *self = op(take_num);
+      }
+      Macro(_, _) => (),
+      NumLit(_) | Ident(_) | Register(_) | Bool(_) | I32(_)
+      | ExpressionError => (),
+      Deref(file_spanned) | Neg(file_spanned) | Ref(file_spanned)
+      | Inc(file_spanned) | Dec(file_spanned) => file_spanned.map_num_lit(op),
+      Dot(file_spanned, file_spanned1)
+      | Mul(file_spanned, file_spanned1)
+      | Div(file_spanned, file_spanned1)
+      | Mod(file_spanned, file_spanned1)
+      | Add(file_spanned, file_spanned1)
+      | Sub(file_spanned, file_spanned1)
+      | ShiftLeft(file_spanned, file_spanned1)
+      | ShiftRight(file_spanned, file_spanned1)
+      | BitAnd(file_spanned, file_spanned1)
+      | BitXor(file_spanned, file_spanned1)
+      | BitOr(file_spanned, file_spanned1)
+      | Eq(file_spanned, file_spanned1)
+      | Ne(file_spanned, file_spanned1)
+      | Lt(file_spanned, file_spanned1)
+      | Gt(file_spanned, file_spanned1)
+      | Le(file_spanned, file_spanned1)
+      | Ge(file_spanned, file_spanned1)
+      | Assign(file_spanned, file_spanned1) => {
+        file_spanned.map_num_lit(op);
+        file_spanned1.map_num_lit(op);
+      }
+    }
+  }
 }

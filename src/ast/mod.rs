@@ -123,6 +123,23 @@ impl Ast {
       }
     }
   }
+
+  pub fn resolve_numeric_literals(&mut self) {
+    for func in self.functions.values_mut() {
+      for statement in &mut func.statements {
+        if let Statement::Expression(ex) = &mut statement._payload {
+          ex.map_num_lit(&mut |num| {
+            if let Some(x) = num_lit_to_i32(num) {
+              Expression::I32(FileSpanned::new(x, num._span))
+            } else {
+              self.err_bucket.push(todo!());
+              Expression::ExpressionError
+            }
+          });
+        }
+      }
+    }
+  }
 }
 
 fn num_lit_to_i32(n: FileSpanned<StrID>) -> Option<i32> {
