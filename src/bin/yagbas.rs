@@ -194,6 +194,7 @@ pub fn do_ast(args: AstArgs) {
   let mut ast = Ast::from_items(every_item);
   ast.run_const_eval();
   ast.run_static_eval();
+  ast.resolve_size_of_static();
   println!("{ast:?}");
   err_bucket.append(&mut ast.err_bucket);
   report_all_the_errors(src_files, err_bucket, args.message_size);

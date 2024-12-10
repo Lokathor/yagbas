@@ -6,7 +6,9 @@ pub enum Expression {
   Ident(FileSpanned<StrID>),
   Register(FileSpanned<Register>),
   Bool(FileSpanned<bool>),
-  Macro(FileSpanned<StrID>, Vec<FileSpanned<TokenTree>>),
+  Macro(FileSpanned<StrID>, FileSpanned<Vec<FileSpanned<TokenTree>>>),
+
+  I32(FileSpanned<i32>),
 
   /// `[x]`
   Deref(Box<FileSpanned<Self>>),
@@ -66,4 +68,48 @@ pub enum Expression {
   Assign(Box<FileSpanned<Self>>, Box<FileSpanned<Self>>),
 
   ExpressionError,
+}
+impl Expression {
+  /// Maps the closure over any `Macro` atoms within the expression.
+  pub fn map_macros<F>(&mut self, op: &mut F)
+  where
+    F: FnMut(
+      FileSpanned<StrID>,
+      FileSpanned<Vec<FileSpanned<TokenTree>>>,
+    ) -> Expression,
+  {
+    use Expression::*;
+    match self {
+      Macro(name, args) => {
+        let take_name = FileSpanned::take(name);
+        let take_args = FileSpanned::take(args);
+        *self = op(take_name, take_args)
+      }
+      NumLit(_) | Ident(_) | Register(_) | Bool(_) | I32(_)
+      | ExpressionError => (),
+      Deref(file_spanned) | Neg(file_spanned) | Ref(file_spanned)
+      | Inc(file_spanned) | Dec(file_spanned) => file_spanned.map_macros(op),
+      Dot(file_spanned, file_spanned1)
+      | Mul(file_spanned, file_spanned1)
+      | Div(file_spanned, file_spanned1)
+      | Mod(file_spanned, file_spanned1)
+      | Add(file_spanned, file_spanned1)
+      | Sub(file_spanned, file_spanned1)
+      | ShiftLeft(file_spanned, file_spanned1)
+      | ShiftRight(file_spanned, file_spanned1)
+      | BitAnd(file_spanned, file_spanned1)
+      | BitXor(file_spanned, file_spanned1)
+      | BitOr(file_spanned, file_spanned1)
+      | Eq(file_spanned, file_spanned1)
+      | Ne(file_spanned, file_spanned1)
+      | Lt(file_spanned, file_spanned1)
+      | Gt(file_spanned, file_spanned1)
+      | Le(file_spanned, file_spanned1)
+      | Ge(file_spanned, file_spanned1)
+      | Assign(file_spanned, file_spanned1) => {
+        file_spanned.map_macros(op);
+        file_spanned1.map_macros(op);
+      }
+    }
+  }
 }

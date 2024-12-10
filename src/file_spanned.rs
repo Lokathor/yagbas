@@ -29,6 +29,17 @@ impl<T> FileSpanned<T> {
   {
     Self::new(t, extras.span())
   }
+  /// Works like [core::mem::take] on just the `_payload`.
+  ///
+  /// The `_span` of the output is identical to the input span.
+  #[inline]
+  pub fn take(fs: &mut FileSpanned<T>) -> Self
+  where
+    T: Default,
+  {
+    let _payload = core::mem::take(&mut fs._payload);
+    FileSpanned { _payload, _span: fs._span }
+  }
 }
 impl<T> chumsky::span::Span for FileSpanned<T>
 where

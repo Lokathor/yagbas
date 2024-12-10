@@ -80,6 +80,43 @@ impl Ast {
       self.evaluated_statics.insert(*k, bytes);
     }
   }
+
+  pub fn resolve_size_of_static(&mut self) {
+    for func in self.functions.values_mut() {
+      for statement in &mut func.statements {
+        if let Statement::Expression(ex) = &mut statement._payload {
+          ex.map_macros(&mut |id, tts| {
+            if id.as_str() == "size_of_static" {
+              match tts.as_slice() {
+                [tt] => match tt._payload {
+                  TokenTree::Lone(Token::Ident(static_name)) => {
+                    if let Some(s) = self.evaluated_statics.get(&static_name) {
+                      let _payload: i32 = s.len().try_into().unwrap();
+                      let _span = id._span.join(tts._span);
+                      Expression::I32(FileSpanned { _payload, _span })
+                    } else {
+                      self.err_bucket.push(todo!());
+                      Expression::ExpressionError
+                    }
+                  }
+                  _ => {
+                    self.err_bucket.push(todo!());
+                    Expression::ExpressionError
+                  }
+                },
+                _ => {
+                  self.err_bucket.push(todo!());
+                  Expression::ExpressionError
+                }
+              }
+            } else {
+              Expression::Macro(id, tts)
+            }
+          });
+        }
+      }
+    }
+  }
 }
 
 fn num_lit_to_i32(n: FileSpanned<StrID>) -> Option<i32> {

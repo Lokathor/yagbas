@@ -12,6 +12,15 @@ impl FileSpan {
   pub const fn new(id: SrcID, range: core::ops::Range<usize>) -> Self {
     Self { id, start: range.start, end: range.end }
   }
+  #[inline]
+  #[must_use]
+  pub fn join(self, other: Self) -> Self {
+    Self {
+      id: self.id,
+      start: self.start.min(other.start),
+      end: self.end.max(other.end),
+    }
+  }
 }
 impl chumsky::span::Span for FileSpan {
   type Offset = usize;

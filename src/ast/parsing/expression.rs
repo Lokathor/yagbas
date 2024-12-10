@@ -39,7 +39,7 @@ where
       let macro_ = ident_p()
         .then_ignore(exclamation_p())
         .then(select! {
-          Parens(p) = ex => p,
+          Parens(p) = ex => FileSpanned::from_extras(p, ex),
         })
         .map(|(name, args)| Expression::Macro(name, args));
       let deref = expr
