@@ -58,6 +58,9 @@ impl Ast {
         _ => todo!("handle anything that isn't a num_lit"),
       }
     }
+    for k in self.evaluated_consts.keys() {
+      self.consts.remove(k);
+    }
   }
 
   pub fn run_static_eval(&mut self) {
@@ -78,6 +81,9 @@ impl Ast {
         })
         .collect();
       self.evaluated_statics.insert(*k, bytes);
+    }
+    for k in self.evaluated_statics.keys() {
+      self.statics.remove(k);
     }
   }
 
