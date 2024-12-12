@@ -196,6 +196,7 @@ pub fn do_ast(args: AstArgs) {
   ast.run_static_eval();
   ast.resolve_size_of_static();
   ast.resolve_numeric_literals();
+  ast.resolve_identifiers();
   println!("{ast:?}");
   err_bucket.append(&mut ast.err_bucket);
   report_all_the_errors(src_files, err_bucket, args.message_size);

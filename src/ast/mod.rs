@@ -140,6 +140,25 @@ impl Ast {
       }
     }
   }
+
+  pub fn resolve_identifiers(&mut self) {
+    for func in self.functions.values_mut() {
+      for statement in &mut func.statements {
+        if let Statement::Expression(ex) = &mut statement._payload {
+          ex.map_ident(&mut |i| {
+            if let Some(x) = self.evaluated_consts.get(&i) {
+              Expression::I32(FileSpanned::new(*x, i._span))
+            } else if self.evaluated_statics.contains_key(&i) {
+              Expression::StaticLabel(i)
+            } else {
+              self.err_bucket.push(todo!());
+              Expression::ExpressionError
+            }
+          });
+        }
+      }
+    }
+  }
 }
 
 fn num_lit_to_i32(n: FileSpanned<StrID>) -> Option<i32> {
