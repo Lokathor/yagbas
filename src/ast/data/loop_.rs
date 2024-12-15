@@ -41,20 +41,23 @@ impl Loop {
 
   pub fn expressions_mut(
     &mut self,
-  ) -> impl '_ + InternalIterator<Item = &'_ mut FileSpanned<Expression>> {
+  ) -> impl '_ + InternalIteratorMut<ItemMut = &'_ mut FileSpanned<Expression>>
+  {
     return ExpressionsMut(self);
     // where:
     struct ExpressionsMut<'r>(&'r mut Loop);
-
     impl<'r> InternalIterator for ExpressionsMut<'r> {
-      type Item = &'r mut FileSpanned<Expression>;
+      internal_iterator_guts! {}
+    }
 
-      fn try_for_each<R, F>(self, mut f: F) -> ControlFlow<R>
-      where
-        F: FnMut(Self::Item) -> ControlFlow<R>,
-      {
+    impl<'r> InternalIteratorMut for ExpressionsMut<'r> {
+      type ItemMut = &'r mut FileSpanned<Expression>;
+
+      fn try_for_each_mut<R>(
+        self, f: &mut impl FnMut(Self::Item) -> ControlFlow<R>,
+      ) -> ControlFlow<R> {
         for stmt in self.0.statements.iter_mut() {
-          stmt.expressions_mut().try_for_each(&mut f)?;
+          stmt.expressions_mut().try_for_each_mut(&mut *f)?;
         }
         ControlFlow::Continue(())
       }

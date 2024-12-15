@@ -23,6 +23,7 @@ use crate::{
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
+  internal_iterator_mut::InternalIteratorMut,
   src_file::{SrcFile, SrcID},
   str_id::StrID,
 };
@@ -34,6 +35,7 @@ pub mod ast;
 pub mod errors;
 pub mod file_span;
 pub mod file_spanned;
+pub mod internal_iterator_mut;
 pub mod src_file;
 pub mod str_id;
 
