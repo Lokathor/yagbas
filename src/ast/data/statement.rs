@@ -42,13 +42,10 @@ impl Statement {
     return ExpressionsMut(self);
     // where:
     struct ExpressionsMut<'r>(&'r mut Statement);
-
-    impl<'r> InternalIterator for ExpressionsMut<'r> {
-      type Item = &'r mut FileSpanned<Expression>;
-
-      fn try_for_each<R, F>(self, mut f: F) -> ControlFlow<R>
+    impl<'r> ExpressionsMut<'r> {
+      fn try_for_each_helper<R, F>(self, mut f: &mut F) -> ControlFlow<R>
       where
-        F: FnMut(Self::Item) -> ControlFlow<R>,
+        F: FnMut(&'r mut FileSpanned<Expression>) -> ControlFlow<R>,
       {
         match self.0 {
           Statement::Expression(xpr) => f(xpr)?,
@@ -63,6 +60,17 @@ impl Statement {
           | Statement::StatementError => {}
         }
         ControlFlow::Continue(())
+      }
+    }
+
+    impl<'r> InternalIterator for ExpressionsMut<'r> {
+      type Item = &'r mut FileSpanned<Expression>;
+
+      fn try_for_each<R, F>(self, mut f: F) -> ControlFlow<R>
+      where
+        F: FnMut(Self::Item) -> ControlFlow<R>,
+      {
+        self.try_for_each_helper(&mut f)
       }
     }
   }
