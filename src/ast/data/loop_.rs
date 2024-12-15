@@ -38,4 +38,26 @@ impl Loop {
     let name = self.name.as_deref().map(StrID::as_ref).unwrap_or_default();
     format!(".loop{x}#{name}#end")
   }
+
+  pub fn expressions_mut(
+    &mut self,
+  ) -> impl '_ + InternalIterator<Item = &'_ mut FileSpanned<Expression>> {
+    return ExpressionsMut(self);
+    // where:
+    struct ExpressionsMut<'r>(&'r mut Loop);
+
+    impl<'r> InternalIterator for ExpressionsMut<'r> {
+      type Item = &'r mut FileSpanned<Expression>;
+
+      fn try_for_each<R, F>(self, mut f: F) -> ControlFlow<R>
+      where
+        F: FnMut(Self::Item) -> ControlFlow<R>,
+      {
+        for stmt in self.0.statements.iter_mut() {
+          stmt.expressions_mut().try_for_each(&mut f)?;
+        }
+        ControlFlow::Continue(())
+      }
+    }
+  }
 }

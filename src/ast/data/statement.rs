@@ -35,4 +35,35 @@ impl Statement {
       }
     }
   }
+
+  pub fn expressions_mut(
+    &mut self,
+  ) -> impl '_ + InternalIterator<Item = &'_ mut FileSpanned<Expression>> {
+    return ExpressionsMut(self);
+    // where:
+    struct ExpressionsMut<'r>(&'r mut Statement);
+
+    impl<'r> InternalIterator for ExpressionsMut<'r> {
+      type Item = &'r mut FileSpanned<Expression>;
+
+      fn try_for_each<R, F>(self, mut f: F) -> ControlFlow<R>
+      where
+        F: FnMut(Self::Item) -> ControlFlow<R>,
+      {
+        match self.0 {
+          Statement::Expression(xpr) => f(xpr)?,
+          Statement::IfElse(if_else) => {
+            if_else.expressions_mut().try_for_each(f)?
+          }
+          Statement::Loop(loop_) => loop_.expressions_mut().try_for_each(f)?,
+          Statement::Break(_)
+          | Statement::Continue(_)
+          | Statement::Call(_)
+          | Statement::Return
+          | Statement::StatementError => {}
+        }
+        ControlFlow::Continue(())
+      }
+    }
+  }
 }

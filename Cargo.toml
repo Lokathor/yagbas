@@ -23,4 +23,5 @@ chumsky = { git = "https://github.com/zesterer/chumsky", features = [
   "pratt",
 ] }
 ariadne = { git = "https://github.com/zesterer/ariadne" }
+internal-iterator = "0.2.3"
 #rayon = "1.7.0"

@@ -89,9 +89,10 @@ impl Ast {
 
   pub fn resolve_size_of_static(&mut self) {
     for func in self.functions.values_mut() {
-      for statement in &mut func.statements {
-        if let Statement::Expression(ex) = &mut statement._payload {
-          ex.map_macros(&mut |id, tts| {
+      for statement in func.statements.iter_mut() {
+        statement.expressions_mut().for_each(|xpr| {
+          println!("resolve_size_of_static:{xpr:?}");
+          xpr.map_macros(&mut |id, tts| {
             if id.as_str() == "size_of_static" {
               match tts.as_slice() {
                 [tt] => match tt._payload {
@@ -119,16 +120,17 @@ impl Ast {
               Expression::Macro(id, tts)
             }
           });
-        }
+        });
       }
     }
   }
 
   pub fn resolve_numeric_literals(&mut self) {
     for func in self.functions.values_mut() {
-      for statement in &mut func.statements {
-        if let Statement::Expression(ex) = &mut statement._payload {
-          ex.map_num_lit(&mut |num| {
+      for statement in func.statements.iter_mut() {
+        statement.expressions_mut().for_each(|xpr| {
+          println!("resolve_numeric_literals:{xpr:?}");
+          xpr.map_num_lit(&mut |num| {
             if let Some(x) = num_lit_to_i32(num) {
               Expression::I32(FileSpanned::new(x, num._span))
             } else {
@@ -136,16 +138,16 @@ impl Ast {
               Expression::ExpressionError
             }
           });
-        }
+        });
       }
     }
   }
 
   pub fn resolve_identifiers(&mut self) {
     for func in self.functions.values_mut() {
-      for statement in &mut func.statements {
-        if let Statement::Expression(ex) = &mut statement._payload {
-          ex.map_ident(&mut |i| {
+      for statement in func.statements.iter_mut() {
+        statement.expressions_mut().for_each(|xpr| {
+          xpr.map_ident(&mut |i| {
             if let Some(x) = self.evaluated_consts.get(&i) {
               Expression::I32(FileSpanned::new(*x, i._span))
             } else if self.evaluated_statics.contains_key(&i) {
@@ -155,7 +157,7 @@ impl Ast {
               Expression::ExpressionError
             }
           });
-        }
+        });
       }
     }
   }

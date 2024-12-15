@@ -26,6 +26,8 @@ use crate::{
   src_file::{SrcFile, SrcID},
   str_id::StrID,
 };
+use core::ops::ControlFlow;
+use internal_iterator::InternalIterator;
 
 pub mod asm;
 pub mod ast;
