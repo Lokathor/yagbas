@@ -122,7 +122,7 @@ pub enum Asm {
   /// `op a, r8`
   MathAReg8(BinaryOp, Reg8),
 
-  /// `op a, [hl]
+  /// `op a, [hl]`
   MathAHlt(BinaryOp),
 
   /// `op a, imm8`
@@ -150,9 +150,13 @@ pub enum Asm {
   DecReg16(Reg16),
 
   /// `op reg8`
+  ///
+  /// * Uses the prefix byte.
   BitOpReg8(UnaryOp, Reg8),
 
   /// `op [hl]`
+  ///
+  /// * Uses the prefix byte.
   BitOpHlt(UnaryOp),
 
   /// `rla`
@@ -170,7 +174,7 @@ pub enum Asm {
   /// `ld reg8, reg8`
   LoadReg8Reg8(Reg8, Reg8),
 
-  /// ld reg8, imm8`
+  /// `ld reg8, imm8`
   LoadReg8Imm8(Reg8, u8),
 
   /// `ld reg16, imm16`
@@ -313,12 +317,86 @@ pub enum Asm {
 
   /// `stop`
   ///
-  /// * This instruction should *always* be followed by a `nop`, because the
-  ///   instruction after `stop` is executed or not depending on some hard to
-  ///   predict factors.
+  /// * This instruction is 1 byte itself but should *always* be followed by a
+  ///   `nop`, because the instruction after `stop` is executed or not
+  ///   depending on some very hard to predict factors.
   /// * See [Pandocs: Using the STOP Instruction](https://gbdev.io/pandocs/Reducing_Power_Consumption.html#using-the-stop-instruction)
   Stop,
 
   /// `nop`
   Nop,
+}
+impl Asm {
+  /// The size of this assembly within a rom.
+  pub const fn rom_size(self) -> usize {
+    match self {
+      Asm::Label(_) => 0,
+      Asm::MathAReg8(_, _)
+      | Asm::MathAHlt(_)
+      | Asm::IncReg8(_)
+      | Asm::IncHlt
+      | Asm::DecReg8(_)
+      | Asm::DecHlt
+      | Asm::IncReg16(_)
+      | Asm::DecReg16(_)
+      | Asm::RotateLeftA
+      | Asm::RotateLeftCarrylessA
+      | Asm::RotateRightA
+      | Asm::RotateRightCarrylessA
+      | Asm::LoadReg8Reg8(_, _)
+      | Asm::LoadHltReg8(_)
+      | Asm::LoadReg8Hlt(_)
+      | Asm::LoadReg16tA(_)
+      | Asm::LoadHighCtA
+      | Asm::LoadAReg16t(_)
+      | Asm::LoadHighACt
+      | Asm::LoadHlIncA
+      | Asm::LoadHlDecA
+      | Asm::LoadAHlInc
+      | Asm::LoadAHlDec
+      | Asm::JumpHL
+      | Asm::Return(_)
+      | Asm::ReturnFromInterrupt
+      | Asm::ResetVector(_)
+      | Asm::AddHlSp
+      | Asm::DecSp
+      | Asm::IncSp
+      | Asm::LoadSpHl
+      | Asm::PopAF
+      | Asm::PopReg16(_)
+      | Asm::PushAF
+      | Asm::PushReg16(_)
+      | Asm::SetCarryFlag
+      | Asm::ComplimentCarryFlag
+      | Asm::ComplimentA
+      | Asm::DecimalAdjustAccumulator
+      | Asm::DisableInterrupts
+      | Asm::EnableInterrupts
+      | Asm::Halt
+      | Asm::Stop
+      | Asm::Nop => 1,
+      Asm::MathAImm8(_, _)
+      | Asm::BitOpReg8(_, _)
+      | Asm::BitOpHlt(_)
+      | Asm::LoadReg8Imm8(_, _)
+      | Asm::LoadHltImm8(_)
+      | Asm::LoadHighImm8A(_)
+      | Asm::LoadHighAImm16t(_)
+      | Asm::JumpLabel(_, _)
+      | Asm::AddSpImm8(_)
+      | Asm::LoadHlSpDelta(_) => 2,
+      Asm::AddHlImm16(_)
+      | Asm::LoadReg16Imm16(_, _)
+      | Asm::LoadReg16Label(_, _)
+      | Asm::LoadImm16tA(_)
+      | Asm::LoadLabelA(_)
+      | Asm::LoadAImm16t(_)
+      | Asm::LoadALabel(_)
+      | Asm::CallLabel(_, _)
+      | Asm::LoadSpImm16(_)
+      | Asm::LoadSpLabel(_)
+      | Asm::LoadImm16tSp(_)
+      | Asm::LoadLabelSp(_) => 3,
+    }
+  }
 }
