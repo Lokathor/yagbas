@@ -4,6 +4,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::double_parens)]
 #![allow(clippy::from_str_radix_10)]
+#![allow(clippy::diverging_sub_expression)]
 
 //! Yagbas is a compiler for a language of the same name.
 //!
