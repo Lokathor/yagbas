@@ -89,76 +89,70 @@ impl Ast {
 
   pub fn resolve_size_of_static(&mut self) {
     for func in self.functions.values_mut() {
-      for statement in func.statements.iter_mut() {
-        statement.expressions_mut().for_each(|xpr| {
-          println!("resolve_size_of_static:{xpr:?}");
-          xpr.map_macros(&mut |id, tts| {
-            if id.as_str() == "size_of_static" {
-              match tts.as_slice() {
-                [tt] => match tt._payload {
-                  TokenTree::Lone(Token::Ident(static_name)) => {
-                    if let Some(s) = self.evaluated_statics.get(&static_name) {
-                      let _payload: i32 = s.len().try_into().unwrap();
-                      let _span = id._span.join(tts._span);
-                      Expression::I32(FileSpanned { _payload, _span })
-                    } else {
-                      self.err_bucket.push(todo!());
-                      Expression::ExpressionError
-                    }
-                  }
-                  _ => {
+      func.expressions_mut().for_each(|xpr| {
+        println!("resolve_size_of_static:{xpr:?}");
+        xpr.map_macros(&mut |id, tts| {
+          if id.as_str() == "size_of_static" {
+            match tts.as_slice() {
+              [tt] => match tt._payload {
+                TokenTree::Lone(Token::Ident(static_name)) => {
+                  if let Some(s) = self.evaluated_statics.get(&static_name) {
+                    let _payload: i32 = s.len().try_into().unwrap();
+                    let _span = id._span.join(tts._span);
+                    Expression::I32(FileSpanned { _payload, _span })
+                  } else {
                     self.err_bucket.push(todo!());
                     Expression::ExpressionError
                   }
-                },
+                }
                 _ => {
                   self.err_bucket.push(todo!());
                   Expression::ExpressionError
                 }
+              },
+              _ => {
+                self.err_bucket.push(todo!());
+                Expression::ExpressionError
               }
-            } else {
-              Expression::Macro(id, tts)
             }
-          });
+          } else {
+            Expression::Macro(id, tts)
+          }
         });
-      }
+      });
     }
   }
 
   pub fn resolve_numeric_literals(&mut self) {
     for func in self.functions.values_mut() {
-      for statement in func.statements.iter_mut() {
-        statement.expressions_mut().for_each(|xpr| {
-          println!("resolve_numeric_literals:{xpr:?}");
-          xpr.map_num_lit(&mut |num| {
-            if let Some(x) = num_lit_to_i32(num) {
-              Expression::I32(FileSpanned::new(x, num._span))
-            } else {
-              self.err_bucket.push(todo!());
-              Expression::ExpressionError
-            }
-          });
+      func.expressions_mut().for_each(|xpr| {
+        println!("resolve_numeric_literals:{xpr:?}");
+        xpr.map_num_lit(&mut |num| {
+          if let Some(x) = num_lit_to_i32(num) {
+            Expression::I32(FileSpanned::new(x, num._span))
+          } else {
+            self.err_bucket.push(todo!());
+            Expression::ExpressionError
+          }
         });
-      }
+      });
     }
   }
 
   pub fn resolve_identifiers(&mut self) {
     for func in self.functions.values_mut() {
-      for statement in func.statements.iter_mut() {
-        statement.expressions_mut().for_each(|xpr| {
-          xpr.map_ident(&mut |i| {
-            if let Some(x) = self.evaluated_consts.get(&i) {
-              Expression::I32(FileSpanned::new(*x, i._span))
-            } else if self.evaluated_statics.contains_key(&i) {
-              Expression::StaticLabel(i)
-            } else {
-              self.err_bucket.push(todo!());
-              Expression::ExpressionError
-            }
-          });
+      func.expressions_mut().for_each(|xpr| {
+        xpr.map_ident(&mut |i| {
+          if let Some(x) = self.evaluated_consts.get(&i) {
+            Expression::I32(FileSpanned::new(*x, i._span))
+          } else if self.evaluated_statics.contains_key(&i) {
+            Expression::StaticLabel(i)
+          } else {
+            self.err_bucket.push(todo!());
+            Expression::ExpressionError
+          }
         });
-      }
+      });
     }
   }
 }

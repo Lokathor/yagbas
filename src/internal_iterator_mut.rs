@@ -2,9 +2,9 @@ use super::*;
 
 pub trait InternalIteratorMut: InternalIterator<Item = Self::ItemMut> {
   type ItemMut;
-  fn try_for_each_mut<R>(
-    self, f: &mut impl FnMut(Self::Item) -> ControlFlow<R>,
-  ) -> ControlFlow<R>;
+  fn try_for_each_mut<R, F>(self, f: &mut F) -> ControlFlow<R>
+  where
+    F: FnMut(Self::Item) -> ControlFlow<R>;
 }
 
 #[macro_export]

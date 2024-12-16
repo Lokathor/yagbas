@@ -50,9 +50,10 @@ impl Statement {
     impl<'r> InternalIteratorMut for ExpressionsMut<'r> {
       type ItemMut = &'r mut FileSpanned<Expression>;
 
-      fn try_for_each_mut<R>(
-        self, f: &mut impl FnMut(Self::Item) -> ControlFlow<R>,
-      ) -> ControlFlow<R> {
+      fn try_for_each_mut<R, F>(self, f: &mut F) -> ControlFlow<R>
+      where
+        F: FnMut(Self::Item) -> ControlFlow<R>,
+      {
         match self.0 {
           Statement::Expression(xpr) => f(xpr)?,
           Statement::IfElse(if_else) => {
