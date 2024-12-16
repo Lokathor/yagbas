@@ -146,8 +146,22 @@ impl Ast {
           if let Some(x) = self.evaluated_consts.get(&i) {
             Expression::I32(FileSpanned::new(*x, i._span))
           } else if self.evaluated_statics.contains_key(&i) {
-            Expression::StaticLabel(i)
+            Expression::StaticIdent(i)
           } else {
+            self.err_bucket.push(todo!());
+            Expression::ExpressionError
+          }
+        });
+      });
+    }
+  }
+
+  pub fn resolve_ref(&mut self) {
+    for func in self.functions.values_mut() {
+      func.expressions_mut().for_each(|xpr| {
+        xpr.map_ref(&mut |xpr| match xpr._payload {
+          Expression::StaticIdent(i) => Expression::RefToStatic(i),
+          _ => {
             self.err_bucket.push(todo!());
             Expression::ExpressionError
           }

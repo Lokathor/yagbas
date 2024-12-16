@@ -9,7 +9,8 @@ pub enum Expression {
   Macro(FileSpanned<StrID>, FileSpanned<Vec<FileSpanned<TokenTree>>>),
 
   I32(FileSpanned<i32>),
-  StaticLabel(FileSpanned<StrID>),
+  StaticIdent(FileSpanned<StrID>),
+  RefToStatic(FileSpanned<StrID>),
 
   /// `[x]`
   Deref(Box<FileSpanned<Self>>),
@@ -88,7 +89,7 @@ impl Expression {
         *self = op(take_name, take_args)
       }
       NumLit(_) | Ident(_) | Register(_) | Bool(_) | I32(_)
-      | StaticLabel(_) | ExpressionError => (),
+      | StaticIdent(_) | RefToStatic(_) | ExpressionError => (),
       Deref(file_spanned) | Neg(file_spanned) | Ref(file_spanned)
       | Inc(file_spanned) | Dec(file_spanned) => file_spanned.map_macros(op),
       Dot(file_spanned, file_spanned1)
@@ -112,6 +113,7 @@ impl Expression {
         file_spanned.map_macros(op);
         file_spanned1.map_macros(op);
       }
+      RefToStatic(file_spanned) => todo!(),
     }
   }
 
@@ -127,8 +129,8 @@ impl Expression {
         *self = op(take_num);
       }
       Macro(_, _) => (),
-      Ident(_) | Register(_) | Bool(_) | I32(_) | StaticLabel(_)
-      | ExpressionError => (),
+      Ident(_) | Register(_) | Bool(_) | I32(_) | StaticIdent(_)
+      | RefToStatic(_) | ExpressionError => (),
       Deref(file_spanned) | Neg(file_spanned) | Ref(file_spanned)
       | Inc(file_spanned) | Dec(file_spanned) => file_spanned.map_num_lit(op),
       Dot(file_spanned, file_spanned1)
@@ -155,7 +157,7 @@ impl Expression {
     }
   }
 
-  /// Maps the closure over any `Macro` atoms within the expression.
+  /// Maps the closure over any `Ident` atoms within the expression.
   pub fn map_ident<F>(&mut self, op: &mut F)
   where
     F: FnMut(FileSpanned<StrID>) -> Expression,
@@ -167,8 +169,8 @@ impl Expression {
         *self = op(take_ident);
       }
       Macro(_, _) => (),
-      NumLit(_) | Register(_) | Bool(_) | I32(_) | StaticLabel(_)
-      | ExpressionError => (),
+      NumLit(_) | Register(_) | Bool(_) | I32(_) | StaticIdent(_)
+      | RefToStatic(_) | ExpressionError => (),
       Deref(file_spanned) | Neg(file_spanned) | Ref(file_spanned)
       | Inc(file_spanned) | Dec(file_spanned) => file_spanned.map_ident(op),
       Dot(file_spanned, file_spanned1)
@@ -191,6 +193,46 @@ impl Expression {
       | Assign(file_spanned, file_spanned1) => {
         file_spanned.map_ident(op);
         file_spanned1.map_ident(op);
+      }
+    }
+  }
+
+  /// Maps the closure over any `Ref` atoms within the expression.
+  pub fn map_ref<F>(&mut self, op: &mut F)
+  where
+    F: FnMut(FileSpanned<Expression>) -> Expression,
+  {
+    use Expression::*;
+    match self {
+      Ref(i) => {
+        let take_ident = FileSpanned::take(i);
+        *self = op(take_ident);
+      }
+      Macro(_, _) => (),
+      NumLit(_) | Register(_) | Bool(_) | I32(_) | StaticIdent(_)
+      | Ident(_) | RefToStatic(_) | ExpressionError => (),
+      Deref(file_spanned) | Neg(file_spanned) | Inc(file_spanned)
+      | Dec(file_spanned) => file_spanned.map_ref(op),
+      Dot(file_spanned, file_spanned1)
+      | Mul(file_spanned, file_spanned1)
+      | Div(file_spanned, file_spanned1)
+      | Mod(file_spanned, file_spanned1)
+      | Add(file_spanned, file_spanned1)
+      | Sub(file_spanned, file_spanned1)
+      | ShiftLeft(file_spanned, file_spanned1)
+      | ShiftRight(file_spanned, file_spanned1)
+      | BitAnd(file_spanned, file_spanned1)
+      | BitXor(file_spanned, file_spanned1)
+      | BitOr(file_spanned, file_spanned1)
+      | Eq(file_spanned, file_spanned1)
+      | Ne(file_spanned, file_spanned1)
+      | Lt(file_spanned, file_spanned1)
+      | Gt(file_spanned, file_spanned1)
+      | Le(file_spanned, file_spanned1)
+      | Ge(file_spanned, file_spanned1)
+      | Assign(file_spanned, file_spanned1) => {
+        file_spanned.map_ref(op);
+        file_spanned1.map_ref(op);
       }
     }
   }
