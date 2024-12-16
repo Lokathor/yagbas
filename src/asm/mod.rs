@@ -94,10 +94,19 @@ pub enum Reg16 {
 /// The conditions for calls and jumps
 #[derive(Debug, Clone, Copy)]
 pub enum Condition {
+  /// `c,`
   Carry,
+
+  /// `nc,`
   NoCarry,
+
+  /// `z,`
   Zero,
+
+  /// `nz,`
   NonZero,
+
+  /// nothing is printed for the "always" condition.
   Always,
 }
 
