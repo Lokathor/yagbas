@@ -18,33 +18,35 @@ fn main() {
   bc = size_of_static!(TILE_DATA);
   de = &TILE_DATA
   hl = TILE_BLOCK_2
-  loop {
-    a = [de]
-    [hl++] = a
-    de++
-    bc--
-    a = b | c
-    if a == 0 {
-      break
-    }
-  }
+  memcpy()
 
   // Copy Tilemap Data
   bc = size_of_static!(TILEMAP_DATA);
   de = &TILEMAP_DATA
   hl = TILE_MAP_0
+  memcpy()
+
+  loop{}
+}
+
+fn memcpy() {
+  bc--
+  b++
+  c++
   loop {
     a = [de]
     [hl++] = a
     de++
-    bc--
-    a = b | c
-    if a == 0 {
-      break
+    c--
+    if c != 0 {
+      continue
     }
+    b--
+    if b != 0 {
+      continue
+    }
+    return
   }
-
-  loop{}
 }
 
 // Audio Master Control
