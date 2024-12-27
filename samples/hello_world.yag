@@ -29,7 +29,20 @@ fn main() {
   loop{}
 }
 
+// Copies `bc` bytes from `de` to `hl`.
+// * Assumes that `bc` is non-zero
 fn memcpy() {
+  /* Note(Lokathor): This double-continue idea comes from `gb-sprobj-lib`.
+  Basically if we do a more obvious loop based on decrementing `bc` then it's 4
+  more T-cycles per loop just to do the decrement, and also it's 8 cycles to
+  check if `bc` is zero and end the loop (you have to do `a=b; a|=c`). Instead,
+  we adjust `bc` at the start so that we can decrement just `c` on most loop
+  passes, and then each time `c` hits 0, we do the extra work to also decrement
+  `b`. In both cases, the zero flag is correctly set by the decrement operation
+  itself, without extra work to move a value into `a`. This ends up saving 12
+  cycles each time we're only decrementing `c`, for a massive time savings
+  overall. */
+  
   bc--
   b++
   c++
