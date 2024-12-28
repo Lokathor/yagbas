@@ -90,7 +90,6 @@ impl Ast {
   pub fn resolve_size_of_static(&mut self) {
     for func in self.functions.values_mut() {
       func.expressions_mut().for_each(|xpr| {
-        println!("resolve_size_of_static:{xpr:?}");
         xpr.map_macros(&mut |id, tts| {
           if id.as_str() == "size_of_static" {
             match tts.as_slice() {
@@ -126,7 +125,6 @@ impl Ast {
   pub fn resolve_numeric_literals(&mut self) {
     for func in self.functions.values_mut() {
       func.expressions_mut().for_each(|xpr| {
-        println!("resolve_numeric_literals:{xpr:?}");
         xpr.map_num_lit(&mut |num| {
           if let Some(x) = num_lit_to_i32(num) {
             Expression::I32(FileSpanned::new(x, num._span))
@@ -148,7 +146,7 @@ impl Ast {
           } else if self.evaluated_statics.contains_key(&i) {
             Expression::StaticIdent(i)
           } else {
-            self.err_bucket.push(todo!());
+            self.err_bucket.push(YagError::ConstIdentifierUndefined(i));
             Expression::ExpressionError
           }
         });
@@ -166,6 +164,14 @@ impl Ast {
             Expression::ExpressionError
           }
         });
+      });
+    }
+  }
+
+  pub fn simplify_constant_values(&mut self) {
+    for func in self.functions.values_mut() {
+      func.expressions_mut().for_each(|xpr| {
+        xpr.simplify_value();
       });
     }
   }

@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum Expression {
   NumLit(FileSpanned<StrID>),
   Ident(FileSpanned<StrID>),
@@ -234,6 +234,48 @@ impl Expression {
         file_spanned.map_ref(op);
         file_spanned1.map_ref(op);
       }
+    }
+  }
+
+  /// Perform compile time expression simplification.
+  ///
+  /// This is where we combine const values according to various operations,
+  /// like turning `2 + 3` into `5` at compile time.
+  pub fn simplify_value(&mut self) {
+    // Note(Lokathor): As in normal math, you must first simplify any
+    // sub-expressions before simplifying the current expression being examined.
+    use Expression::*;
+    match self {
+      Register(_) | I32(_) | RefToStatic(_) => (),
+      Assign(left, right) => {
+        left.simplify_value();
+        right.simplify_value();
+      }
+      Deref(x) | Dec(x) | Inc(x) => x.simplify_value(),
+      Eq(left, right) | Ne(left, right) => {
+        left.simplify_value();
+        right.simplify_value();
+      }
+      BitOr(left, right) => {
+        left.simplify_value();
+        right.simplify_value();
+        match (&mut left._payload, &mut right._payload) {
+          (I32(l), I32(r)) => {
+            *self = I32(FileSpanned::new(
+              l._payload | r._payload,
+              left._span.join(right._span),
+            ))
+          }
+          (Bool(l), Bool(r)) => {
+            *self = Bool(FileSpanned::new(
+              l._payload | r._payload,
+              left._span.join(right._span),
+            ))
+          }
+          _ => (),
+        }
+      }
+      other => todo!("{other:?}"),
     }
   }
 }
