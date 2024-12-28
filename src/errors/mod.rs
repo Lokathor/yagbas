@@ -15,6 +15,7 @@ pub enum YagError {
   TokenTree(Rich<'static, Token, FileSpan, &'static str>),
   Item(Rich<'static, TokenTree, FileSpan, &'static str>),
   MultipleDefinitions(Vec<FileSpanned<Item>>),
+  ConstIdentifierUndefined(FileSpanned<StrID>),
 }
 impl YagError {
   pub fn one_line(&self) -> String {
@@ -40,6 +41,11 @@ impl YagError {
           write!(s, "{span}").ok();
         }
         s
+      }
+      YagError::ConstIdentifierUndefined(i) => {
+        let payload = i._payload;
+        let span = i._span;
+        format!("Error: Constant Identifier Undefined: `{payload}` {span}")
       }
     }
   }
@@ -112,6 +118,16 @@ impl YagError {
           .with_config(config)
           .with_message("Multiple Definitions Error")
           .with_labels(vec.iter().map(|v| Label::new(v._span)))
+          .finish()
+      }
+      YagError::ConstIdentifierUndefined(i) => {
+        Report::build(ReportKind::Error, i._span)
+          .with_config(config)
+          .with_message(format!(
+            "Constant Identifier Undefined: `{}`",
+            i._payload
+          ))
+          .with_label(Label::new(i._span))
           .finish()
       }
     }
