@@ -150,7 +150,7 @@ pub fn do_tokens(args: TokensArgs) {
   let mut src_files = read_src_files(&args.files, &mut err_bucket);
   for src_file in &src_files {
     let filename = src_file.path().display();
-    let tokens = lex_module_text(src_file, &mut err_bucket);
+    let tokens = lex_module_text(src_file);
     println!("=TOKENS {filename}: {tokens:?}");
   }
   report_all_the_errors(src_files, err_bucket, args.message_size);
@@ -161,7 +161,7 @@ pub fn do_trees(args: TreesArgs) {
   let mut src_files = read_src_files(&args.files, &mut err_bucket);
   for src_file in &src_files {
     let filename = src_file.path().display();
-    let tokens = lex_module_text(src_file, &mut err_bucket);
+    let tokens = lex_module_text(src_file);
     let trees = parse_token_trees(&tokens, &mut err_bucket);
     println!("=TREES {filename}: {trees:?}");
   }
@@ -173,7 +173,7 @@ pub fn do_items(args: ItemsArgs) {
   let mut src_files = read_src_files(&args.files, &mut err_bucket);
   for src_file in &src_files {
     let filename = src_file.path().display();
-    let tokens = lex_module_text(src_file, &mut err_bucket);
+    let tokens = lex_module_text(src_file);
     let trees = parse_token_trees(&tokens, &mut err_bucket);
     let items = parse_items(&trees, &mut err_bucket);
     println!("=ITEM {filename}: {items:?}");
@@ -186,7 +186,7 @@ pub fn do_ast(args: AstArgs) {
   let mut src_files = read_src_files(&args.files, &mut err_bucket);
   let mut every_item = Vec::new();
   for src_file in &src_files {
-    let tokens = lex_module_text(src_file, &mut err_bucket);
+    let tokens = lex_module_text(src_file);
     let trees = parse_token_trees(&tokens, &mut err_bucket);
     let items = parse_items(&trees, &mut err_bucket);
     every_item.extend(items);
@@ -198,6 +198,7 @@ pub fn do_ast(args: AstArgs) {
   ast.resolve_numeric_literals();
   ast.resolve_identifiers();
   ast.resolve_ref();
+  ast.simplify_constant_values();
   println!("{ast:?}");
   err_bucket.append(&mut ast.err_bucket);
   report_all_the_errors(src_files, err_bucket, args.message_size);
