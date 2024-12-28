@@ -4,15 +4,15 @@ fn main() {
   a = 0
   [NR52] = a
 
-  // Wait for vblank start to turn off the LCD
+  // Wait for the start of vblank then turn off the LCD.
   loop {
     a = [LY]
     if a == 144 {
+      a = 0
+      [LCDC] = a
       break
     }
   }
-  a = 0
-  [LCDC] = a
 
   // Copy Tile Data
   bc = size_of_static!(TILE_DATA);
@@ -26,7 +26,14 @@ fn main() {
   hl = TILE_MAP_0
   memcpy()
 
-  loop{}
+  // Activate the LCD display and set a background palette
+  a = LCD_CONFIG_DISPLAY_ON | LCD_CONFIG_BG_ON
+  [LCDC] = a
+  a = %11_10_01_00
+  [BGP] = a
+
+  // now we just wait forever.
+  loop {}
 }
 
 // Copies `bc` bytes from `de` to `hl`.
@@ -77,6 +84,10 @@ const BGP = $FF47
 const TILE_BLOCK_2 = $9000
 
 const TILE_MAP_0 = $9800
+
+const LCD_CONFIG_DISPLAY_ON = %1000_0000
+
+const LCD_CONFIG_BG_ON = %1
 
 // tile data
 static TILE_DATA = [
