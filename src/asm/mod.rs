@@ -325,10 +325,13 @@ pub enum Asm {
 
   /// `nop`
   Nop,
+
+  /// A raw sequence of bytes, generally "data" rather than "code.
+  RawBytes(Vec<u8>),
 }
 impl Asm {
   /// The size of this assembly within a rom.
-  pub const fn rom_size(self) -> usize {
+  pub fn rom_size(&self) -> usize {
     match self {
       Asm::Label(_) => 0,
       Asm::MathAReg8(_, _)
@@ -397,6 +400,7 @@ impl Asm {
       | Asm::LoadSpLabel(_)
       | Asm::LoadImm16tSp(_)
       | Asm::LoadLabelSp(_) => 3,
+      Asm::RawBytes(vec) => vec.len(),
     }
   }
 }
