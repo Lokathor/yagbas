@@ -74,6 +74,31 @@ impl<'a> From<&'a str> for StrID {
     }
   }
 }
+impl From<String> for StrID {
+  /// Convert any `&str` into its ID, automatically interning it if necessary.
+  #[inline]
+  fn from(s: String) -> Self {
+    let rw_lock = STR_CACHE.get_or_init(|| RwLock::new(BiMap::new()));
+    let read = rw_lock.read().unwrap_or_else(PoisonError::into_inner);
+    if let Some(id) = read.get_by_right(s.as_str()) {
+      *id
+    } else {
+      drop(read);
+      let mut write = rw_lock.write().unwrap_or_else(PoisonError::into_inner);
+      // It's *possible* that the string was inserted after we dropped the
+      // reader before we acquired the writer, so we must check a second
+      // time.
+      if let Some(id) = write.get_by_right(s.as_str()) {
+        *id
+      } else {
+        let id: StrID = StrID::new();
+        let leaked: StaticStr = Box::leak(s.into_boxed_str());
+        write.insert(id, leaked);
+        id
+      }
+    }
+  }
+}
 impl AsRef<str> for StrID {
   #[inline]
   #[must_use]

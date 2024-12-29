@@ -331,7 +331,9 @@ impl Expression {
           (Self::Register(r), Self::RefToStatic(name)) => {
             match Reg16::try_from(r._payload) {
               Ok(reg16) => {
-                out.extend([Asm::LoadReg16Label(reg16, name._payload)])
+                let name = name._payload;
+                let label = StrID::from(format!("static#{name}"));
+                out.extend([Asm::LoadReg16Label(reg16, label)])
               }
               Err(_) => todo!(),
             }
