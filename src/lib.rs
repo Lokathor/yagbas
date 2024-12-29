@@ -18,7 +18,7 @@
 //!   package.
 
 use crate::{
-  asm::Asm,
+  asm::{Asm, Condition},
   ast::data::{
     Call, Const, Expression, Function, IfElse, Item, Loop, Register, Statement,
     Static, Token, Token::*, TokenTree, TokenTree::*,
