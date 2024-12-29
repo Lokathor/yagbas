@@ -192,7 +192,7 @@ impl Ast {
       out.insert(*name, vec![label, Asm::RawBytes(data.clone())]);
     }
     for (f_, func) in self.functions.iter() {
-      out.insert(*f_, func._payload.generated_code());
+      out.insert(*f_, func._payload.generate_code());
     }
 
     out

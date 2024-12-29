@@ -33,7 +33,7 @@ impl Function {
     }
   }
 
-  pub fn generated_code(&self) -> Vec<Asm> {
+  pub fn generate_code(&self) -> Vec<Asm> {
     let mut out = Vec::new();
 
     let label =
