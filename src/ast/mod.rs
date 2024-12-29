@@ -8,7 +8,7 @@ pub mod parsing;
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
   pub evaluated_consts: BTreeMap<StrID, i32>,
-  pub evaluated_statics: BTreeMap<StrID, Vec<i32>>,
+  pub evaluated_statics: BTreeMap<StrID, Vec<u8>>,
   pub consts: BTreeMap<StrID, FileSpanned<Const>>,
   pub functions: BTreeMap<StrID, FileSpanned<Function>>,
   pub statics: BTreeMap<StrID, FileSpanned<Static>>,
@@ -69,10 +69,18 @@ impl Ast {
       let bytes = s
         .bytes
         .iter()
-        .map(|b| match b._payload {
+        .map(|xpr| match xpr._payload {
           Expression::NumLit(n) => {
-            if let Some(x) = num_lit_to_i32(n) {
-              x
+            if let Some(i32_) = num_lit_to_i32(n) {
+              match u8::try_from(i32_) {
+                Ok(u8_) => u8_,
+                Err(_) => match i8::try_from(i32_) {
+                  Ok(i8_) => i8_ as u8,
+                  Err(_) => {
+                    todo!("handle values that can't be stored in 8 bits")
+                  }
+                },
+              }
             } else {
               todo!("handle a num_lit that doesn't parse cleanly")
             }
@@ -174,6 +182,16 @@ impl Ast {
         xpr.simplify_value();
       });
     }
+  }
+
+  pub fn generate_code(&self) -> BTreeMap<StrID, Vec<Asm>> {
+    let mut out = BTreeMap::new();
+
+    for (s_, data) in self.evaluated_statics.iter() {
+      out.insert(*s_, vec![Asm::RawBytes(data.clone())]);
+    }
+
+    out
   }
 }
 

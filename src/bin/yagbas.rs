@@ -61,6 +61,8 @@ pub enum Commands {
   Items(ItemsArgs),
   /// Prints the combined Abstract Syntax Tree of the input files.
   Ast(AstArgs),
+  /// Prints the generated assembly of the input files.
+  Codegen(CodegenArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -103,6 +105,16 @@ pub struct AstArgs {
   pub files: Vec<String>,
 }
 
+#[derive(Args, Debug, Clone)]
+pub struct CodegenArgs {
+  /// Output size for messages (default: compact)
+  #[arg(long)]
+  pub message_size: Option<MessageSize>,
+
+  /// One or more source files to merge into an AST.
+  pub files: Vec<String>,
+}
+
 pub fn main() {
   let cli = Cli::parse();
   match cli.command {
@@ -110,6 +122,7 @@ pub fn main() {
     Commands::Trees(args) => do_trees(args),
     Commands::Items(args) => do_items(args),
     Commands::Ast(args) => do_ast(args),
+    Commands::Codegen(args) => do_codegen(args),
   }
 }
 
@@ -200,6 +213,30 @@ pub fn do_ast(args: AstArgs) {
   ast.resolve_ref();
   ast.simplify_constant_values();
   println!("{ast:?}");
+  err_bucket.append(&mut ast.err_bucket);
+  report_all_the_errors(src_files, err_bucket, args.message_size);
+}
+
+pub fn do_codegen(args: CodegenArgs) {
+  let mut err_bucket = Vec::new();
+  let mut src_files = read_src_files(&args.files, &mut err_bucket);
+  let mut every_item = Vec::new();
+  for src_file in &src_files {
+    let tokens = lex_module_text(src_file);
+    let trees = parse_token_trees(&tokens, &mut err_bucket);
+    let items = parse_items(&trees, &mut err_bucket);
+    every_item.extend(items);
+  }
+  let mut ast = Ast::from_items(every_item);
+  ast.run_const_eval();
+  ast.run_static_eval();
+  ast.resolve_size_of_static();
+  ast.resolve_numeric_literals();
+  ast.resolve_identifiers();
+  ast.resolve_ref();
+  ast.simplify_constant_values();
+  let code_output = ast.generate_code();
+  println!("{code_output:?}");
   err_bucket.append(&mut ast.err_bucket);
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }
