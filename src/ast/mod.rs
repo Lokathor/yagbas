@@ -184,11 +184,15 @@ impl Ast {
     }
   }
 
-  pub fn generate_code(&self) -> BTreeMap<StrID, Vec<Asm>> {
+  pub fn generate_assembly_items(&self) -> BTreeMap<StrID, Vec<Asm>> {
     let mut out = BTreeMap::new();
 
-    for (s_, data) in self.evaluated_statics.iter() {
-      out.insert(*s_, vec![Asm::RawBytes(data.clone())]);
+    for (name, data) in self.evaluated_statics.iter() {
+      let label = Asm::Label(StrID::from(format!("static#{name}").as_str()));
+      out.insert(*name, vec![label, Asm::RawBytes(data.clone())]);
+    }
+    for (f_, func) in self.functions.iter() {
+      out.insert(*f_, func._payload.generated_code());
     }
 
     out

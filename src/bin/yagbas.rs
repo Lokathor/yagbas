@@ -235,8 +235,8 @@ pub fn do_codegen(args: CodegenArgs) {
   ast.resolve_identifiers();
   ast.resolve_ref();
   ast.simplify_constant_values();
-  let code_output = ast.generate_code();
-  println!("{code_output:?}");
+  let assembly_items = ast.generate_assembly_items();
+  println!("{assembly_items:?}");
   err_bucket.append(&mut ast.err_bucket);
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }

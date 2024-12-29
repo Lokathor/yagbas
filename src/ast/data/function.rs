@@ -32,4 +32,14 @@ impl Function {
       }
     }
   }
+
+  pub fn generated_code(&self) -> Vec<Asm> {
+    let mut out = Vec::new();
+
+    let label =
+      Asm::Label(StrID::from(format!("fn#{name}", name = self.name).as_str()));
+    out.push(label);
+
+    out
+  }
 }
