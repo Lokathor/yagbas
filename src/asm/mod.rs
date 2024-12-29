@@ -326,7 +326,7 @@ pub enum Asm {
   /// `nop`
   Nop,
 
-  /// A raw sequence of bytes, generally "data" rather than "code.
+  /// A raw sequence of bytes, generally "data" rather than "code".
   RawBytes(Vec<u8>),
 }
 impl Asm {
