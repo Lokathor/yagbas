@@ -278,4 +278,88 @@ impl Expression {
       other => todo!("{other:?}"),
     }
   }
+
+  pub fn write_code(&self, out: &mut impl Extend<Asm>) {
+    match self {
+      Self::Assign(target, value) => {
+        match (&target._payload, &value._payload) {
+          (Self::Register(r), Self::I32(imm)) => {
+            match Reg8::try_from(r._payload) {
+              Ok(reg8) => {
+                let imm8 = match u8::try_from(imm._payload) {
+                  Ok(u) => u,
+                  Err(_) => match i8::try_from(imm._payload) {
+                    Ok(i) => i as u8,
+                    Err(_) => todo!("unhandled immediate value"),
+                  },
+                };
+                out.extend([Asm::LoadReg8Imm8(reg8, imm8)]);
+              }
+              Err(_) => match Reg16::try_from(r._payload) {
+                Ok(reg16) => {
+                  let imm16 = match u16::try_from(imm._payload) {
+                    Ok(u) => u,
+                    Err(_) => match i16::try_from(imm._payload) {
+                      Ok(i) => i as u16,
+                      Err(_) => todo!("unhandled immediate value"),
+                    },
+                  };
+                  out.extend([Asm::LoadReg16Imm16(reg16, imm16)]);
+                }
+                Err(_) => todo!("unhandled register assignment target"),
+              },
+            };
+          }
+          (Self::Deref(address), Self::Register(reg)) => {
+            if *reg != Register::A {
+              todo!("only A can be written to an immediate address value");
+            }
+            match address._payload {
+              Self::I32(i32_) => {
+                let imm16 = match u16::try_from(i32_._payload) {
+                  Ok(u16_) => u16_,
+                  Err(_) => match i16::try_from(i32_._payload) {
+                    Ok(i16_) => i16_ as u16,
+                    Err(_) => todo!("illegal immediate address value"),
+                  },
+                };
+                out.extend([Asm::LoadImm16tA(imm16)]);
+              }
+              _ => todo!("unhandled address literal expression type"),
+            }
+          }
+          (Self::Register(r), Self::RefToStatic(name)) => {
+            match Reg16::try_from(r._payload) {
+              Ok(reg16) => {
+                out.extend([Asm::LoadReg16Label(reg16, name._payload)])
+              }
+              Err(_) => todo!(),
+            }
+          }
+          other => todo!("unhandled assign expression: {other:?}"),
+        }
+      }
+      Self::Dec(xpr) => match &xpr._payload {
+        Self::Register(r) => match Reg8::try_from(r._payload) {
+          Ok(reg8) => out.extend([Asm::DecReg8(reg8)]),
+          Err(_) => match Reg16::try_from(r._payload) {
+            Ok(reg16) => out.extend([Asm::DecReg16(reg16)]),
+            Err(_) => todo!("unhandled register type"),
+          },
+        },
+        other => todo!("unhandled decrement expression: {other:?}"),
+      },
+      Self::Inc(xpr) => match &xpr._payload {
+        Self::Register(r) => match Reg8::try_from(r._payload) {
+          Ok(reg8) => out.extend([Asm::IncReg8(reg8)]),
+          Err(_) => match Reg16::try_from(r._payload) {
+            Ok(reg16) => out.extend([Asm::IncReg16(reg16)]),
+            Err(_) => todo!("unhandled register type"),
+          },
+        },
+        other => todo!("unhandled increment expression: {other:?}"),
+      },
+      _other => todo!("unhandled expression form: {_other:?}"),
+    }
+  }
 }

@@ -6,6 +6,7 @@
 #![allow(clippy::from_str_radix_10)]
 #![allow(clippy::diverging_sub_expression)]
 #![allow(clippy::needless_lifetimes)]
+#![allow(clippy::match_single_binding)]
 
 //! Yagbas is a compiler for a language of the same name.
 //!
@@ -18,7 +19,7 @@
 //!   package.
 
 use crate::{
-  asm::{Asm, Condition},
+  asm::{Asm, BinaryOp, Condition, Reg16, Reg8, UnaryOp},
   ast::data::{
     Call, Const, Expression, Function, IfElse, Item, Loop, Register, Statement,
     Static, Token, Token::*, TokenTree, TokenTree::*,
