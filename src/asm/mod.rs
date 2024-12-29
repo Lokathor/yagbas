@@ -266,10 +266,10 @@ pub enum Asm {
   CallLabel(Condition, StrID),
 
   /// `jp hl`
-  JumpHL,
+  JumpToHL,
 
   /// `jp label`
-  JumpLabel(Condition, StrID),
+  JumpToLabel(Condition, StrID),
 
   /// `ret` or `ret cond`
   Return(Condition),
@@ -385,7 +385,7 @@ impl Asm {
       | Asm::LoadHlDecA
       | Asm::LoadAHlInc
       | Asm::LoadAHlDec
-      | Asm::JumpHL
+      | Asm::JumpToHL
       | Asm::Return(_)
       | Asm::ReturnFromInterrupt
       | Asm::ResetVector(_)
@@ -413,7 +413,7 @@ impl Asm {
       | Asm::LoadHltImm8(_)
       | Asm::LoadHighImm8A(_)
       | Asm::LoadHighAImm16t(_)
-      | Asm::JumpLabel(_, _)
+      | Asm::JumpToLabel(_, _)
       | Asm::AddSpImm8(_)
       | Asm::LoadHlSpDelta(_) => 2,
       Asm::AddHlImm16(_)

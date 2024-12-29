@@ -33,42 +33,21 @@ impl Function {
     }
   }
 
+  pub fn make_canonical_loop_values(&mut self) {
+    for statement in self.statements.iter_mut() {
+      statement.make_canonical_loop_values();
+    }
+  }
+
   pub fn generate_code(&self) -> Vec<Asm> {
     let mut out = Vec::new();
+    let mut loop_stack = Vec::new();
 
     let label =
       Asm::Label(StrID::from(format!("fn#{name}", name = self.name).as_str()));
     out.push(label);
     for statement in self.statements.iter() {
-      match &statement._payload {
-        Statement::Expression(xpr) => {
-          xpr.write_code(&mut out);
-        }
-        Statement::IfElse(ifelse) => {
-          out.push(Asm::Nop);
-        }
-        Statement::Loop(loop_) => {
-          out.push(Asm::Nop);
-        }
-        // Note(Lokathor): call/return at the top indentation of a function,
-        // without an `if` around them, will always happens, so we just fill
-        // that in.
-        Statement::Call(call) => {
-          let Call { target, .. } = call._payload;
-          out.push(Asm::CallLabel(Condition::Always, target._payload));
-        }
-        Statement::Return => out.push(Asm::Return(Condition::Always)),
-        // Note(Lokathor): Remember that whatever made the error previously has
-        // already put something in the error bucket, and we don't want to
-        // double-report problems.
-        Statement::StatementError => {
-          continue;
-        }
-        // Note(Lokathor): these should have been cleared out of the statement
-        // list by previous stages which check for break/continue having correct
-        // targets at all loop levels.
-        Statement::Break(_) | Statement::Continue(_) => unimplemented!(),
-      }
+      statement.write_code(&mut loop_stack, &mut out);
     }
 
     out

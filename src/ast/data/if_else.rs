@@ -36,4 +36,14 @@ impl IfElse {
       }
     }
   }
+
+  #[inline]
+  pub fn make_canonical_loop_values(&mut self) {
+    for statement in self.if_body.iter_mut() {
+      statement.make_canonical_loop_values();
+    }
+    for statement in self.else_body.iter_mut() {
+      statement.make_canonical_loop_values();
+    }
+  }
 }

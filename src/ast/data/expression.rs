@@ -310,11 +310,11 @@ impl Expression {
               },
             };
           }
-          (Self::Deref(address), Self::Register(reg)) => {
+          (Self::Deref(xpr), Self::Register(reg)) => {
             if *reg != Register::A {
-              todo!("only A can be written to an immediate address value");
+              todo!("only A can write to a deref target, got `{reg:?}`");
             }
-            match address._payload {
+            match &xpr._payload {
               Self::I32(i32_) => {
                 let imm16 = match u16::try_from(i32_._payload) {
                   Ok(u16_) => u16_,
@@ -325,7 +325,18 @@ impl Expression {
                 };
                 out.extend([Asm::LoadImm16tA(imm16)]);
               }
-              _ => todo!("unhandled address literal expression type"),
+              Self::Inc(xpr) => match &xpr._payload {
+                Self::Register(reg) => {
+                  if *reg != Register::HL {
+                    todo!("unhandled inc of non-HL register")
+                  }
+                  out.extend([Asm::LoadHlIncA]);
+                }
+                other => todo!("unhandled inc target: {other:?}"),
+              },
+              other => {
+                todo!("unhandled address literal expression type: {other:?}")
+              }
             }
           }
           (Self::Register(r), Self::RefToStatic(name)) => {
@@ -336,6 +347,32 @@ impl Expression {
                 out.extend([Asm::LoadReg16Label(reg16, label)])
               }
               Err(_) => todo!(),
+            }
+          }
+          (Self::Register(r), Self::Deref(xpr)) => {
+            if *r != Register::A {
+              todo!("handle loading immediate memory to non-A register");
+            }
+            match &xpr._payload {
+              Expression::I32(i) => {
+                let imm16 = match u16::try_from(i._payload) {
+                  Ok(u16_) => u16_,
+                  Err(_) => match i16::try_from(i._payload) {
+                    Ok(i16_) => i16_ as u16,
+                    Err(_) => todo!("handle illegal immediate address value"),
+                  },
+                };
+                out.extend([Asm::LoadAImm16t(imm16)])
+              }
+              Expression::Register(reg) => {
+                match Reg16::try_from(reg._payload) {
+                  Ok(reg16) => out.extend([Asm::LoadAReg16t(reg16)]),
+                  Err(_) => todo!("expected reg16, got: {reg:?}"),
+                }
+              }
+              other => {
+                todo!("unhandled deref target to load into `a`: {other:?}")
+              }
             }
           }
           other => todo!("unhandled assign expression: {other:?}"),
@@ -361,7 +398,7 @@ impl Expression {
         },
         other => todo!("unhandled increment expression: {other:?}"),
       },
-      _other => todo!("unhandled expression form: {_other:?}"),
+      other => todo!("unhandled expression form: {other:?}"),
     }
   }
 }

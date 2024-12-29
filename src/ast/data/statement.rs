@@ -12,30 +12,6 @@ pub enum Statement {
   StatementError,
 }
 impl Statement {
-  pub fn map_expressions<F>(&mut self, op: &mut F)
-  where
-    F: FnMut(FileSpanned<Expression>) -> Expression,
-  {
-    match self {
-      Statement::Expression(x) => {
-        let exp: FileSpanned<Expression> = FileSpanned::take(x);
-        **x = op(exp);
-      }
-      Statement::IfElse(if_else) => {
-        let exp: FileSpanned<Expression> = FileSpanned::take(&mut if_else.test);
-        if_else.test._payload = op(exp);
-      }
-      Statement::Loop(file_spanned) => todo!(),
-      Statement::Break(_)
-      | Statement::Continue(_)
-      | Statement::Call(_)
-      | Statement::Return
-      | Statement::StatementError => {
-        todo!()
-      }
-    }
-  }
-
   pub fn expressions_mut(
     &mut self,
   ) -> impl '_ + InternalIteratorMut<ItemMut = &'_ mut FileSpanned<Expression>>
@@ -70,6 +46,76 @@ impl Statement {
         }
         ControlFlow::Continue(())
       }
+    }
+  }
+
+  pub fn make_canonical_loop_values(&mut self) {
+    match self {
+      Statement::IfElse(ifelse) => ifelse.make_canonical_loop_values(),
+      Statement::Loop(l) => l.make_canonical_loop_values(),
+      Statement::Expression(_)
+      | Statement::Break(_)
+      | Statement::Continue(_)
+      | Statement::Call(_)
+      | Statement::Return
+      | Statement::StatementError => (),
+    }
+  }
+
+  pub fn write_code(
+    &self, loop_stack: &mut Vec<(Option<StrID>, StrID)>,
+    out: &mut impl Extend<Asm>,
+  ) {
+    match self {
+      Statement::Expression(xpr) => {
+        xpr.write_code(out);
+      }
+      Statement::IfElse(ifelse) => {
+        out.extend([Asm::Nop]);
+      }
+      Statement::Loop(loop_) => loop_.write_code(loop_stack, out),
+      Statement::Break(src_target) => {
+        if let Some(canonical) = loop_stack
+          .iter()
+          .rev()
+          .find(|(name, _)| src_target._payload.map(|s| s._payload) == *name)
+        {
+          let c = canonical.1;
+          out.extend([Asm::JumpToLabel(
+            Condition::Always,
+            StrID::from(format!("{c}#end")),
+          )]);
+        } else {
+          todo!("unhandled missing break target")
+        }
+      }
+      Statement::Continue(src_target) => {
+        if let Some(canonical) = loop_stack
+          .iter()
+          .rev()
+          .find(|(name, _)| src_target._payload.map(|s| s._payload) == *name)
+        {
+          let c = canonical.1;
+          out.extend([Asm::JumpToLabel(
+            Condition::Always,
+            StrID::from(format!("{c}#start")),
+          )]);
+        } else {
+          todo!("unhandled missing continue target")
+        }
+      }
+      // Note(Lokathor): call/return at the top indentation of a function,
+      // without an `if` around them, will always happens, so we just fill
+      // that in.
+      Statement::Call(call) => {
+        let Call { target, .. } = call._payload;
+        let label = StrID::from(format!("fn#{name}", name = target._payload));
+        out.extend([Asm::CallLabel(Condition::Always, label)]);
+      }
+      Statement::Return => out.extend([Asm::Return(Condition::Always)]),
+      // Note(Lokathor): We shouldn't be generating code on a function with
+      // statement errors within it.
+      Statement::StatementError => unimplemented!(),
     }
   }
 }
