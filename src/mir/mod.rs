@@ -58,25 +58,25 @@ pub struct MirLoop {
   pub canonical_end: StrID,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct MirJump {
   pub condition: Condition,
   pub target: StrID,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct MirCall {
   pub condition: Condition,
   pub target: StrID,
   pub abi: Abi,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Abi {
   // todo: an ABI system
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct MirReturn {
   pub condition: Condition,
 }
