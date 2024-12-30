@@ -95,6 +95,21 @@ impl Ast {
     }
   }
 
+  #[cfg(target_os = "none")]
+  pub fn check_all_calls_valid(&mut self) {
+    for function in self.functions.values() {
+      function.calls_ref().for_each(|c| {
+        if !self.functions.contains_key(&c.target) {
+          if self.statics.contains_key(&c.target) {
+            self.err_bucket.push(YagError::CalledAStatic(c.clone()))
+          } else {
+            self.err_bucket.push(YagError::CalledAMissingFunction(c.clone()))
+          }
+        }
+      });
+    }
+  }
+
   pub fn resolve_size_of_static(&mut self) {
     for func in self.functions.values_mut() {
       func.expressions_mut().for_each(|xpr| {

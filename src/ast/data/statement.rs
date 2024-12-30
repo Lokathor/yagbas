@@ -20,7 +20,7 @@ impl Statement {
     // where:
     struct ExpressionsMut<'r>(&'r mut Statement);
     impl<'r> InternalIterator for ExpressionsMut<'r> {
-      internal_iterator_guts! {}
+      internal_iterator_mut_guts! {}
     }
 
     impl<'r> InternalIteratorMut for ExpressionsMut<'r> {
@@ -41,6 +41,68 @@ impl Statement {
           Statement::Break(_)
           | Statement::Continue(_)
           | Statement::Call(_)
+          | Statement::Return
+          | Statement::StatementError => {}
+        }
+        ControlFlow::Continue(())
+      }
+    }
+  }
+
+  pub fn calls_ref(
+    &self,
+  ) -> impl '_ + InternalIterator<Item = &'_ FileSpanned<Call>> {
+    return CallsRef(self);
+    // where:
+    struct CallsRef<'r>(&'r Statement);
+    impl<'r> InternalIterator for CallsRef<'r> {
+      type Item = &'r FileSpanned<Call>;
+
+      fn try_for_each<R, F>(self, mut f: F) -> ControlFlow<R>
+      where
+        F: FnMut(Self::Item) -> ControlFlow<R>,
+      {
+        match self.0 {
+          Statement::Call(c) => f(c)?,
+          Statement::IfElse(if_else) => if_else.calls_ref().try_for_each(f)?,
+          Statement::Loop(loop_) => loop_.calls_ref().try_for_each(f)?,
+          Statement::Break(_)
+          | Statement::Continue(_)
+          | Statement::Expression(_)
+          | Statement::Return
+          | Statement::StatementError => {}
+        }
+        ControlFlow::Continue(())
+      }
+    }
+  }
+
+  pub fn calls_mut(
+    &mut self,
+  ) -> impl '_ + InternalIteratorMut<ItemMut = &'_ mut FileSpanned<Call>> {
+    return CallsMut(self);
+    // where:
+    struct CallsMut<'r>(&'r mut Statement);
+    impl<'r> InternalIterator for CallsMut<'r> {
+      internal_iterator_mut_guts! {}
+    }
+
+    impl<'r> InternalIteratorMut for CallsMut<'r> {
+      type ItemMut = &'r mut FileSpanned<Call>;
+
+      fn try_for_each_mut<R, F>(self, f: &mut F) -> ControlFlow<R>
+      where
+        F: FnMut(Self::Item) -> ControlFlow<R>,
+      {
+        match self.0 {
+          Statement::Call(c) => f(c)?,
+          Statement::IfElse(if_else) => {
+            if_else.calls_mut().try_for_each_mut(f)?
+          }
+          Statement::Loop(loop_) => loop_.calls_mut().try_for_each_mut(f)?,
+          Statement::Break(_)
+          | Statement::Continue(_)
+          | Statement::Expression(_)
           | Statement::Return
           | Statement::StatementError => {}
         }

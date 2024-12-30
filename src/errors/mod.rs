@@ -16,6 +16,8 @@ pub enum YagError {
   Item(Rich<'static, TokenTree, FileSpan, &'static str>),
   MultipleDefinitions(Vec<FileSpanned<Item>>),
   ConstIdentifierUndefined(FileSpanned<StrID>),
+  CalledAStatic(FileSpanned<Call>),
+  CalledAMissingFunction(FileSpanned<Call>),
 }
 impl YagError {
   pub fn one_line(&self) -> String {
@@ -46,6 +48,16 @@ impl YagError {
         let payload = i._payload;
         let span = i._span;
         format!("Error: Constant Identifier Undefined: `{payload}` {span}")
+      }
+      YagError::CalledAStatic(call) => {
+        let payload = call._payload.target;
+        let span = call._span;
+        format!("Error: Called A Static: `{payload}` {span}")
+      }
+      YagError::CalledAMissingFunction(call) => {
+        let payload = call._payload.target;
+        let span = call._span;
+        format!("Error: Called A Missing Function: `{payload}` {span}")
       }
     }
   }
@@ -128,6 +140,23 @@ impl YagError {
             i._payload
           ))
           .with_label(Label::new(i._span))
+          .finish()
+      }
+      YagError::CalledAStatic(call) => {
+        Report::build(ReportKind::Error, call._span)
+          .with_config(config)
+          .with_message(format!("Called A Static: `{}`", call._payload.target))
+          .with_label(Label::new(call._span))
+          .finish()
+      }
+      YagError::CalledAMissingFunction(call) => {
+        Report::build(ReportKind::Error, call._span)
+          .with_config(config)
+          .with_message(format!(
+            "Called A Missing Function: `{}`",
+            call._payload.target
+          ))
+          .with_label(Label::new(call._span))
           .finish()
       }
     }

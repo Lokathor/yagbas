@@ -205,6 +205,7 @@ pub fn do_ast(args: AstArgs) {
     every_item.extend(items);
   }
   let mut ast = Ast::from_items(every_item);
+  //ast.check_all_calls_valid();
   ast.run_const_eval();
   ast.run_static_eval();
   ast.resolve_size_of_static();
@@ -228,6 +229,7 @@ pub fn do_codegen(args: CodegenArgs) {
     every_item.extend(items);
   }
   let mut ast = Ast::from_items(every_item);
+  //ast.check_all_calls_valid();
   ast.run_const_eval();
   ast.run_static_eval();
   ast.resolve_size_of_static();
@@ -235,29 +237,32 @@ pub fn do_codegen(args: CodegenArgs) {
   ast.resolve_identifiers();
   ast.resolve_ref();
   ast.simplify_constant_values();
-  let assembly_items = ast.generate_assembly_items();
-  let mut buffer = String::new();
-  for (i, (name, assembly)) in assembly_items.iter().enumerate() {
-    if i > 0 {
-      println!();
-    }
-    for asm in assembly.iter() {
-      use core::fmt::Write;
-      write!(buffer, "{asm}").ok();
-      if buffer.ends_with(":") {
-        // a label
-        if buffer.starts_with('.') {
-          // local label
-          println!("  {buffer}")
-        } else {
-          println!("{buffer}");
-        }
-      } else {
-        println!("    {buffer}");
-      }
-      buffer.clear();
-    }
-  }
   err_bucket.append(&mut ast.err_bucket);
-  report_all_the_errors(src_files, err_bucket, args.message_size);
+  if err_bucket.is_empty() {
+    let assembly_items = ast.generate_assembly_items();
+    let mut buffer = String::new();
+    for (i, (name, assembly)) in assembly_items.iter().enumerate() {
+      if i > 0 {
+        println!();
+      }
+      for asm in assembly.iter() {
+        use core::fmt::Write;
+        write!(buffer, "{asm}").ok();
+        if buffer.ends_with(":") {
+          // a label
+          if buffer.starts_with('.') {
+            // local label
+            println!("  {buffer}")
+          } else {
+            println!("{buffer}");
+          }
+        } else {
+          println!("    {buffer}");
+        }
+        buffer.clear();
+      }
+    }
+  } else {
+    report_all_the_errors(src_files, err_bucket, args.message_size);
+  }
 }

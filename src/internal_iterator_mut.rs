@@ -8,7 +8,7 @@ pub trait InternalIteratorMut: InternalIterator<Item = Self::ItemMut> {
 }
 
 #[macro_export]
-macro_rules! internal_iterator_guts {
+macro_rules! internal_iterator_mut_guts {
   () => {
     type Item = <Self as InternalIteratorMut>::ItemMut;
 
