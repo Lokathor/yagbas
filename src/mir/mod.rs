@@ -54,8 +54,6 @@ pub enum Mir {
 pub struct MirLoop {
   pub steps: Vec<Mir>,
   pub canonical_name: StrID,
-  pub canonical_start: StrID,
-  pub canonical_end: StrID,
 }
 
 #[derive(Debug, Clone)]
@@ -63,7 +61,6 @@ pub struct MirIf {
   pub condition: Condition,
   pub steps: Vec<Mir>,
   pub canonical_name: StrID,
-  pub canonical_end: StrID,
 }
 
 #[derive(Debug, Clone, Copy)]
