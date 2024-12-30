@@ -135,7 +135,7 @@ impl IfElse {
               },
               many_statements => {
                 let id = self.id;
-                let end_label = StrID::from(format!(".if{id}#if#end"));
+                let end_label = StrID::from(format!(".if{id}#if_body#end"));
                 out.extend([Asm::JumpToLabel(Condition::NonZero, end_label)]);
                 for statement in many_statements.iter() {
                   statement.write_code(loop_stack, out);
@@ -277,7 +277,7 @@ impl IfElse {
                 },
                 many_statements => {
                   let id = self.id;
-                  let end_label = StrID::from(format!(".if{id}#if#end"));
+                  let end_label = StrID::from(format!(".if{id}#if_body#end"));
                   out.extend([Asm::JumpToLabel(Condition::NonZero, end_label)]);
                   for statement in many_statements.iter() {
                     statement.write_code(loop_stack, out);
