@@ -541,7 +541,7 @@ impl Asm {
 impl core::fmt::Display for Asm {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Asm::Label(str_id) => write!(f, "{str_id}"),
+      Asm::Label(str_id) => write!(f, "{str_id}:"),
       Asm::MathAReg8(binary_op, reg8) => write!(f, "{binary_op} a, {reg8}"),
       Asm::MathAHlt(binary_op) => write!(f, "{binary_op} a, [hl]"),
       Asm::MathAImm8(binary_op, i) => write!(f, "{binary_op} a, ${i:X}"),
