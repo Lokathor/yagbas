@@ -205,6 +205,7 @@ impl Ast {
   }
 }
 
+#[inline]
 fn num_lit_to_i32(n: FileSpanned<StrID>) -> Option<i32> {
   // remove underscores
   let s: String = n.as_str().chars().filter(|c| *c != '_').collect();
@@ -218,4 +219,14 @@ fn num_lit_to_i32(n: FileSpanned<StrID>) -> Option<i32> {
     // decimal
     i32::from_str_radix(&s, 10).ok()
   }
+}
+
+#[inline]
+fn i32_to_imm8(i: i32) -> Option<u8> {
+  u8::try_from(i).or_else(|_| i8::try_from(i).map(|i| i as u8)).ok()
+}
+
+#[inline]
+fn i32_to_imm16(i: i32) -> Option<u16> {
+  u16::try_from(i).or_else(|_| i16::try_from(i).map(|i| i as u16)).ok()
 }

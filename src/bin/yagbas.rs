@@ -238,7 +238,24 @@ pub fn do_codegen(args: CodegenArgs) {
   ast.resolve_ref();
   ast.simplify_constant_values();
   let assembly_items = ast.generate_assembly_items();
-  println!("{assembly_items:?}");
+  let mut buffer = String::new();
+  for (i, (name, assembly)) in assembly_items.iter().enumerate() {
+    if i > 0 {
+      println!();
+    }
+    for asm in assembly.iter() {
+      use core::fmt::Write;
+      write!(buffer, "{asm}").ok();
+      if buffer.starts_with("fn#") || buffer.starts_with("static#") {
+        println!("{buffer}");
+      } else if buffer.starts_with('.') {
+        println!("  {buffer}")
+      } else {
+        println!("    {buffer}");
+      }
+      buffer.clear();
+    }
+  }
   err_bucket.append(&mut ast.err_bucket);
   report_all_the_errors(src_files, err_bucket, args.message_size);
 }

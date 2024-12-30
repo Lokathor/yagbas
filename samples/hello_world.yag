@@ -57,12 +57,10 @@ fn memcpy() {
     a = [de]
     [hl++] = a
     de++
-    c--
-    if c != 0 {
+    if c-- != 0 {
       continue
     }
-    b--
-    if b != 0 {
+    if b-- != 0 {
       continue
     }
     return

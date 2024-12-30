@@ -27,6 +27,24 @@ pub enum BinaryOp {
   /// `xor`
   BitXor,
 }
+impl core::fmt::Display for BinaryOp {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        BinaryOp::AddCarry => "adc",
+        BinaryOp::Add => "add",
+        BinaryOp::BitAnd => "and",
+        BinaryOp::Compare => "cp",
+        BinaryOp::BitOr => "or",
+        BinaryOp::SubCarry => "sbc",
+        BinaryOp::Sub => "sub",
+        BinaryOp::BitXor => "xor",
+      }
+    )
+  }
+}
 
 /// Manipulates the bits of a single value
 #[derive(Debug, Clone, Copy)]
@@ -70,6 +88,49 @@ pub enum UnaryOp {
   /// shift right unsigned
   ShiftRightLogical,
 }
+impl core::fmt::Display for UnaryOp {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        UnaryOp::Test(0) => "bit 0,",
+        UnaryOp::Test(1) => "bit 1,",
+        UnaryOp::Test(2) => "bit 2,",
+        UnaryOp::Test(3) => "bit 3,",
+        UnaryOp::Test(4) => "bit 4,",
+        UnaryOp::Test(5) => "bit 5,",
+        UnaryOp::Test(6) => "bit 6,",
+        UnaryOp::Test(7) => "bit 7,",
+        UnaryOp::Set(0) => "set 0,",
+        UnaryOp::Set(1) => "set 1,",
+        UnaryOp::Set(2) => "set 2,",
+        UnaryOp::Set(3) => "set 3,",
+        UnaryOp::Set(4) => "set 4,",
+        UnaryOp::Set(5) => "set 5,",
+        UnaryOp::Set(6) => "set 6,",
+        UnaryOp::Set(7) => "set 7,",
+        UnaryOp::Clear(0) => "res 0,",
+        UnaryOp::Clear(1) => "res 1,",
+        UnaryOp::Clear(2) => "res 2,",
+        UnaryOp::Clear(3) => "res 3,",
+        UnaryOp::Clear(4) => "res 4,",
+        UnaryOp::Clear(5) => "res 5,",
+        UnaryOp::Clear(6) => "res 6,",
+        UnaryOp::Clear(7) => "res 7,",
+        UnaryOp::Swap => "swap",
+        UnaryOp::RotateLeft => "rl",
+        UnaryOp::RotateLeftCarryless => "rlc",
+        UnaryOp::RotateRight => "rr",
+        UnaryOp::RotateRightCarryless => "rlc",
+        UnaryOp::ShiftLeftArithmetic => "sla",
+        UnaryOp::ShiftRightArithmetic => "sra",
+        UnaryOp::ShiftRightLogical => "srl",
+        _ => unimplemented!(),
+      }
+    )
+  }
+}
 
 /// The standard 8-bit registers
 #[derive(Debug, Clone, Copy)]
@@ -98,6 +159,23 @@ impl TryFrom<Register> for Reg8 {
     })
   }
 }
+impl core::fmt::Display for Reg8 {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Reg8::A => "a",
+        Reg8::B => "b",
+        Reg8::C => "c",
+        Reg8::D => "d",
+        Reg8::E => "e",
+        Reg8::H => "h",
+        Reg8::L => "l",
+      }
+    )
+  }
+}
 
 /// The standard 16-bit register pairs
 #[derive(Debug, Clone, Copy)]
@@ -118,6 +196,19 @@ impl TryFrom<Register> for Reg16 {
     })
   }
 }
+impl core::fmt::Display for Reg16 {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Reg16::BC => "bc",
+        Reg16::DE => "de",
+        Reg16::HL => "hl",
+      }
+    )
+  }
+}
 
 /// The conditions for calls and jumps
 #[derive(Debug, Clone, Copy)]
@@ -136,6 +227,21 @@ pub enum Condition {
 
   /// nothing is printed for the "always" condition.
   Always,
+}
+impl core::fmt::Display for Condition {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Condition::Carry => "c",
+        Condition::NoCarry => "nc",
+        Condition::Zero => "z",
+        Condition::NonZero => "nz",
+        Condition::Always => unimplemented!(),
+      }
+    )
+  }
 }
 
 /// A value that can be expressed in a single line of assembly.
@@ -250,16 +356,16 @@ pub enum Asm {
   /// `ldh a, [c]`
   LoadHighACt,
 
-  /// `ld [hl+], a`
+  /// `ld [hli], a`
   LoadHlIncA,
 
-  /// `ld [hl-], a`
+  /// `ld [hld], a`
   LoadHlDecA,
 
-  /// `ld a, [hl+]`
+  /// `ld a, [hli]`
   LoadAHlInc,
 
-  /// `ld a, [hl-]`
+  /// `ld a, [hld]`
   LoadAHlDec,
 
   /// `call label`
@@ -430,5 +536,97 @@ impl Asm {
       | Asm::LoadLabelSp(_) => 3,
       Asm::RawBytes(vec) => vec.len(),
     }
+  }
+}
+impl core::fmt::Display for Asm {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Asm::Label(str_id) => write!(f, "{str_id}"),
+      Asm::MathAReg8(binary_op, reg8) => write!(f, "{binary_op} a, {reg8}"),
+      Asm::MathAHlt(binary_op) => write!(f, "{binary_op} a, [hl]"),
+      Asm::MathAImm8(binary_op, i) => write!(f, "{binary_op} a, ${i:X}"),
+      Asm::IncReg8(reg8) => write!(f, "inc {reg8}"),
+      Asm::IncHlt => write!(f, "inc [hl]"),
+      Asm::DecReg8(reg8) => write!(f, "dec {reg8}"),
+      Asm::DecHlt => write!(f, "dec [hl]"),
+      Asm::AddHlImm16(i) => write!(f, "add hl, ${i:X}"),
+      Asm::IncReg16(reg16) => write!(f, "inc {reg16}"),
+      Asm::DecReg16(reg16) => write!(f, "dec {reg16}"),
+      Asm::BitOpReg8(unary_op, reg8) => write!(f, "{unary_op} {reg8}"),
+      Asm::BitOpHlt(unary_op) => write!(f, "{unary_op} [hl]"),
+      Asm::RotateLeftA => write!(f, "rla"),
+      Asm::RotateLeftCarrylessA => write!(f, "rlca"),
+      Asm::RotateRightA => write!(f, "rra"),
+      Asm::RotateRightCarrylessA => write!(f, "rrca"),
+      Asm::LoadReg8Reg8(left, right) => write!(f, "ld {left}, {right}"),
+      Asm::LoadReg8Imm8(reg8, i) => write!(f, "ld {reg8}, ${i:X}"),
+      Asm::LoadReg16Imm16(reg16, i) => write!(f, "ld {reg16}, ${i:X}"),
+      Asm::LoadReg16Label(reg16, str_id) => write!(f, "ld {reg16}, {str_id}"),
+      Asm::LoadHltReg8(reg8) => write!(f, "ld [hl], {reg8}"),
+      Asm::LoadHltImm8(i) => write!(f, "ld [hl], ${i:X}"),
+      Asm::LoadReg8Hlt(reg8) => write!(f, "ld {reg8}, [hl]"),
+      Asm::LoadReg16tA(reg16) => write!(f, "ld [{reg16}], a"),
+      Asm::LoadImm16tA(imm16) => write!(f, "ld [${imm16:X}], a"),
+      Asm::LoadLabelA(label) => write!(f, "ld [{label}], a"),
+      Asm::LoadHighImm8A(i) => write!(f, "ldh, [{i}], a"),
+      Asm::LoadHighCtA => write!(f, "ldh [c], a"),
+      Asm::LoadAReg16t(reg16) => write!(f, "ld a, [{reg16}]"),
+      Asm::LoadAImm16t(imm16) => write!(f, "ld a, [${imm16:X}]"),
+      Asm::LoadALabel(label) => write!(f, "ld a, [{label}]"),
+      Asm::LoadHighAImm16t(imm8) => write!(f, "ldh a, [${imm8:X}]"),
+      Asm::LoadHighACt => write!(f, "ldh a, [c]"),
+      Asm::LoadHlIncA => write!(f, "ld [hli], a"),
+      Asm::LoadHlDecA => write!(f, "ld [hld], a"),
+      Asm::LoadAHlInc => write!(f, "ld a, [hli]"),
+      Asm::LoadAHlDec => write!(f, "ld a, [hld]"),
+      Asm::CallLabel(Condition::Always, label) => write!(f, "call {label}"),
+      Asm::CallLabel(cond, label) => write!(f, "call {cond}, {label}"),
+      Asm::JumpToHL => write!(f, "jp hl"),
+      Asm::JumpToLabel(Condition::Always, label) => write!(f, "jp {label}"),
+      Asm::JumpToLabel(cond, label) => write!(f, "jp {cond}, {label}"),
+      Asm::Return(Condition::Always) => write!(f, "ret"),
+      Asm::Return(cond) => write!(f, "ret {cond}"),
+      Asm::ReturnFromInterrupt => write!(f, "reti"),
+      Asm::ResetVector(x) => write!(f, "rst ${x:02X}"),
+      Asm::AddHlSp => write!(f, "add hl, sp"),
+      Asm::AddSpImm8(i) => write!(f, "add sp, {i}"),
+      Asm::DecSp => write!(f, "dec sp"),
+      Asm::IncSp => write!(f, "inc sp"),
+      Asm::LoadSpImm16(imm16) => write!(f, "ld sp, {imm16}"),
+      Asm::LoadSpLabel(label) => write!(f, "ld sp, {label}"),
+      Asm::LoadImm16tSp(imm16) => write!(f, "ld [{imm16}], sp"),
+      Asm::LoadLabelSp(label) => write!(f, "ld [{label}], sp"),
+      Asm::LoadHlSpDelta(i) => write!(f, "ld hl, sp {i:+}"),
+      Asm::LoadSpHl => write!(f, "ld sp, hl"),
+      Asm::PopAF => write!(f, "pop af"),
+      Asm::PopReg16(reg16) => write!(f, "pop {reg16}"),
+      Asm::PushAF => write!(f, "push af"),
+      Asm::PushReg16(reg16) => write!(f, "push {reg16}"),
+      Asm::SetCarryFlag => write!(f, "scf"),
+      Asm::ComplimentCarryFlag => write!(f, "ccf"),
+      Asm::ComplimentA => write!(f, "cpl"),
+      Asm::DecimalAdjustAccumulator => write!(f, "daa"),
+      Asm::DisableInterrupts => write!(f, "di"),
+      Asm::EnableInterrupts => write!(f, "ei"),
+      Asm::Halt => write!(f, "halt"),
+      Asm::Stop => write!(f, "stop"),
+      Asm::Nop => write!(f, "nop"),
+      Asm::RawBytes(vec) => {
+        for (i, chunk) in vec.chunks(16).enumerate() {
+          if i > 0 {
+            write!(f, "\n    ")?;
+          }
+          write!(f, "db ")?;
+          for (i, byte) in chunk.iter().enumerate() {
+            if i > 0 {
+              write!(f, ",")?;
+            }
+            write!(f, "${byte:02X}")?;
+          }
+        }
+        Ok(())
+      }
+    };
+    Ok(())
   }
 }

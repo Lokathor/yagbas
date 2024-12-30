@@ -96,7 +96,7 @@ where
         )
         .map_with(|((test, if_body), else_body), extras| {
           Statement::IfElse(FileSpanned::from_extras(
-            IfElse { test, if_body, else_body: else_body.unwrap_or_default() },
+            IfElse::new(test, if_body, else_body.unwrap_or_default()),
             extras,
           ))
         })

@@ -71,7 +71,7 @@ impl Statement {
         xpr.write_code(out);
       }
       Statement::IfElse(ifelse) => {
-        out.extend([Asm::Nop]);
+        ifelse.write_code(loop_stack, out);
       }
       Statement::Loop(loop_) => loop_.write_code(loop_stack, out),
       Statement::Break(src_target) => {
