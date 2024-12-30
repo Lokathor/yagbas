@@ -178,6 +178,8 @@ impl core::fmt::Display for Reg8 {
 }
 
 /// The standard 16-bit register pairs
+///
+/// * Importantly, this **excludes** `af` and `sp`.
 #[derive(Debug, Clone, Copy)]
 pub enum Reg16 {
   BC,
@@ -225,7 +227,7 @@ pub enum Condition {
   /// `nz,`
   NonZero,
 
-  /// nothing is printed for the "always" condition.
+  /// nothing is written for the "always" condition.
   Always,
 }
 impl core::fmt::Display for Condition {
@@ -234,11 +236,11 @@ impl core::fmt::Display for Condition {
       f,
       "{}",
       match self {
-        Condition::Carry => "c",
-        Condition::NoCarry => "nc",
-        Condition::Zero => "z",
-        Condition::NonZero => "nz",
-        Condition::Always => unimplemented!(),
+        Condition::Carry => "c, ",
+        Condition::NoCarry => "nc, ",
+        Condition::Zero => "z, ",
+        Condition::NonZero => "nz, ",
+        Condition::Always => "",
       }
     )
   }
@@ -579,11 +581,9 @@ impl core::fmt::Display for Asm {
       Asm::LoadHlDecA => write!(f, "ld [hld], a"),
       Asm::LoadAHlInc => write!(f, "ld a, [hli]"),
       Asm::LoadAHlDec => write!(f, "ld a, [hld]"),
-      Asm::CallLabel(Condition::Always, label) => write!(f, "call {label}"),
-      Asm::CallLabel(cond, label) => write!(f, "call {cond}, {label}"),
+      Asm::CallLabel(cond, label) => write!(f, "call {cond}{label}"),
       Asm::JumpToHL => write!(f, "jp hl"),
-      Asm::JumpToLabel(Condition::Always, label) => write!(f, "jp {label}"),
-      Asm::JumpToLabel(cond, label) => write!(f, "jp {cond}, {label}"),
+      Asm::JumpToLabel(cond, label) => write!(f, "jp {cond}{label}"),
       Asm::Return(Condition::Always) => write!(f, "ret"),
       Asm::Return(cond) => write!(f, "ret {cond}"),
       Asm::ReturnFromInterrupt => write!(f, "reti"),
