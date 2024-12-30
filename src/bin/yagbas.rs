@@ -244,10 +244,14 @@ pub fn do_codegen(args: CodegenArgs) {
     for asm in assembly.iter() {
       use core::fmt::Write;
       write!(buffer, "{asm}").ok();
-      if buffer.starts_with("fn#") || buffer.starts_with("static#") {
-        println!("{buffer}");
-      } else if buffer.starts_with('.') {
-        println!("  {buffer}")
+      if buffer.ends_with(":") {
+        // a label
+        if buffer.starts_with('.') {
+          // local label
+          println!("  {buffer}")
+        } else {
+          println!("{buffer}");
+        }
       } else {
         println!("    {buffer}");
       }

@@ -96,8 +96,7 @@ impl Statement {
       // that in.
       Statement::Call(call) => {
         let Call { target, .. } = call._payload;
-        let label = StrID::from(format!("fn#{name}", name = target._payload));
-        out.extend([Asm::CallLabel(Condition::Always, label)]);
+        out.extend([Asm::CallLabel(Condition::Always, target._payload)]);
       }
       Statement::Return => out.extend([Asm::Return(Condition::Always)]),
       // Note(Lokathor): We shouldn't be generating code on a function with

@@ -37,8 +37,7 @@ impl Function {
     let mut out = Vec::new();
     let mut loop_stack = Vec::new();
 
-    let label =
-      Asm::Label(StrID::from(format!("fn#{name}", name = self.name).as_str()));
+    let label = Asm::Label(self.name._payload);
     out.push(label);
     for statement in self.statements.iter() {
       statement.write_code(&mut loop_stack, &mut out);

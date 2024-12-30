@@ -188,7 +188,7 @@ impl Ast {
     let mut out = BTreeMap::new();
 
     for (name, data) in self.evaluated_statics.iter() {
-      let label = Asm::Label(StrID::from(format!("static#{name}")));
+      let label = Asm::Label(*name);
       out.insert(*name, vec![label, Asm::RawBytes(data.clone())]);
     }
     for (f_, func) in self.functions.iter() {

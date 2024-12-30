@@ -343,8 +343,7 @@ impl Expression {
             match Reg16::try_from(r._payload) {
               Ok(reg16) => {
                 let name = name._payload;
-                let label = StrID::from(format!("static#{name}"));
-                out.extend([Asm::LoadReg16Label(reg16, label)])
+                out.extend([Asm::LoadReg16Label(reg16, name)])
               }
               Err(_) => todo!(),
             }
