@@ -33,12 +33,6 @@ impl Function {
     }
   }
 
-  pub fn make_canonical_loop_values(&mut self) {
-    for statement in self.statements.iter_mut() {
-      statement.make_canonical_loop_values();
-    }
-  }
-
   pub fn generate_code(&self) -> Vec<Asm> {
     let mut out = Vec::new();
     let mut loop_stack = Vec::new();

@@ -5,9 +5,9 @@ pub struct Loop {
   pub name: FileSpanned<Option<FileSpanned<StrID>>>,
   pub id: usize,
   pub statements: Vec<FileSpanned<Statement>>,
-  pub canonical_name: Option<StrID>,
-  pub canonical_start: Option<StrID>,
-  pub canonical_end: Option<StrID>,
+  pub canonical_name: StrID,
+  pub canonical_start: StrID,
+  pub canonical_end: StrID,
 }
 impl Loop {
   /// Gets the next ID value for a new loop.
@@ -26,25 +26,15 @@ impl Loop {
     name: FileSpanned<Option<FileSpanned<StrID>>>,
     statements: Vec<FileSpanned<Statement>>,
   ) -> Self {
+    let name_str = name.map(|id| id.as_str()).unwrap_or_default();
+    let id = Self::generate_next_id();
     Self {
       name,
       statements,
-      id: Self::generate_next_id(),
-      canonical_name: None,
-      canonical_start: None,
-      canonical_end: None,
-    }
-  }
-
-  #[inline]
-  pub fn make_canonical_loop_values(&mut self) {
-    let x = self.id;
-    let name = self.name.as_deref().map(StrID::as_ref).unwrap_or_default();
-    self.canonical_name = Some(StrID::from(format!(".loop{x}#{name}")));
-    self.canonical_start = Some(StrID::from(format!(".loop{x}#{name}#start")));
-    self.canonical_end = Some(StrID::from(format!(".loop{x}#{name}#end")));
-    for statement in self.statements.iter_mut() {
-      statement.make_canonical_loop_values();
+      id,
+      canonical_name: StrID::from(format!(".loop{id}#{name_str}")),
+      canonical_start: StrID::from(format!(".loop{id}#{name_str}#start")),
+      canonical_end: StrID::from(format!(".loop{id}#{name_str}#end")),
     }
   }
 
@@ -79,19 +69,16 @@ impl Loop {
     out: &mut impl Extend<Asm>,
   ) {
     let name = self.name.map(|n| n._payload);
-    let target = self.canonical_name.unwrap();
+    let target = self.canonical_name;
     loop_stack.push((name, target));
-    out.extend([Asm::Label(self.canonical_start.unwrap())]);
+    out.extend([Asm::Label(self.canonical_start)]);
 
     for statement in self.statements.iter() {
       statement.write_code(loop_stack, out);
     }
-    out.extend([Asm::JumpToLabel(
-      Condition::Always,
-      self.canonical_start.unwrap(),
-    )]);
+    out.extend([Asm::JumpToLabel(Condition::Always, self.canonical_start)]);
 
-    out.extend([Asm::Label(self.canonical_end.unwrap())]);
+    out.extend([Asm::Label(self.canonical_end)]);
     loop_stack.pop();
   }
 }

@@ -49,19 +49,6 @@ impl Statement {
     }
   }
 
-  pub fn make_canonical_loop_values(&mut self) {
-    match self {
-      Statement::IfElse(ifelse) => ifelse.make_canonical_loop_values(),
-      Statement::Loop(l) => l.make_canonical_loop_values(),
-      Statement::Expression(_)
-      | Statement::Break(_)
-      | Statement::Continue(_)
-      | Statement::Call(_)
-      | Statement::Return
-      | Statement::StatementError => (),
-    }
-  }
-
   pub fn write_code(
     &self, loop_stack: &mut Vec<(Option<StrID>, StrID)>,
     out: &mut impl Extend<Asm>,

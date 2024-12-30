@@ -207,7 +207,6 @@ pub fn do_ast(args: AstArgs) {
   let mut ast = Ast::from_items(every_item);
   ast.run_const_eval();
   ast.run_static_eval();
-  ast.make_canonical_loop_values();
   ast.resolve_size_of_static();
   ast.resolve_numeric_literals();
   ast.resolve_identifiers();
@@ -231,7 +230,6 @@ pub fn do_codegen(args: CodegenArgs) {
   let mut ast = Ast::from_items(every_item);
   ast.run_const_eval();
   ast.run_static_eval();
-  ast.make_canonical_loop_values();
   ast.resolve_size_of_static();
   ast.resolve_numeric_literals();
   ast.resolve_identifiers();

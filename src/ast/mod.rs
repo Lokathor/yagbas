@@ -44,12 +44,6 @@ impl Ast {
     out
   }
 
-  pub fn make_canonical_loop_values(&mut self) {
-    for function in self.functions.values_mut() {
-      function.make_canonical_loop_values();
-    }
-  }
-
   pub fn run_const_eval(&mut self) {
     for (k, v) in self.consts.iter_mut() {
       let c = &mut v._payload;
