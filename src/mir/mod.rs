@@ -5,6 +5,9 @@ pub enum Mir {
   /// standard looping over a body of "inner" steps
   Loop(MirLoop),
 
+  /// when a condition holds, do this
+  If(MirIf),
+
   /// both break and continue are just "jump"
   ///
   /// * if necessary, you can tell if it was break or continue by the tail of
@@ -18,10 +21,7 @@ pub enum Mir {
   Call(MirCall),
 
   /// go back to the caller
-  Return(MirReturn),
-
-  /// when a condition holds, do this
-  If(MirIf),
+  Return,
 
   /// `inc reg16`
   ///
@@ -58,15 +58,21 @@ pub struct MirLoop {
   pub canonical_end: StrID,
 }
 
+#[derive(Debug, Clone)]
+pub struct MirIf {
+  pub condition: Condition,
+  pub steps: Vec<Mir>,
+  pub canonical_name: StrID,
+  pub canonical_end: StrID,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct MirJump {
-  pub condition: Condition,
   pub target: StrID,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct MirCall {
-  pub condition: Condition,
   pub target: StrID,
   pub abi: Abi,
 }
@@ -74,17 +80,4 @@ pub struct MirCall {
 #[derive(Debug, Clone, Copy)]
 pub struct Abi {
   // todo: an ABI system
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct MirReturn {
-  pub condition: Condition,
-}
-
-#[derive(Debug, Clone)]
-pub struct MirIf {
-  pub condition: Condition,
-  pub steps: Vec<Mir>,
-  pub canonical_name: StrID,
-  pub canonical_end: StrID,
 }
