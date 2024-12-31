@@ -12,7 +12,10 @@ pub enum Mir {
   ///
   /// * if necessary, you can tell if it was break or continue by the tail of
   ///   the label it targets.
-  Jump(MirJump),
+  JumpLabel(StrID),
+
+  /// Jump to the address stored in HL.
+  JumpHL,
 
   /// call to another function
   ///
@@ -48,6 +51,18 @@ pub enum Mir {
 
   /// `[reg16] = a`
   AssignReg16tA(Reg16),
+
+  /// `a = [imm16]`
+  AssignAImm16t(u16),
+
+  /// `[imm16] = a`
+  AssignImm16tA(u16),
+
+  /// `reg8 = imm8`
+  AssignReg8Imm8(Reg8, u8),
+
+  /// `reg16 = imm16`
+  AssignReg16Imm16(Reg16, u16),
 }
 
 #[derive(Debug, Clone)]
@@ -61,11 +76,6 @@ pub struct MirIf {
   pub condition: Condition,
   pub steps: Vec<Mir>,
   pub canonical_name: StrID,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct MirJump {
-  pub target: StrID,
 }
 
 #[derive(Debug, Clone, Copy)]
