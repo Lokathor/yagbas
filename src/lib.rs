@@ -20,7 +20,7 @@
 //!   package.
 
 use crate::{
-  asm::{Asm, BinaryOp, Condition, Reg16, Reg8, UnaryOp},
+  asm::Asm,
   ast::data::{
     Call, Const, Expression, Function, IfElse, Item, Loop, Register, Statement,
     Static, Token, Token::*, TokenTree, TokenTree::*,
@@ -29,6 +29,10 @@ use crate::{
   file_span::FileSpan,
   file_spanned::FileSpanned,
   internal_iterator_mut::InternalIteratorMut,
+  mir::{
+    binary_op::BinaryOp, condition::Condition, reg16::Reg16, reg8::Reg8,
+    unary_op::UnaryOp,
+  },
   src_file::{SrcFile, SrcID},
   str_id::StrID,
 };

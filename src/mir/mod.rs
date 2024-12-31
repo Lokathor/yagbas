@@ -1,5 +1,11 @@
 use super::*;
 
+pub mod binary_op;
+pub mod condition;
+pub mod reg16;
+pub mod reg8;
+pub mod unary_op;
+
 #[derive(Debug, Clone)]
 pub enum Mir {
   /// standard looping over a body of "inner" steps
@@ -12,16 +18,15 @@ pub enum Mir {
   ///
   /// * if necessary, you can tell if it was break or continue by the tail of
   ///   the label it targets.
+  /// * Converting jumps to a label into relative jumps happens at the assembly
+  ///   stage, in MIR all static jumps are to a label.
   JumpLabel(StrID),
-
-  /// Jump to the address stored in HL.
-  JumpHL,
 
   /// call to another function
   ///
   /// * No actual abi system currently, so basically all calls are total
   ///   optimization black holes.
-  Call(MirCall),
+  Call(StrID),
 
   /// go back to the caller
   Return,
@@ -65,7 +70,54 @@ pub enum Mir {
   AssignReg16Imm16(Reg16, u16),
 
   /// `reg16 = label`
+  ///
+  /// This is necessary to load the address of an item, since we don't know the
+  /// address of an item until after linking.
   AssignReg16Label(Reg16, StrID),
+}
+impl Mir {
+  #[inline]
+  #[must_use]
+  pub fn zero_effect(&self) -> FlagEffect {
+    match self {
+      Mir::Return
+      | Mir::Inc16(_)
+      | Mir::Dec16(_)
+      | Mir::AssignAReg16t(_)
+      | Mir::AssignReg16tA(_)
+      | Mir::AssignAImm16t(_)
+      | Mir::AssignImm16tA(_)
+      | Mir::AssignReg8Imm8(_, _)
+      | Mir::AssignReg16Imm16(_, _)
+      | Mir::AssignReg16Label(_, _) => FlagEffect::NoEffect,
+      Mir::Inc8(_) | Mir::Dec8(_) => FlagEffect::ByOutput,
+      Mir::Loop(_) | Mir::If(_) | Mir::JumpLabel(_) | Mir::Call(_) => {
+        FlagEffect::Unknown
+      }
+    }
+  }
+
+  #[inline]
+  #[must_use]
+  pub fn carry_effect(&self) -> FlagEffect {
+    match self {
+      Mir::Return
+      | Mir::Inc16(_)
+      | Mir::Dec16(_)
+      | Mir::AssignAReg16t(_)
+      | Mir::AssignReg16tA(_)
+      | Mir::AssignAImm16t(_)
+      | Mir::AssignImm16tA(_)
+      | Mir::AssignReg8Imm8(_, _)
+      | Mir::AssignReg16Imm16(_, _)
+      | Mir::AssignReg16Label(_, _)
+      | Mir::Inc8(_)
+      | Mir::Dec8(_) => FlagEffect::NoEffect,
+      Mir::Loop(_) | Mir::If(_) | Mir::JumpLabel(_) | Mir::Call(_) => {
+        FlagEffect::Unknown
+      }
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -82,12 +134,16 @@ pub struct MirIf {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct MirCall {
-  pub target: StrID,
-  pub abi: Abi,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Abi {
-  // todo: an ABI system
+pub enum FlagEffect {
+  /// This action doesn't affect this flag
+  NoEffect,
+  /// This action always sets the flag to true.
+  AlwaysTrue,
+  /// This action always sets the flag to false.
+  AlwaysFalse,
+  /// This flag sets the flag based on the output of the operation.
+  ByOutput,
+  /// The flag effect can't be stated in a normal way, probably because we're
+  /// doing a control flow thing.
+  Unknown,
 }
