@@ -63,6 +63,9 @@ pub enum Mir {
 
   /// `reg16 = imm16`
   AssignReg16Imm16(Reg16, u16),
+
+  /// `reg16 = label`
+  AssignReg16Label(Reg16, StrID),
 }
 
 #[derive(Debug, Clone)]
