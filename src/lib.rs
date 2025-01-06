@@ -45,6 +45,7 @@ pub mod errors;
 pub mod file_span;
 pub mod file_spanned;
 pub mod internal_iterator_mut;
+pub mod internal_iterator_ref;
 pub mod mir;
 pub mod src_file;
 pub mod str_id;
