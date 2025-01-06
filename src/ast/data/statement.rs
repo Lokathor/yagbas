@@ -51,24 +51,30 @@ impl Statement {
 
   pub fn calls_ref(
     &self,
-  ) -> impl '_ + InternalIterator<Item = &'_ FileSpanned<Call>> {
+  ) -> impl '_ + InternalIteratorRef<Item = &'_ FileSpanned<Call>> {
     return CallsRef(self);
     // where:
     struct CallsRef<'r>(&'r Statement);
     impl<'r> InternalIterator for CallsRef<'r> {
-      type Item = &'r FileSpanned<Call>;
+      internal_iterator_ref_guts! {}
+    }
 
-      fn try_for_each<R, F>(self, mut f: F) -> ControlFlow<R>
+    impl<'r> InternalIteratorRef for CallsRef<'r> {
+      type ItemRef = &'r FileSpanned<Call>;
+
+      fn try_for_each_ref<R, F>(self, f: &mut F) -> ControlFlow<R>
       where
         F: FnMut(Self::Item) -> ControlFlow<R>,
       {
         match self.0 {
           Statement::Call(c) => f(c)?,
-          Statement::IfElse(if_else) => if_else.calls_ref().try_for_each(f)?,
-          Statement::Loop(loop_) => loop_.calls_ref().try_for_each(f)?,
-          Statement::Break(_)
+          Statement::IfElse(if_else) => {
+            if_else.calls_ref().try_for_each_ref(f)?
+          }
+          Statement::Loop(loop_) => loop_.calls_ref().try_for_each_ref(f)?,
+          Statement::Expression(_)
+          | Statement::Break(_)
           | Statement::Continue(_)
-          | Statement::Expression(_)
           | Statement::Return
           | Statement::StatementError => {}
         }

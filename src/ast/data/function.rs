@@ -33,22 +33,26 @@ impl Function {
     }
   }
 
-  #[cfg(target_os = "none")]
+  //#[cfg(target_os = "none")]
   pub fn calls_ref(
     &self,
-  ) -> impl '_ + InternalIterator<Item = &'_ FileSpanned<Call>> {
+  ) -> impl '_ + InternalIteratorRef<Item = &'_ FileSpanned<Call>> {
     return CallsRef(self);
     // where:
     struct CallsRef<'r>(&'r Function);
     impl<'r> InternalIterator for CallsRef<'r> {
-      type Item = &'r FileSpanned<Call>;
+      internal_iterator_ref_guts! {}
+    }
 
-      fn try_for_each<R, F>(self, mut f: F) -> ControlFlow<R>
+    impl<'r> InternalIteratorRef for CallsRef<'r> {
+      type ItemRef = &'r FileSpanned<Call>;
+
+      fn try_for_each_ref<R, F>(self, f: &mut F) -> ControlFlow<R>
       where
         F: FnMut(Self::Item) -> ControlFlow<R>,
       {
         for stmt in self.0.statements.iter() {
-          stmt.calls_ref().try_for_each(&mut f)?;
+          stmt.calls_ref().try_for_each_ref(&mut *f)?;
         }
         ControlFlow::Continue(())
       }

@@ -29,6 +29,7 @@ use crate::{
   file_span::FileSpan,
   file_spanned::FileSpanned,
   internal_iterator_mut::InternalIteratorMut,
+  internal_iterator_ref::InternalIteratorRef,
   mir::{
     binary_op::BinaryOp, condition::Condition, reg16::Reg16, reg8::Reg8,
     unary_op::UnaryOp,
