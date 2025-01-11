@@ -1,6 +1,6 @@
 use super::*;
 
-/// Performs math using the A register along with some other value.
+/// Performs a two-input operation, with the output placed into `a`.
 #[derive(Debug, Clone, Copy)]
 pub enum BinaryOp {
   /// `adc`

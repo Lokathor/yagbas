@@ -63,6 +63,12 @@ pub enum Mir {
   /// `[imm16] = a`
   AssignImm16tA(u16),
 
+  /// `a = [label]`
+  AssignALabelT(u16),
+
+  /// `[label] = a`
+  AssignLabelTA(u16),
+
   /// `reg8 = imm8`
   AssignReg8Imm8(Reg8, u8),
 
@@ -74,6 +80,9 @@ pub enum Mir {
   /// This is necessary to load the address of an item, since we don't know the
   /// address of an item until after linking.
   AssignReg16Label(Reg16, StrID),
+
+  /// Does `a = op(arg0, arg1)` for any binary op.
+  BinOp(BinaryOp, Reg8, Reg8),
 }
 impl Mir {
   #[inline]
@@ -89,11 +98,16 @@ impl Mir {
       | Mir::AssignImm16tA(_)
       | Mir::AssignReg8Imm8(_, _)
       | Mir::AssignReg16Imm16(_, _)
-      | Mir::AssignReg16Label(_, _) => FlagEffect::NoEffect,
+      | Mir::AssignReg16Label(_, _)
+      | Mir::AssignALabelT(_)
+      | Mir::AssignLabelTA(_) => FlagEffect::NoEffect,
       Mir::Inc8(_) | Mir::Dec8(_) => FlagEffect::ByOutput,
       Mir::Loop(_) | Mir::If(_) | Mir::JumpLabel(_) | Mir::Call(_) => {
         FlagEffect::Unknown
       }
+      // TODO: With some ops we statically know the answer is actually going to
+      // be `FlagEffect::AlwaysTrue` if both input registers are `a`.
+      Mir::BinOp(binary_op, _, _) => FlagEffect::ByOutput,
     }
   }
 
@@ -112,10 +126,15 @@ impl Mir {
       | Mir::AssignReg16Imm16(_, _)
       | Mir::AssignReg16Label(_, _)
       | Mir::Inc8(_)
-      | Mir::Dec8(_) => FlagEffect::NoEffect,
+      | Mir::Dec8(_)
+      | Mir::AssignALabelT(_)
+      | Mir::AssignLabelTA(_) => FlagEffect::NoEffect,
       Mir::Loop(_) | Mir::If(_) | Mir::JumpLabel(_) | Mir::Call(_) => {
         FlagEffect::Unknown
       }
+      // TODO: some ops actually always set carry to 0, or even don't touch the
+      // flag.
+      Mir::BinOp(binary_op, _, _) => FlagEffect::ByOutput,
     }
   }
 }
