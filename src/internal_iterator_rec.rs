@@ -35,17 +35,19 @@ use super::*;
 /// macro to play the role of the blanket impl (which cannot be written due to orphan rules)
 /// from which the proper [`InternalIterator`] `impl` can be derived (by delegating to our
 /// well-defined `&mut F` case).
-pub trait InternalIteratorRec: InternalIterator<Item = Self::ItemRec> {
-  type ItemRec;
+pub trait InternalIteratorRec: InternalIterator<Item = ItemRec<Self>> {
+  type Item;
   fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
   where
-    F: FnMut(Self::Item) -> ControlFlow<R>;
+    F: FnMut(ItemRec<Self>) -> ControlFlow<R>;
 }
+
+pub(crate) type ItemRec<T> = <T as InternalIteratorRec>::Item;
 
 #[macro_export]
 macro_rules! internal_iterator_rec_guts {
   () => {
-    type Item = <Self as InternalIteratorRec>::ItemRec;
+    type Item = <Self as InternalIteratorRec>::Item;
 
     fn try_for_each<R, F>(self, f: F) -> ControlFlow<R>
     where
