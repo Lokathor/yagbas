@@ -205,7 +205,7 @@ pub fn do_ast(args: AstArgs) {
     every_item.extend(items);
   }
   let mut ast = Ast::from_items(every_item);
-  //ast.check_all_calls_valid();
+  ast.check_all_calls_valid();
   ast.run_const_eval();
   ast.run_static_eval();
   ast.resolve_size_of_static();

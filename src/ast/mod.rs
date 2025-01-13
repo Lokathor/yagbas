@@ -95,7 +95,6 @@ impl Ast {
     }
   }
 
-  #[cfg(target_os = "none")]
   pub fn check_all_calls_valid(&mut self) {
     for function in self.functions.values() {
       function.calls_ref().for_each(|c| {
