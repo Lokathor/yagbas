@@ -21,7 +21,7 @@ logos = "0.14.0"
 chumsky = { git = "https://github.com/zesterer/chumsky", features = [
   "label",
   "pratt",
-] }
+], rev = "9d1ee8c" }
 ariadne = { git = "https://github.com/zesterer/ariadne" }
 internal-iterator = "0.2.3"
 #rayon = "1.7.0"
