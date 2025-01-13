@@ -9,8 +9,7 @@ pub struct Function {
 impl Function {
   pub fn expressions_mut(
     &mut self,
-  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>>
-  {
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>> {
     adhoc_internal_iterator_rec!(
       'r, self, |this: &'r mut Function, yield_| -> &'r mut FileSpanned<Expression> {
         for stmt in this.statements.iter_mut() {

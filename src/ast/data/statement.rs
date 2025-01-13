@@ -14,8 +14,7 @@ pub enum Statement {
 impl Statement {
   pub fn expressions_mut(
     &mut self,
-  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>>
-  {
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>> {
     adhoc_internal_iterator_rec!(
       'r, self, |this: &'r mut Statement, yield_| -> &'r mut FileSpanned<Expression> {
         match this {

@@ -28,8 +28,7 @@ impl IfElse {
 
   pub fn expressions_mut(
     &mut self,
-  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>>
-  {
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>> {
     adhoc_internal_iterator_rec!(
       'r, self, |this: &'r mut IfElse, yield_| -> &'r mut FileSpanned<Expression> {
         yield_(&mut this.test)?;

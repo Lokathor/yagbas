@@ -29,7 +29,7 @@ use crate::{
   file_span::FileSpan,
   file_spanned::FileSpanned,
   internal_iterator_rec::{
-    internal_iterator_rec_guts, adhoc_internal_iterator_rec,
+    adhoc_internal_iterator_rec, internal_iterator_rec_guts,
     InternalIteratorRec, ItemRec,
   },
   mir::{
