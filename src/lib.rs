@@ -28,8 +28,7 @@ use crate::{
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
-  internal_iterator_mut::InternalIteratorMut,
-  internal_iterator_ref::InternalIteratorRef,
+  internal_iterator_rec::InternalIteratorRec,
   mir::{
     binary_op::BinaryOp, condition::Condition, reg16::Reg16, reg8::Reg8,
     unary_op::UnaryOp,
@@ -45,8 +44,7 @@ pub mod ast;
 pub mod errors;
 pub mod file_span;
 pub mod file_spanned;
-pub mod internal_iterator_mut;
-pub mod internal_iterator_ref;
+pub mod internal_iterator_rec;
 pub mod mir;
 pub mod src_file;
 pub mod str_id;
