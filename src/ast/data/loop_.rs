@@ -66,7 +66,7 @@ impl Loop {
 
   pub fn calls_ref(
     &self,
-  ) -> impl '_ + InternalIterator<Item = &'_ FileSpanned<Call>> {
+  ) -> impl '_ + InternalIteratorRef<ItemRef = &'_ FileSpanned<Call>> {
     return CallsRef(self);
     // where:
     struct CallsRef<'r>(&'r Loop);

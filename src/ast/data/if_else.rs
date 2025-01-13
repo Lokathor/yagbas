@@ -58,7 +58,7 @@ impl IfElse {
 
   pub fn calls_ref(
     &self,
-  ) -> impl '_ + InternalIterator<Item = &'_ FileSpanned<Call>> {
+  ) -> impl '_ + InternalIteratorRef<ItemRef = &'_ FileSpanned<Call>> {
     return CallsRef(self);
     // where:
     struct CallsRef<'r>(&'r IfElse);
@@ -76,7 +76,7 @@ impl IfElse {
         for stmt in self.0.if_body.iter() {
           stmt.calls_ref().try_for_each_ref(&mut *f)?;
         }
-        for stmt in self.0.else_body.iter_mut() {
+        for stmt in self.0.else_body.iter() {
           stmt.calls_ref().try_for_each_ref(&mut *f)?;
         }
         ControlFlow::Continue(())
