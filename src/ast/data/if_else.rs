@@ -30,86 +30,47 @@ impl IfElse {
     &mut self,
   ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>>
   {
-    return ExpressionsMut(self);
-    // where:
-    struct ExpressionsMut<'r>(&'r mut IfElse);
-    impl<'r> InternalIterator for ExpressionsMut<'r> {
-      internal_iterator_rec_guts! {}
-    }
-
-    impl<'r> InternalIteratorRec for ExpressionsMut<'r> {
-      type Item = &'r mut FileSpanned<Expression>;
-
-      fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
-      where
-        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
-      {
-        f(&mut self.0.test)?;
-        for stmt in self.0.if_body.iter_mut() {
-          stmt.expressions_mut().try_for_each_rec(&mut *f)?;
+    adhoc_internal_iterator_rec!(
+      'r, self, |this: &'r mut IfElse, yield_| -> &'r mut FileSpanned<Expression> {
+        yield_(&mut this.test)?;
+        for stmt in this.if_body.iter_mut() {
+          stmt.expressions_mut().try_for_each_rec(yield_)?;
         }
-        for stmt in self.0.else_body.iter_mut() {
-          stmt.expressions_mut().try_for_each_rec(&mut *f)?;
+        for stmt in this.else_body.iter_mut() {
+          stmt.expressions_mut().try_for_each_rec(yield_)?;
         }
-        ControlFlow::Continue(())
       }
-    }
+    )
   }
 
   pub fn calls_ref(
     &self,
   ) -> impl '_ + InternalIteratorRec<Item = &'_ FileSpanned<Call>> {
-    return CallsRef(self);
-    // where:
-    struct CallsRef<'r>(&'r IfElse);
-    impl<'r> InternalIterator for CallsRef<'r> {
-      internal_iterator_rec_guts! {}
-    }
-
-    impl<'r> InternalIteratorRec for CallsRef<'r> {
-      type Item = &'r FileSpanned<Call>;
-
-      fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
-      where
-        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
-      {
-        for stmt in self.0.if_body.iter() {
-          stmt.calls_ref().try_for_each_rec(&mut *f)?;
+    adhoc_internal_iterator_rec!(
+      'r, self, |this: &'r IfElse, yield_| -> &'r FileSpanned<Call> {
+        for stmt in this.if_body.iter() {
+          stmt.calls_ref().try_for_each_rec(yield_)?;
         }
-        for stmt in self.0.else_body.iter() {
-          stmt.calls_ref().try_for_each_rec(&mut *f)?;
+        for stmt in this.else_body.iter() {
+          stmt.calls_ref().try_for_each_rec(yield_)?;
         }
-        ControlFlow::Continue(())
       }
-    }
+    )
   }
 
   pub fn calls_mut(
     &mut self,
   ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Call>> {
-    return CallsMut(self);
-    // where:
-    struct CallsMut<'r>(&'r mut IfElse);
-    impl<'r> InternalIterator for CallsMut<'r> {
-      internal_iterator_rec_guts! {}
-    }
-
-    impl<'r> InternalIteratorRec for CallsMut<'r> {
-      type Item = &'r mut FileSpanned<Call>;
-
-      fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
-      where
-        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
-      {
-        for stmt in self.0.if_body.iter_mut() {
-          stmt.calls_mut().try_for_each_rec(&mut *f)?;
+    adhoc_internal_iterator_rec!(
+      'r, self, |this: &'r mut IfElse, yield_| -> &'r mut FileSpanned<Call> {
+        for stmt in this.if_body.iter_mut() {
+          stmt.calls_mut().try_for_each_rec(yield_)?;
         }
-        for stmt in self.0.else_body.iter_mut() {
-          stmt.calls_mut().try_for_each_rec(&mut *f)?;
+        for stmt in this.else_body.iter_mut() {
+          stmt.calls_mut().try_for_each_rec(yield_)?;
         }
-        ControlFlow::Continue(())
       }
-    }
+    )
   }
 
   pub fn write_code(

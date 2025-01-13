@@ -16,27 +16,15 @@ impl Statement {
     &mut self,
   ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>>
   {
-    return ExpressionsMut(self);
-    // where:
-    struct ExpressionsMut<'r>(&'r mut Statement);
-    impl<'r> InternalIterator for ExpressionsMut<'r> {
-      internal_iterator_rec_guts! {}
-    }
-
-    impl<'r> InternalIteratorRec for ExpressionsMut<'r> {
-      type Item = &'r mut FileSpanned<Expression>;
-
-      fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
-      where
-        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
-      {
-        match self.0 {
-          Statement::Expression(xpr) => f(xpr)?,
+    adhoc_internal_iterator_rec!(
+      'r, self, |this: &'r mut Statement, yield_| -> &'r mut FileSpanned<Expression> {
+        match this {
+          Statement::Expression(xpr) => yield_(xpr)?,
           Statement::IfElse(if_else) => {
-            if_else.expressions_mut().try_for_each_rec(f)?
+            if_else.expressions_mut().try_for_each_rec(yield_)?
           }
           Statement::Loop(loop_) => {
-            loop_.expressions_mut().try_for_each_rec(f)?
+            loop_.expressions_mut().try_for_each_rec(yield_)?
           }
           Statement::Break(_)
           | Statement::Continue(_)
@@ -44,77 +32,50 @@ impl Statement {
           | Statement::Return
           | Statement::StatementError => {}
         }
-        ControlFlow::Continue(())
       }
-    }
+    )
   }
 
   pub fn calls_ref(
     &self,
   ) -> impl '_ + InternalIteratorRec<Item = &'_ FileSpanned<Call>> {
-    return CallsRef(self);
-    // where:
-    struct CallsRef<'r>(&'r Statement);
-    impl<'r> InternalIterator for CallsRef<'r> {
-      internal_iterator_rec_guts! {}
-    }
-
-    impl<'r> InternalIteratorRec for CallsRef<'r> {
-      type Item = &'r FileSpanned<Call>;
-
-      fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
-      where
-        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
-      {
-        match self.0 {
-          Statement::Call(c) => f(c)?,
+    adhoc_internal_iterator_rec!(
+      'r, self, |this: &'r Statement, yield_| -> &'r FileSpanned<Call> {
+        match this {
+          Statement::Call(c) => yield_(c)?,
           Statement::IfElse(if_else) => {
-            if_else.calls_ref().try_for_each_rec(f)?
+            if_else.calls_ref().try_for_each_rec(yield_)?
           }
-          Statement::Loop(loop_) => loop_.calls_ref().try_for_each_rec(f)?,
+          Statement::Loop(loop_) => loop_.calls_ref().try_for_each_rec(yield_)?,
           Statement::Expression(_)
           | Statement::Break(_)
           | Statement::Continue(_)
           | Statement::Return
           | Statement::StatementError => {}
         }
-        ControlFlow::Continue(())
       }
-    }
+    )
   }
 
   pub fn calls_mut(
     &mut self,
   ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Call>> {
-    return CallsMut(self);
-    // where:
-    struct CallsMut<'r>(&'r mut Statement);
-    impl<'r> InternalIterator for CallsMut<'r> {
-      internal_iterator_rec_guts! {}
-    }
-
-    impl<'r> InternalIteratorRec for CallsMut<'r> {
-      type Item = &'r mut FileSpanned<Call>;
-
-      fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
-      where
-        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
-      {
-        match self.0 {
-          Statement::Call(c) => f(c)?,
+    adhoc_internal_iterator_rec!(
+      'r, self, |this: &'r mut Statement, yield_| -> &'r mut FileSpanned<Call> {
+        match this {
+          Statement::Call(c) => yield_(c)?,
           Statement::IfElse(if_else) => {
-            if_else.calls_mut().try_for_each_rec(f)?
+            if_else.calls_mut().try_for_each_rec(yield_)?
           }
-          Statement::Loop(loop_) => loop_.calls_mut().try_for_each_rec(f)?,
-          Statement::Break(_)
+          Statement::Loop(loop_) => loop_.calls_mut().try_for_each_rec(yield_)?,
+          Statement::Expression(_)
+          | Statement::Break(_)
           | Statement::Continue(_)
-          | Statement::Expression(_)
           | Statement::Return
           | Statement::StatementError => {}
         }
-        ControlFlow::Continue(())
       }
-    }
+    )
   }
 
   pub fn write_code(
