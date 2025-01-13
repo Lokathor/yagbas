@@ -40,7 +40,7 @@ impl Loop {
 
   pub fn expressions_mut(
     &mut self,
-  ) -> impl '_ + InternalIteratorRec<ItemRec = &'_ mut FileSpanned<Expression>>
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>>
   {
     return ExpressionsMut(self);
     // where:
@@ -50,11 +50,11 @@ impl Loop {
     }
 
     impl<'r> InternalIteratorRec for ExpressionsMut<'r> {
-      type ItemRec = &'r mut FileSpanned<Expression>;
+      type Item = &'r mut FileSpanned<Expression>;
 
       fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
       where
-        F: FnMut(Self::Item) -> ControlFlow<R>,
+        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
       {
         for stmt in self.0.statements.iter_mut() {
           stmt.expressions_mut().try_for_each_rec(&mut *f)?;
@@ -66,7 +66,7 @@ impl Loop {
 
   pub fn calls_ref(
     &self,
-  ) -> impl '_ + InternalIteratorRec<ItemRec = &'_ FileSpanned<Call>> {
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ FileSpanned<Call>> {
     return CallsRef(self);
     // where:
     struct CallsRef<'r>(&'r Loop);
@@ -75,11 +75,11 @@ impl Loop {
     }
 
     impl<'r> InternalIteratorRec for CallsRef<'r> {
-      type ItemRec = &'r FileSpanned<Call>;
+      type Item = &'r FileSpanned<Call>;
 
       fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
       where
-        F: FnMut(Self::Item) -> ControlFlow<R>,
+        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
       {
         for stmt in self.0.statements.iter() {
           stmt.calls_ref().try_for_each_rec(&mut *f)?;
@@ -91,7 +91,7 @@ impl Loop {
 
   pub fn calls_mut(
     &mut self,
-  ) -> impl '_ + InternalIteratorRec<ItemRec = &'_ mut FileSpanned<Call>> {
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Call>> {
     return CallsMut(self);
     // where:
     struct CallsMut<'r>(&'r mut Loop);
@@ -100,11 +100,11 @@ impl Loop {
     }
 
     impl<'r> InternalIteratorRec for CallsMut<'r> {
-      type ItemRec = &'r mut FileSpanned<Call>;
+      type Item = &'r mut FileSpanned<Call>;
 
       fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
       where
-        F: FnMut(Self::Item) -> ControlFlow<R>,
+        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
       {
         for stmt in self.0.statements.iter_mut() {
           stmt.calls_mut().try_for_each_rec(&mut *f)?;

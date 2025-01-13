@@ -14,7 +14,7 @@ pub enum Statement {
 impl Statement {
   pub fn expressions_mut(
     &mut self,
-  ) -> impl '_ + InternalIteratorRec<ItemRec = &'_ mut FileSpanned<Expression>>
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Expression>>
   {
     return ExpressionsMut(self);
     // where:
@@ -24,11 +24,11 @@ impl Statement {
     }
 
     impl<'r> InternalIteratorRec for ExpressionsMut<'r> {
-      type ItemRec = &'r mut FileSpanned<Expression>;
+      type Item = &'r mut FileSpanned<Expression>;
 
       fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
       where
-        F: FnMut(Self::Item) -> ControlFlow<R>,
+        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
       {
         match self.0 {
           Statement::Expression(xpr) => f(xpr)?,
@@ -51,7 +51,7 @@ impl Statement {
 
   pub fn calls_ref(
     &self,
-  ) -> impl '_ + InternalIteratorRec<ItemRec = &'_ FileSpanned<Call>> {
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ FileSpanned<Call>> {
     return CallsRef(self);
     // where:
     struct CallsRef<'r>(&'r Statement);
@@ -60,11 +60,11 @@ impl Statement {
     }
 
     impl<'r> InternalIteratorRec for CallsRef<'r> {
-      type ItemRec = &'r FileSpanned<Call>;
+      type Item = &'r FileSpanned<Call>;
 
       fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
       where
-        F: FnMut(Self::Item) -> ControlFlow<R>,
+        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
       {
         match self.0 {
           Statement::Call(c) => f(c)?,
@@ -85,7 +85,7 @@ impl Statement {
 
   pub fn calls_mut(
     &mut self,
-  ) -> impl '_ + InternalIteratorRec<ItemRec = &'_ mut FileSpanned<Call>> {
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut FileSpanned<Call>> {
     return CallsMut(self);
     // where:
     struct CallsMut<'r>(&'r mut Statement);
@@ -94,11 +94,11 @@ impl Statement {
     }
 
     impl<'r> InternalIteratorRec for CallsMut<'r> {
-      type ItemRec = &'r mut FileSpanned<Call>;
+      type Item = &'r mut FileSpanned<Call>;
 
       fn try_for_each_rec<R, F>(self, f: &mut F) -> ControlFlow<R>
       where
-        F: FnMut(Self::Item) -> ControlFlow<R>,
+        F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
       {
         match self.0 {
           Statement::Call(c) => f(c)?,

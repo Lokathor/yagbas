@@ -28,7 +28,7 @@ use crate::{
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
-  internal_iterator_rec::InternalIteratorRec,
+  internal_iterator_rec::{InternalIteratorRec, ItemRec},
   mir::{
     binary_op::BinaryOp, condition::Condition, reg16::Reg16, reg8::Reg8,
     unary_op::UnaryOp,
