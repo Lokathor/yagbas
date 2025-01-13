@@ -44,7 +44,6 @@ pub trait InternalIteratorRec: InternalIterator<Item = ItemRec<Self>> {
 
 pub(crate) type ItemRec<T> = <T as InternalIteratorRec>::Item;
 
-#[macro_export]
 macro_rules! internal_iterator_rec_guts {
   () => {
     type Item = <Self as InternalIteratorRec>::Item;
@@ -57,3 +56,32 @@ macro_rules! internal_iterator_rec_guts {
     }
   };
 }
+pub(crate) use internal_iterator_rec_guts;
+
+#[rustfmt::skip]
+macro_rules! adhoc_internal_iterator_rec {(
+  $lt:lifetime,
+  $value:expr,
+  |$($this:ident)+ : $T:ty, $yield:ident $(,)?| -> $ItemTy:ty
+    $body:block
+  $(,)?
+) => ({
+  struct AdhocInternalIteratorRec<$lt>($T);
+  impl<$lt> $crate::InternalIteratorRec for AdhocInternalIteratorRec<$lt> {
+    type Item = $ItemTy;
+
+    fn try_for_each_rec<R, F>(self, $yield: &mut F) -> ControlFlow<R>
+    where
+      F: FnMut(ItemRec<Self>) -> ControlFlow<R>,
+    {
+      let Self($($this)+) = self;
+      $body
+      ControlFlow::Continue(())
+    }
+  }
+  impl InternalIterator for AdhocInternalIteratorRec<'_> {
+    $crate::internal_iterator_rec_guts!();
+  }
+  AdhocInternalIteratorRec($value)
+})}
+pub(crate) use adhoc_internal_iterator_rec;
