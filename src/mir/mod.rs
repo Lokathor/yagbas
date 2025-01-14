@@ -20,7 +20,7 @@ pub enum Mir {
   ///   the label it targets.
   /// * Converting jumps to a label into relative jumps happens at the assembly
   ///   stage, in MIR all static jumps are to a label.
-  JumpLabel(StrID),
+  Jump(StrID),
 
   /// call to another function
   ///
@@ -28,8 +28,11 @@ pub enum Mir {
   ///   optimization black holes.
   Call(StrID),
 
-  /// go back to the caller
+  /// Return control flow back to the caller
   Return,
+
+  /// Return from an interrupt handler
+  ReturnFromInterrupt,
 
   /// `inc reg16`
   ///
@@ -52,22 +55,32 @@ pub enum Mir {
   Dec8(Reg8),
 
   /// `a = [reg16]`
-  AssignAReg16t(Reg16),
+  LoadAReg16t(Reg16),
 
   /// `[reg16] = a`
-  AssignReg16tA(Reg16),
+  StoreReg16tA(Reg16),
+
+  /// `a = [$FF00+c]`
+  ///
+  /// Load from the high-page with `c` as an offset
+  LoadAHpc,
+
+  /// `[$FF00+c] = a`
+  ///
+  /// Store to the high-page with `c` as an offset
+  StoreHpcA,
 
   /// `a = [imm16]`
-  AssignAImm16t(u16),
+  LoadAImm16t(u16),
 
   /// `[imm16] = a`
-  AssignImm16tA(u16),
+  StoreImm16tA(u16),
 
   /// `a = [label]`
-  AssignALabelT(u16),
+  LoadALabelT(u16),
 
   /// `[label] = a`
-  AssignLabelTA(u16),
+  StoreLabelTA(u16),
 
   /// `reg8 = imm8`
   AssignReg8Imm8(Reg8, u8),
@@ -76,13 +89,16 @@ pub enum Mir {
   AssignReg16Imm16(Reg16, u16),
 
   /// `reg16 = label`
-  ///
-  /// This is necessary to load the address of an item, since we don't know the
-  /// address of an item until after linking.
   AssignReg16Label(Reg16, StrID),
 
   /// Does `a = op(arg0, arg1)` for any binary op.
-  BinOp(BinaryOp, Reg8, Reg8),
+  BinOpReg(BinaryOp, Reg8, Reg8),
+
+  /// Does `op(arg)` for any binary op.
+  ///
+  /// * In some cases this modifies `arg` in place
+  /// * In other cases this set the flags.
+  UnOpReg(UnaryOp, Reg8),
 }
 impl Mir {
   #[inline]
@@ -90,24 +106,28 @@ impl Mir {
   pub fn zero_effect(&self) -> FlagEffect {
     match self {
       Mir::Return
+      | Mir::ReturnFromInterrupt
       | Mir::Inc16(_)
       | Mir::Dec16(_)
-      | Mir::AssignAReg16t(_)
-      | Mir::AssignReg16tA(_)
-      | Mir::AssignAImm16t(_)
-      | Mir::AssignImm16tA(_)
+      | Mir::LoadAReg16t(_)
+      | Mir::StoreReg16tA(_)
+      | Mir::LoadAImm16t(_)
+      | Mir::StoreImm16tA(_)
       | Mir::AssignReg8Imm8(_, _)
       | Mir::AssignReg16Imm16(_, _)
       | Mir::AssignReg16Label(_, _)
-      | Mir::AssignALabelT(_)
-      | Mir::AssignLabelTA(_) => FlagEffect::NoEffect,
+      | Mir::LoadALabelT(_)
+      | Mir::StoreLabelTA(_)
+      | Mir::LoadAHpc
+      | Mir::StoreHpcA => FlagEffect::NoEffect,
       Mir::Inc8(_) | Mir::Dec8(_) => FlagEffect::ByOutput,
-      Mir::Loop(_) | Mir::If(_) | Mir::JumpLabel(_) | Mir::Call(_) => {
+      Mir::Loop(_) | Mir::If(_) | Mir::Jump(_) | Mir::Call(_) => {
         FlagEffect::Unknown
       }
       // TODO: With some ops we statically know the answer is actually going to
       // be `FlagEffect::AlwaysTrue` if both input registers are `a`.
-      Mir::BinOp(binary_op, _, _) => FlagEffect::ByOutput,
+      Mir::BinOpReg(binary_op, _, _) => FlagEffect::ByOutput,
+      Mir::UnOpReg(unary_op, _) => FlagEffect::ByOutput,
     }
   }
 
@@ -116,25 +136,29 @@ impl Mir {
   pub fn carry_effect(&self) -> FlagEffect {
     match self {
       Mir::Return
+      | Mir::ReturnFromInterrupt
       | Mir::Inc16(_)
       | Mir::Dec16(_)
-      | Mir::AssignAReg16t(_)
-      | Mir::AssignReg16tA(_)
-      | Mir::AssignAImm16t(_)
-      | Mir::AssignImm16tA(_)
+      | Mir::LoadAReg16t(_)
+      | Mir::StoreReg16tA(_)
+      | Mir::LoadAImm16t(_)
+      | Mir::StoreImm16tA(_)
       | Mir::AssignReg8Imm8(_, _)
       | Mir::AssignReg16Imm16(_, _)
       | Mir::AssignReg16Label(_, _)
       | Mir::Inc8(_)
       | Mir::Dec8(_)
-      | Mir::AssignALabelT(_)
-      | Mir::AssignLabelTA(_) => FlagEffect::NoEffect,
-      Mir::Loop(_) | Mir::If(_) | Mir::JumpLabel(_) | Mir::Call(_) => {
+      | Mir::LoadALabelT(_)
+      | Mir::StoreLabelTA(_)
+      | Mir::LoadAHpc
+      | Mir::StoreHpcA => FlagEffect::NoEffect,
+      Mir::Loop(_) | Mir::If(_) | Mir::Jump(_) | Mir::Call(_) => {
         FlagEffect::Unknown
       }
       // TODO: some ops actually always set carry to 0, or even don't touch the
       // flag.
-      Mir::BinOp(binary_op, _, _) => FlagEffect::ByOutput,
+      Mir::BinOpReg(binary_op, _, _) => FlagEffect::ByOutput,
+      Mir::UnOpReg(unary_op, _) => FlagEffect::ByOutput,
     }
   }
 }
