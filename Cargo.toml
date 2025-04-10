@@ -4,7 +4,7 @@ description = "Yagbas is a programming language that builds programs for the Gam
 repository = "https://github.com/Lokathor/yagbas"
 homepage = "https://lokathor.github.io/yagbas/"
 version = "0.0.1"
-edition = "2021"
+edition = "2024"
 license = "Zlib OR Apache-2.0 OR MIT"
 
 [profile.dev.package."*"]
@@ -18,10 +18,6 @@ lto = true
 bimap = "0.6.3"
 clap = { version = "4.3.10", features = ["derive"] }
 logos = "0.14.0"
-chumsky = { git = "https://github.com/zesterer/chumsky", features = [
-  "label",
-  "pratt",
-], rev = "9d1ee8c" }
+chumsky = { version = "0.10", features = ["pratt"] }
 ariadne = { git = "https://github.com/zesterer/ariadne" }
 internal-iterator = "0.2.3"
-#rayon = "1.7.0"

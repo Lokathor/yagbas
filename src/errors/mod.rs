@@ -12,8 +12,8 @@ use std::{
 pub enum YagError {
   FileIO { filename: String, message: String },
   Tokenization(FileSpan),
-  TokenTree(Rich<'static, Token, FileSpan, &'static str>),
-  Item(Rich<'static, TokenTree, FileSpan, &'static str>),
+  TokenTree(Rich<'static, Token, FileSpan>),
+  Item(Rich<'static, TokenTree, FileSpan>),
   MultipleDefinitions(Vec<FileSpanned<Item>>),
   ConstIdentifierUndefined(FileSpanned<StrID>),
   CalledAStatic(FileSpanned<Call>),
