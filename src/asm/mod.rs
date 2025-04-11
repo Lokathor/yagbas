@@ -208,14 +208,16 @@ pub enum Asm {
   /// `stop`
   ///
   /// * This instruction is 1 byte itself but should *always* be followed by a
-  ///   `nop`, because the instruction after `stop` is executed or not
-  ///   depending on some very hard to predict factors.
+  ///   `nop`, because the instruction after `stop` is executed or not depending
+  ///   on some very hard to predict factors.
   /// * See [Pandocs: Using the STOP Instruction](https://gbdev.io/pandocs/Reducing_Power_Consumption.html#using-the-stop-instruction)
   Stop,
 
   /// `nop`
   Nop,
 
+  /// `db <byte>, <byte>, ...`
+  ///
   /// A raw sequence of bytes, generally "data" rather than "code".
   RawBytes(Vec<u8>),
 }
