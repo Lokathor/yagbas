@@ -2,8 +2,8 @@
 #![allow(clippy::type_complexity)]
 
 use ariadne::{
-  sources, CharSet, Color, Config, Label, LabelAttach, Report, ReportKind,
-  Source,
+  CharSet, Color, Config, Label, LabelAttach, Report, ReportKind, Source,
+  sources,
 };
 use chumsky::{error::Rich, span::Span};
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -13,8 +13,8 @@ use std::{
 };
 use yagbas::{
   ast::{
-    parsing::{lex_module_text, parse_items, parse_token_trees},
     Ast,
+    parsing::{lex_module_text, parse_items, parse_token_trees},
   },
   errors::YagError,
   file_span::FileSpan,
@@ -241,10 +241,12 @@ pub fn do_codegen(args: CodegenArgs) {
   if err_bucket.is_empty() {
     let assembly_items = ast.generate_assembly_items();
     let mut buffer = String::new();
+    println!("SECTION \"ROM_HEADER\", ROM0[$100]");
+    println!("jp main");
+    println!("ds $150-@,0");
     for (i, (name, assembly)) in assembly_items.iter().enumerate() {
-      if i > 0 {
-        println!();
-      }
+      println!();
+      println!("SECTION \"{name}\", ROM0");
       for asm in assembly.iter() {
         use core::fmt::Write;
         write!(buffer, "{asm}").ok();
