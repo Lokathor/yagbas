@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
+#![warn(missing_copy_implementations)]
 #![warn(missing_docs)]
 
 //! The types for assembly manipulation by the [yagbas](https://docs.rs/yagbas)
@@ -311,6 +312,102 @@ pub enum Asm {
   /// The double-indirection of the payload data lets us keep the size of the
   /// overall `Asm` type as small as possible.
   DataBytes(Box<Vec<u8>>),
+}
+impl Asm {
+  /// Determines the size of the instruction within a rom.
+  #[inline]
+  #[must_use]
+  pub fn rom_size(&self) -> usize {
+    match self {
+      Asm::Label(_) => 0,
+      Asm::LdReg8Reg8(_, _) => 1,
+      Asm::LdReg8Imm8(_, _) => 2,
+      Asm::LdReg16Lit(_, _) => 3,
+      Asm::LdReg16Sym(_, _) => 3,
+      Asm::LdHltReg8(_) => 1,
+      Asm::LdHltImm8(_) => 2,
+      Asm::LdReg8Hlt(_) => 1,
+      Asm::LdReg16tA(_) => 3,
+      Asm::LdLitA(_) => 3,
+      Asm::LdSymA(_) => 3,
+      Asm::LdhLitA(_) => 2,
+      Asm::LdhSymA(_) => 2,
+      Asm::LdhCA => 1,
+      Asm::LdAReg16t(_) => 3,
+      Asm::LdALit(_) => 3,
+      Asm::LdASym(_) => 3,
+      Asm::LdhALit(_) => 2,
+      Asm::LdhASym(_) => 2,
+      Asm::LdhAC => 1,
+      Asm::LdHliA => 1,
+      Asm::LdHldA => 1,
+      Asm::LdAHli => 1,
+      Asm::LdAHld => 1,
+      Asm::BinOpReg8(_, _) => 1,
+      Asm::BinOpHlt => 1,
+      Asm::BinOpImm8(_) => 2,
+      Asm::DecReg8(_) => 1,
+      Asm::DecHlt => 1,
+      Asm::IncReg8(_) => 1,
+      Asm::IncHlt => 1,
+      Asm::AddHlReg16(_) => 1,
+      Asm::DecReg16(_) => 1,
+      Asm::IncReg16(_) => 1,
+      Asm::Cpl => 1,
+      Asm::BitTestReg8(_, _) => 2,
+      Asm::BitTestHlt(_) => 2,
+      Asm::ResetReg8(_, _) => 2,
+      Asm::ResetHlt(_) => 2,
+      Asm::SetReg8(_, _) => 2,
+      Asm::SetHlt(_) => 2,
+      Asm::UnOpReg8(_) => 2,
+      Asm::UnOpHlt => 2,
+      Asm::Rla => 1,
+      Asm::Rlca => 1,
+      Asm::Rra => 1,
+      Asm::Rrca => 1,
+      Asm::CallLit(_) => 3,
+      Asm::CallSym(_) => 3,
+      Asm::CallCondLit(_, _) => 3,
+      Asm::CallCondSym(_, _) => 3,
+      Asm::JumpHl => 1,
+      Asm::JumpLit(_) => 3,
+      Asm::JumpSym(_) => 3,
+      Asm::JumpCondLit(_, _) => 3,
+      Asm::JumpCondSym(_, _) => 3,
+      Asm::JumpRelLit(_) => 2,
+      Asm::JumpRelSym(_) => 2,
+      Asm::JumpRelCondLit(_, _) => 2,
+      Asm::JumpRelCondSym(_, _) => 2,
+      Asm::ReturnCond(_) => 1,
+      Asm::Return => 1,
+      Asm::ReturnFromInterrupt => 1,
+      Asm::Reset(_) => 1,
+      Asm::Ccf => 1,
+      Asm::Scf => 1,
+      Asm::AddHlSp => 1,
+      Asm::AddSpDelta(_) => 1,
+      Asm::DecSp => 1,
+      Asm::IncSp => 1,
+      Asm::LdSpLit(_) => 3,
+      Asm::LdSpSym(_) => 3,
+      Asm::LdLitSp(_) => 3,
+      Asm::LdSymSp(_) => 3,
+      Asm::LdHlSpDelta(_) => 2,
+      Asm::LdSpHl => 1,
+      Asm::PopAF => 1,
+      Asm::PopReg16(_) => 1,
+      Asm::PushAF => 1,
+      Asm::PushReg16(_) => 1,
+      Asm::DI => 1,
+      Asm::EI => 1,
+      Asm::Halt => 1,
+      Asm::DAA => 1,
+      Asm::Nop => 1,
+      Asm::Stop => 1,
+      Asm::DataBytes(items) => items.len(),
+    }
+  }
 }
 
 /// The 8-bit registers usable with most 8-bit instructions.
