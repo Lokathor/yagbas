@@ -178,40 +178,103 @@ pub enum Asm {
   /// `rrca`
   Rrca,
 
+  /// `call lit`
   CallLit(u16),
+
+  /// `call sym`
   CallSym(StrID),
+
+  /// `call cond, lit`
   CallCondLit(Cond, u16),
+
+  /// `call cond, sym`
   CallCondSym(Cond, StrID),
+
+  /// `jp hl`
   JumpHl,
+
+  /// `jp lit`
   JumpLit(u16),
+
+  /// `jp sym`
   JumpSym(StrID),
+
+  /// `jp cond, lit`
   JumpCondLit(Cond, u16),
+
+  /// `jp cond, sym`
   JumpCondSym(Cond, StrID),
+
+  /// `jr lit`
   JumpRelLit(u16),
+
+  /// `jp sym`
   JumpRelSym(StrID),
-  JumpCondRelLit(Cond, u16),
-  JumpCondRelSym(Cond, StrID),
+
+  /// `jr cond, lit`
+  JumpRelCondLit(Cond, u16),
+
+  /// `jr cond, sym`
+  JumpRelCondSym(Cond, StrID),
+
+  /// `ret cond`
   ReturnCond(Cond),
+
+  /// `ret`
   Return,
+
+  /// `reti`
   ReturnFromInterrupt,
+
+  /// `rst vec`
   Reset(RstVec),
 
+  /// `ccf`, "compliment carry flag"
   Ccf,
+
+  /// `scf`, "set carry flag"
   Scf,
 
+  /// `add hl, sp`
   AddHlSp,
+
+  /// `add sp, i8`
   AddSpDelta(i8),
+
+  /// `dec sp`
   DecSp,
+
+  /// `inc sp`
   IncSp,
+
+  /// `ld sp, lit`
   LdSpLit(u16),
+
+  /// `ld sp, sym`
   LdSpSym(StrID),
+
+  /// `ld [lit], sp`
   LdLitSp(u16),
+
+  /// `ld [sym], sp`
   LdSymSp(StrID),
+
+  /// `ld hl, sp+i8`
   LdHlSpDelta(i8),
+
+  /// `ld sp, hl`
   LdSpHl,
+
+  /// `pop af`
   PopAF,
+
+  /// `pop reg16`
   PopReg16(Reg16),
+
+  /// `push af`
   PushAF,
+
+  /// `push reg16`
   PushReg16(Reg16),
 
   /// `di`
@@ -346,6 +409,9 @@ pub enum BinOp {
   /// BitAnd
   And,
   /// Compare (sets flags based on `a - x` result)
+  ///
+  /// * Zero flag is set when `x` is equal to `a`
+  /// * Carry flag is set when `x` is greater than `a`
   Cp,
   /// BitOr
   Or,
