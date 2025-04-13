@@ -15,8 +15,8 @@ use std::{
   num::NonZeroUsize,
   path::{Path, PathBuf},
   sync::{
-    atomic::{AtomicUsize, Ordering},
     OnceLock, PoisonError, RwLock,
+    atomic::{AtomicUsize, Ordering},
   },
 };
 
@@ -41,7 +41,7 @@ impl SrcFile {
         return Err(YagError::FileIO {
           filename: format!("{}", path_buf.display()),
           message: e.to_string(),
-        })
+        });
       }
     };
     let mut line_bytes = Vec::new();
