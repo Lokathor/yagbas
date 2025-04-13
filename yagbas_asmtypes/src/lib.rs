@@ -114,10 +114,10 @@ pub enum Asm {
   BinOpReg8(BinOp, Reg8),
 
   /// `bin_op a, [hl]`
-  BinOpHlt,
+  BinOpHlt(BinOp),
 
   /// `bin_op a, imm8`
-  BinOpImm8(u8),
+  BinOpImm8(BinOp, u8),
 
   /// `dec reg8`
   DecReg8(Reg8),
@@ -162,10 +162,10 @@ pub enum Asm {
   SetHlt(U3),
 
   /// `un_op reg8`
-  UnOpReg8(Reg8),
+  UnOpReg8(UnOp, Reg8),
 
   /// `un_op [hl]`
-  UnOpHlt,
+  UnOpHlt(UnOp),
 
   /// `rla`
   Rla,
@@ -344,8 +344,8 @@ impl Asm {
       Asm::LdAHli => 1,
       Asm::LdAHld => 1,
       Asm::BinOpReg8(_, _) => 1,
-      Asm::BinOpHlt => 1,
-      Asm::BinOpImm8(_) => 2,
+      Asm::BinOpHlt(_) => 1,
+      Asm::BinOpImm8(_, _) => 2,
       Asm::DecReg8(_) => 1,
       Asm::DecHlt => 1,
       Asm::IncReg8(_) => 1,
@@ -360,8 +360,8 @@ impl Asm {
       Asm::ResetHlt(_) => 2,
       Asm::SetReg8(_, _) => 2,
       Asm::SetHlt(_) => 2,
-      Asm::UnOpReg8(_) => 2,
-      Asm::UnOpHlt => 2,
+      Asm::UnOpReg8(_, _) => 2,
+      Asm::UnOpHlt(_) => 2,
       Asm::Rla => 1,
       Asm::Rlca => 1,
       Asm::Rra => 1,
@@ -409,6 +409,111 @@ impl Asm {
     }
   }
 }
+impl core::fmt::Display for Asm {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Asm::Label(label) => write!(f, "{label}:"),
+      Asm::LdReg8Reg8(dst, src) => write!(f, "ld {dst}, {src}"),
+      Asm::LdReg8Imm8(reg, imm) => write!(f, "ld {reg}, ${imm:02X}"),
+      Asm::LdReg16Lit(reg, lit) => write!(f, "ld {reg}, ${lit:04X}"),
+      Asm::LdReg16Sym(reg, sym) => write!(f, "ld {reg}, {sym}"),
+      Asm::LdHltReg8(reg) => write!(f, "ld [hl], {reg}"),
+      Asm::LdHltImm8(imm) => write!(f, "ld [hl], ${imm:02X}"),
+      Asm::LdReg8Hlt(reg) => write!(f, "ld {reg}, [hl]"),
+      Asm::LdReg16tA(reg) => write!(f, "ld [{reg}], a"),
+      Asm::LdLitA(lit) => write!(f, "ld [${lit:04X}], a"),
+      Asm::LdSymA(sym) => write!(f, "ld [{sym}], a"),
+      Asm::LdhLitA(lit) => write!(f, "ldh ${lit:04X}, a"),
+      Asm::LdhSymA(sym) => write!(f, "ldh {sym}, a"),
+      Asm::LdhCA => write!(f, "ld [c], a"),
+      Asm::LdAReg16t(reg) => write!(f, "ld a, [{reg}]"),
+      Asm::LdALit(lit) => write!(f, "ld a, [${lit:04X}]"),
+      Asm::LdASym(sym) => write!(f, "ld a, [{sym}]"),
+      Asm::LdhALit(lit) => write!(f, "ldh a, [${lit:04X}]"),
+      Asm::LdhASym(sym) => write!(f, "ldh a, [{sym}]"),
+      Asm::LdhAC => write!(f, "ldh a, [c]"),
+      Asm::LdHliA => write!(f, "ld [hli], a"),
+      Asm::LdHldA => write!(f, "ld [hld], a"),
+      Asm::LdAHli => write!(f, "ld a, [hli]"),
+      Asm::LdAHld => write!(f, "ld a, [hld]"),
+      Asm::BinOpReg8(op, reg) => write!(f, "{op} a, {reg}"),
+      Asm::BinOpHlt(op) => write!(f, "{op} a, [hl]"),
+      Asm::BinOpImm8(op, imm) => write!(f, "{op} a, ${imm:02X}"),
+      Asm::DecReg8(reg) => write!(f, "dec {reg}"),
+      Asm::DecHlt => write!(f, "dec [hl]"),
+      Asm::IncReg8(reg) => write!(f, "inc {reg}"),
+      Asm::IncHlt => write!(f, "inc [hl]"),
+      Asm::AddHlReg16(reg) => write!(f, "add hl, {reg}"),
+      Asm::DecReg16(reg) => write!(f, "dec {reg}"),
+      Asm::IncReg16(reg) => write!(f, "inc {reg}"),
+      Asm::Cpl => write!(f, "cpl a"),
+      Asm::BitTestReg8(u3, reg) => write!(f, "bit {u3}, {reg}"),
+      Asm::BitTestHlt(u3) => write!(f, "bit {u3}, [hl]"),
+      Asm::ResetReg8(u3, reg) => write!(f, "res {u3}, {reg}"),
+      Asm::ResetHlt(u3) => write!(f, "res {u3}, [hl]"),
+      Asm::SetReg8(u3, reg) => write!(f, "set {u3}, {reg}"),
+      Asm::SetHlt(u3) => write!(f, "set {u3}, [hl]"),
+      Asm::UnOpReg8(op, reg) => write!(f, "{op} {reg}"),
+      Asm::UnOpHlt(op) => write!(f, "{op} [hl]"),
+      Asm::Rla => write!(f, "rla"),
+      Asm::Rlca => write!(f, "rlca"),
+      Asm::Rra => write!(f, "rra"),
+      Asm::Rrca => write!(f, "rrca"),
+      Asm::CallLit(lit) => write!(f, "call ${lit:04X}"),
+      Asm::CallSym(sym) => write!(f, "call {sym}"),
+      Asm::CallCondLit(cond, lit) => write!(f, "call {cond}, ${lit:04X}"),
+      Asm::CallCondSym(cond, sym) => write!(f, "call {cond}, {sym}"),
+      Asm::JumpHl => write!(f, "jp hl"),
+      Asm::JumpLit(lit) => write!(f, "jp ${lit:04X}"),
+      Asm::JumpSym(sym) => write!(f, "jp {sym}"),
+      Asm::JumpCondLit(cond, lit) => write!(f, "jp {cond}, ${lit:04X}"),
+      Asm::JumpCondSym(cond, sym) => write!(f, "jp {cond}, {sym}"),
+      Asm::JumpRelLit(lit) => write!(f, "jr ${lit:04X}"),
+      Asm::JumpRelSym(sym) => write!(f, "jr {sym}"),
+      Asm::JumpRelCondLit(cond, lit) => write!(f, "jp {cond}, ${lit:04X}"),
+      Asm::JumpRelCondSym(cond, sym) => write!(f, "jp {cond}, {sym}"),
+      Asm::ReturnCond(cond) => write!(f, "ret {cond}"),
+      Asm::Return => write!(f, "ret"),
+      Asm::ReturnFromInterrupt => write!(f, "reti"),
+      Asm::Reset(vec) => write!(f, "rst {vec}"),
+      Asm::Ccf => write!(f, "ccf"),
+      Asm::Scf => write!(f, "scf"),
+      Asm::AddHlSp => write!(f, "add hl, sp"),
+      Asm::AddSpDelta(i) => write!(f, "add sp, {i}"),
+      Asm::DecSp => write!(f, "dec sp"),
+      Asm::IncSp => write!(f, "inc sp"),
+      Asm::LdSpLit(lit) => write!(f, "ld sp, ${lit:04X}"),
+      Asm::LdSpSym(sym) => write!(f, "ld sp, {sym}"),
+      Asm::LdLitSp(lit) => write!(f, "ld ${lit:04X}, sp"),
+      Asm::LdSymSp(sym) => write!(f, "ld {sym}, sp"),
+      Asm::LdHlSpDelta(i) => write!(f, "ld hl, sp{i:+}"),
+      Asm::LdSpHl => write!(f, "ld sp, hl"),
+      Asm::PopAF => write!(f, "pop af"),
+      Asm::PopReg16(reg) => write!(f, "pop {reg}"),
+      Asm::PushAF => write!(f, "push af"),
+      Asm::PushReg16(reg) => write!(f, "push {reg}"),
+      Asm::DI => write!(f, "di"),
+      Asm::EI => write!(f, "ei"),
+      Asm::Halt => write!(f, "halt"),
+      Asm::DAA => write!(f, "daa"),
+      Asm::Nop => write!(f, "nop"),
+      Asm::Stop => write!(f, "stop"),
+      Asm::DataBytes(items) => {
+        for chunk in items.chunks(16) {
+          write!(f, "db ")?;
+          for (i, c) in chunk.iter().enumerate() {
+            if i > 0 {
+              write!(f, ", ")?;
+            }
+            write!(f, "${c:02X}")?;
+          }
+          writeln!(f)?;
+        }
+        Ok(())
+      }
+    }
+  }
+}
 
 /// The 8-bit registers usable with most 8-bit instructions.
 #[derive(Debug, Clone, Copy)]
@@ -422,6 +527,23 @@ pub enum Reg8 {
   H,
   L,
 }
+impl core::fmt::Display for Reg8 {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Reg8::A => "a",
+        Reg8::B => "b",
+        Reg8::C => "c",
+        Reg8::D => "d",
+        Reg8::E => "e",
+        Reg8::H => "h",
+        Reg8::L => "l",
+      }
+    )
+  }
+}
 
 /// The three 16-bit registers available for use with most 16-bit instructions.
 #[derive(Debug, Clone, Copy)]
@@ -430,6 +552,19 @@ pub enum Reg16 {
   BC,
   DE,
   HL,
+}
+impl core::fmt::Display for Reg16 {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Reg16::BC => "bc",
+        Reg16::DE => "de",
+        Reg16::HL => "hl",
+      }
+    )
+  }
 }
 
 /// An unsigned 3-bit value, a value in `0 ..= 7`.
@@ -445,6 +580,24 @@ pub enum U3 {
   _6,
   _7,
 }
+impl core::fmt::Display for U3 {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        U3::_0 => "0",
+        U3::_1 => "1",
+        U3::_2 => "2",
+        U3::_3 => "3",
+        U3::_4 => "4",
+        U3::_5 => "5",
+        U3::_6 => "6",
+        U3::_7 => "7",
+      }
+    )
+  }
+}
 
 /// A CPU condition.
 #[derive(Debug, Clone, Copy)]
@@ -457,6 +610,20 @@ pub enum Cond {
   C,
   /// No-carry
   NC,
+}
+impl core::fmt::Display for Cond {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Cond::Z => "z",
+        Cond::NZ => "nz",
+        Cond::C => "c",
+        Cond::NC => "nc",
+      }
+    )
+  }
 }
 
 /// One of the reset vector addresses.
@@ -473,6 +640,24 @@ pub enum RstVec {
   X28,
   X30,
   X38,
+}
+impl core::fmt::Display for RstVec {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        RstVec::X00 => "$00",
+        RstVec::X08 => "$08",
+        RstVec::X10 => "$10",
+        RstVec::X18 => "$18",
+        RstVec::X20 => "$20",
+        RstVec::X28 => "$28",
+        RstVec::X30 => "$30",
+        RstVec::X38 => "$38",
+      }
+    )
+  }
 }
 
 /// An unary operation, that operates on a single register.
@@ -494,6 +679,24 @@ pub enum UnOp {
   Srl,
   /// Swap the high and low 4-bit chunks.
   Swap,
+}
+impl core::fmt::Display for UnOp {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        UnOp::Rl => "rl",
+        UnOp::Rlc => "rlc",
+        UnOp::Rr => "rr",
+        UnOp::Rrc => "rrc",
+        UnOp::Sla => "sla",
+        UnOp::Sra => "sra",
+        UnOp::Srl => "srl",
+        UnOp::Swap => "swap",
+      }
+    )
+  }
 }
 
 /// A binary operation, using `A` and another register, outputting to `A`.
@@ -518,4 +721,22 @@ pub enum BinOp {
   Sub,
   /// BitXor
   Xor,
+}
+impl core::fmt::Display for BinOp {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        BinOp::Adc => "adc",
+        BinOp::Add => "add",
+        BinOp::And => "and",
+        BinOp::Cp => "cp",
+        BinOp::Or => "or",
+        BinOp::Sbc => "sbc",
+        BinOp::Sub => "sub",
+        BinOp::Xor => "xor",
+      }
+    )
+  }
 }
