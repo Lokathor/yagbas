@@ -11,6 +11,7 @@ use std::{
   collections::HashMap,
   path::{Path, PathBuf},
 };
+use str_id::StrID;
 use yagbas::{
   ast::{
     Ast,
@@ -21,7 +22,6 @@ use yagbas::{
   file_spanned::FileSpanned,
   read_src_files,
   src_file::{SrcFile, SrcID},
-  str_id::StrID,
 };
 
 #[test]
