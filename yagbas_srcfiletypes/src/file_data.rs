@@ -23,8 +23,7 @@ static FILE_INFO_CACHE: OnceLock<
   >,
 > = OnceLock::new();
 
-/// This is a newtype over a [NonZeroUsize] which can get back the str slice
-/// used to obtain this ID.
+/// Newtype over [NonZeroUsize] that can look up the correct info.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct FileID(NonZeroUsize);
