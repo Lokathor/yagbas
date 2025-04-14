@@ -20,5 +20,5 @@ clap = { version = "4.3.10", features = ["derive"] }
 logos = "0.14.0"
 chumsky = { version = "0.10", features = ["pratt"] }
 ariadne = "0.5.1"
-internal-iterator = "0.2.3"
 bimap = "0.6.3"
+internal_iterator_rec = "0.1.1"

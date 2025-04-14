@@ -28,10 +28,6 @@ use crate::{
   errors::YagError,
   file_span::FileSpan,
   file_spanned::FileSpanned,
-  internal_iterator_rec::{
-    InternalIteratorRec, ItemRec, adhoc_internal_iterator_rec,
-    internal_iterator_rec_guts,
-  },
   mir::{
     binary_op::BinaryOp, condition::Condition, reg8::Reg8, reg16::Reg16,
     unary_op::UnaryOp,
@@ -39,7 +35,9 @@ use crate::{
   src_file::{SrcFile, SrcID},
 };
 use core::ops::ControlFlow;
-use internal_iterator::InternalIterator;
+use internal_iterator_rec::{
+  InternalIterator, InternalIteratorRec, adhoc_internal_iterator_rec,
+};
 use str_id::StrID;
 
 pub mod asm;
@@ -47,7 +45,6 @@ pub mod ast;
 pub mod errors;
 pub mod file_span;
 pub mod file_spanned;
-pub mod internal_iterator_rec;
 pub mod mir;
 pub mod src_file;
 
