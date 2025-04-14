@@ -14,13 +14,21 @@ pub enum TokenTree {
   TreeError,
 }
 
-// TODO: track errors
-pub fn trees_of(source: &str) -> Vec<(TokenTree, SimpleSpan)> {
+pub fn trees_of(
+  source: &str,
+) -> (Vec<(TokenTree, SimpleSpan)>, Vec<Rich<'static, Token>>) {
   let tokens: Vec<(Token, SimpleSpan)> = tokens_of(source);
   let eoi: SimpleSpan = match tokens.last() {
     Some(s) => s.1,
-    None => return Vec::new(),
+    None => return (Vec::new(), Vec::new()),
   };
+  let recovery = via_parser(
+    any()
+      .repeated()
+      .at_least(1)
+      .to(TokenTree::TreeError)
+      .map_with(|tree, ex| (tree, ex.span())),
+  );
 
   let tree_parser = recursive(|tokens| {
     // Looks like `{ ... }`
@@ -49,7 +57,8 @@ pub fn trees_of(source: &str) -> Vec<(TokenTree, SimpleSpan)> {
 
     // Looks like something that does *NOT* open or close one of the other
     // types.
-    let lone = non_tree_token_p().map(TokenTree::Lone);
+    let lone =
+      non_tree_token_p().map_with(|out, ex| (TokenTree::Lone(out), ex.span()));
 
     // comments get stripped from the output.
     let comment = {
@@ -70,14 +79,17 @@ pub fn trees_of(source: &str) -> Vec<(TokenTree, SimpleSpan)> {
 
     x
   })
+  .recover_with(recovery)
   .repeated()
-  .collect();
+  .collect::<Vec<_>>();
 
-  // TODO: handle errors somehow, later on.
-  tree_parser
+  let (opt_out, errors) = tree_parser
     .parse(Input::map(&tokens[..], eoi, |(tk, span)| (tk, span)))
-    .into_output()
-    .unwrap_or_default()
+    .into_output_errors();
+  let out = opt_out.unwrap_or_default();
+  let errors = errors.into_iter().map(|error| error.into_owned()).collect();
+
+  (out, errors)
 }
 
 /// Parses an `OpBrace`, which is then discarded.
@@ -165,7 +177,7 @@ where
   I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
 {
   select! {
-    Token::OpCommentBlock => (),
+    Token::OpBlockComment => (),
   }
   .labelled("open_comment")
   .as_context()
@@ -178,7 +190,7 @@ where
   I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
 {
   select! {
-    Token::ClCommentBlock => (),
+    Token::ClBlockComment => (),
   }
   .labelled("close_comment")
   .as_context()
@@ -197,8 +209,8 @@ where
     Token::ClBrace,
     Token::OpParen,
     Token::ClParen,
-    Token::OpCommentBlock,
-    Token::ClCommentBlock,
+    Token::OpBlockComment,
+    Token::ClBlockComment,
   ])
   .labelled("non_tree_token")
   .as_context()
@@ -211,7 +223,7 @@ where
   I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
 {
   select! {
-    Token::SingleComment => (),
+    Token::LineComment => (),
   }
   .labelled("single_comment")
   .as_context()
