@@ -1,6 +1,6 @@
 
 # Stable
-edition = "2021"
+edition = "2024"
 fn_args_layout = "Compressed"
 max_width = 80
 tab_spaces = 2
