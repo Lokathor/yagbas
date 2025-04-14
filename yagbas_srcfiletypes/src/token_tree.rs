@@ -5,6 +5,20 @@ use chumsky::{
   prelude::*,
 };
 
+
+#[test]
+fn check_token_tree() {
+  let expected = vec![
+    (TokenTree::Lone(Token::KwLoop), (0..4).into()),
+    (TokenTree::Braces(vec![
+      (TokenTree::Lone(Token::KwA), (7..8).into())
+    ]), (5..10).into()),
+  ];
+  let (actual, errs) = trees_of("loop { a }");
+  assert_eq!(expected, actual);
+  assert!(errs.is_empty());
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenTree {
   Lone(Token),
