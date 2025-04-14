@@ -62,7 +62,7 @@ pub fn trees_of(source: &str) -> Vec<(TokenTree, SimpleSpan)> {
         .delimited_by(open_comment_p(), close_comment_p())
         .ignored();
 
-      single_line_comment_p().or(block_comment)
+      single_comment.or(block_comment)
     };
 
     let x =
