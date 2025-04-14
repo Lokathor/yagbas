@@ -35,11 +35,13 @@ pub enum Token {
   #[token("bc", priority = 4)]
   #[token("BC", priority = 4)]
   KwBC,
+  #[regex(r"bitstruct", priority = 4)]
+  KwBitStruct,
+  #[regex(r"break", priority = 4)]
+  KwBreak,
   #[token("c", priority = 4)]
   #[token("C", priority = 4)]
   KwC,
-  #[regex(r"break", priority = 4)]
-  KwBreak,
   #[regex(r"const", priority = 4)]
   KwConst,
   #[regex(r"continue", priority = 4)]
@@ -89,6 +91,8 @@ pub enum Token {
   KwReturn,
   #[regex(r"static", priority = 4)]
   KwStatic,
+  #[regex(r"struct", priority = 4)]
+  KwStruct,
   #[regex(r"true", priority = 4)]
   KwTrue,
   #[token("z", priority = 4)]
