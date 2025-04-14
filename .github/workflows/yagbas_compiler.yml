@@ -22,3 +22,9 @@ jobs:
     
     - name: Run tests
       run: cargo test
+
+    - name: asmtypes tests
+      run: cd yagbas_asmtypes && cargo test
+
+    - name: srcfiletypes tests
+      run: cd yagbas_srcfiletypes && cargo test
