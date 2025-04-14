@@ -17,14 +17,11 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Build
-      run: cargo build
-    
-    - name: Run tests
+    - name: yagbas tests
       run: cargo test
 
-    - name: asmtypes tests
+    - name: yagbas_asmtypes tests
       run: cd yagbas_asmtypes && cargo test
 
-    - name: srcfiletypes tests
+    - name: yahbas_srcfiletypes tests
       run: cd yagbas_srcfiletypes && cargo test
