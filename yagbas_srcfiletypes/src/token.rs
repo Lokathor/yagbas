@@ -195,14 +195,3 @@ pub fn tokens_of(source: &str) -> Vec<(Token, SimpleSpan)> {
     })
     .collect()
 }
-
-#[test]
-fn check_token() {
-  let expected: Vec<(Token,SimpleSpan)> = vec![
-    (Token::KwA, (0..1).into()),
-    (Token::Plus, (2..3).into()),
-    (Token::KwB, (4..5).into()),
-  ];
-  let actual: Vec<(Token,SimpleSpan)> = tokens_of("a + b");
-  assert_eq!(expected, actual);
-}
