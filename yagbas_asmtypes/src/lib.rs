@@ -312,6 +312,32 @@ pub enum Asm {
   /// The double-indirection of the payload data lets us keep the size of the
   /// overall `Asm` type as small as possible.
   DataBytes(Box<Vec<u8>>),
+
+  /// A sequence of pixel indexes for tile data.
+  ///
+  /// A tile is always 8 pixels tall, so this is *expected* to always contain a
+  /// multiple of 8 values, but that is not a hard requirement.
+  ///
+  /// GB tiles are index-mapped, with 2 bits per pixel. Each row of eight
+  /// indexes is 2 bytes, but instead of being directly encoded as two `[u2;4]`
+  /// values in a row, they are split into "bitplanes". The first byte stores
+  /// each low bit of the eight indexs, and the second byte stores the high bits
+  /// of the eight indexes. Because this is complicated to reason about when
+  /// trying to enter data by hand, `rgbasm` allows for using the \` character
+  /// followed by a series of plain digits to directly output index values, and
+  /// it will convert the data for you.
+  ///
+  /// ```
+  /// dw `01230123 ; This is equivalent to `db $55,$33`
+  /// ```
+  ///
+  /// When using the backtick syntax, indexes are written with the digits left
+  /// to right as they would appear in the actual tile, so `10002222` has an
+  /// index of `1` in the leftmost pixel and an index of `2` in all four of the
+  /// right side pixels. This means that a `u32` is large enough to hold any
+  /// pixel row we need to store, but we must always output the value using
+  /// `{val:08}` so that any leading zeroes are properly preserved.
+  TileIndexes(Box<Vec<u32>>),
 }
 impl Asm {
   /// Determines the size of the instruction within a rom.
@@ -406,6 +432,7 @@ impl Asm {
       Asm::Nop => 1,
       Asm::Stop => 1,
       Asm::DataBytes(items) => items.len(),
+      Asm::TileIndexes(items) => items.len() * core::mem::size_of::<u16>(),
     }
   }
 }
@@ -499,7 +526,10 @@ impl core::fmt::Display for Asm {
       Asm::Nop => write!(f, "nop"),
       Asm::Stop => write!(f, "stop"),
       Asm::DataBytes(items) => {
-        for chunk in items.chunks(16) {
+        for (i, chunk) in items.chunks(16).enumerate() {
+          if i > 0 {
+            writeln!(f)?;
+          }
           write!(f, "db ")?;
           for (i, c) in chunk.iter().enumerate() {
             if i > 0 {
@@ -507,7 +537,18 @@ impl core::fmt::Display for Asm {
             }
             write!(f, "${c:02X}")?;
           }
-          writeln!(f)?;
+        }
+        Ok(())
+      }
+      Asm::TileIndexes(items) => {
+        for (i, item) in items.iter().enumerate() {
+          if i > 0 {
+            writeln!(f)?;
+          }
+          if *item > 99999999_u32 {
+            eprintln!("Warning: Illegal pixel index value: {item}");
+          }
+          write!(f, "dw `{item:08}")?;
         }
         Ok(())
       }
