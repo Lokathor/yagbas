@@ -1,5 +1,5 @@
 use chumsky::span::SimpleSpan;
-use yagbas_srcfiletypes::{Token, TokenTree, tokens_of, trees_of};
+use yagbas_srcfiletypes::{FileData, Token, TokenTree, tokens_of, trees_of};
 
 #[test]
 fn check_tokens_of() {
@@ -24,4 +24,12 @@ fn check_trees_of() {
   let (actual, errs) = trees_of("loop { a }");
   assert_eq!(expected, actual);
   assert!(errs.is_empty());
+}
+
+#[test]
+fn check_in_memory() {
+  let file_data = FileData::in_memory("a b c".into());
+  let expected = "a";
+  let actual = file_data.get_span((0..1).into()).unwrap();
+  assert_eq!(expected, actual);
 }
