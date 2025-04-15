@@ -1,5 +1,6 @@
 use std::{
   num::NonZeroUsize,
+  ops::Range,
   path::{Path, PathBuf},
   str::FromStr,
   sync::{
@@ -10,6 +11,7 @@ use std::{
 
 use ariadne::{Cache, sources};
 use bimap::BiHashMap;
+use chumsky::span::SimpleSpan;
 
 static NEXT_FILE_ID: AtomicUsize = AtomicUsize::new(1);
 
@@ -69,6 +71,7 @@ pub struct FileData {
   content: String,
 }
 impl FileData {
+  /// Attempts to load the given path and build a FileData for it.
   #[inline]
   pub fn load<P: AsRef<Path>>(p: P) -> Result<&'static Self, std::io::Error> {
     let path_buf = p.as_ref().to_path_buf();
@@ -82,6 +85,7 @@ impl FileData {
     Ok(file_data_ref)
   }
 
+  /// Builds a FileData from a String value, giving it a fake PathBuf value.
   #[inline]
   pub fn in_memory(content: String) -> &'static Self {
     let id = FileID::new();
@@ -93,6 +97,13 @@ impl FileData {
     let mut write = rw_lock.write().unwrap_or_else(PoisonError::into_inner);
     write.insert(id, file_data_ref);
     file_data_ref
+  }
+
+  /// Gets a span of the file's content
+  #[inline]
+  #[must_use]
+  pub fn get_span(&self, span: SimpleSpan) -> Option<&str> {
+    self.content.get(Range::<usize>::from(span))
   }
 }
 
