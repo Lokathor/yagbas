@@ -1,6 +1,7 @@
 use std::{
   num::NonZeroUsize,
   path::{Path, PathBuf},
+  str::FromStr,
   sync::{
     OnceLock, PoisonError, RwLock,
     atomic::{AtomicUsize, Ordering},
@@ -12,15 +13,12 @@ use bimap::BiHashMap;
 
 static NEXT_FILE_ID: AtomicUsize = AtomicUsize::new(1);
 
+// Note(Lokathor): FnvBuildHasher reportedly has better performance on small
+// values but worse performance on large values, so we use it for the left side
+// only. This is a private implementation detail, so we can change it later if
+// we need to.
 static FILE_INFO_CACHE: OnceLock<
-  RwLock<
-    BiHashMap<
-      FileID,
-      &'static FileData,
-      fnv::FnvBuildHasher,
-      fnv::FnvBuildHasher,
-    >,
-  >,
+  RwLock<BiHashMap<FileID, &'static FileData, fnv::FnvBuildHasher>>,
 > = OnceLock::new();
 
 /// Newtype over [NonZeroUsize] that can look up the correct info.
@@ -81,6 +79,19 @@ impl FileData {
     let mut write = rw_lock.write().unwrap_or_else(PoisonError::into_inner);
     write.insert(id, file_data_ref);
     Ok(file_data_ref)
+  }
+
+  #[inline]
+  pub fn in_memory(content: String) -> &'static Self {
+    let id = FileID::new();
+    let id_usize = id.as_usize();
+    let path_buf = PathBuf::from_str(&format!("in_memory_{id_usize}")).unwrap();
+    let file_data_ref = Box::leak(Box::new(FileData { id, path_buf, content }));
+    let rw_lock =
+      FILE_INFO_CACHE.get_or_init(|| RwLock::new(BiHashMap::default()));
+    let mut write = rw_lock.write().unwrap_or_else(PoisonError::into_inner);
+    write.insert(id, file_data_ref);
+    file_data_ref
   }
 }
 
