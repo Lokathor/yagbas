@@ -3,7 +3,7 @@ name = "yagbas_asmtypes"
 description = "The assembly data type for the yagbas compiler."
 repository = "https://github.com/Lokathor/yagbas"
 license = "Zlib OR Apache-2.0 OR MIT"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 
