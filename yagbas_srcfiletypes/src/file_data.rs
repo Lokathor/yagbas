@@ -99,6 +99,24 @@ impl FileData {
     file_data_ref
   }
 
+  #[inline]
+  #[must_use]
+  pub fn id(&self) -> FileID {
+    self.id
+  }
+
+  #[inline]
+  #[must_use]
+  pub fn path(&self) -> &Path {
+    &self.path_buf
+  }
+
+  #[inline]
+  #[must_use]
+  pub fn content(&self) -> &str {
+    &self.content
+  }
+
   /// Gets a span of the file's content
   #[inline]
   #[must_use]
