@@ -18,7 +18,50 @@
 //!   of the `yagbas` package (the documentation you're reading right now) is
 //!   **NOT** covered by the semantic version of the package.
 
+use chumsky::span::SimpleSpan;
 pub use internal_iterator_rec::*;
 pub use str_id::*;
 pub use yagbas_asmtypes::*;
 pub use yagbas_srcfiletypes::*;
+
+pub type FileSpan = SimpleSpan<usize, FileID>;
+
+#[derive(Debug, Clone)]
+pub struct Ast {
+  items: Vec<Item>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Item {
+  BitStruct(BitStruct),
+  Const(Const),
+  Func(Func),
+  Static(Static),
+  Struct(Struct),
+  ItemError,
+}
+
+#[derive(Debug, Clone)]
+pub struct BitStruct {
+  //
+}
+
+#[derive(Debug, Clone)]
+pub struct Const {
+  //
+}
+
+#[derive(Debug, Clone)]
+pub struct Func {
+  //
+}
+
+#[derive(Debug, Clone)]
+pub struct Static {
+  //
+}
+
+#[derive(Debug, Clone)]
+pub struct Struct {
+  //
+}
