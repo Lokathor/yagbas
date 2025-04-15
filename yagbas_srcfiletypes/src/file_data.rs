@@ -13,10 +13,11 @@ use bimap::BiHashMap;
 
 static NEXT_FILE_ID: AtomicUsize = AtomicUsize::new(1);
 
-// Note(Lokathor): FnvBuildHasher reportedly has better performance on small
-// values but worse performance on large values, so we use it for the left side
-// only. This is a private implementation detail, so we can change it later if
-// we need to.
+// Note(Lokathor): The FnvBuildHasher reportedly has better performance on
+// smaller values (about 64s bytes or less), but worse performance on larger
+// values. Because of this we'll use Fnv hashing on just the FileID side of the
+// bimap. This is a private implementation detail, so we can change it later if
+// the situation changes.
 static FILE_INFO_CACHE: OnceLock<
   RwLock<BiHashMap<FileID, &'static FileData, fnv::FnvBuildHasher>>,
 > = OnceLock::new();
