@@ -328,7 +328,7 @@ pub enum Asm {
   /// followed by a series of plain digits to directly output index values, and
   /// it will convert the data for you.
   ///
-  /// ```
+  /// ```text
   /// dw `01230123 ; This is equivalent to `db $55,$33`
   /// ```
   ///
