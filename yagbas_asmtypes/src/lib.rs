@@ -28,6 +28,7 @@ fn check_type_size() {
 /// Instructions that use "the HL target" are directed at the 8-bit memory
 /// location that is currently in the `HL` register.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum Asm {
   /// A label within the code.
   ///
