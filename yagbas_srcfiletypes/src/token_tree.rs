@@ -1,6 +1,6 @@
 use crate::{Token, tokens_of};
 use chumsky::{
-  extra::Err,
+  extra::{Err, ParserExtra},
   input::{BorrowInput, ValueInput},
   prelude::*,
 };
@@ -60,6 +60,8 @@ pub fn trees_of(
     let lone =
       non_tree_token_p().map_with(|out, ex| (TokenTree::Lone(out), ex.span()));
 
+    assert_output::<(TokenTree, SimpleSpan), _, _, _>(&lone);
+
     // comments get stripped from the output.
     let comment = {
       // Looks like `// ...`
@@ -90,6 +92,26 @@ pub fn trees_of(
   let errors = errors.into_iter().map(|error| error.into_owned()).collect();
 
   (out, errors)
+}
+
+/// Allow you to easily assert an output type for a parser.
+///
+/// This lets you check that any parser is actually outputting the type that you
+/// think it is:
+///
+/// ```txt
+/// // triggers a build error if the output type doesn't match
+/// assert_output::<(TokenTree, SimpleSpan), _, _, _>(&p);
+/// ```
+///
+/// This function does not actually run any code, it won't harm the performance
+/// of a release build.
+fn assert_output<'src, O, P, I, E>(_: &P)
+where
+  P: Parser<'src, I, O, E>,
+  I: Input<'src>,
+  E: ParserExtra<'src, I>,
+{
 }
 
 /// Parses an `OpBrace`, which is then discarded.
