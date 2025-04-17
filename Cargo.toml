@@ -20,5 +20,5 @@ chumsky = { version = "0.10", features = ["pratt"] }
 ariadne = "0.5.1"
 str_id = "0.1.0"
 internal_iterator_rec = "0.1.1"
-yagbas_srcfiletypes = "0.1.1"
-yagbas_asmtypes = "0.2.0"
+yagbas_srcfiletypes = { version = "0.1.1", path="yagbas_srcfiletypes" }
+yagbas_asmtypes = { version = "0.2.0", path="yagbas_asmtypes" }
