@@ -111,6 +111,9 @@ pub enum Expr {
   /// `[ expr0, expr1, ..., exprN ]`
   List(Box<[S<Expr>]>),
 
+  /// `macro_name!( expr0, expr1, ... exprN )`
+  MacroUse(Box<[S<Expr>]>),
+
   /// `array.0`, `b.LcdCtrl.bg_on`, etc
   Dot(S<Box<Self>>, S<Box<Self>>),
 
