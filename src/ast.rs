@@ -108,7 +108,7 @@ pub enum Expr {
   /// `Position { x: 15, y: 20 }`
   StructLiteral(Box<[(S<StrID>, S<Box<Self>>)]>),
 
-  /// `[ expr0, expr1, ..., exprN ]`
+  /// `{ expr0, expr1, ..., exprN }`
   List(Box<[S<Expr>]>),
 
   /// `macro_name!( expr0, expr1, ... exprN )`
