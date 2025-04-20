@@ -1,0 +1,9 @@
+[package]
+name = "yagbas_asttypes"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chumsky = "0.10.1"
+str_id = "0.1.1"
+yagbas_srcfiletypes = "0.1.1"

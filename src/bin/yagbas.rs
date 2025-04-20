@@ -2,7 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use clap::{Args, Parser, Subcommand};
-use yagbas::{FileData, tokens_of, trees_of};
+use yagbas::{FileData, items_of, tokens_of, trees_of};
 
 #[test]
 fn verify_cli() {
@@ -23,6 +23,8 @@ pub enum Commands {
   Tokens(TokensArgs),
   /// Prints all token trees within the source files given.
   Trees(TreesArgs),
+  /// Prints all items within the source files given.
+  Items(ItemsArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -37,11 +39,18 @@ pub struct TreesArgs {
   pub files: Vec<String>,
 }
 
+#[derive(Args, Debug, Clone)]
+pub struct ItemsArgs {
+  /// One or more source files to print tokens for.
+  pub files: Vec<String>,
+}
+
 pub fn main() {
   let cli = Cli::parse();
   match cli.command {
     Commands::Tokens(args) => do_tokens(args),
     Commands::Trees(args) => do_trees(args),
+    Commands::Items(args) => do_items(args),
   }
 }
 
@@ -71,6 +80,23 @@ pub fn do_trees(args: TreesArgs) {
           eprintln!("{path}> {errors:?}");
         }
         println!("{path}> {trees:?}");
+      }
+    }
+  }
+}
+
+pub fn do_items(args: ItemsArgs) {
+  let load_results = args.files.iter().map(|f| FileData::load(f));
+  for r in load_results {
+    match r {
+      Err(io_error) => eprintln!("IO Error: {io_error}"),
+      Ok(data) => {
+        let path = data.path().display();
+        let (items, errors) = items_of(data.content());
+        if !errors.is_empty() {
+          eprintln!("{path}> {errors:?}");
+        }
+        println!("{path}> {items:?}");
       }
     }
   }

@@ -21,6 +21,5 @@
 pub use internal_iterator_rec::*;
 pub use str_id::*;
 pub use yagbas_asmtypes::*;
+pub use yagbas_asttypes::*;
 pub use yagbas_srcfiletypes::*;
-
-pub mod ast;
