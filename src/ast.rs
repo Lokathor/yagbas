@@ -79,11 +79,12 @@ pub struct Struct {
   pub fields: Vec<(S<StrID>, S<StrID>)>,
 }
 
+/// Any of the things that can go in a body of code.
 #[derive(Debug, Clone)]
 pub enum Statement {
   Expr(Expr),
-  IfElse(IfElse),
-  Loop(Loop),
+  IfElse(Box<IfElse>),
+  Loop(Box<Loop>),
   Break(Option<StrID>),
   Continue(Option<StrID>),
   Call(StrID),
@@ -91,6 +92,10 @@ pub enum Statement {
   StatementError,
 }
 
+/// An expression is a thing that can be made of sub-expressions.
+///
+/// Within the AST, expressions are untyped. Applying types (and generating type
+/// errors) happens after the basic AST is parsed.
 #[derive(Debug, Clone)]
 pub enum Expr {
   /// `123`, `$FF`, `%10_01_00_00`, etc
@@ -103,51 +108,55 @@ pub enum Expr {
   Register(Register),
 
   /// `LcdCtrl { display_on, bg_on }`
-  BitStructLiteral(Box<[S<StrID>]>),
+  BitStructLiteral(Box<Vec<S<StrID>>>),
 
   /// `Position { x: 15, y: 20 }`
-  StructLiteral(Box<[(S<StrID>, S<Box<Self>>)]>),
+  StructLiteral(Box<Vec<(S<StrID>, S<Self>)>>),
 
   /// `{ expr0, expr1, ..., exprN }`
-  List(Box<[S<Expr>]>),
+  List(Box<Vec<S<Expr>>>),
+
+  /// `[hl]`
+  Deref(Box<Vec<S<Expr>>>),
 
   /// `macro_name!( expr0, expr1, ... exprN )`
-  MacroUse(Box<[S<Expr>]>),
+  MacroUse(Box<Vec<S<Expr>>>),
 
   /// `array.0`, `b.LcdCtrl.bg_on`, etc
-  Dot(S<Box<Self>>, S<Box<Self>>),
-
-  /// `a = 12`
-  Assign(S<Box<Self>>, S<Box<Self>>),
-
-  /// `12 + 4`
-  Add(S<Box<Self>>, S<Box<Self>>),
-
-  /// `12 - 4`
-  Sub(S<Box<Self>>, S<Box<Self>>),
-
-  /// `12 * 4`
-  Mul(S<Box<Self>>, S<Box<Self>>),
-
-  /// `12 / 4`
-  Div(S<Box<Self>>, S<Box<Self>>),
+  Dot(Box<[S<Self>; 2]>),
 
   /// `-12`
-  Neg(S<Box<Self>>),
+  Neg(Box<S<Self>>),
+
+  /// `a = 12`
+  Assign(Box<[S<Self>; 2]>),
+
+  /// `12 + 4`
+  Add(Box<[S<Self>; 2]>),
+
+  /// `12 - 4`
+  Sub(Box<[S<Self>; 2]>),
+
+  /// `12 * 4`
+  Mul(Box<[S<Self>; 2]>),
+
+  /// `12 / 4`
+  Div(Box<[S<Self>; 2]>),
 
   /// `12 & 4`
-  BitAnd(S<Box<Self>>, S<Box<Self>>),
+  BitAnd(Box<[S<Self>; 2]>),
 
   /// `12 | 4`
-  BitOr(S<Box<Self>>, S<Box<Self>>),
+  BitOr(Box<[S<Self>; 2]>),
 
   /// `12 ^ 4`
-  BitXor(S<Box<Self>>, S<Box<Self>>),
+  BitXor(Box<[S<Self>; 2]>),
 
   /// Any error during expression processing
   ExprError,
 }
 
+/// Branching construct.
 #[derive(Debug, Clone)]
 pub struct IfElse {
   pub condition: S<Expr>,
@@ -155,12 +164,18 @@ pub struct IfElse {
   pub else_body: Vec<S<Statement>>,
 }
 
+/// Repeating code construct.
 #[derive(Debug, Clone)]
 pub struct Loop {
   pub name: Option<S<StrID>>,
   pub body: Vec<S<Statement>>,
 }
 
+/// The registers that can be named anywhere in any expression.
+///
+/// This type isn't strictly necessary, we could use [StrID] in all places where
+/// there's a Register value, but it's a little faster to sort out registers
+/// from identifiers ahead of time.
 #[derive(Debug, Clone, Copy)]
 pub enum Register {
   A,
