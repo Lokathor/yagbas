@@ -1,6 +1,8 @@
 #![allow(unused)]
 #![allow(clippy::type_complexity)]
 
+use std::process::{ExitCode, exit};
+
 use clap::{Args, Parser, Subcommand};
 use yagbas::{FileData, items_of, tokens_of, trees_of};
 
@@ -47,18 +49,25 @@ pub struct ItemsArgs {
 
 pub fn main() {
   let cli = Cli::parse();
-  match cli.command {
+  let had_errors: bool = match cli.command {
     Commands::Tokens(args) => do_tokens(args),
     Commands::Trees(args) => do_trees(args),
     Commands::Items(args) => do_items(args),
+  };
+  if had_errors {
+    exit(1);
   }
 }
 
-pub fn do_tokens(args: TokensArgs) {
+pub fn do_tokens(args: TokensArgs) -> bool {
+  let mut had_error = false;
   let load_results = args.files.iter().map(|f| FileData::load(f));
   for r in load_results {
     match r {
-      Err(io_error) => eprintln!("IO Error: {io_error}"),
+      Err(io_error) => {
+        eprintln!("IO Error: {io_error}");
+        had_error = true;
+      }
       Ok(data) => {
         let path = data.path().display();
         let tokens = tokens_of(data.content());
@@ -66,26 +75,34 @@ pub fn do_tokens(args: TokensArgs) {
       }
     }
   }
+  had_error
 }
 
-pub fn do_trees(args: TreesArgs) {
+pub fn do_trees(args: TreesArgs) -> bool {
+  let mut had_error = false;
   let load_results = args.files.iter().map(|f| FileData::load(f));
   for r in load_results {
     match r {
-      Err(io_error) => eprintln!("IO Error: {io_error}"),
+      Err(io_error) => {
+        eprintln!("IO Error: {io_error}");
+        had_error = true;
+      }
       Ok(data) => {
         let path = data.path().display();
         let (trees, errors) = trees_of(data.content());
         if !errors.is_empty() {
           eprintln!("{path}> {errors:?}");
+          had_error = true;
         }
         println!("{path}> {trees:?}");
       }
     }
   }
+  had_error
 }
 
-pub fn do_items(args: ItemsArgs) {
+pub fn do_items(args: ItemsArgs) -> bool {
+  let mut had_error = false;
   let load_results = args.files.iter().map(|f| FileData::load(f));
   for r in load_results {
     match r {
@@ -95,9 +112,11 @@ pub fn do_items(args: ItemsArgs) {
         let (items, errors) = items_of(data);
         if !errors.is_empty() {
           eprintln!("{path}> {errors:?}");
+          had_error = true;
         }
         println!("{path}> {items:?}");
       }
     }
   }
+  had_error
 }
