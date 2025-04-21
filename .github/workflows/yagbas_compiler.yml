@@ -25,3 +25,6 @@ jobs:
 
     - name: yahbas_srcfiletypes tests
       run: cd yagbas_srcfiletypes && cargo test
+
+    - name: yahbas_asttypes tests
+      run: cd yahbas_asttypes && cargo test
