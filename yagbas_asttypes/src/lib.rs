@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+#![allow(unused_braces)]
 #![allow(unused_mut)]
 
 use std::ops::Range;
@@ -54,7 +55,7 @@ pub struct BitStruct {
   pub file_id: FileID,
   pub name: S<StrID>,
   /// `field_name: bit` list
-  pub fields: Vec<(S<StrID>, S<StrID>)>,
+  pub fields: Vec<(TokenTree, SimpleSpan)>,
 }
 
 /// Constant definition
@@ -65,7 +66,7 @@ pub struct BitStruct {
 pub struct Const {
   pub file_id: FileID,
   pub name: S<StrID>,
-  pub expr: S<Expr>,
+  pub expr: Vec<(TokenTree, SimpleSpan)>,
 }
 
 /// Function definition
@@ -75,7 +76,8 @@ pub struct Const {
 pub struct Func {
   pub file_id: FileID,
   pub name: S<StrID>,
-  pub body: Vec<S<Statement>>,
+  pub args: Vec<(TokenTree, SimpleSpan)>,
+  pub body: Vec<(TokenTree, SimpleSpan)>,
 }
 
 /// Static definition
@@ -87,7 +89,7 @@ pub struct Func {
 pub struct Static {
   pub file_id: FileID,
   pub name: S<StrID>,
-  pub expr: S<Expr>,
+  pub expr: Vec<(TokenTree, SimpleSpan)>,
 }
 
 /// Structured data.
@@ -96,7 +98,7 @@ pub struct Struct {
   pub file_id: FileID,
   pub name: S<StrID>,
   /// `field_name: field_type` list
-  pub fields: Vec<(S<StrID>, S<StrID>)>,
+  pub fields: Vec<(TokenTree, SimpleSpan)>,
 }
 
 /// Branching construct.
@@ -228,10 +230,14 @@ pub fn items_of(
     Some(s) => s.1,
     None => return (Vec::new(), ast_parse_errors),
   };
-  let recovery =
-    via_parser(item_start_p().not().repeated().to(Item::ItemError));
+  let recovery = via_parser(
+    item_start_p()
+      .then(any().and_is(item_start_p().not()).repeated())
+      .to(Item::ItemError),
+  );
 
   let module_parser = item_p()
+    .padded_by(newline_p().repeated())
     .recover_with(recovery)
     .map_with(S::from_extras)
     .repeated()
@@ -281,9 +287,9 @@ where
   let c = const_p().map(Item::Const);
   let f = func_p().map(Item::Func);
   let sta = static_p().map(Item::Static);
-  let str = struct_p().map(Item::Struct);
+  let stru = struct_p().map(Item::Struct);
 
-  choice((bs, c, f, sta, str))
+  choice((bs, c, f, sta, stru))
 }
 
 /// Parse one [BitStruct]
@@ -292,7 +298,15 @@ fn bitstruct_p<'src, I>()
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
-  todo()
+  let keyword = select! { TokenTree::Lone(Token::KwBitStruct) => () };
+  let name = ident_p();
+  let fields = braces_p();
+
+  keyword.ignore_then(name).then(fields).map_with(|(name, fields), ex| {
+    let state: &mut SimpleState<&'static FileData> = ex.state();
+    let file_id: FileID = state.id();
+    BitStruct { file_id, name, fields }
+  })
 }
 
 /// Parse one [Const]
@@ -300,7 +314,15 @@ fn const_p<'src, I>() -> impl Parser<'src, I, Const, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
-  todo()
+  let keyword = select! { TokenTree::Lone(Token::KwConst) => () };
+  let name = ident_p();
+  let expr = braces_p();
+
+  keyword.ignore_then(name).then(expr).map_with(|(name, expr), ex| {
+    let state: &mut SimpleState<&'static FileData> = ex.state();
+    let file_id: FileID = state.id();
+    Const { file_id, name, expr }
+  })
 }
 
 /// Parse one [Func]
@@ -310,14 +332,14 @@ where
 {
   let keyword = select! { TokenTree::Lone(Token::KwFn) => () };
   let name = ident_p();
-  let args = any();
-  let body = todo();
+  let args = parens_p();
+  let body = braces_p();
 
   keyword.ignore_then(name).then(args).then(body).map_with(
     |((name, args), body), ex| {
       let state: &mut SimpleState<&'static FileData> = ex.state();
       let file_id: FileID = state.id();
-      Func { file_id, name, body }
+      Func { file_id, name, args, body }
     },
   )
 }
@@ -327,7 +349,15 @@ fn static_p<'src, I>() -> impl Parser<'src, I, Static, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
-  todo()
+  let keyword = select! { TokenTree::Lone(Token::KwStatic) => () };
+  let name = ident_p();
+  let expr = braces_p();
+
+  keyword.ignore_then(name).then(expr).map_with(|(name, expr), ex| {
+    let state: &mut SimpleState<&'static FileData> = ex.state();
+    let file_id: FileID = state.id();
+    Static { file_id, name, expr }
+  })
 }
 
 /// Parse one [Struct]
@@ -335,7 +365,15 @@ fn struct_p<'src, I>() -> impl Parser<'src, I, Struct, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
-  todo()
+  let keyword = select! { TokenTree::Lone(Token::KwStruct) => () };
+  let name = ident_p();
+  let fields = braces_p();
+
+  keyword.ignore_then(name).then(fields).map_with(|(name, fields), ex| {
+    let state: &mut SimpleState<&'static FileData> = ex.state();
+    let file_id: FileID = state.id();
+    Struct { file_id, name, fields }
+  })
 }
 
 /// Parse a lone [Token::Ident] and get the spanned [StrID] it's for.
@@ -354,5 +392,34 @@ where
       let str_id = StrID::from(&file_content[range]);
       S::from_extras(str_id, ex)
     }
+  }
+}
+
+fn parens_p<'src, I>()
+-> impl Parser<'src, I, Vec<(TokenTree, SimpleSpan)>, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Parens(body) => { body }
+  }
+}
+
+fn braces_p<'src, I>()
+-> impl Parser<'src, I, Vec<(TokenTree, SimpleSpan)>, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Braces(body) => { body }
+  }
+}
+
+fn newline_p<'src, I>() -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::Newline) => { () }
   }
 }
