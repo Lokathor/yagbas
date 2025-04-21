@@ -92,7 +92,7 @@ pub fn do_items(args: ItemsArgs) {
       Err(io_error) => eprintln!("IO Error: {io_error}"),
       Ok(data) => {
         let path = data.path().display();
-        let (items, errors) = items_of(data.content());
+        let (items, errors) = items_of(data);
         if !errors.is_empty() {
           eprintln!("{path}> {errors:?}");
         }

@@ -1,10 +1,15 @@
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+
+use std::ops::Range;
+
 use chumsky::{
-  extra::{Err, ParserExtra},
+  extra::{Err, Full, ParserExtra, SimpleState},
   input::{BorrowInput, MapExtra, ValueInput},
   prelude::*,
 };
 use str_id::StrID;
-use yagbas_srcfiletypes::{FileID, Token, TokenTree, trees_of};
+use yagbas_srcfiletypes::{FileData, FileID, Token, TokenTree, trees_of};
 
 /// Generic typed value paired with a `SimpleSpan`
 #[derive(Debug, Clone)]
@@ -214,9 +219,9 @@ pub enum AstParseError {
 }
 
 pub fn items_of(
-  source: &str, file_id: FileID,
+  mut file_data: &'static FileData,
 ) -> (Vec<S<Item>>, Vec<AstParseError>) {
-  let (trees, tree_parse_errors) = trees_of(source);
+  let (trees, tree_parse_errors) = trees_of(file_data.content());
   let mut ast_parse_errors =
     tree_parse_errors.into_iter().map(AstParseError::Token).collect();
   let eoi: SimpleSpan = match trees.last() {
@@ -227,14 +232,16 @@ pub fn items_of(
     via_parser(item_start_p().not().repeated().to(Item::ItemError));
 
   let module_parser = item_p()
-    .with_state(file_id)
     .recover_with(recovery)
     .map_with(S::from_extras)
     .repeated()
     .collect::<Vec<_>>();
 
   let (opt_out, item_errors) = module_parser
-    .parse(Input::map(&trees[..], eoi, |(tree, span)| (tree, span)))
+    .parse_with_state(
+      Input::map(&trees[..], eoi, |(tree, span)| (tree, span)),
+      &mut SimpleState(file_data),
+    )
     .into_output_errors();
   let out = opt_out.unwrap_or_default();
 
@@ -247,11 +254,12 @@ pub fn items_of(
   (out, ast_parse_errors)
 }
 
-type ErrRichTT<'src> = Err<Rich<'src, TokenTree, SimpleSpan>>;
+type AstExtras<'src> =
+  Full<Rich<'src, TokenTree, SimpleSpan>, SimpleState<&'static FileData>, ()>;
 
 /// Parses any keyword that begins an item.
 fn item_start_p<'src, I>()
--> impl Parser<'src, I, Token, ErrRichTT<'src>> + Clone
+-> impl Parser<'src, I, Token, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
@@ -265,7 +273,7 @@ where
 }
 
 /// Parse one [Item]
-fn item_p<'src, I>() -> impl Parser<'src, I, Item, ErrRichTT<'src>> + Clone
+fn item_p<'src, I>() -> impl Parser<'src, I, Item, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
@@ -280,7 +288,7 @@ where
 
 /// Parse one [BitStruct]
 fn bitstruct_p<'src, I>()
--> impl Parser<'src, I, BitStruct, ErrRichTT<'src>> + Clone
+-> impl Parser<'src, I, BitStruct, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
@@ -288,7 +296,7 @@ where
 }
 
 /// Parse one [Const]
-fn const_p<'src, I>() -> impl Parser<'src, I, Const, ErrRichTT<'src>> + Clone
+fn const_p<'src, I>() -> impl Parser<'src, I, Const, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
@@ -296,17 +304,26 @@ where
 }
 
 /// Parse one [Func]
-fn func_p<'src, I>() -> impl Parser<'src, I, Func, ErrRichTT<'src>> + Clone
+fn func_p<'src, I>() -> impl Parser<'src, I, Func, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
   let keyword = select! { TokenTree::Lone(Token::KwFn) => () };
+  let name = ident_p();
+  let args = any();
+  let body = todo();
 
-  keyword.ignore_then(todo())
+  keyword.ignore_then(name).then(args).then(body).map_with(
+    |((name, args), body), ex| {
+      let state: &mut SimpleState<&'static FileData> = ex.state();
+      let file_id: FileID = state.id();
+      Func { file_id, name, body }
+    },
+  )
 }
 
 /// Parse one [Static]
-fn static_p<'src, I>() -> impl Parser<'src, I, Static, ErrRichTT<'src>> + Clone
+fn static_p<'src, I>() -> impl Parser<'src, I, Static, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
@@ -314,9 +331,28 @@ where
 }
 
 /// Parse one [Struct]
-fn struct_p<'src, I>() -> impl Parser<'src, I, Struct, ErrRichTT<'src>> + Clone
+fn struct_p<'src, I>() -> impl Parser<'src, I, Struct, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
   todo()
+}
+
+/// Parse a lone [Token::Ident] and get the spanned [StrID] it's for.
+fn ident_p<'src, I>() -> impl Parser<'src, I, S<StrID>, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  // Note(Lokathor): All these intermediate steps with explicit types are
+  // basically necessary otherwise rustc will fall over and cry.
+  select! {
+    TokenTree::Lone(Token::Ident) = ex => {
+      let state: &mut SimpleState<&'static FileData> = ex.state();
+      let file_content: &'static str = state.content();
+      let span: SimpleSpan = ex.span();
+      let range: Range<usize> = span.into();
+      let str_id = StrID::from(&file_content[range]);
+      S::from_extras(str_id, ex)
+    }
+  }
 }
