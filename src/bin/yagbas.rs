@@ -71,7 +71,7 @@ pub fn do_tokens(args: TokensArgs) -> bool {
       Ok(data) => {
         let path = data.path().display();
         let tokens = tokens_of(data.content());
-        println!("{path}> {tokens:?}");
+        println!("{path}> TOKENS {tokens:?}");
       }
     }
   }
@@ -91,10 +91,12 @@ pub fn do_trees(args: TreesArgs) -> bool {
         let path = data.path().display();
         let (trees, errors) = trees_of(data.content());
         if !errors.is_empty() {
-          eprintln!("{path}> {errors:?}");
+          eprintln!("{path}> ERRORS {errors:?}");
           had_error = true;
         }
-        println!("{path}> {trees:?}");
+        if !trees.is_empty() {
+          println!("{path}> TREES {trees:?}");
+        }
       }
     }
   }
@@ -103,19 +105,18 @@ pub fn do_trees(args: TreesArgs) -> bool {
 
 pub fn do_items(args: ItemsArgs) -> bool {
   let mut had_error = false;
-  let load_results = args.files.iter().map(|f| FileData::load(f));
-  for r in load_results {
-    match r {
-      Err(io_error) => eprintln!("IO Error: {io_error}"),
-      Ok(data) => {
-        let path = data.path().display();
-        let (items, errors) = items_of(data);
-        if !errors.is_empty() {
-          eprintln!("{path}> {errors:?}");
-          had_error = true;
-        }
-        println!("{path}> {items:?}");
-      }
+  let load_results = args.files.iter().filter_map(|f| {
+    FileData::load(f).map_err(|e| eprintln!("`{f}`> IO Error> {e}")).ok()
+  });
+  for data in load_results {
+    let path = data.path().display();
+    let (items, errors) = items_of(data);
+    if !errors.is_empty() {
+      eprintln!("{path}> ERRORS {errors:?}");
+      had_error = true;
+    }
+    if !items.is_empty() {
+      println!("{path}> ITEMS {items:?}");
     }
   }
   had_error

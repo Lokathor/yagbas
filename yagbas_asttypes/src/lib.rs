@@ -58,27 +58,11 @@ pub struct BitStruct {
   pub fields: Vec<(TokenTree, SimpleSpan)>,
 }
 
-/// Constant definition
-///
-/// This associates a name to a particular constant expression. A const is only
-/// used during compile time, it doesn't add data in the compiled binary.
-#[derive(Debug, Clone)]
-pub struct Const {
-  pub file_id: FileID,
-  pub name: S<StrID>,
-  pub expr: Vec<(TokenTree, SimpleSpan)>,
-}
+mod const_;
+pub use const_::*;
 
-/// Function definition
-///
-/// Defines a body of code that can be executed.
-#[derive(Debug, Clone)]
-pub struct Func {
-  pub file_id: FileID,
-  pub name: S<StrID>,
-  pub args: Vec<(TokenTree, SimpleSpan)>,
-  pub body: Vec<(TokenTree, SimpleSpan)>,
-}
+mod func;
+pub use func::*;
 
 /// Static definition
 ///
@@ -116,82 +100,11 @@ pub struct Loop {
   pub body: Vec<S<Statement>>,
 }
 
-/// Any of the things that can go in a body of code.
-#[derive(Debug, Clone)]
-pub enum Statement {
-  Expr(Expr),
-  IfElse(Box<IfElse>),
-  Loop(Box<Loop>),
-  Break(Option<StrID>),
-  Continue(Option<StrID>),
-  Call(StrID),
-  Return,
-  StatementError,
-}
+mod statement;
+pub use statement::*;
 
-/// An expression is a thing that can be made of sub-expressions.
-///
-/// Within the AST, expressions are untyped. Applying types (and generating type
-/// errors) happens after the basic AST is parsed.
-#[derive(Debug, Clone)]
-pub enum Expr {
-  /// `123`, `$FF`, `%10_01_00_00`, etc
-  NumberLiteral(StrID),
-
-  /// `main`, `memcpy`, etc
-  Ident(StrID),
-
-  /// `a`, `hl`, etc
-  Register(Register),
-
-  /// `LcdCtrl { display_on, bg_on }`
-  BitStructLiteral(Box<Vec<S<StrID>>>),
-
-  /// `Position { x: 15, y: 20 }`
-  StructLiteral(Box<Vec<(S<StrID>, S<Self>)>>),
-
-  /// `{ expr0, expr1, ..., exprN }`
-  List(Box<Vec<S<Expr>>>),
-
-  /// `[hl]`
-  Deref(Box<Vec<S<Expr>>>),
-
-  /// `macro_name!( expr0, expr1, ... exprN )`
-  MacroUse(Box<Vec<S<Expr>>>),
-
-  /// `array.0`, `b.LcdCtrl.bg_on`, etc
-  Dot(Box<[S<Self>; 2]>),
-
-  /// `-12`
-  Neg(Box<S<Self>>),
-
-  /// `a = 12`
-  Assign(Box<[S<Self>; 2]>),
-
-  /// `12 + 4`
-  Add(Box<[S<Self>; 2]>),
-
-  /// `12 - 4`
-  Sub(Box<[S<Self>; 2]>),
-
-  /// `12 * 4`
-  Mul(Box<[S<Self>; 2]>),
-
-  /// `12 / 4`
-  Div(Box<[S<Self>; 2]>),
-
-  /// `12 & 4`
-  BitAnd(Box<[S<Self>; 2]>),
-
-  /// `12 | 4`
-  BitOr(Box<[S<Self>; 2]>),
-
-  /// `12 ^ 4`
-  BitXor(Box<[S<Self>; 2]>),
-
-  /// Any error during expression processing
-  ExprError,
-}
+mod expr;
+pub use expr::*;
 
 /// The registers that can be named anywhere in any expression.
 ///
@@ -236,7 +149,7 @@ pub fn items_of(
       .to(Item::ItemError),
   );
 
-  let module_parser = item_p()
+  let module_parser = item_p(make_tt_input)
     .padded_by(newline_p().repeated())
     .recover_with(recovery)
     .map_with(S::from_extras)
@@ -245,7 +158,7 @@ pub fn items_of(
 
   let (opt_out, item_errors) = module_parser
     .parse_with_state(
-      Input::map(&trees[..], eoi, |(tree, span)| (tree, span)),
+      make_tt_input(&trees[..], eoi),
       &mut SimpleState(file_data),
     )
     .into_output_errors();
@@ -279,13 +192,16 @@ where
 }
 
 /// Parse one [Item]
-fn item_p<'src, I>() -> impl Parser<'src, I, Item, AstExtras<'src>> + Clone
+fn item_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, Item, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+  M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
 {
   let bs = bitstruct_p().map(Item::BitStruct);
   let c = const_p().map(Item::Const);
-  let f = func_p().map(Item::Func);
+  let f = func_p(make_input).map(Item::Func);
   let sta = static_p().map(Item::Static);
   let stru = struct_p().map(Item::Struct);
 
@@ -299,7 +215,7 @@ where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
   let keyword = select! { TokenTree::Lone(Token::KwBitStruct) => () };
-  let name = ident_p();
+  let name = ident_p().map_with(|i, ex| S::from_extras(i, ex));
   let fields = braces_p();
 
   keyword.ignore_then(name).then(fields).map_with(|(name, fields), ex| {
@@ -309,48 +225,13 @@ where
   })
 }
 
-/// Parse one [Const]
-fn const_p<'src, I>() -> impl Parser<'src, I, Const, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  let keyword = select! { TokenTree::Lone(Token::KwConst) => () };
-  let name = ident_p();
-  let expr = braces_p();
-
-  keyword.ignore_then(name).then(expr).map_with(|(name, expr), ex| {
-    let state: &mut SimpleState<&'static FileData> = ex.state();
-    let file_id: FileID = state.id();
-    Const { file_id, name, expr }
-  })
-}
-
-/// Parse one [Func]
-fn func_p<'src, I>() -> impl Parser<'src, I, Func, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  let keyword = select! { TokenTree::Lone(Token::KwFn) => () };
-  let name = ident_p();
-  let args = parens_p();
-  let body = braces_p();
-
-  keyword.ignore_then(name).then(args).then(body).map_with(
-    |((name, args), body), ex| {
-      let state: &mut SimpleState<&'static FileData> = ex.state();
-      let file_id: FileID = state.id();
-      Func { file_id, name, args, body }
-    },
-  )
-}
-
 /// Parse one [Static]
 fn static_p<'src, I>() -> impl Parser<'src, I, Static, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
   let keyword = select! { TokenTree::Lone(Token::KwStatic) => () };
-  let name = ident_p();
+  let name = ident_p().map_with(|i, ex| S::from_extras(i, ex));
   let expr = braces_p();
 
   keyword.ignore_then(name).then(expr).map_with(|(name, expr), ex| {
@@ -366,7 +247,7 @@ where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
   let keyword = select! { TokenTree::Lone(Token::KwStruct) => () };
-  let name = ident_p();
+  let name = ident_p().map_with(|i, ex| S::from_extras(i, ex));
   let fields = braces_p();
 
   keyword.ignore_then(name).then(fields).map_with(|(name, fields), ex| {
@@ -376,8 +257,8 @@ where
   })
 }
 
-/// Parse a lone [Token::Ident] and get the spanned [StrID] it's for.
-fn ident_p<'src, I>() -> impl Parser<'src, I, S<StrID>, AstExtras<'src>> + Clone
+/// Parse a lone [Token::Ident] and get the [StrID] it's for.
+fn ident_p<'src, I>() -> impl Parser<'src, I, StrID, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
 {
@@ -390,7 +271,25 @@ where
       let span: SimpleSpan = ex.span();
       let range: Range<usize> = span.into();
       let str_id = StrID::from(&file_content[range]);
-      S::from_extras(str_id, ex)
+      str_id
+    }
+  }
+}
+
+/// Parse a lone [Token::NumLit] and get the [StrID] it's for.
+fn numlit_p<'src, I>() -> impl Parser<'src, I, StrID, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  // Note(Lokathor): like ident_p, but for a number
+  select! {
+    TokenTree::Lone(Token::NumLit) = ex => {
+      let state: &mut SimpleState<&'static FileData> = ex.state();
+      let file_content: &'static str = state.content();
+      let span: SimpleSpan = ex.span();
+      let range: Range<usize> = span.into();
+      let str_id = StrID::from(&file_content[range]);
+      str_id
     }
   }
 }
@@ -422,4 +321,51 @@ where
   select! {
     TokenTree::Lone(Token::Newline) => { () }
   }
+}
+
+fn equal_p<'src, I>() -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::Equal) => { () }
+  }
+}
+
+/// Lets you `select_ref!` the content out of some `Braces`
+pub fn braces_content_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, I, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+  M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
+{
+  select_ref! {
+    TokenTree::Braces(b) = ex => make_input(b, ex.span()),
+  }
+}
+
+/// Makes a token tree slice into an [Input](chumsky::input::Input).
+///
+/// This is used by all our parsers that need to look at the content of a token
+/// tree group.
+///
+/// * When making a parser that looks at the content of a token tree group, we
+///   need to run a parser on that inner content.
+/// * Running a parser on the content of a tree group uses `Input::map` to turn
+///   our custom `FileSpanned<T>` type (which chumsky doesn't know about) into
+///   `(T, FileSpan)` (which is what chumsky is expecting).
+/// * If any part of such a parser is recursive (eg, statements, expressions,
+///   etc) then we'd get a type error because Rust doesn't see two calls to
+///   `Input::map` with different closures as being the same type just because
+///   the two closures have the exact same expression.
+/// * So we force all our calls to any parser that uses grouped content to go
+///   through this one specific function, which gives them all the exact same
+///   mapping closure, which lets Rust see that they're all the same type.
+#[allow(clippy::needless_lifetimes)]
+pub fn make_tt_input<'src>(
+  trees: &'src [(TokenTree, SimpleSpan)], eoi: SimpleSpan,
+) -> impl BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>
+{
+  Input::map(&trees[..], eoi, |(tree, span)| (tree, span))
 }
