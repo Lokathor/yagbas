@@ -33,7 +33,7 @@ where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
   M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
 {
-  let ex = expr_p().map(Statement::Expr);
+  let ex = expr_p(make_input).map(|S(expr, _span)| Statement::Expr(expr));
 
   choice((ex,))
 }

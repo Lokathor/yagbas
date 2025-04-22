@@ -200,7 +200,7 @@ where
   M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
 {
   let bs = bitstruct_p().map(Item::BitStruct);
-  let c = const_p().map(Item::Const);
+  let c = const_p(make_input).map(Item::Const);
   let f = func_p(make_input).map(Item::Func);
   let sta = static_p().map(Item::Static);
   let stru = struct_p().map(Item::Struct);
@@ -332,6 +332,45 @@ where
   }
 }
 
+fn plus_p<'src, I>() -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::Plus) => { () }
+  }
+}
+
+fn minus_p<'src, I>() -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::Minus) => { () }
+  }
+}
+
+fn register_p<'src, I>()
+-> impl Parser<'src, I, Register, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwA) => { Register::A },
+    TokenTree::Lone(Token::KwB) => { Register::B },
+    TokenTree::Lone(Token::KwC) => { Register::C },
+    TokenTree::Lone(Token::KwD) => { Register::D },
+    TokenTree::Lone(Token::KwE) => { Register::E },
+    TokenTree::Lone(Token::KwH) => { Register::H },
+    TokenTree::Lone(Token::KwL) => { Register::L },
+    TokenTree::Lone(Token::KwAF) => { Register::AF },
+    TokenTree::Lone(Token::KwBC) => { Register::BC },
+    TokenTree::Lone(Token::KwDE) => { Register::DE },
+    TokenTree::Lone(Token::KwHL) => { Register::HL },
+    TokenTree::Lone(Token::KwSP) => { Register::SP },
+  }
+}
+
 /// Lets you `select_ref!` the content out of some `Braces`
 pub fn braces_content_p<'src, I, M>(
   make_input: M,
@@ -342,6 +381,19 @@ where
 {
   select_ref! {
     TokenTree::Braces(b) = ex => make_input(b, ex.span()),
+  }
+}
+
+/// Lets you `select_ref!` the content out of some `Parens`
+pub fn parens_content_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, I, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+  M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
+{
+  select_ref! {
+    TokenTree::Parens(b) = ex => make_input(b, ex.span()),
   }
 }
 
