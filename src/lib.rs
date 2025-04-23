@@ -18,8 +18,6 @@
 //!   of the `yagbas` package (the documentation you're reading right now) is
 //!   **NOT** covered by the semantic version of the package.
 
-pub use internal_iterator_rec::*;
-pub use str_id::*;
 pub use yagbas_asmtypes::*;
 pub use yagbas_asttypes::*;
 pub use yagbas_srcfiletypes::*;
