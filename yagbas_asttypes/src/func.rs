@@ -22,7 +22,14 @@ where
   let keyword = select! { TokenTree::Lone(Token::KwFn) => () };
   let name = ident_p().map_with(|i, ex| S::from_extras(i, ex));
   let args = parens_p();
-  let body = statement_body_p(make_input);
+  let body = statement_p(make_input)
+    .recover_with(statement_recovery_strategy!())
+    .map_with(S::from_extras)
+    .separated_by(statement_sep_p().repeated().at_least(1))
+    .allow_leading()
+    .allow_trailing()
+    .collect::<Vec<_>>()
+    .nested_in(braces_content_p(make_input));
 
   keyword.ignore_then(name).then(args).then(body).map_with(
     |((name, args), body), ex| {
@@ -31,19 +38,4 @@ where
       Func { file_id, name, args, body }
     },
   )
-}
-
-/// Branching construct.
-#[derive(Debug, Clone)]
-pub struct IfElse {
-  pub condition: S<Expr>,
-  pub if_body: Vec<S<Statement>>,
-  pub else_body: Vec<S<Statement>>,
-}
-
-/// Repeating code construct.
-#[derive(Debug, Clone)]
-pub struct Loop {
-  pub name: Option<S<StrID>>,
-  pub body: Vec<S<Statement>>,
 }

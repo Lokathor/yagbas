@@ -13,6 +13,21 @@ use chumsky::{
 use str_id::StrID;
 use yagbas_srcfiletypes::{FileData, FileID, Token, TokenTree, trees_of};
 
+/// This is a macro instead of a function because I can't figure out what type
+/// signature to put on this expression so that Rust lets me actually use the
+/// darn thing in more than one place.
+macro_rules! statement_recovery_strategy {
+  () => {
+    via_parser(
+      any()
+        .and_is(statement_sep_p().not())
+        .repeated()
+        .at_least(1)
+        .to(Statement::StatementError),
+    )
+  };
+}
+
 mod junk_drawer;
 use junk_drawer::*;
 

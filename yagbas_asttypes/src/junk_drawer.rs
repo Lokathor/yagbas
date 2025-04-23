@@ -125,6 +125,19 @@ where
   }
 }
 
+/// Lets you `select_ref!` the content out of some `Brackets`
+pub(crate) fn brackets_content_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, I, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+  M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
+{
+  select_ref! {
+    TokenTree::Brackets(b) = ex => make_input(b, ex.span()),
+  }
+}
+
 pub(crate) fn cmp_eq_p<'src, I>()
 -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
 where
@@ -316,5 +329,116 @@ where
 {
   select! {
     TokenTree::Lone(Token::Period) => { () }
+  }
+}
+
+pub(crate) fn quote_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::Quote) => { () }
+  }
+}
+
+pub(crate) fn colon_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::Colon) => { () }
+  }
+}
+
+pub(crate) fn comma_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::Comma) => { () }
+  }
+}
+
+pub(crate) fn exclamation_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::Exclamation) => { () }
+  }
+}
+
+pub(crate) fn kw_loop_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwLoop) => { () }
+  }
+}
+
+pub(crate) fn kw_return_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwReturn) => { () }
+  }
+}
+
+pub(crate) fn kw_break_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwBreak) => { () }
+  }
+}
+
+pub(crate) fn kw_continue_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwContinue) => { () }
+  }
+}
+
+pub(crate) fn kw_if_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwIf) => { () }
+  }
+}
+
+pub(crate) fn kw_else_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwElse) => { () }
+  }
+}
+
+pub(crate) fn bool_p<'src, I>()
+-> impl Parser<'src, I, bool, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwTrue) => { true },
+    TokenTree::Lone(Token::KwFalse) => { false },
   }
 }

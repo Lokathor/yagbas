@@ -17,6 +17,9 @@ pub enum Expr {
   /// `a`, `hl`, etc
   Reg(Register),
 
+  /// `true` or `false`
+  Bool(bool),
+
   /// `LcdCtrl { display_on, bg_on }`
   BitStructLit(Box<Vec<S<StrID>>>),
 
@@ -30,6 +33,9 @@ pub enum Expr {
   Deref(Box<Vec<S<Expr>>>),
 
   /// `macro_name!( expr0, expr1, ... exprN )`
+  ///
+  /// The encoding is that the name (and its span) is put as the last element of
+  /// the vec.
   MacroUse(Box<Vec<S<Expr>>>),
 
   /// `array.0`, `b.LcdCtrl.bg_on`, etc
@@ -132,15 +138,42 @@ where
 
   recursive(|expr| {
     let atom = {
+      let macro_ = ident_p()
+        .map_with(S::from_extras)
+        .then_ignore(exclamation_p())
+        .then(
+          expr
+            .clone()
+            .separated_by(comma_p())
+            .collect::<Vec<_>>()
+            .nested_in(parens_content_p(make_input)),
+        )
+        .map(|(S(name, name_span), mut args)| {
+          let name_ex = S(Expr::Ident(name), name_span);
+          args.push(name_ex);
+          Expr::MacroUse(Box::new(args))
+        });
       let ident = ident_p().map(Expr::Ident);
       let num = numlit_p().map(Expr::NumLit);
       let register = register_p().map(Expr::Reg);
+      let bool = bool_p().map(Expr::Bool);
+      let deref = expr
+        .clone()
+        .separated_by(comma_p())
+        .collect::<Vec<_>>()
+        .nested_in(brackets_content_p(make_input))
+        .map(|fs_expr| Expr::Deref(Box::new(fs_expr)))
+        .labelled("deref_expr")
+        .as_context();
       let parens = expr
         .clone()
         .nested_in(parens_content_p(make_input))
         .map(|S(expr, _span)| expr);
 
-      choice((ident, num, register, parens)).map_with(S::from_extras)
+      // Note(Lokathor): macro is like ident but "longer", so we have to test
+      // for macro first.
+      choice((macro_, ident, num, register, bool, deref, parens))
+        .map_with(S::from_extras)
     };
 
     let with_pratt = atom.pratt((
