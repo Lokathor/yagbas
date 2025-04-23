@@ -27,9 +27,9 @@ fn main() {
   memcpy()
 
   // Activate the LCD display and set a background palette
-  a = LCD_CONFIG_DISPLAY_ON | LCD_CONFIG_BG_ON
+  a = LcdControl { ldc_on, bg_win_on }
   [LCDC] = a
-  a = %11_10_01_00
+  a = palette!(0,1,2,3)
   [BGP] = a
 
   // now we just wait forever.
@@ -63,8 +63,8 @@ fn memcpy() {
     if b-- != 0 {
       continue
     }
-    return
   }
+	return
 }
 
 // Audio Master Control
@@ -76,16 +76,24 @@ const LCDC = $FF40
 // LCD Y coordinate (aka "current scanline")
 const LY = $FF44
 
-// Background Palette setting
+// Background Palette location
 const BGP = $FF47
 
 const TILE_BLOCK_2 = $9000
 
 const TILE_MAP_0 = $9800
 
-const LCD_CONFIG_DISPLAY_ON = %1000_0000
+struct OamEntry {
+	y: u8,
+	x: u8,
+	tile_id: u8,
+	oam_attrs: u8,
+}
 
-const LCD_CONFIG_BG_ON = %1
+bitstruct LcdControl {
+	ldc_on: 7,
+	bg_win_on: 0,
+}
 
 struct OamEntry {
 	y: u8,

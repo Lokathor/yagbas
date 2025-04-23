@@ -18,11 +18,11 @@ pub enum Expr {
   /// `true` or `false`
   Bool(bool),
 
-  /// `LcdCtrl { display_on, bg_on }`
-  BitStructLit(Box<Vec<S<StrID>>>),
-
-  /// `Position { x: 15, y: 20 }`
-  StructLit(Box<Vec<(S<StrID>, S<Self>)>>),
+  /// `LcdCtrl { display_on, bg_on }`, `Position { x= 15, y= 20 }`
+  ///
+  /// Both bitstructs and standard structs use this form. The encoding is that
+  /// the name (and its span) is pushed onto the end of the vec when packing it.
+  Structure(Box<Vec<S<Expr>>>),
 
   /// `{ expr0, expr1, ..., exprN }`
   List(Box<Vec<S<Expr>>>),
@@ -177,15 +177,42 @@ where
         .map(|exprs| Expr::List(Box::new(exprs)))
         .labelled("list_expr")
         .as_context();
+      let structure_lit = ident_p()
+        .map_with(S::from_extras)
+        .then(
+          newline_p()
+            .repeated()
+            .ignore_then(expr.clone())
+            .separated_by(comma_p().padded_by(newline_p().repeated()))
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .then_ignore(newline_p().repeated())
+            .nested_in(braces_content_p(make_input)),
+        )
+        .map(|(S(name, name_span), mut expr)| {
+          expr.push(S(Expr::Ident(name), name_span));
+          Expr::Structure(Box::new(expr))
+        })
+        .labelled("structure_expr")
+        .as_context();
       let parens = expr
         .clone()
         .nested_in(parens_content_p(make_input))
         .map(|S(expr, _span)| expr);
-
-      // Note(Lokathor): macro is like ident but "longer", so we have to test
-      // for macro first.
-      choice((macro_, ident, num, register, bool, deref, list, parens))
-        .map_with(S::from_extras)
+      // Note(Lokathor): some stuff is "ident and then more", so just an ident
+      // has to go at the end of the list.
+      choice((
+        macro_,
+        structure_lit,
+        num,
+        register,
+        bool,
+        deref,
+        list,
+        parens,
+        ident,
+      ))
+      .map_with(S::from_extras)
     };
 
     let with_pratt = atom.pratt((
