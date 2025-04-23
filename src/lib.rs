@@ -14,52 +14,12 @@
 //! * This package is on crates.io so that people can `cargo install yagbas` and
 //!   get the compiler that way.
 //! * Only the compiler's command line interface and the language that it
-//!   compiles are covered by the semantic version number.
-//! * The library content of the `yagbas` package (the documentation you're
-//!   reading right now) is **NOT** covered by the semantic version of the
-//!   package.
+//!   compiles are covered by the semantic version number. The library content
+//!   of the `yagbas` package (the documentation you're reading right now) is
+//!   **NOT** covered by the semantic version of the package.
 
-use crate::{
-  asm::Asm,
-  ast::data::{
-    Call, Const, Expression, Function, IfElse, Item, Loop, Register, Statement,
-    Static, Token, Token::*, TokenTree, TokenTree::*,
-  },
-  errors::YagError,
-  file_span::FileSpan,
-  file_spanned::FileSpanned,
-  mir::{
-    binary_op::BinaryOp, condition::Condition, reg8::Reg8, reg16::Reg16,
-    unary_op::UnaryOp,
-  },
-  src_file::{SrcFile, SrcID},
-};
-use core::ops::ControlFlow;
-use internal_iterator_rec::{
-  InternalIterator, InternalIteratorRec, adhoc_internal_iterator_rec,
-};
-use str_id::StrID;
-
-pub mod asm;
-pub mod ast;
-pub mod errors;
-pub mod file_span;
-pub mod file_spanned;
-pub mod mir;
-pub mod src_file;
-
-pub fn read_src_files(
-  paths: &[String], err_bucket: &mut Vec<YagError>,
-) -> Vec<SrcFile> {
-  paths
-    .iter()
-    .map(SrcFile::read_from_path)
-    .flat_map(|result| match result {
-      Err(e) => {
-        err_bucket.push(e);
-        None
-      }
-      Ok(t) => Some(t),
-    })
-    .collect()
-}
+pub use internal_iterator_rec::*;
+pub use str_id::*;
+pub use yagbas_asmtypes::*;
+pub use yagbas_asttypes::*;
+pub use yagbas_srcfiletypes::*;

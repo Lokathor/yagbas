@@ -89,6 +89,9 @@ pub enum Token {
   KwNZ,
   #[regex(r"return", priority = 4)]
   KwReturn,
+  #[token("sp", priority = 4)]
+  #[token("SP", priority = 4)]
+  KwSP,
   #[regex(r"static", priority = 4)]
   KwStatic,
   #[regex(r"struct", priority = 4)]

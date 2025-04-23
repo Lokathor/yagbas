@@ -3,7 +3,7 @@ name = "yagbas"
 description = "Yagbas is a programming language that builds programs for the Game Boy."
 repository = "https://github.com/Lokathor/yagbas"
 homepage = "https://lokathor.github.io/yagbas/"
-version = "0.0.2"
+version = "0.1.0"
 edition = "2024"
 license = "Zlib OR Apache-2.0 OR MIT"
 
@@ -15,10 +15,11 @@ codegen-units = 1
 lto = true
 
 [dependencies]
-str_id = "0.1.0"
 clap = { version = "4.3.10", features = ["derive"] }
-logos = "0.14.0"
 chumsky = { version = "0.10", features = ["pratt"] }
 ariadne = "0.5.1"
-bimap = "0.6.3"
+str_id = "0.1.0"
 internal_iterator_rec = "0.1.1"
+yagbas_srcfiletypes = { version = "0.1.1", path = "yagbas_srcfiletypes" }
+yagbas_asmtypes = { version = "0.2.0", path = "yagbas_asmtypes" }
+yagbas_asttypes = { version = "0.1.0", path = "yagbas_asttypes" }
