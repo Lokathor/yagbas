@@ -1,7 +1,11 @@
 [package]
 name = "yagbas_asttypes"
+description = "Abstract Syntax Tree type (and parser) for yagbas."
+repository = "https://github.com/Lokathor/yagbas"
+license = "Zlib OR Apache-2.0 OR MIT"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
 
 [dependencies]
 chumsky = "0.10.1"

@@ -1,8 +1,8 @@
 [package]
 name = "yagbas_srcfiletypes"
 description = "types for reading in yagbas source files"
-license = "Zlib OR Apache-2.0 OR MIT"
 repository = "https://github.com/Lokathor/yagbas"
+license = "Zlib OR Apache-2.0 OR MIT"
 version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
