@@ -180,11 +180,11 @@ where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
   M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
 {
-  let bs = bitstruct_p().map(Item::BitStruct);
+  let bs = bitstruct_p(make_input).map(Item::BitStruct);
   let c = const_p(make_input).map(Item::Const);
   let f = func_p(make_input).map(Item::Func);
-  let sta = static_p().map(Item::Static);
-  let stru = struct_p().map(Item::Struct);
+  let sta = static_p(make_input).map(Item::Static);
+  let stru = struct_p(make_input).map(Item::Struct);
 
   choice((bs, c, f, sta, stru))
 }

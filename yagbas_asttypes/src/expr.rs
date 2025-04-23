@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use super::*;
 
 /// An expression is a thing that can be made of sub-expressions.
@@ -110,19 +108,19 @@ pub enum Expr {
 
 macro_rules! infix_maker {
   ($f: path) => {
-    |left, op, right, extras| {
+    |left, _op, right, extras| {
       S::from_extras($f(Box::new([left, right])), extras)
     }
   };
 }
 macro_rules! prefix_maker {
   ($f: path) => {
-    |op, atom, extras| S::from_extras($f(Box::new(atom)), extras)
+    |_op, atom, extras| S::from_extras($f(Box::new(atom)), extras)
   };
 }
 macro_rules! postfix_maker {
   ($f: path) => {
-    |atom, op, extras| S::from_extras($f(Box::new(atom)), extras)
+    |atom, _op, extras| S::from_extras($f(Box::new(atom)), extras)
   };
 }
 
@@ -152,8 +150,11 @@ where
           let name_ex = S(Expr::Ident(name), name_span);
           args.push(name_ex);
           Expr::MacroUse(Box::new(args))
-        });
-      let ident = ident_p().map(Expr::Ident);
+        })
+        .labelled("macro_expr")
+        .as_context();
+      let ident =
+        ident_p().map(Expr::Ident).labelled("ident_expr").as_context();
       let num = numlit_p().map(Expr::NumLit);
       let register = register_p().map(Expr::Reg);
       let bool = bool_p().map(Expr::Bool);
@@ -162,8 +163,19 @@ where
         .separated_by(comma_p())
         .collect::<Vec<_>>()
         .nested_in(brackets_content_p(make_input))
-        .map(|fs_expr| Expr::Deref(Box::new(fs_expr)))
+        .map(|exprs| Expr::Deref(Box::new(exprs)))
         .labelled("deref_expr")
+        .as_context();
+      let list = newline_p()
+        .repeated()
+        .ignore_then(expr.clone())
+        .separated_by(comma_p().padded_by(newline_p().repeated()))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .then_ignore(newline_p().repeated())
+        .nested_in(braces_content_p(make_input))
+        .map(|exprs| Expr::List(Box::new(exprs)))
+        .labelled("list_expr")
         .as_context();
       let parens = expr
         .clone()
@@ -172,7 +184,7 @@ where
 
       // Note(Lokathor): macro is like ident but "longer", so we have to test
       // for macro first.
-      choice((macro_, ident, num, register, bool, deref, parens))
+      choice((macro_, ident, num, register, bool, deref, list, parens))
         .map_with(S::from_extras)
     };
 
@@ -203,4 +215,6 @@ where
 
     with_pratt
   })
+  .labelled("expr")
+  .as_context()
 }

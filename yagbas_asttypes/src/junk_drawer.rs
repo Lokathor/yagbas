@@ -49,16 +49,6 @@ where
   }
 }
 
-pub(crate) fn braces_p<'src, I>()
--> impl Parser<'src, I, Vec<(TokenTree, SimpleSpan)>, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  select! {
-    TokenTree::Braces(body) => { body }
-  }
-}
-
 pub(crate) fn newline_p<'src, I>()
 -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
 where
@@ -422,6 +412,26 @@ where
   }
 }
 
+pub(crate) fn kw_bit_struct_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwBitStruct) => { () }
+  }
+}
+
+pub(crate) fn kw_struct_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwStruct) => { () }
+  }
+}
+
 pub(crate) fn kw_else_p<'src, I>()
 -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
 where
@@ -429,6 +439,16 @@ where
 {
   select! {
     TokenTree::Lone(Token::KwElse) => { () }
+  }
+}
+
+pub(crate) fn kw_static_p<'src, I>()
+-> impl Parser<'src, I, (), AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+{
+  select! {
+    TokenTree::Lone(Token::KwStatic) => { () }
   }
 }
 
