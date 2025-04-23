@@ -13,6 +13,20 @@ pub enum Statement {
   StatementError,
 }
 
+/// Parse one [Statement]
+pub(crate) fn statement_p<'src, I, M>(
+  make_input: M,
+) -> impl Parser<'src, I, Statement, AstExtras<'src>> + Clone
+where
+  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
+  M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
+{
+  let expr = expr_p(make_input).map(|S(expr, _span)| Statement::Expr(expr));
+  let ret = select! {TokenTree::Lone(Token::KwReturn) => Statement::Return};
+
+  choice((expr, ret))
+}
+
 /// Parse and discard a separator between two statements.
 fn statement_sep_p<'src, I>()
 -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
@@ -23,19 +37,6 @@ where
     TokenTree::Lone(Token::Newline) => (),
     TokenTree::Lone(Token::Semicolon) => (),
   }
-}
-
-/// Parse one [Statement]
-pub(crate) fn statement_p<'src, I, M>(
-  make_input: M,
-) -> impl Parser<'src, I, Statement, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-  M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
-{
-  let ex = expr_p(make_input).map(|S(expr, _span)| Statement::Expr(expr));
-
-  choice((ex,))
 }
 
 /// Parse many statements that are grouped inside braces
