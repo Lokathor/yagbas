@@ -32,3 +32,18 @@ where
     },
   )
 }
+
+/// Branching construct.
+#[derive(Debug, Clone)]
+pub struct IfElse {
+  pub condition: S<Expr>,
+  pub if_body: Vec<S<Statement>>,
+  pub else_body: Vec<S<Statement>>,
+}
+
+/// Repeating code construct.
+#[derive(Debug, Clone)]
+pub struct Loop {
+  pub name: Option<S<StrID>>,
+  pub body: Vec<S<Statement>>,
+}

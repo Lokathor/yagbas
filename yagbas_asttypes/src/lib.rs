@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 #![allow(unused_braces)]
 #![allow(unused_mut)]
+#![allow(clippy::needless_lifetimes)]
 
 use std::ops::Range;
 
@@ -11,6 +12,9 @@ use chumsky::{
 };
 use str_id::StrID;
 use yagbas_srcfiletypes::{FileData, FileID, Token, TokenTree, trees_of};
+
+mod junk_drawer;
+use junk_drawer::*;
 
 /// Generic typed value paired with a `SimpleSpan`
 #[derive(Debug, Clone)]
@@ -47,16 +51,8 @@ pub enum Item {
   ItemError,
 }
 
-/// Bitpacked structured data.
-///
-/// An 8-bit value, where each bit position can have a field name.
-#[derive(Debug, Clone)]
-pub struct BitStruct {
-  pub file_id: FileID,
-  pub name: S<StrID>,
-  /// `field_name: bit` list
-  pub fields: Vec<(TokenTree, SimpleSpan)>,
-}
+mod bitstruct;
+pub use bitstruct::*;
 
 mod const_;
 pub use const_::*;
@@ -64,41 +60,11 @@ pub use const_::*;
 mod func;
 pub use func::*;
 
-/// Static definition
-///
-/// This is a block of data that's either in ROM or RAM. Generally this doesn't
-/// represent code, but instead some other form of data that the program uses,
-/// such as tile data.
-#[derive(Debug, Clone)]
-pub struct Static {
-  pub file_id: FileID,
-  pub name: S<StrID>,
-  pub expr: Vec<(TokenTree, SimpleSpan)>,
-}
+mod static_;
+pub use static_::*;
 
-/// Structured data.
-#[derive(Debug, Clone)]
-pub struct Struct {
-  pub file_id: FileID,
-  pub name: S<StrID>,
-  /// `field_name: field_type` list
-  pub fields: Vec<(TokenTree, SimpleSpan)>,
-}
-
-/// Branching construct.
-#[derive(Debug, Clone)]
-pub struct IfElse {
-  pub condition: S<Expr>,
-  pub if_body: Vec<S<Statement>>,
-  pub else_body: Vec<S<Statement>>,
-}
-
-/// Repeating code construct.
-#[derive(Debug, Clone)]
-pub struct Loop {
-  pub name: Option<S<StrID>>,
-  pub body: Vec<S<Statement>>,
-}
+mod struct_;
+pub use struct_::*;
 
 mod statement;
 pub use statement::*;
@@ -208,148 +174,6 @@ where
   choice((bs, c, f, sta, stru))
 }
 
-/// Parse one [BitStruct]
-fn bitstruct_p<'src, I>()
--> impl Parser<'src, I, BitStruct, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  let keyword = select! { TokenTree::Lone(Token::KwBitStruct) => () };
-  let name = ident_p().map_with(|i, ex| S::from_extras(i, ex));
-  let fields = braces_p();
-
-  keyword.ignore_then(name).then(fields).map_with(|(name, fields), ex| {
-    let state: &mut SimpleState<&'static FileData> = ex.state();
-    let file_id: FileID = state.id();
-    BitStruct { file_id, name, fields }
-  })
-}
-
-/// Parse one [Static]
-fn static_p<'src, I>() -> impl Parser<'src, I, Static, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  let keyword = select! { TokenTree::Lone(Token::KwStatic) => () };
-  let name = ident_p().map_with(|i, ex| S::from_extras(i, ex));
-  let expr = braces_p();
-
-  keyword.ignore_then(name).then(expr).map_with(|(name, expr), ex| {
-    let state: &mut SimpleState<&'static FileData> = ex.state();
-    let file_id: FileID = state.id();
-    Static { file_id, name, expr }
-  })
-}
-
-/// Parse one [Struct]
-fn struct_p<'src, I>() -> impl Parser<'src, I, Struct, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  let keyword = select! { TokenTree::Lone(Token::KwStruct) => () };
-  let name = ident_p().map_with(|i, ex| S::from_extras(i, ex));
-  let fields = braces_p();
-
-  keyword.ignore_then(name).then(fields).map_with(|(name, fields), ex| {
-    let state: &mut SimpleState<&'static FileData> = ex.state();
-    let file_id: FileID = state.id();
-    Struct { file_id, name, fields }
-  })
-}
-
-/// Parse a lone [Token::Ident] and get the [StrID] it's for.
-fn ident_p<'src, I>() -> impl Parser<'src, I, StrID, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  // Note(Lokathor): All these intermediate steps with explicit types are
-  // basically necessary otherwise rustc will fall over and cry.
-  select! {
-    TokenTree::Lone(Token::Ident) = ex => {
-      let state: &mut SimpleState<&'static FileData> = ex.state();
-      let file_content: &'static str = state.content();
-      let span: SimpleSpan = ex.span();
-      let range: Range<usize> = span.into();
-      let str_id = StrID::from(&file_content[range]);
-      str_id
-    }
-  }
-}
-
-/// Parse a lone [Token::NumLit] and get the [StrID] it's for.
-fn numlit_p<'src, I>() -> impl Parser<'src, I, StrID, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  // Note(Lokathor): like ident_p, but for a number
-  select! {
-    TokenTree::Lone(Token::NumLit) = ex => {
-      let state: &mut SimpleState<&'static FileData> = ex.state();
-      let file_content: &'static str = state.content();
-      let span: SimpleSpan = ex.span();
-      let range: Range<usize> = span.into();
-      let str_id = StrID::from(&file_content[range]);
-      str_id
-    }
-  }
-}
-
-fn parens_p<'src, I>()
--> impl Parser<'src, I, Vec<(TokenTree, SimpleSpan)>, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  select! {
-    TokenTree::Parens(body) => { body }
-  }
-}
-
-fn braces_p<'src, I>()
--> impl Parser<'src, I, Vec<(TokenTree, SimpleSpan)>, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  select! {
-    TokenTree::Braces(body) => { body }
-  }
-}
-
-fn newline_p<'src, I>() -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  select! {
-    TokenTree::Lone(Token::Newline) => { () }
-  }
-}
-
-fn equal_p<'src, I>() -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  select! {
-    TokenTree::Lone(Token::Equal) => { () }
-  }
-}
-
-fn plus_p<'src, I>() -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  select! {
-    TokenTree::Lone(Token::Plus) => { () }
-  }
-}
-
-fn minus_p<'src, I>() -> impl Parser<'src, I, (), AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-{
-  select! {
-    TokenTree::Lone(Token::Minus) => { () }
-  }
-}
-
 fn register_p<'src, I>()
 -> impl Parser<'src, I, Register, AstExtras<'src>> + Clone
 where
@@ -371,32 +195,6 @@ where
   }
 }
 
-/// Lets you `select_ref!` the content out of some `Braces`
-pub fn braces_content_p<'src, I, M>(
-  make_input: M,
-) -> impl Parser<'src, I, I, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-  M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
-{
-  select_ref! {
-    TokenTree::Braces(b) = ex => make_input(b, ex.span()),
-  }
-}
-
-/// Lets you `select_ref!` the content out of some `Parens`
-pub fn parens_content_p<'src, I, M>(
-  make_input: M,
-) -> impl Parser<'src, I, I, AstExtras<'src>> + Clone
-where
-  I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
-  M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
-{
-  select_ref! {
-    TokenTree::Parens(b) = ex => make_input(b, ex.span()),
-  }
-}
-
 /// Makes a token tree slice into an [Input](chumsky::input::Input).
 ///
 /// This is used by all our parsers that need to look at the content of a token
@@ -405,8 +203,8 @@ where
 /// * When making a parser that looks at the content of a token tree group, we
 ///   need to run a parser on that inner content.
 /// * Running a parser on the content of a tree group uses `Input::map` to turn
-///   our custom `FileSpanned<T>` type (which chumsky doesn't know about) into
-///   `(T, FileSpan)` (which is what chumsky is expecting).
+///   our custom [S<T>] type (which chumsky doesn't know about) into `(T,
+///   FileSpan)` (which is what chumsky is expecting).
 /// * If any part of such a parser is recursive (eg, statements, expressions,
 ///   etc) then we'd get a type error because Rust doesn't see two calls to
 ///   `Input::map` with different closures as being the same type just because
@@ -414,7 +212,6 @@ where
 /// * So we force all our calls to any parser that uses grouped content to go
 ///   through this one specific function, which gives them all the exact same
 ///   mapping closure, which lets Rust see that they're all the same type.
-#[allow(clippy::needless_lifetimes)]
 pub fn make_tt_input<'src>(
   trees: &'src [(TokenTree, SimpleSpan)], eoi: SimpleSpan,
 ) -> impl BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>

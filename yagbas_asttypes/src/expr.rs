@@ -38,6 +38,15 @@ pub enum Expr {
   /// `-12`
   Neg(Box<S<Self>>),
 
+  /// `&12`
+  Ref(Box<S<Self>>),
+
+  /// `12++`
+  Inc(Box<S<Self>>),
+
+  /// `12--`
+  Dec(Box<S<Self>>),
+
   /// `a = 12`
   Assign(Box<[S<Self>; 2]>),
 
@@ -61,6 +70,33 @@ pub enum Expr {
 
   /// `12 ^ 4`
   BitXor(Box<[S<Self>; 2]>),
+
+  /// `12 == 4`
+  Eq(Box<[S<Self>; 2]>),
+
+  /// `12 != 4`
+  Ne(Box<[S<Self>; 2]>),
+
+  /// `12 < 4`
+  Lt(Box<[S<Self>; 2]>),
+
+  /// `12 > 4`
+  Gt(Box<[S<Self>; 2]>),
+
+  /// `12 <= 4`
+  Le(Box<[S<Self>; 2]>),
+
+  /// `12 >= 4`
+  Ge(Box<[S<Self>; 2]>),
+
+  /// `12 << 4`
+  ShiftLeft(Box<[S<Self>; 2]>),
+
+  /// `12 >> 4`
+  ShiftRight(Box<[S<Self>; 2]>),
+
+  /// `12 % 4`
+  Mod(Box<[S<Self>; 2]>),
 
   /// Any error during expression processing
   ExprError,
@@ -109,33 +145,27 @@ where
 
     let with_pratt = atom.pratt((
       infix(right(1), equal_p(), infix_maker!(Expr::Assign)),
-      /*
-      infix(left(5), cmp_eq_p(), infix_maker!(Expression::Eq)),
-      infix(left(5), cmp_ne_p(), infix_maker!(Expression::Ne)),
-      infix(left(5), less_than_p(), infix_maker!(Expression::Lt)),
-      infix(left(5), greater_than_p(), infix_maker!(Expression::Gt)),
-      infix(left(5), cmp_le_p(), infix_maker!(Expression::Le)),
-      infix(left(5), cmp_ge_p(), infix_maker!(Expression::Ge)),
-      infix(left(6), pipe_p(), infix_maker!(Expression::BitOr)),
-      infix(left(7), caret_p(), infix_maker!(Expression::BitXor)),
-      infix(left(8), ampersand_p(), infix_maker!(Expression::BitAnd)),
-      infix(left(9), double_lt_p(), infix_maker!(Expression::ShiftLeft)),
-      infix(left(9), double_gt_p(), infix_maker!(Expression::ShiftRight)),
-      */
+      infix(left(5), cmp_eq_p(), infix_maker!(Expr::Eq)),
+      infix(left(5), cmp_ne_p(), infix_maker!(Expr::Ne)),
+      infix(left(5), less_than_p(), infix_maker!(Expr::Lt)),
+      infix(left(5), greater_than_p(), infix_maker!(Expr::Gt)),
+      infix(left(5), cmp_le_p(), infix_maker!(Expr::Le)),
+      infix(left(5), cmp_ge_p(), infix_maker!(Expr::Ge)),
+      infix(left(6), pipe_p(), infix_maker!(Expr::BitOr)),
+      infix(left(7), caret_p(), infix_maker!(Expr::BitXor)),
+      infix(left(8), ampersand_p(), infix_maker!(Expr::BitAnd)),
+      infix(left(9), double_lt_p(), infix_maker!(Expr::ShiftLeft)),
+      infix(left(9), double_gt_p(), infix_maker!(Expr::ShiftRight)),
       infix(left(10), plus_p(), infix_maker!(Expr::Add)),
       infix(left(10), minus_p(), infix_maker!(Expr::Sub)),
-      /*
-      infix(left(11), asterisk_p(), infix_maker!(Expression::Mul)),
-      infix(left(11), slash_p(), infix_maker!(Expression::Div)),
-      infix(left(11), percent_p(), infix_maker!(Expression::Mod)),
-      */
+      infix(left(11), asterisk_p(), infix_maker!(Expr::Mul)),
+      infix(left(11), slash_p(), infix_maker!(Expr::Div)),
+      infix(left(11), percent_p(), infix_maker!(Expr::Mod)),
       prefix(12, minus_p(), prefix_maker!(Expr::Neg)),
-      /*
-      prefix(12, ampersand_p(), prefix_maker!(Expression::Ref)),
-      postfix(12, plusplus_p(), postfix_maker!(Expression::Inc)),
-      postfix(12, minusminus_p(), postfix_maker!(Expression::Dec)),
-      infix(left(15), period_p(), infix_maker!(Expression::Dot)),
-       */
+      prefix(12, ampersand_p(), prefix_maker!(Expr::Ref)),
+      postfix(12, plusplus_p(), postfix_maker!(Expr::Inc)),
+      postfix(12, minusminus_p(), postfix_maker!(Expr::Dec)),
+      infix(left(15), period_p(), infix_maker!(Expr::Dot)),
     ));
 
     with_pratt
