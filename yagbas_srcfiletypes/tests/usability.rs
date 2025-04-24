@@ -14,6 +14,11 @@ fn check_tokens_of() {
 
 #[test]
 fn check_trees_of() {
+  let expected: Vec<(TokenTree, SimpleSpan)> = vec![];
+  let (actual, errs) = trees_of("");
+  assert_eq!(expected, actual);
+  assert!(errs.is_empty());
+
   let expected = vec![
     (TokenTree::Lone(Token::KwLoop), (0..4).into()),
     (
@@ -22,6 +27,11 @@ fn check_trees_of() {
     ),
   ];
   let (actual, errs) = trees_of("loop { a }");
+  assert_eq!(expected, actual);
+  assert!(errs.is_empty());
+
+  let expected = vec![(TokenTree::Lone(Token::KwLoop), (0..4).into())];
+  let (actual, errs) = trees_of("loop /* */");
   assert_eq!(expected, actual);
   assert!(errs.is_empty());
 }
