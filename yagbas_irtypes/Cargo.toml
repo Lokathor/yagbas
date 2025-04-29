@@ -8,4 +8,6 @@ edition = "2024"
 rust-version = "1.85"
 
 [dependencies]
+str_id = "0.1.1"
+yagbas_srcfiletypes = { version = "0.2.0", path = "../yagbas_srcfiletypes" }
 yagbas_asttypes = { version = "0.1.0", path = "../yagbas_asttypes" }
