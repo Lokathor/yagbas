@@ -2,7 +2,7 @@ use super::*;
 
 /// Structured data.
 #[derive(Debug, Clone)]
-pub struct Struct {
+pub struct AstStruct {
   pub file_id: FileID,
   pub name: S<StrID>,
   /// `field_name: field_type` list
@@ -12,7 +12,7 @@ pub struct Struct {
 /// Parse one [Struct]
 pub(crate) fn struct_p<'src, I, M>(
   make_input: M,
-) -> impl Parser<'src, I, Struct, AstExtras<'src>> + Clone
+) -> impl Parser<'src, I, AstStruct, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
   M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
@@ -32,6 +32,6 @@ where
   keyword.ignore_then(name).then(fields).map_with(|(name, fields), ex| {
     let state: &mut SimpleState<&'static FileData> = ex.state();
     let file_id: FileID = state.id();
-    Struct { file_id, name, fields }
+    AstStruct { file_id, name, fields }
   })
 }

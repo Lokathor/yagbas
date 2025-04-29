@@ -4,7 +4,7 @@ use super::*;
 ///
 /// Defines a body of code that can be executed.
 #[derive(Debug, Clone)]
-pub struct Func {
+pub struct AstFunc {
   pub file_id: FileID,
   pub name: S<StrID>,
   pub args: Vec<(TokenTree, SimpleSpan)>,
@@ -14,7 +14,7 @@ pub struct Func {
 /// Parse one [Func]
 pub(crate) fn func_p<'src, I, M>(
   make_input: M,
-) -> impl Parser<'src, I, Func, AstExtras<'src>> + Clone
+) -> impl Parser<'src, I, AstFunc, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
   M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
@@ -35,7 +35,7 @@ where
     |((name, args), body), ex| {
       let state: &mut SimpleState<&'static FileData> = ex.state();
       let file_id: FileID = state.id();
-      Func { file_id, name, args, body }
+      AstFunc { file_id, name, args, body }
     },
   )
 }

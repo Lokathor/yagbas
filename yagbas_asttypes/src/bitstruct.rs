@@ -4,7 +4,7 @@ pub use super::*;
 ///
 /// An 8-bit value, where each bit position can have a field name.
 #[derive(Debug, Clone)]
-pub struct BitStruct {
+pub struct AstBitStruct {
   pub file_id: FileID,
   pub name: S<StrID>,
   /// `field_name: bit` list
@@ -14,7 +14,7 @@ pub struct BitStruct {
 /// Parse one [BitStruct]
 pub(crate) fn bitstruct_p<'src, I, M>(
   make_input: M,
-) -> impl Parser<'src, I, BitStruct, AstExtras<'src>> + Clone
+) -> impl Parser<'src, I, AstBitStruct, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
   M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
@@ -34,6 +34,6 @@ where
   keyword.ignore_then(name).then(fields).map_with(|(name, fields), ex| {
     let state: &mut SimpleState<&'static FileData> = ex.state();
     let file_id: FileID = state.id();
-    BitStruct { file_id, name, fields }
+    AstBitStruct { file_id, name, fields }
   })
 }

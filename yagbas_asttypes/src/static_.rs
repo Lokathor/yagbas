@@ -6,7 +6,7 @@ use super::*;
 /// represent code, but instead some other form of data that the program uses,
 /// such as tile data.
 #[derive(Debug, Clone)]
-pub struct Static {
+pub struct AstStatic {
   pub file_id: FileID,
   pub name: S<StrID>,
   pub expr: S<Expr>,
@@ -15,7 +15,7 @@ pub struct Static {
 /// Parse one [Static]
 pub(crate) fn static_p<'src, I, M>(
   make_input: M,
-) -> impl Parser<'src, I, Static, AstExtras<'src>> + Clone
+) -> impl Parser<'src, I, AstStatic, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
   M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
@@ -31,7 +31,7 @@ where
     |(name, expr), ex| {
       let state: &mut SimpleState<&'static FileData> = ex.state();
       let file_id: FileID = state.id();
-      Static { file_id, name, expr }
+      AstStatic { file_id, name, expr }
     },
   )
 }

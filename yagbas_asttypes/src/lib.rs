@@ -59,11 +59,11 @@ pub struct Ast {
 /// An item is basically "a top level definition within a source file".
 #[derive(Debug, Clone)]
 pub enum Item {
-  BitStruct(BitStruct),
-  Const(Const),
-  Func(Func),
-  Static(Static),
-  Struct(Struct),
+  BitStruct(AstBitStruct),
+  Const(AstConst),
+  Func(AstFunc),
+  Static(AstStatic),
+  Struct(AstStruct),
   ItemError,
 }
 

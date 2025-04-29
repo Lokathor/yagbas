@@ -5,7 +5,7 @@ use super::*;
 /// This associates a name to a particular constant expression. A const is only
 /// used during compile time, it doesn't add data in the compiled binary.
 #[derive(Debug, Clone)]
-pub struct Const {
+pub struct AstConst {
   pub file_id: FileID,
   pub name: S<StrID>,
   pub expr: S<Expr>,
@@ -14,7 +14,7 @@ pub struct Const {
 /// Parse one [Const]
 pub(crate) fn const_p<'src, I, M>(
   make_input: M,
-) -> impl Parser<'src, I, Const, AstExtras<'src>> + Clone
+) -> impl Parser<'src, I, AstConst, AstExtras<'src>> + Clone
 where
   I: BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>,
   M: Fn(&'src [(TokenTree, SimpleSpan)], SimpleSpan) -> I + Copy + 'src,
@@ -27,7 +27,7 @@ where
     |(name, expr), ex| {
       let state: &mut SimpleState<&'static FileData> = ex.state();
       let file_id: FileID = state.id();
-      Const { file_id, name, expr }
+      AstConst { file_id, name, expr }
     },
   )
 }
