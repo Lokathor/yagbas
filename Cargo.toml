@@ -19,3 +19,4 @@ clap = { version = "4.3.10", features = ["derive"] }
 yagbas_srcfiletypes = { version = "0.2.0", path = "yagbas_srcfiletypes" }
 yagbas_asttypes = { version = "0.1.0", path = "yagbas_asttypes" }
 yagbas_asmtypes = { version = "0.2.0", path = "yagbas_asmtypes" }
+yagbas_irtypes = { version = "0.1.0", path = "yagbas_irtypes" }

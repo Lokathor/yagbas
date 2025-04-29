@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #![allow(unused_imports)]
 #![allow(unused_braces)]
 #![allow(unused_mut)]
