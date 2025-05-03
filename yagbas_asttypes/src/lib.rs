@@ -33,7 +33,7 @@ mod junk_drawer;
 use junk_drawer::*;
 
 /// Generic typed value paired with a `SimpleSpan`
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct S<T>(pub T, pub SimpleSpan);
 impl<T> S<T> {
   pub fn from_extras<'src, 'b, I, E>(
