@@ -33,12 +33,12 @@ impl TryFrom<&AstBitStruct> for IrBitStruct {
         "5" => 5,
         "6" => 6,
         "7" => 7,
-        other => todo!("error: illegal bit position"),
+        _ => todo!("error: illegal bit position"),
       };
       if fields[i].is_some() {
         todo!("error: bit position duplicate")
       } else {
-        fields[i] = Some(field_name);
+        fields[i] = Some(*field_name);
       }
     }
     if errors.is_empty() {
@@ -64,7 +64,7 @@ impl TryFrom<&AstStruct> for IrStruct {
     let mut fields: Vec<(S<StrID>, S<StrID>)> = Vec::new();
     let mut errors = Vec::new();
     for (field_name, field_ty) in value.fields.iter() {
-      if let Some(duplicate) =
+      if let Some(_duplicate) =
         fields.iter().find(|(name, _)| name.0 == field_name.0)
       {
         todo!("error: duplicate field name")
