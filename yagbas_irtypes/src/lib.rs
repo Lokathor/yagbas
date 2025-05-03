@@ -5,6 +5,11 @@ use str_id::StrID;
 use yagbas_asttypes::{AstBitStruct, AstStruct, S};
 use yagbas_srcfiletypes::FileID;
 
+pub enum IrTranslateError {
+  IllegalBitPosition { file_id: FileID, position: S<StrID> },
+  BitPositionDuplicate { file_id: FileID, first: S<StrID>, duplicate: S<StrID> },
+}
+
 #[derive(Debug, Clone)]
 pub struct IrBitStruct {
   pub name: S<StrID>,
@@ -15,7 +20,7 @@ pub struct IrBitStruct {
 impl TryFrom<&AstBitStruct> for IrBitStruct {
   // we could have more than one error in a single conversion so we probably
   // want to have the error be like a "list of problems" of some kind?
-  type Error = Vec<i32>;
+  type Error = Vec<IrTranslateError>;
 
   fn try_from(ast: &AstBitStruct) -> Result<Self, Self::Error> {
     let name = ast.name;
@@ -33,13 +38,23 @@ impl TryFrom<&AstBitStruct> for IrBitStruct {
         "5" => 5,
         "6" => 6,
         "7" => 7,
-        _ => todo!("error: illegal bit position"),
+        _ => {
+          errors.push(IrTranslateError::IllegalBitPosition {
+            file_id,
+            position: *bit,
+          });
+          continue;
+        }
       };
-      if fields[i].is_some() {
-        todo!("error: bit position duplicate")
-      } else {
-        fields[i] = Some(*field_name);
+      if let Some(first) = fields[i] {
+        errors.push(IrTranslateError::BitPositionDuplicate {
+          file_id,
+          first,
+          duplicate: *field_name,
+        });
+        continue;
       }
+      fields[i] = Some(*field_name);
     }
     if errors.is_empty() {
       Ok(Self { name, file_id, fields })
@@ -57,7 +72,7 @@ pub struct IrStruct {
 }
 
 impl TryFrom<&AstStruct> for IrStruct {
-  type Error = Vec<i32>;
+  type Error = Vec<IrTranslateError>;
   fn try_from(value: &AstStruct) -> Result<Self, Self::Error> {
     let name = value.name;
     let file_id = value.file_id;
