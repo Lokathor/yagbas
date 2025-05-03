@@ -185,9 +185,9 @@ where
   let c = const_p(make_input).map(Item::Const);
   let f = func_p(make_input).map(Item::Func);
   let sta = static_p(make_input).map(Item::Static);
-  let stru = struct_p(make_input).map(Item::Struct);
+  let struct_ = struct_p(make_input).map(Item::Struct);
 
-  choice((bs, c, f, sta, stru))
+  choice((bs, c, f, sta, struct_))
 }
 
 fn register_p<'src, I>()
