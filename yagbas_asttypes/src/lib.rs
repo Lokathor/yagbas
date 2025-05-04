@@ -3,6 +3,8 @@
 #![allow(unused_braces)]
 #![allow(unused_mut)]
 #![allow(clippy::needless_lifetimes)]
+#![warn(missing_debug_implementations)]
+#![warn(missing_copy_implementations)]
 
 use std::ops::Range;
 

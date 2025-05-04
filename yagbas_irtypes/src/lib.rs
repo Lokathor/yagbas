@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![allow(unused_mut)]
 #![warn(missing_copy_implementations)]
+#![warn(missing_debug_implementations)]
 
 use str_id::StrID;
 use yagbas_asttypes::{AstBitStruct, AstStruct, S};

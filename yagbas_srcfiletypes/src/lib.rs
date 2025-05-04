@@ -1,4 +1,6 @@
 #![forbid(unsafe_code)]
+#![warn(missing_debug_implementations)]
+#![warn(missing_copy_implementations)]
 
 mod file_data;
 pub use file_data::*;

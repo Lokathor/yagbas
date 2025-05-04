@@ -64,7 +64,7 @@ impl FileID {
   }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileData {
   id: FileID,
   path_buf: PathBuf,
