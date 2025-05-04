@@ -1,17 +1,19 @@
 #![forbid(unsafe_code)]
 #![allow(unused_mut)]
+#![warn(missing_copy_implementations)]
 
 use str_id::StrID;
 use yagbas_asttypes::{AstBitStruct, AstStruct, S};
 use yagbas_srcfiletypes::FileID;
 
+#[derive(Debug, Clone, Copy)]
 pub enum IrTranslateError {
   IllegalBitPosition { file_id: FileID, position: S<StrID> },
   BitPositionDuplicate { file_id: FileID, first: S<StrID>, duplicate: S<StrID> },
   FieldNameDuplicate { file_id: FileID, first: S<StrID>, duplicate: S<StrID> },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct IrBitStruct {
   pub name: S<StrID>,
   pub file_id: FileID,
