@@ -8,6 +8,7 @@ use yagbas_srcfiletypes::FileID;
 pub enum IrTranslateError {
   IllegalBitPosition { file_id: FileID, position: S<StrID> },
   BitPositionDuplicate { file_id: FileID, first: S<StrID>, duplicate: S<StrID> },
+  FieldNameDuplicate { file_id: FileID, first: S<StrID>, duplicate: S<StrID> },
 }
 
 #[derive(Debug, Clone)]
@@ -25,10 +26,22 @@ impl TryFrom<&AstBitStruct> for IrBitStruct {
   fn try_from(ast: &AstBitStruct) -> Result<Self, Self::Error> {
     let name = ast.name;
     let file_id = ast.file_id;
-    let mut fields = [None; 8];
+    let mut fields: [Option<S<StrID>>; 8] = [None; 8];
     let mut errors = Vec::new();
     for (field_name, bit) in ast.fields.iter() {
-      // QUESTION: should we support non-decimal numeric literals here?
+      if let Some(found_first) = fields
+        .iter()
+        .find(|bit_name| bit_name.map(|S(name, _)| name) == Some(field_name.0))
+      {
+        errors.push(IrTranslateError::FieldNameDuplicate {
+          file_id,
+          first: found_first.unwrap(),
+          duplicate: *field_name,
+        });
+        continue;
+      }
+      // QUESTION: should we support non-decimal numeric literals here? eg: we
+      // could support `$1` as an alternative to `1`
       let i = match bit.0.as_str() {
         "0" => 0,
         "1" => 1,
@@ -79,10 +92,15 @@ impl TryFrom<&AstStruct> for IrStruct {
     let mut fields: Vec<(S<StrID>, S<StrID>)> = Vec::new();
     let mut errors = Vec::new();
     for (field_name, field_ty) in value.fields.iter() {
-      if let Some(_duplicate) =
+      if let Some(found_first) =
         fields.iter().find(|(name, _)| name.0 == field_name.0)
       {
-        todo!("error: duplicate field name")
+        errors.push(IrTranslateError::FieldNameDuplicate {
+          file_id,
+          first: found_first.0,
+          duplicate: *field_name,
+        });
+        continue;
       } else {
         fields.push((*field_name, *field_ty));
       }
