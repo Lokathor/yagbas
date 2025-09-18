@@ -1,10 +1,16 @@
-use chumsky::span::SimpleSpan;
-use logos::{Lexer, Logos};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, logos::Logos)]
-#[logos(skip r#"[[ \t]]"#)] // ignore space and tab between tokens
+use logos::{Lexer, Logos};
+use chumsky::span::SimpleSpan;
+
+#[derive(Logos, Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[logos(skip r#"[[ \t]]"#)]
 pub enum Token {
-  /* TOKEN TREE MARKERS */
+  #[default]
+  TokenError,
+  
+  #[regex(r"//[^\r\n]*", priority = 9)]
+  LineComment,
+  
   #[regex(r"\[", priority = 5)]
   OpBracket,
   #[regex(r"\]", priority = 5)]
@@ -21,8 +27,7 @@ pub enum Token {
   OpBlockComment,
   #[token(r"*/", priority = 5)]
   ClBlockComment,
-
-  /* KEYWORDS */
+  
   #[token("a", priority = 4)]
   #[token("A", priority = 4)]
   KwA,
@@ -101,16 +106,12 @@ pub enum Token {
   #[token("z", priority = 4)]
   #[token("Z", priority = 4)]
   KwZ,
-
-  /* IDENTS, NUMBERS, AND LINE COMMENTS */
+  
   #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*", priority = 3)]
   Ident,
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)", priority = 3)]
   NumLit,
-  #[regex(r"//[^\r\n]*", priority = 3)]
-  LineComment,
-
-  /* PUNCTUATION (ordered approximately by US QWERTY layout) */
+  
   #[regex(r"\r\n|\r|\n", priority = 2)]
   Newline,
   #[regex(r"~", priority = 2)]
@@ -161,9 +162,6 @@ pub enum Token {
   Question,
   #[regex(r"/", priority = 2)]
   Slash,
-
-  /* OTHER */
-  TokenError,
 }
 impl Token {
   /// Allows the [lexer][Logos::lexer] method to be called without needing to

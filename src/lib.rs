@@ -1,23 +1,8 @@
-#![allow(unused)]
-#![allow(clippy::ptr_arg)]
-#![allow(clippy::let_and_return)]
-#![allow(clippy::type_complexity)]
-#![allow(clippy::double_parens)]
-#![allow(clippy::from_str_radix_10)]
-#![allow(clippy::diverging_sub_expression)]
-#![allow(clippy::needless_lifetimes)]
-#![allow(clippy::match_single_binding)]
-#![allow(clippy::write_with_newline)]
+#![forbid(unsafe_code)]
+#![allow(unused_mut)]
 
-//! Yagbas is a compiler for a language of the same name.
-//!
-//! * This package is on crates.io so that people can `cargo install yagbas` and
-//!   get the compiler that way.
-//! * Only the compiler's command line interface and the language that it
-//!   compiles are covered by the semantic version number. The library content
-//!   of the `yagbas` package (the documentation you're reading right now) is
-//!   **NOT** covered by the semantic version of the package.
+mod token;
+pub use token::*;
 
-pub use yagbas_asmtypes::*;
-pub use yagbas_asttypes::*;
-pub use yagbas_srcfiletypes::*;
+mod token_tree;
+pub use token_tree::*;

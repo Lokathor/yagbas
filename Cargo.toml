@@ -15,8 +15,7 @@ codegen-units = 1
 lto = true
 
 [dependencies]
-clap = { version = "4.3.10", features = ["derive"] }
-yagbas_srcfiletypes = { version = "0.2.0", path = "yagbas_srcfiletypes" }
-yagbas_asttypes = { version = "0.1.0", path = "yagbas_asttypes" }
-yagbas_asmtypes = { version = "0.2.0", path = "yagbas_asmtypes" }
-yagbas_irtypes = { version = "0.1.0", path = "yagbas_irtypes" }
+chumsky = { version = "0.11.1", features = ["pratt"] }
+logos = { version = "0.15.1", features = ["forbid_unsafe"] }
+str_id = "0.1.1"
+
