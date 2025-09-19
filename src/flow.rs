@@ -41,15 +41,10 @@ pub enum AstBBStep {
 }
 
 #[derive(Debug, Clone)]
-pub enum Condition {
-  Carry,
-  Zero,
-}
-
-#[derive(Debug, Clone)]
 pub enum AstBBFlow {
   Always(BlockID),
-  Branch(Condition, BlockID, BlockID),
+  BranchCarry(BlockID, BlockID),
+  BranchZero(BlockID, BlockID),
 }
 
 #[derive(Debug, Clone)]
