@@ -191,9 +191,7 @@ can't be any language keyword.</li>
 <li><strong>Numbers:</strong> Numbers can be in decimal, binary (with a leading <code>%</code>), or
 hexadecimal (with a leading <code>$</code>). Numbers can contain underscore characters
 for easier reading, this doesn't affect the value.</li>
-<li><strong>Comments:</strong> Line comments start with <code>//</code> and go to the end of the line.
-Block comments open with <code>/*</code> and close with <code>*/</code>. Line comments will comment
-out block comment markers the same as they comment out everything else.</li>
+<li><strong>Line Comments:</strong> Line comments start with <code>//</code> and go to the end of the line.</li>
 </ul>
 <h2 id="token-trees"><a class="header" href="#token-trees">Token Trees</a></h2>
 <p>Tokens are grouped into "trees" with pairs of opening and closing markers.</p>
@@ -201,18 +199,10 @@ out block comment markers the same as they comment out everything else.</li>
 <li><strong>Parens:</strong> <code>(</code> and <code>)</code></li>
 <li><strong>Braces:</strong> <code>{</code> and <code>}</code></li>
 <li><strong>Brackets:</strong> <code>[</code> and <code>]</code></li>
+<li><strong>Block Comments:</strong> <code>/*</code> and <code>*/</code></li>
 </ul>
 <p>The opening and closing markers for each token tree group must match, or the
 source file cannot be processed.</p>
-<h2 id="items"><a class="header" href="#items">Items</a></h2>
-<p>Definitions that can appear within a module are called "items".</p>
-<ul>
-<li><strong>Bitstruct:</strong> Assigns field names to the bits of an 8-bit value.</li>
-<li><strong>Const:</strong> Assigns a name to a given constant expression.</li>
-<li><strong>Function:</strong> Defines a body of program code.</li>
-<li><strong>Static:</strong> Defines a series of bytes that appear in the ROM.</li>
-<li><strong>Struct:</strong> Assigns a layout for various data fields.</li>
-</ul>
 
                     </main>
 
