@@ -8,13 +8,13 @@
 
 use std::ops::Range;
 
+use crate::{FileData, FileID, Token, TokenTree, trees_of};
 use chumsky::{
   extra::{Err, Full, ParserExtra, SimpleState},
   input::{BorrowInput, MapExtra, ValueInput},
   prelude::*,
 };
 use str_id::StrID;
-use crate::{FileData, FileID, Token, TokenTree, trees_of};
 
 /// This is a macro instead of a function because I can't figure out what type
 /// signature to put on this expression so that Rust lets me actually use the

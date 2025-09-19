@@ -1,7 +1,7 @@
 use super::*;
-use core::sync::atomic::Ordering;
-use core::sync::atomic::AtomicUsize;
 use core::num::NonZeroUsize;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering;
 use str_id::StrID;
 
 static NEXT_BLOCK_ID: AtomicUsize = AtomicUsize::new(1);
