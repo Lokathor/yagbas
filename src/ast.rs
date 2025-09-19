@@ -14,7 +14,7 @@ use chumsky::{
   prelude::*,
 };
 use str_id::StrID;
-use yagbas_srcfiletypes::{FileData, FileID, Token, TokenTree, trees_of};
+use crate::{FileData, FileID, Token, TokenTree, trees_of};
 
 /// This is a macro instead of a function because I can't figure out what type
 /// signature to put on this expression so that Rust lets me actually use the

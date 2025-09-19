@@ -15,3 +15,10 @@ codegen-units = 1
 lto = true
 
 [dependencies]
+ariadne = "0.5.1"
+bimap = "0.6.3"
+chumsky = { version = "0.11.1", features = ["pratt"] }
+clap = { version = "4.5.47", features = ["derive"] }
+fnv = "1.0.7"
+logos = { version = "0.15.1", features = ["forbid_unsafe"] }
+str_id = "0.1.1"
