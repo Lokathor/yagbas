@@ -42,14 +42,14 @@ impl Default for BlockID {
 
 /// How does control flow after a block?
 ///
-/// * Fundamentally, the GB hardware only supports branching on the Carry or Zero flags, so we only support those two conditions here.
-/// * Code can of course "fall" from one block into another.
-/// * Return is for when a function's flow ends and control goes back to the caller.
+/// As this phase, the condition is still a full AST [Expr] value. We break the `Expr` into sub-steps and pick the condition flag to branch on later during SSA creation.
 #[derive(Debug, Clone)]
-pub enum BlockFlow {
+pub enum AstBlockFlow {
+  /// Fall/jump to this block.
   Always(BlockID),
-  BranchCarry(BlockID, BlockID),
-  BranchZero(BlockID, BlockID),
+  /// Branch on the given expression
+  Branch(S<Expr>, BlockID, BlockID),
+  /// return the caller.
   Return,
 }
 
@@ -64,11 +64,11 @@ pub enum AstBlockStep {
 pub struct AstBlock {
   pub id: BlockID,
   pub steps: Vec<S<AstBlockStep>>,
-  pub next: BlockFlow,
+  pub next: AstBlockFlow,
 }
 impl AstBlock {
   fn new() -> Self {
-    Self { id: BlockID::new(), steps: Vec::new(), next: BlockFlow::Return }
+    Self { id: BlockID::new(), steps: Vec::new(), next: AstBlockFlow::Return }
   }
 }
 
@@ -99,7 +99,7 @@ pub fn separate_ast_statements_into_blocks(
             current.steps.push(S(AstBlockStep::StatementError, *span))
           }
           Statement::Return => {
-            current.next = BlockFlow::Return;
+            current.next = AstBlockFlow::Return;
             blocks.push(current);
             if statement_iter.peek().is_some() {
               // TODO: unreachable code warning.
@@ -114,7 +114,7 @@ pub fn separate_ast_statements_into_blocks(
                 // todo: error
               }
               Some((_label, _here, after)) => {
-                current.next = BlockFlow::Always(*after);
+                current.next = AstBlockFlow::Always(*after);
                 blocks.push(current);
                 if statement_iter.peek().is_some() {
                   // TODO: unreachable code warning.
@@ -131,7 +131,7 @@ pub fn separate_ast_statements_into_blocks(
                 // todo: error
               }
               Some((_label, here, _after)) => {
-                current.next = BlockFlow::Always(*here);
+                current.next = AstBlockFlow::Always(*here);
                 blocks.push(current);
                 if statement_iter.peek().is_some() {
                   // TODO: unreachable code warning.
