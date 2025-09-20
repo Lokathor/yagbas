@@ -1,5 +1,7 @@
 // sample file for control flow graph creation testing.
 
+// this file should remain as one function with no named const values
+
 fn main() {
   a = $10
   loop {
