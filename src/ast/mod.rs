@@ -234,5 +234,5 @@ pub fn make_tt_input<'src>(
   trees: &'src [(TokenTree, SimpleSpan)], eoi: SimpleSpan,
 ) -> impl BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>
 {
-  Input::map(&trees[..], eoi, |(tree, span)| (tree, span))
+  Input::map(trees, eoi, |(tree, span)| (tree, span))
 }

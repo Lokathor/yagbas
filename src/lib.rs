@@ -9,6 +9,7 @@
 #![allow(clippy::needless_lifetimes)]
 #![allow(clippy::match_single_binding)]
 #![allow(clippy::write_with_newline)]
+#![allow(clippy::unused_unit)]
 
 //! Yagbas is a compiler for a language of the same name.
 //!
