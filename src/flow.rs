@@ -1,7 +1,8 @@
 use super::*;
-use core::num::NonZeroUsize;
-use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering;
+use core::{
+  num::NonZeroUsize,
+  sync::atomic::{AtomicUsize, Ordering},
+};
 use str_id::StrID;
 
 static NEXT_BLOCK_ID: AtomicUsize = AtomicUsize::new(1);
@@ -32,24 +33,30 @@ impl BlockID {
     self.0.get()
   }
 }
-
-#[derive(Debug, Clone)]
-pub enum AstBBStep {
-  Expr(Expr),
-  Call(StrID),
-  StatementError,
+impl Default for BlockID {
+  #[inline]
+  fn default() -> Self {
+    Self::new()
+  }
 }
 
 #[derive(Debug, Clone)]
-pub enum AstBBFlow {
+pub enum BlockFlow {
   Always(BlockID),
   BranchCarry(BlockID, BlockID),
   BranchZero(BlockID, BlockID),
 }
 
 #[derive(Debug, Clone)]
-pub struct AstBB {
+pub enum AstBlockStep {
+  Expr(Expr),
+  Call(StrID),
+  StatementError,
+}
+
+#[derive(Debug, Clone)]
+pub struct AstBlock {
   pub id: BlockID,
-  pub steps: Vec<AstBBStep>,
-  pub next: AstBBFlow,
+  pub steps: Vec<AstBlockStep>,
+  pub next: BlockFlow,
 }

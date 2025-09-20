@@ -1,0 +1,14 @@
+// sample file for control flow graph creation testing.
+
+fn main() {
+  a = $10
+  loop {
+    [$ff00] = a
+    if a != $1F {
+      break
+    } else {
+      b = 1
+    }
+  }
+  a = 0
+}
