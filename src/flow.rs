@@ -40,6 +40,11 @@ impl Default for BlockID {
   }
 }
 
+/// How does control flow after a block?
+///
+/// * Fundamentally, the GB hardware only supports branching on the Carry or Zero flags, so we only support those two conditions here.
+/// * Code can of course "fall" from one block into another.
+/// * Return is for when a function's flow ends and control goes back to the caller.
 #[derive(Debug, Clone)]
 pub enum BlockFlow {
   Always(BlockID),
@@ -93,21 +98,50 @@ pub fn separate_ast_statements_into_blocks(
           Statement::StatementError => {
             current.steps.push(S(AstBlockStep::StatementError, *span))
           }
-          // this ends a block's flow, and code shouldn't be after an
-          // unconditional return.
           Statement::Return => {
             current.next = BlockFlow::Return;
             blocks.push(current);
             if statement_iter.peek().is_some() {
-              // TODO: emit a warning/error about unreachable code when `return`
-              // is followed by other statements in a code body.
+              // TODO: unreachable code warning.
             }
             break 'statement_walk;
           }
-          Statement::IfElse(if_else) => todo!(),
-          Statement::Loop(loop_) => todo!(),
-          Statement::Break(str_id) => todo!(),
-          Statement::Continue(str_id) => todo!(),
+          Statement::Break(str_id) => {
+            let target = str_id.unwrap_or_default();
+            let opt_break_target = loop_stack.iter().rev().find(|(label, _here, _after)| *label == target);
+            match opt_break_target {
+              None => {
+                // todo: error
+              }
+              Some((_label, _here, after)) => {
+                current.next = BlockFlow::Always(*after);
+                blocks.push(current);
+                if statement_iter.peek().is_some() {
+                  // TODO: unreachable code warning.
+               }
+               break 'statement_walk;
+              }
+            }
+          },
+          Statement::Continue(str_id) => {
+            let target = str_id.unwrap_or_default();
+            let opt_break_target = loop_stack.iter().rev().find(|(label, _here, _after)| *label == target);
+            match opt_break_target {
+              None => {
+                // todo: error
+              }
+              Some((_label, here, _after)) => {
+                current.next = BlockFlow::Always(*here);
+                blocks.push(current);
+                if statement_iter.peek().is_some() {
+                  // TODO: unreachable code warning.
+                 }
+                 break 'statement_walk;
+              }
+             }
+          },
+          Statement::IfElse(_if_else) => todo!(),
+          Statement::Loop(_loop_) => todo!(),
         }
       }
       // no more statements
