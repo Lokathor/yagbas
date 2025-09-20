@@ -83,7 +83,7 @@ pub fn separate_ast_statements_into_blocks(
     statements: &[S<Statement>], blocks: &mut Vec<AstBlock>,
     loop_stack: &mut Vec<(StrID, BlockID, BlockID)>,
   ) {
-    let mut current = AstBlock::new();
+    let mut current = blocks.last_mut().unwrap();
     let mut statement_iter = statements.iter().peekable();
     'statement_walk: loop {
       if let Some(S(statement, span)) = statement_iter.next() {
@@ -100,7 +100,6 @@ pub fn separate_ast_statements_into_blocks(
           }
           Statement::Return => {
             current.next = AstBlockFlow::Return;
-            blocks.push(current);
             if statement_iter.peek().is_some() {
               // TODO: unreachable code warning.
             }
@@ -115,7 +114,6 @@ pub fn separate_ast_statements_into_blocks(
               }
               Some((_label, _here, after)) => {
                 current.next = AstBlockFlow::Always(*after);
-                blocks.push(current);
                 if statement_iter.peek().is_some() {
                   // TODO: unreachable code warning.
                }
@@ -132,7 +130,6 @@ pub fn separate_ast_statements_into_blocks(
               }
               Some((_label, here, _after)) => {
                 current.next = AstBlockFlow::Always(*here);
-                blocks.push(current);
                 if statement_iter.peek().is_some() {
                   // TODO: unreachable code warning.
                  }
@@ -140,7 +137,23 @@ pub fn separate_ast_statements_into_blocks(
               }
              }
           },
-          Statement::IfElse(_if_else) => todo!(),
+          Statement::IfElse(if_else) => {
+            let mut if_block = AstBlock::new();
+            let mut else_block = AstBlock::new();
+            let mut after_block = AstBlock::new();
+            current.next = AstBlockFlow::Branch(
+              if_else.condition.clone(),
+              if_block.id,
+              else_block.id);
+            if_block.next = AstBlockFlow::Always(after_block.id);
+            else_block.next = AstBlockFlow::Always(after_block.id);
+            blocks.push(if_block);
+            recursive_inner(if_else.if_body.as_slice(), blocks, loop_stack);
+            blocks.push(else_block);
+            recursive_inner(if_else.else_body.as_slice(), blocks, loop_stack);
+            blocks.push(after_block);
+            current = blocks.last_mut().unwrap();
+          },
           Statement::Loop(_loop_) => todo!(),
         }
       }
@@ -148,7 +161,7 @@ pub fn separate_ast_statements_into_blocks(
     }
   }
   //
-  let mut out = Vec::new();
+  let mut out = vec!(AstBlock::new());
   let mut label_stack = Vec::new();
   recursive_inner(statements, &mut out, &mut label_stack);
   out
