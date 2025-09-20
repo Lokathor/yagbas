@@ -12,13 +12,6 @@
 #![allow(clippy::unused_unit)]
 
 //! Yagbas is a compiler for a language of the same name.
-//!
-//! * This package is on crates.io so that people can `cargo install yagbas` and
-//!   get the compiler that way.
-//! * Only the compiler's command line interface and the language that it
-//!   compiles are covered by the semantic version number. The library content
-//!   of the `yagbas` package (the documentation you're reading right now) is
-//!   **NOT** covered by the semantic version of the package.
 
 pub mod file_data;
 pub use file_data::*;
