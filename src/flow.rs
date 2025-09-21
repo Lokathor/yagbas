@@ -154,7 +154,23 @@ pub fn separate_ast_statements_into_blocks(
             blocks.push(after_block);
             current = blocks.last_mut().unwrap();
           },
-          Statement::Loop(_loop_) => todo!(),
+          Statement::Loop(loop_) => {
+            let mut here_block = AstBlock::new();
+            let here_block_id = here_block.id;
+            let mut after_block = AstBlock::new();
+            let after_block_id = after_block.id;
+            current.next = AstBlockFlow::Always(here_block.id);
+            here_block.next = AstBlockFlow::Always(here_block.id);
+            blocks.push(here_block);
+            loop_stack.push((
+              loop_.opt_name.0.unwrap_or_default(),
+              here_block_id,
+              after_block_id,)
+            );
+            recursive_inner(loop_.body.as_slice(), blocks, loop_stack);
+            loop_stack.pop();
+            current = blocks.last_mut().unwrap();
+          },
         }
       }
       // no more statements
