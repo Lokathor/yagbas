@@ -42,7 +42,9 @@ impl Default for BlockID {
 
 /// How does control flow after a block?
 ///
-/// As this phase, the condition is still a full AST [Expr] value. We break the `Expr` into sub-steps and pick the condition flag to branch on later during SSA creation.
+/// As this phase, the condition is still a full AST [Expr] value. We break the
+/// `Expr` into sub-steps and pick the condition flag to branch on later during
+/// SSA creation.
 #[derive(Debug, Clone)]
 pub enum AstBlockFlow {
   /// Fall/jump to this block.
@@ -60,8 +62,11 @@ pub enum AstBlockStep {
   Expr(Expr),
   /// Call a function.
   ///
-  /// * Functions dont currently return a value, so they are always their own separate statement.
-  /// * The ABI of all functions is currently that they pass in all registers and all of memory, and then all inputs are clobbered by the call. A better ABI might be implemented in the future.
+  /// * Functions dont currently return a value, so they are always their own
+  ///   separate statement.
+  /// * The ABI of all functions is currently that they pass in all registers
+  ///   and all of memory, and then all inputs are clobbered by the call. A
+  ///   better ABI might be implemented in the future.
   Call(StrID),
   /// An error of some kind.
   ///
@@ -119,7 +124,10 @@ pub fn separate_ast_statements_into_blocks(
           }
           Statement::Break(str_id) => {
             let target = str_id.unwrap_or_default();
-            let opt_break_target = loop_stack.iter().rev().find(|(label, _here, _after)| *label == target);
+            let opt_break_target = loop_stack
+              .iter()
+              .rev()
+              .find(|(label, _here, _after)| *label == target);
             match opt_break_target {
               None => {
                 // todo: error
@@ -128,14 +136,17 @@ pub fn separate_ast_statements_into_blocks(
                 current.next = AstBlockFlow::Always(*after);
                 if statement_iter.peek().is_some() {
                   // TODO: unreachable code warning.
-               }
-               break 'statement_walk;
+                }
+                break 'statement_walk;
               }
             }
-          },
+          }
           Statement::Continue(str_id) => {
             let target = str_id.unwrap_or_default();
-            let opt_break_target = loop_stack.iter().rev().find(|(label, _here, _after)| *label == target);
+            let opt_break_target = loop_stack
+              .iter()
+              .rev()
+              .find(|(label, _here, _after)| *label == target);
             match opt_break_target {
               None => {
                 // todo: error
@@ -144,11 +155,11 @@ pub fn separate_ast_statements_into_blocks(
                 current.next = AstBlockFlow::Always(*here);
                 if statement_iter.peek().is_some() {
                   // TODO: unreachable code warning.
-                 }
-                 break 'statement_walk;
+                }
+                break 'statement_walk;
               }
-             }
-          },
+            }
+          }
           Statement::IfElse(if_else) => {
             let mut if_block = AstBlock::new();
             let mut else_block = AstBlock::new();
@@ -156,7 +167,8 @@ pub fn separate_ast_statements_into_blocks(
             current.next = AstBlockFlow::Branch(
               if_else.condition.clone(),
               if_block.id,
-              else_block.id);
+              else_block.id,
+            );
             if_block.next = AstBlockFlow::Always(after_block.id);
             else_block.next = AstBlockFlow::Always(after_block.id);
             blocks.push(if_block);
@@ -165,7 +177,7 @@ pub fn separate_ast_statements_into_blocks(
             recursive_inner(if_else.else_body.as_slice(), blocks, loop_stack);
             blocks.push(after_block);
             current = blocks.last_mut().unwrap();
-          },
+          }
           Statement::Loop(loop_) => {
             let mut here_block = AstBlock::new();
             let here_block_id = here_block.id;
@@ -177,19 +189,19 @@ pub fn separate_ast_statements_into_blocks(
             loop_stack.push((
               loop_.opt_name.0.unwrap_or_default(),
               here_block_id,
-              after_block_id,)
-            );
+              after_block_id,
+            ));
             recursive_inner(loop_.body.as_slice(), blocks, loop_stack);
             loop_stack.pop();
             current = blocks.last_mut().unwrap();
-          },
+          }
         }
       }
       // no more statements
     }
   }
   //
-  let mut out = vec!(AstBlock::new());
+  let mut out = vec![AstBlock::new()];
   let mut label_stack = Vec::new();
   recursive_inner(statements, &mut out, &mut label_stack);
   out
