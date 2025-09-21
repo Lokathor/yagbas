@@ -63,8 +63,8 @@ fn memcpy() {
     if b-- != 0 {
       continue
     }
+	  return
   }
-	return
 }
 
 // Audio Master Control
