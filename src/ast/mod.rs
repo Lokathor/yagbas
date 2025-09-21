@@ -35,7 +35,7 @@ mod junk_drawer;
 use junk_drawer::*;
 
 /// Generic typed value paired with a `SimpleSpan`
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct S<T>(pub T, pub SimpleSpan);
 impl<T> S<T> {
   pub fn from_extras<'src, 'b, I, E>(
@@ -46,6 +46,15 @@ impl<T> S<T> {
     E: ParserExtra<'src, I>,
   {
     Self(t, ex.span())
+  }
+}
+impl<T> core::fmt::Debug for S<T>
+where
+  T: core::fmt::Debug,
+{
+  #[inline]
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    core::fmt::Debug::fmt(&self.0, f)
   }
 }
 
