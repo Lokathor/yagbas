@@ -84,8 +84,15 @@ pub struct AstBlock {
   pub next: AstBlockFlow,
 }
 impl AstBlock {
-  fn new() -> Self {
+  #[inline]
+  pub fn new() -> Self {
     Self { id: BlockID::new(), steps: Vec::new(), next: AstBlockFlow::Return }
+  }
+}
+impl Default for AstBlock {
+  #[inline]
+  fn default() -> Self {
+    Self::new()
   }
 }
 
@@ -103,19 +110,25 @@ pub fn separate_ast_statements_into_blocks(
     let mut current = blocks.last_mut().unwrap();
     let mut statement_iter = statements.iter().peekable();
     'statement_walk: loop {
+      // note(Lokathor): we can't use `for` with this iterator because we need
+      // to check if there's more statements after a break/continue/return and
+      // emit a warning when that happens.
       if let Some(S(statement, span)) = statement_iter.next() {
         match statement {
           // these just carry forward
           Statement::Expr(expr) => {
-            current.steps.push(S(AstBlockStep::Expr(expr.clone()), *span))
+            current.steps.push(S(AstBlockStep::Expr(expr.clone()), *span));
           }
           Statement::Call(str_id) => {
-            current.steps.push(S(AstBlockStep::Call(*str_id), *span))
+            current.steps.push(S(AstBlockStep::Call(*str_id), *span));
           }
           Statement::StatementError => {
-            current.steps.push(S(AstBlockStep::AstBlockStepError, *span))
+            current.steps.push(S(AstBlockStep::AstBlockStepError, *span));
           }
           Statement::Return => {
+            // new blocks default to Return as their control flow, but the
+            // creator of the current block *might* have set something else, so
+            // we have to be sure to set it back to Return.
             current.next = AstBlockFlow::Return;
             if statement_iter.peek().is_some() {
               // TODO: unreachable code warning.
@@ -164,10 +177,13 @@ pub fn separate_ast_statements_into_blocks(
             let mut if_block = AstBlock::new();
             let mut else_block = AstBlock::new();
             let mut after_block = AstBlock::new();
-            current.next = AstBlockFlow::Branch(
-              if_else.condition.clone(),
-              if_block.id,
-              else_block.id,
+            after_block.next = core::mem::replace(
+              &mut current.next,
+              AstBlockFlow::Branch(
+                if_else.condition.clone(),
+                if_block.id,
+                else_block.id,
+              ),
             );
             if_block.next = AstBlockFlow::Always(after_block.id);
             else_block.next = AstBlockFlow::Always(after_block.id);
@@ -183,7 +199,10 @@ pub fn separate_ast_statements_into_blocks(
             let here_block_id = here_block.id;
             let mut after_block = AstBlock::new();
             let after_block_id = after_block.id;
-            current.next = AstBlockFlow::Always(here_block.id);
+            after_block.next = core::mem::replace(
+              &mut current.next,
+              AstBlockFlow::Always(here_block.id),
+            );
             here_block.next = AstBlockFlow::Always(here_block.id);
             blocks.push(here_block);
             loop_stack.push((
@@ -193,11 +212,13 @@ pub fn separate_ast_statements_into_blocks(
             ));
             recursive_inner(loop_.body.as_slice(), blocks, loop_stack);
             loop_stack.pop();
+            blocks.push(after_block);
             current = blocks.last_mut().unwrap();
           }
         }
+      } else {
+        break 'statement_walk;
       }
-      // no more statements
     }
   }
   //
