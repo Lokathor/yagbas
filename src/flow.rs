@@ -53,13 +53,25 @@ pub enum AstBlockFlow {
   Return,
 }
 
+/// One step in an AST block.
 #[derive(Debug, Clone)]
 pub enum AstBlockStep {
+  /// Evaluate an expression.
   Expr(Expr),
+  /// Call a function.
+  ///
+  /// * Functions dont currently return a value, so they are always their own separate statement.
+  /// * The ABI of all functions is currently that they pass in all registers and all of memory, and then all inputs are clobbered by the call. A better ABI might be implemented in the future.
   Call(StrID),
-  StatementError,
+  /// An error of some kind.
+  ///
+  /// Likely causes:
+  /// * the source AST had an error.
+  /// * a break/continue target label was not found.
+  AstBlockStepError,
 }
 
+/// Basic Blocks holding AST values.
 #[derive(Debug, Clone)]
 pub struct AstBlock {
   pub id: BlockID,
