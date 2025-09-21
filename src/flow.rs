@@ -113,7 +113,7 @@ pub fn separate_ast_statements_into_blocks(
             current.steps.push(S(AstBlockStep::Call(*str_id), *span))
           }
           Statement::StatementError => {
-            current.steps.push(S(AstBlockStep::StatementError, *span))
+            current.steps.push(S(AstBlockStep::AstBlockStepError, *span))
           }
           Statement::Return => {
             current.next = AstBlockFlow::Return;
@@ -134,12 +134,12 @@ pub fn separate_ast_statements_into_blocks(
               }
               Some((_label, _here, after)) => {
                 current.next = AstBlockFlow::Always(*after);
-                if statement_iter.peek().is_some() {
-                  // TODO: unreachable code warning.
-                }
-                break 'statement_walk;
               }
             }
+            if statement_iter.peek().is_some() {
+              // TODO: unreachable code warning.
+            }
+            break 'statement_walk;
           }
           Statement::Continue(str_id) => {
             let target = str_id.unwrap_or_default();
@@ -153,12 +153,12 @@ pub fn separate_ast_statements_into_blocks(
               }
               Some((_label, here, _after)) => {
                 current.next = AstBlockFlow::Always(*here);
-                if statement_iter.peek().is_some() {
-                  // TODO: unreachable code warning.
-                }
-                break 'statement_walk;
               }
             }
+            if statement_iter.peek().is_some() {
+              // TODO: unreachable code warning.
+            }
+            break 'statement_walk;
           }
           Statement::IfElse(if_else) => {
             let mut if_block = AstBlock::new();
