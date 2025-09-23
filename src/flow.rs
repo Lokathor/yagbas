@@ -4,6 +4,7 @@ use core::{
   sync::atomic::{AtomicUsize, Ordering},
 };
 use str_id::StrID;
+use std::collections::HashMap;
 
 static NEXT_BLOCK_ID: AtomicUsize = AtomicUsize::new(1);
 
@@ -236,7 +237,7 @@ pub struct SsaBlock {
   pub next: SsaBlockFlow,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum SsaBlockFlow {
   /// Jump to this block.
   Always(BlockID),
@@ -246,13 +247,31 @@ pub enum SsaBlockFlow {
   BranchZero(BlockID, BlockID),
   /// return the caller.
   Return,
+  /// Incomplete expr to ssa transformation
+  #[default]
+  SsaBlockFlowError,
 }
 
-/// a variable and its generation
-///
-/// variables: a, b, c, d, e, f, h, l, sp, tmp
+/// a variable and its version
 #[derive(Debug, Clone, Copy)]
-pub struct SsaVar(usize);
+pub struct SsaVar(pub SsaVarName,pub usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[repr(u8)]
+pub enum SsaVarName {
+  A, B, C, D, E, H, L, Hlm, Mem, Temp, ZeroF, CarryF
+}
+
+#[derive(Debug, Clone)]
+pub struct SsaVarMaker(HashMap<SsaVarName, usize>);
+impl SsaVarMaker {
+  #[inline]
+  pub fn next_var(&mut self, name: SsaVarName) -> SsaVar {
+    let x = self.0.entry(name).or_default();
+    *x += 1;
+    SsaVar(name, *x)
+  }
+}
 
 #[derive(Debug, Clone, Default)]
 pub enum SsaBlockStep {
@@ -262,22 +281,70 @@ pub enum SsaBlockStep {
   /// Sets a variable to a constant value.
   SetImm(SsaVar, i32),
   
+  /// `zero = op_output_was_zero`
+  FlagZeroFromOp(SsaVar, SsaVar),
+  
+  /// `carry = op_output_carried`
+  FlagCarryFromOp(SsaVar, SsaVar),
+  
   /// Store `a` to a const address.
   Store(u16, SsaVar),
   
   /// Load from a const address into `a`.
   Load(SsaVar, u16),
   
-  /// Compare `a` to a constant value.
-  CmpImm(SsaVar, i32),
+  /// `flags = a - const`
+  CmpImm(SsaVar, SsaVar, i32),
   
-  /// `b_2 = b_1 + 1`
+  /// `b = b++`
+  ///
+  /// * 8-bit: assign zero based on output
+  /// * 16-bit: no flag effects
   Inc(SsaVar, SsaVar),
   
-  /// `b_2 = b_1 - 1`
+  /// `b = b--`
+  ///
+  /// * 8-bit: assign zero based on output
+  /// * 16-bit: no flag effects
   Dec(SsaVar, SsaVar),
 }
 
 pub fn split_ast_to_ssa(ast_block: &AstBlock) -> SsaBlock {
-  todo!()
+  let mut ssa_block = SsaBlock {
+    id: ast_block.id,
+    steps: Vec::new(),
+    next: SsaBlockFlow::SsaBlockFlowError,
+  };
+  
+  // todo: ssa steps from ast steps
+  for S(step, span) in ast_block.steps.iter() {
+    let span = *span;
+    match step {
+      AstBlockStep::AstBlockStepError => {
+        ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+      }
+      AstBlockStep::Call(_id) => {
+        // todo: handle calls
+        ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+      }
+      AstBlockStep::Expr(_expr) => {
+        // todo: handle expressionz
+        ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+      }
+    }
+  }
+  match &ast_block.next {
+    AstBlockFlow::Return => {
+      ssa_block.next = SsaBlockFlow::Return;
+    }
+    AstBlockFlow::Always(id) => {
+      ssa_block.next = SsaBlockFlow::Always(*id);
+    }
+    AstBlockFlow::Branch(S(_expr, _span), _t, _f) => {
+      // todo: turn expr into ssa and a branch on the correct flag.
+    }
+  }
+  
+  //
+  ssa_block
 }
