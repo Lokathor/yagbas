@@ -47,7 +47,7 @@ impl Default for BlockID {
 /// SSA creation.
 #[derive(Debug, Clone)]
 pub enum AstBlockFlow {
-  /// Fall/jump to this block.
+  /// Jump to this block.
   Always(BlockID),
   /// Branch on the given expression
   Branch(S<Expr>, BlockID, BlockID),
@@ -56,7 +56,7 @@ pub enum AstBlockFlow {
 }
 
 /// One step in an AST block.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum AstBlockStep {
   /// Evaluate an expression.
   Expr(Expr),
@@ -73,6 +73,7 @@ pub enum AstBlockStep {
   /// Likely causes:
   /// * the source AST had an error.
   /// * a break/continue target label was not found.
+  #[default]
   AstBlockStepError,
 }
 
@@ -226,4 +227,57 @@ pub fn separate_ast_statements_into_blocks(
   let mut label_stack = Vec::new();
   recursive_inner(statements, &mut out, &mut label_stack);
   out
+}
+
+#[derive(Debug, Clone)]
+pub struct SsaBlock {
+  pub id: BlockID,
+  pub steps: Vec<S<SsaBlockStep>>,
+  pub next: SsaBlockFlow,
+}
+
+#[derive(Debug, Clone)]
+pub enum SsaBlockFlow {
+  /// Jump to this block.
+  Always(BlockID),
+  /// Branch on the carry flag
+  BranchCarry(BlockID, BlockID),
+  /// Branch on the zero flag
+  BranchZero(BlockID, BlockID),
+  /// return the caller.
+  Return,
+}
+
+/// a variable and its generation
+///
+/// variables: a, b, c, d, e, f, h, l, sp, tmp
+#[derive(Debug, Clone, Copy)]
+pub struct SsaVar(usize);
+
+#[derive(Debug, Clone, Default)]
+pub enum SsaBlockStep {
+  #[default]
+  SsaBlockStepError,
+  
+  /// Sets a variable to a constant value.
+  SetImm(SsaVar, i32),
+  
+  /// Store `a` to a const address.
+  Store(u16, SsaVar),
+  
+  /// Load from a const address into `a`.
+  Load(SsaVar, u16),
+  
+  /// Compare `a` to a constant value.
+  CmpImm(SsaVar, i32),
+  
+  /// `b_2 = b_1 + 1`
+  Inc(SsaVar, SsaVar),
+  
+  /// `b_2 = b_1 - 1`
+  Dec(SsaVar, SsaVar),
+}
+
+pub fn split_ast_to_ssa(ast_block: &AstBlock) -> SsaBlock {
+  todo!()
 }
