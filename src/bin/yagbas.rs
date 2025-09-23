@@ -8,6 +8,7 @@ use yagbas::{
   FileData, Item, S, items_of, separate_ast_statements_into_blocks,
   split_ast_to_ssa, tokens_of,
   trees_of,
+  SsaVarMaker,
 };
 
 #[test]
@@ -161,11 +162,20 @@ pub fn do_ssa_blocks(args: FileListArgs) -> bool {
     for spanned_item in items {
       if let Item::Func(ast_func) = spanned_item.0 {
         let name = ast_func.name.0;
+        let mut maker = SsaVarMaker::default();
         println!("{name}>");
         let block_list = separate_ast_statements_into_blocks(&ast_func.body);
         for block in block_list {
-          let ssa = split_ast_to_ssa(&block);
-          println!("{ssa:?}");
+          let ssa = split_ast_to_ssa(&block, &mut maker);
+          let id = ssa.id;
+          let steps = &ssa.steps;
+          let next = &ssa.next;
+          println!();
+          println!("== {id:?}:");
+          for step in steps {
+            println!("  {step:?}");
+          }
+          println!("next> {next:?}");
         }
       }
     }

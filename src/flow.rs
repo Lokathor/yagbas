@@ -253,8 +253,17 @@ pub enum SsaBlockFlow {
 }
 
 /// a variable and its version
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct SsaVar(pub SsaVarName,pub usize);
+impl core::fmt::Debug for SsaVar {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    core::fmt::Debug::fmt(&self.0, f)?;
+    f.write_str("{")?;
+    core::fmt::Debug::fmt(&self.1, f)?;
+    f.write_str("}")?;
+    Ok(())
+  }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
@@ -262,13 +271,18 @@ pub enum SsaVarName {
   A, B, C, D, E, H, L, Hlm, Mem, Temp, ZeroF, CarryF
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SsaVarMaker(HashMap<SsaVarName, usize>);
 impl SsaVarMaker {
   #[inline]
   pub fn next_var(&mut self, name: SsaVarName) -> SsaVar {
     let x = self.0.entry(name).or_default();
     *x += 1;
+    SsaVar(name, *x)
+  }
+  #[inline]
+  pub fn latest_var(&mut self, name: SsaVarName) -> SsaVar {
+    let x = self.0.entry(name).or_default();
     SsaVar(name, *x)
   }
 }
@@ -309,7 +323,7 @@ pub enum SsaBlockStep {
   Dec(SsaVar, SsaVar),
 }
 
-pub fn split_ast_to_ssa(ast_block: &AstBlock) -> SsaBlock {
+pub fn split_ast_to_ssa(ast_block: &AstBlock, maker: &mut SsaVarMaker) -> SsaBlock {
   let mut ssa_block = SsaBlock {
     id: ast_block.id,
     steps: Vec::new(),
@@ -324,15 +338,100 @@ pub fn split_ast_to_ssa(ast_block: &AstBlock) -> SsaBlock {
         ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
       }
       AstBlockStep::Call(_id) => {
-        // todo: handle calls
+        dbg!("TODO: calls");
         ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
       }
-      AstBlockStep::Expr(_expr) => {
-        // todo: handle expressionz
-        ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+      AstBlockStep::Expr(expr) => {
+        match expr {
+          Expr::Assign(ref_box) => {
+            let a2: &[S<Expr>;2] = &*ref_box;
+            let [S(dst, _dst_span), S(src, _src_span)] = a2;
+            match dst {
+              Expr::Reg(dst_reg) => {
+                match src {
+                  Expr::NumLit(str_id) => {
+                    match parse_num_lit(*str_id){
+                      Some(i)=>{
+                        match dst_reg {
+                          Register::A => {
+                            ssa_block.steps.push(
+                            S(SsaBlockStep::SetImm(
+                           maker.next_var(SsaVarName::A), i ),span));
+                          }
+                          Register::B => {
+                            ssa_block.steps.push(
+                            S(SsaBlockStep::SetImm(
+                           maker.next_var(SsaVarName::B), i ),span));
+                          }
+                          Register::C => {
+                            ssa_block.steps.push(
+                            S(SsaBlockStep::SetImm(
+                           maker.next_var(SsaVarName::C), i ),span));
+                          }
+                          other_dst => {
+                            dbg!(&other_dst);
+                            ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                          }
+                        }
+                      }
+                      None => {
+                        // todo: log error 
+                        ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                      }
+                    }
+                  }
+                  other_src => {
+                    dbg!(&dst_reg, &other_src);
+                    ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                  }
+                }
+              }
+              Expr::Deref(deref_expr) => match deref_expr.as_slice() {
+                [S(Expr::NumLit(str_id), _dst_span)] => {
+                  match parse_num_lit(*str_id).and_then(|i|u16::try_from(i).ok()){
+                    Some(u)=>{
+                      match src {
+                        Expr::Reg(Register::A) =>{
+                          ssa_block.steps.push(
+                        S(SsaBlockStep::Store(u,maker.latest_var(SsaVarName::A)), *_dst_span
+                        ))
+                        }
+                        other_src => {
+                          dbg!(&other_src);
+                        }
+                      }
+                      
+                    }
+                    None => {
+                      // todo: log error 
+                      ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                    }
+                  }
+                }
+                other_deref => match src {
+                  other_src => {
+                    dbg!(&other_deref, &other_src);
+                    ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                  }
+                }
+              }
+              other_dst => match src {
+                other_src => {
+                  dbg!(&other_dst, &other_src);
+                  ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                }
+              }
+            }
+          }
+          other_expr => {
+            dbg!(&other_expr);
+            ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+          }
+        }
       }
     }
   }
+  // set the correct flow data
   match &ast_block.next {
     AstBlockFlow::Return => {
       ssa_block.next = SsaBlockFlow::Return;
@@ -347,4 +446,51 @@ pub fn split_ast_to_ssa(ast_block: &AstBlock) -> SsaBlock {
   
   //
   ssa_block
+}
+
+fn parse_num_lit(str_id: StrID) -> Option<i32> {
+  let s = str_id.as_str();
+  let mut t = 0_i32;
+  if let Some(hex_str) = s.strip_prefix('$') {
+    // hexadecimal
+    for c in hex_str.chars() {
+      match c.to_ascii_lowercase() {
+        '_' => continue,
+        'a'..='f' => {
+          t *= 16;
+          t += (c as u8 - 'a' as u8) as i32;
+        }
+        '0'..='9' => {
+          t *= 16;
+          t += (c as u8 - '0' as u8) as i32;
+        }
+        _ => return None,
+      }
+    }
+  } else if let Some(bin_str) = s.strip_prefix('%') {
+    // binary
+    for c in bin_str.chars() {
+      match c {
+        '_' => continue,
+        '0'..='1' => {
+          t *= 2;
+          t += (c as u8 - '0' as u8) as i32;
+        }
+        _ => return None,
+      }
+    }
+  } else {
+    // decimal
+    for c in s.chars() {
+      match c {
+        '_' => continue,
+        '0'..='9' => {
+          t *= 10;
+          t += (c as u8 - '0' as u8) as i32;
+        }
+        _ => return None,
+      }
+    }
+  }
+  Some(t)
 }
