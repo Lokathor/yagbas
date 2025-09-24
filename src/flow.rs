@@ -364,41 +364,28 @@ pub fn split_ast_to_ssa(
                 match src {
                   Expr::NumLit(str_id) => {
                     match parse_num_lit(*str_id) {
-                      Some(i) => match dst_reg {
-                        Register::A => {
-                          ssa_block.steps.push(S(
-                            SsaBlockStep::SetImm(
-                              maker.next_var(SsaVarName::A),
-                              i,
-                            ),
-                            span,
-                          ));
-                        }
-                        Register::B => {
-                          ssa_block.steps.push(S(
-                            SsaBlockStep::SetImm(
-                              maker.next_var(SsaVarName::B),
-                              i,
-                            ),
-                            span,
-                          ));
-                        }
-                        Register::C => {
-                          ssa_block.steps.push(S(
-                            SsaBlockStep::SetImm(
-                              maker.next_var(SsaVarName::C),
-                              i,
-                            ),
-                            span,
-                          ));
-                        }
-                        other_dst => {
-                          dbg!(&other_dst);
-                          ssa_block
-                            .steps
-                            .push(S(SsaBlockStep::SsaBlockStepError, span));
-                        }
-                      },
+                      Some(i) => {
+                        let reg_name = match dst_reg {
+                          Register::A => SsaVarName::A,
+                          Register::B => SsaVarName::B,
+                          Register::C => SsaVarName::C,
+                          Register::D => SsaVarName::D,
+                          Register::E => SsaVarName::E,
+                          Register::H => SsaVarName::H,
+                          Register::L => SsaVarName::L,
+                          other_dst_name => {
+                            dbg!(&other_dst_name);
+                            ssa_block
+                              .steps
+                              .push(S(SsaBlockStep::SsaBlockStepError, span));
+                            continue;
+                          }
+                        };
+                        ssa_block.steps.push(S(
+                          SsaBlockStep::SetImm(maker.next_var(reg_name), i),
+                          span,
+                        ));
+                      }
                       None => {
                         // todo: log error
                         ssa_block
