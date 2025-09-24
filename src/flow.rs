@@ -3,8 +3,8 @@ use core::{
   num::NonZeroUsize,
   sync::atomic::{AtomicUsize, Ordering},
 };
-use str_id::StrID;
 use std::collections::HashMap;
+use str_id::StrID;
 
 static NEXT_BLOCK_ID: AtomicUsize = AtomicUsize::new(1);
 
@@ -254,7 +254,7 @@ pub enum SsaBlockFlow {
 
 /// a variable and its version
 #[derive(Clone, Copy)]
-pub struct SsaVar(pub SsaVarName,pub usize);
+pub struct SsaVar(pub SsaVarName, pub usize);
 impl core::fmt::Debug for SsaVar {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     core::fmt::Debug::fmt(&self.0, f)?;
@@ -268,7 +268,18 @@ impl core::fmt::Debug for SsaVar {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum SsaVarName {
-  A, B, C, D, E, H, L, Hlm, Mem, Temp, ZeroF, CarryF
+  A,
+  B,
+  C,
+  D,
+  E,
+  H,
+  L,
+  Hlm,
+  Mem,
+  Temp,
+  ZeroF,
+  CarryF,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -291,31 +302,31 @@ impl SsaVarMaker {
 pub enum SsaBlockStep {
   #[default]
   SsaBlockStepError,
-  
+
   /// Sets a variable to a constant value.
   SetImm(SsaVar, i32),
-  
+
   /// `zero = op_output_was_zero`
   FlagZeroFromOp(SsaVar, SsaVar),
-  
+
   /// `carry = op_output_carried`
   FlagCarryFromOp(SsaVar, SsaVar),
-  
+
   /// Store `a` to a const address.
   Store(u16, SsaVar),
-  
+
   /// Load from a const address into `a`.
   Load(SsaVar, u16),
-  
+
   /// `flags = a - const`
   CmpImm(SsaVar, SsaVar, i32),
-  
+
   /// `b = b++`
   ///
   /// * 8-bit: assign zero based on output
   /// * 16-bit: no flag effects
   Inc(SsaVar, SsaVar),
-  
+
   /// `b = b--`
   ///
   /// * 8-bit: assign zero based on output
@@ -323,13 +334,15 @@ pub enum SsaBlockStep {
   Dec(SsaVar, SsaVar),
 }
 
-pub fn split_ast_to_ssa(ast_block: &AstBlock, maker: &mut SsaVarMaker) -> SsaBlock {
+pub fn split_ast_to_ssa(
+  ast_block: &AstBlock, maker: &mut SsaVarMaker,
+) -> SsaBlock {
   let mut ssa_block = SsaBlock {
     id: ast_block.id,
     steps: Vec::new(),
     next: SsaBlockFlow::SsaBlockFlowError,
   };
-  
+
   // todo: ssa steps from ast steps
   for S(step, span) in ast_block.steps.iter() {
     let span = *span;
@@ -344,83 +357,103 @@ pub fn split_ast_to_ssa(ast_block: &AstBlock, maker: &mut SsaVarMaker) -> SsaBlo
       AstBlockStep::Expr(expr) => {
         match expr {
           Expr::Assign(ref_box) => {
-            let a2: &[S<Expr>;2] = &*ref_box;
+            let a2: &[S<Expr>; 2] = &*ref_box;
             let [S(dst, _dst_span), S(src, _src_span)] = a2;
             match dst {
               Expr::Reg(dst_reg) => {
                 match src {
                   Expr::NumLit(str_id) => {
-                    match parse_num_lit(*str_id){
-                      Some(i)=>{
-                        match dst_reg {
-                          Register::A => {
-                            ssa_block.steps.push(
-                            S(SsaBlockStep::SetImm(
-                           maker.next_var(SsaVarName::A), i ),span));
-                          }
-                          Register::B => {
-                            ssa_block.steps.push(
-                            S(SsaBlockStep::SetImm(
-                           maker.next_var(SsaVarName::B), i ),span));
-                          }
-                          Register::C => {
-                            ssa_block.steps.push(
-                            S(SsaBlockStep::SetImm(
-                           maker.next_var(SsaVarName::C), i ),span));
-                          }
-                          other_dst => {
-                            dbg!(&other_dst);
-                            ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
-                          }
+                    match parse_num_lit(*str_id) {
+                      Some(i) => match dst_reg {
+                        Register::A => {
+                          ssa_block.steps.push(S(
+                            SsaBlockStep::SetImm(
+                              maker.next_var(SsaVarName::A),
+                              i,
+                            ),
+                            span,
+                          ));
                         }
-                      }
+                        Register::B => {
+                          ssa_block.steps.push(S(
+                            SsaBlockStep::SetImm(
+                              maker.next_var(SsaVarName::B),
+                              i,
+                            ),
+                            span,
+                          ));
+                        }
+                        Register::C => {
+                          ssa_block.steps.push(S(
+                            SsaBlockStep::SetImm(
+                              maker.next_var(SsaVarName::C),
+                              i,
+                            ),
+                            span,
+                          ));
+                        }
+                        other_dst => {
+                          dbg!(&other_dst);
+                          ssa_block
+                            .steps
+                            .push(S(SsaBlockStep::SsaBlockStepError, span));
+                        }
+                      },
                       None => {
-                        // todo: log error 
-                        ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                        // todo: log error
+                        ssa_block
+                          .steps
+                          .push(S(SsaBlockStep::SsaBlockStepError, span));
                       }
                     }
                   }
                   other_src => {
                     dbg!(&dst_reg, &other_src);
-                    ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                    ssa_block
+                      .steps
+                      .push(S(SsaBlockStep::SsaBlockStepError, span));
                   }
                 }
               }
               Expr::Deref(deref_expr) => match deref_expr.as_slice() {
                 [S(Expr::NumLit(str_id), _dst_span)] => {
-                  match parse_num_lit(*str_id).and_then(|i|u16::try_from(i).ok()){
-                    Some(u)=>{
-                      match src {
-                        Expr::Reg(Register::A) =>{
-                          ssa_block.steps.push(
-                        S(SsaBlockStep::Store(u,maker.latest_var(SsaVarName::A)), *_dst_span
-                        ))
-                        }
-                        other_src => {
-                          dbg!(&other_src);
-                        }
+                  match parse_num_lit(*str_id)
+                    .and_then(|i| u16::try_from(i).ok())
+                  {
+                    Some(u) => match src {
+                      Expr::Reg(Register::A) => ssa_block.steps.push(S(
+                        SsaBlockStep::Store(u, maker.latest_var(SsaVarName::A)),
+                        *_dst_span,
+                      )),
+                      other_src => {
+                        dbg!(&other_src);
                       }
-                      
-                    }
+                    },
                     None => {
-                      // todo: log error 
-                      ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                      // todo: log error
+                      ssa_block
+                        .steps
+                        .push(S(SsaBlockStep::SsaBlockStepError, span));
                     }
                   }
                 }
                 other_deref => match src {
                   other_src => {
                     dbg!(&other_deref, &other_src);
-                    ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                    ssa_block
+                      .steps
+                      .push(S(SsaBlockStep::SsaBlockStepError, span));
                   }
-                }
-              }
+                },
+              },
               other_dst => match src {
                 other_src => {
                   dbg!(&other_dst, &other_src);
-                  ssa_block.steps.push(S(SsaBlockStep::SsaBlockStepError, span));
+                  ssa_block
+                    .steps
+                    .push(S(SsaBlockStep::SsaBlockStepError, span));
                 }
-              }
+              },
             }
           }
           other_expr => {
@@ -443,7 +476,7 @@ pub fn split_ast_to_ssa(ast_block: &AstBlock, maker: &mut SsaVarMaker) -> SsaBlo
       // todo: turn expr into ssa and a branch on the correct flag.
     }
   }
-  
+
   //
   ssa_block
 }

@@ -5,10 +5,8 @@ use std::process::{ExitCode, exit};
 
 use clap::{Args, Parser, Subcommand};
 use yagbas::{
-  FileData, Item, S, items_of, separate_ast_statements_into_blocks,
-  split_ast_to_ssa, tokens_of,
-  trees_of,
-  SsaVarMaker,
+  FileData, Item, S, SsaVarMaker, items_of,
+  separate_ast_statements_into_blocks, split_ast_to_ssa, tokens_of, trees_of,
 };
 
 #[test]
