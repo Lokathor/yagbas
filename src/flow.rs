@@ -312,10 +312,10 @@ pub enum SsaBlockStep {
   /// `carry = op_output_carried`
   FlagCarryFromOp(SsaVar, SsaVar),
 
-  /// Store `a` to a const address.
+  /// `[const] = a`
   Store(u16, SsaVar),
 
-  /// Load from a const address into `a`.
+  /// `a = [const]`
   Load(SsaVar, u16),
 
   /// `flags = a - const`
@@ -323,13 +323,13 @@ pub enum SsaBlockStep {
 
   /// `b = b++`
   ///
-  /// * 8-bit: assign zero based on output
+  /// * 8-bit: assigns zero based on output
   /// * 16-bit: no flag effects
   Inc(SsaVar, SsaVar),
 
   /// `b = b--`
   ///
-  /// * 8-bit: assign zero based on output
+  /// * 8-bit: assigns zero based on output
   /// * 16-bit: no flag effects
   Dec(SsaVar, SsaVar),
 }
@@ -374,6 +374,9 @@ pub fn split_ast_to_ssa(
                           Register::H => SsaVarName::H,
                           Register::L => SsaVarName::L,
                           other_dst_name => {
+                            // TODO: you *should be able to* assign to a 16-bit
+                            // register as a valid action, but that's not
+                            // supported at this time.
                             dbg!(&other_dst_name);
                             ssa_block
                               .steps
