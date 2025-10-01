@@ -1,4 +1,25 @@
 
-Currently there's AstBlock values generated full of Expr values at each step.
+## Allowed Comparison Tests
 
-We need to break up the Expr *trees* into flat *ssa* steps.
+* `a == u8`
+* `a != u8`
+* `a < u8`
+* `a >= u8`
+* `a == {data8}`
+* `a != {data8}`
+* `a < {data8}`
+* `a >= {data8}`
+* `{data8}++ == 0`
+* `{data8}-- == 0`
+* `{data8}++ != 0`
+* `{data8}-- != 0`
+
+rlc
+rrc
+rl
+rr
+sla
+sra
+swap
+srl
+bitX
