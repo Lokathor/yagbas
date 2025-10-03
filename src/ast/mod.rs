@@ -15,6 +15,7 @@ use chumsky::{
   prelude::*,
 };
 use str_id::StrID;
+use derive_more::Display;
 
 /// This is a macro instead of a function because I can't figure out what type
 /// signature to put on this expression so that Rust lets me actually use the
@@ -35,7 +36,8 @@ mod junk_drawer;
 use junk_drawer::*;
 
 /// Generic typed value paired with a `SimpleSpan`
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Display)]
+#[display("{_0}")]
 pub struct S<T>(pub T, pub SimpleSpan);
 impl<T> S<T> {
   pub fn from_extras<'src, 'b, I, E>(
@@ -104,7 +106,7 @@ pub use expr::*;
 /// This type isn't strictly necessary, we could use [StrID] in all places where
 /// there's a Register value, but it's a little faster to sort out registers
 /// from identifiers ahead of time.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Display)]
 pub enum Register {
   A,
   B,
@@ -244,4 +246,51 @@ pub fn make_tt_input<'src>(
 ) -> impl BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>
 {
   Input::map(trees, eoi, |(tree, span)| (tree, span))
+}
+
+pub fn parse_num_lit(str_id: StrID) -> Option<i32> {
+  let s = str_id.as_str();
+  let mut t = 0_i32;
+  if let Some(hex_str) = s.strip_prefix('$') {
+    // hexadecimal
+    for c in hex_str.chars() {
+      match c.to_ascii_lowercase() {
+        '_' => continue,
+        'a'..='f' => {
+          t *= 16;
+          t += (c as u8 - 'a' as u8) as i32;
+        }
+        '0'..='9' => {
+          t *= 16;
+          t += (c as u8 - '0' as u8) as i32;
+        }
+        _ => return None,
+      }
+    }
+  } else if let Some(bin_str) = s.strip_prefix('%') {
+    // binary
+    for c in bin_str.chars() {
+      match c {
+        '_' => continue,
+        '0'..='1' => {
+          t *= 2;
+          t += (c as u8 - '0' as u8) as i32;
+        }
+        _ => return None,
+      }
+    }
+  } else {
+    // decimal
+    for c in s.chars() {
+      match c {
+        '_' => continue,
+        '0'..='9' => {
+          t *= 10;
+          t += (c as u8 - '0' as u8) as i32;
+        }
+        _ => return None,
+      }
+    }
+  }
+  Some(t)
 }
