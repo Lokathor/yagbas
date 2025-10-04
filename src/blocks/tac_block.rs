@@ -108,6 +108,6 @@ pub struct TacBlock {
   pub flow: TacFlow,
 }
 
-pub fn tac_blocks_from_expr_blocks(expr_blocks: &[ExprBlock]) -> Vec<TacBlock> {
+pub fn tac_block_from_expr_block(_expr_block: &ExprBlock) -> TacBlock {
   todo!()
 }

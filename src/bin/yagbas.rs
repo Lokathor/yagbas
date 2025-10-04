@@ -6,7 +6,7 @@ use std::process::{ExitCode, exit};
 use clap::{Args, Parser, Subcommand};
 use yagbas::{
   FileData, Item, S, items_of, separate_ast_statements_into_blocks,
-  tac_blocks_from_expr_blocks, tokens_of, trees_of,
+  tac_block_from_expr_block, tokens_of, trees_of,
 };
 
 #[test]
@@ -163,9 +163,9 @@ pub fn do_tac_blocks(args: FileListArgs) -> bool {
         println!("{name}>");
         let expr_block_list =
           separate_ast_statements_into_blocks(&ast_func.body);
-        let tac_blocks = tac_blocks_from_expr_blocks(&expr_block_list);
-        for block in tac_blocks {
-          println!("{block:?}");
+        for expr_block in expr_block_list {
+          let tac_block = tac_block_from_expr_block(&expr_block);
+          println!("{tac_block:?}");
         }
       }
     }
