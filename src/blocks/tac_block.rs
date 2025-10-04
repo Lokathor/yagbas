@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[derive(Debug, Display, Clone, Copy)]
 pub enum TacVar {
   #[display("a")]
@@ -100,4 +99,15 @@ pub enum TacFlow {
   VarPpNe0(TacVar, BlockID, BlockID),
   /// `var-- != 0`
   VarMmNe0(TacVar, BlockID, BlockID),
+}
+
+#[derive(Debug, Clone)]
+pub struct TacBlock {
+  pub id: BlockID,
+  pub steps: Vec<TacStep>,
+  pub flow: TacFlow,
+}
+
+pub fn tac_blocks_from_expr_blocks(expr_blocks: &[ExprBlock]) -> Vec<TacBlock> {
+  todo!()
 }
