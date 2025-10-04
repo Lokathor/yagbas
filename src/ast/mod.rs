@@ -258,11 +258,11 @@ pub fn parse_num_lit(str_id: StrID) -> Option<i32> {
         '_' => continue,
         'a'..='f' => {
           t *= 16;
-          t += (c as u8 - 'a' as u8) as i32;
+          t += (c as u8 - b'a') as i32;
         }
         '0'..='9' => {
           t *= 16;
-          t += (c as u8 - '0' as u8) as i32;
+          t += (c as u8 - b'0') as i32;
         }
         _ => return None,
       }
@@ -274,7 +274,7 @@ pub fn parse_num_lit(str_id: StrID) -> Option<i32> {
         '_' => continue,
         '0'..='1' => {
           t *= 2;
-          t += (c as u8 - '0' as u8) as i32;
+          t += (c as u8 - b'0') as i32;
         }
         _ => return None,
       }
@@ -286,7 +286,7 @@ pub fn parse_num_lit(str_id: StrID) -> Option<i32> {
         '_' => continue,
         '0'..='9' => {
           t *= 10;
-          t += (c as u8 - '0' as u8) as i32;
+          t += (c as u8 - b'0') as i32;
         }
         _ => return None,
       }
