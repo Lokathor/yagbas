@@ -14,9 +14,8 @@
 
 //! Yagbas is a compiler for a language of the same name.
 
+use core::{mem::replace, num::NonZeroUsize};
 use derive_more::Display;
-use core::num::NonZeroUsize;
-use core::mem::replace;
 use str_id::StrID;
 
 pub mod file_data;

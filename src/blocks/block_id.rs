@@ -1,6 +1,5 @@
 use super::*;
 
-
 /// This is a newtype over a [NonZeroUsize].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -11,8 +10,8 @@ impl BlockID {
   /// If the next ID would be 0, this fails.
   #[inline]
   pub fn try_new() -> Option<Self> {
-  use core::sync::atomic::{AtomicUsize, Ordering};
-  static NEXT_ID: AtomicUsize = AtomicUsize::new(1);
+    use core::sync::atomic::{AtomicUsize, Ordering};
+    static NEXT_ID: AtomicUsize = AtomicUsize::new(1);
     NonZeroUsize::new(NEXT_ID.fetch_add(1, Ordering::Relaxed)).map(Self)
   }
   /// `BlockID::try_new().expect("...")`

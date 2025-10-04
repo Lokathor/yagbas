@@ -154,10 +154,8 @@ pub fn separate_ast_statements_into_blocks(
             let here_block_id = here_block.id;
             let mut after_block = ExprBlock::new();
             let after_block_id = after_block.id;
-            after_block.next = replace(
-              &mut current.next,
-              ExprBlockFlow::Always(here_block.id),
-            );
+            after_block.next =
+              replace(&mut current.next, ExprBlockFlow::Always(here_block.id));
             here_block.next = ExprBlockFlow::Always(here_block.id);
             blocks.push(here_block);
             loop_stack.push((
