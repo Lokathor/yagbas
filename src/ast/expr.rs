@@ -245,3 +245,9 @@ where
   .labelled("expr")
   .as_context()
 }
+
+impl core::fmt::Display for Expr {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    todo!()
+  }
+}
