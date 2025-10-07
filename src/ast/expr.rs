@@ -248,6 +248,66 @@ where
 
 impl core::fmt::Display for Expr {
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    todo!()
+    use core::fmt::{Debug, Display};
+    match self {
+      Self::NumLit(lit) => Display::fmt(&lit, f),
+      Self::Ident(i) => Display::fmt(&i, f),
+      Self::Reg(r) => Display::fmt(&r, f),
+      Self::Dec(x) => {
+        Display::fmt(&x, f)?;
+        Display::fmt("--", f)
+      }
+      Self::Inc(x) => {
+        Display::fmt(&x, f)?;
+        Display::fmt("++", f)
+      }
+      Self::Ref(x) => {
+        Display::fmt("&", f)?;
+        Display::fmt(&x, f)
+      }
+      Self::Deref(xs) => {
+        Display::fmt("[", f)?;
+        for (i, x) in xs.iter().enumerate() {
+          if i > 0 {
+            Display::fmt(", ", f)?;
+          }
+          Display::fmt(&x, f)?;
+        }
+        Display::fmt("]", f)
+      }
+      Self::MacroUse(xs) => {
+        let xs_len = xs.len();
+        if let Some(name) = xs.last() {
+          Display::fmt(&name, f)?;
+        }
+        Display::fmt("!(", f)?;
+        for (i, x) in xs.iter().take(xs_len.saturating_sub(1)).enumerate() {
+          if i > 0 {
+            Display::fmt(", ", f)?;
+          }
+          Display::fmt(&x, f)?;
+        }
+        Display::fmt(")", f)
+      }
+      Self::Assign(b) => {
+        let [lhs, rhs] = b.as_ref();
+        Display::fmt(&lhs, f)?;
+        Display::fmt(" = ", f)?;
+        Display::fmt(&rhs, f)
+      }
+      Self::Ne(b) => {
+        let [lhs, rhs] = b.as_ref();
+        Display::fmt(&lhs, f)?;
+        Display::fmt(" != ", f)?;
+        Display::fmt(&rhs, f)
+      }
+      Self::Eq(b) => {
+        let [lhs, rhs] = b.as_ref();
+        Display::fmt(&lhs, f)?;
+        Display::fmt(" == ", f)?;
+        Display::fmt(&rhs, f)
+      }
+      _otherwise => Debug::fmt(self, f),
+    }
   }
 }

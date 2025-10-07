@@ -1,7 +1,7 @@
 use super::*;
 
 /// This is a newtype over a [NonZeroUsize].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
 #[repr(transparent)]
 pub struct BlockID(NonZeroUsize);
 impl BlockID {

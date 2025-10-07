@@ -1,17 +1,18 @@
 use super::*;
 
 /// Block flow with [Expr] branch consitions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub enum ExprBlockFlow {
   /// Jump to this block.
   Always(BlockID),
   /// Branch on the given expression
+  #[display("Branch({_0}, {_1}, {_2})")]
   Branch(S<Expr>, BlockID, BlockID),
   /// return the caller.
   Return,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Display)]
 pub enum ExprBlockStep {
   /// Evaluate an expression.
   Expr(Expr),
@@ -22,6 +23,7 @@ pub enum ExprBlockStep {
   /// * The ABI of all functions is currently that they pass in all registers
   ///   and all of memory, and then all inputs are clobbered by the call. A
   ///   better ABI might be implemented in the future.
+  #[display("{_0}()")]
   Call(StrID),
   /// An error of some kind.
   ///

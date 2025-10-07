@@ -134,10 +134,15 @@ pub fn do_expr_blocks(args: FileListArgs) -> bool {
     for spanned_item in items {
       if let Item::Func(ast_func) = spanned_item.0 {
         let name = ast_func.name.0;
-        println!("{name}>");
+        println!();
+        println!("= {name}>");
         let block_list = separate_ast_statements_into_blocks(&ast_func.body);
         for block in block_list {
-          println!("{block:?}");
+          println!("== block {} {{", block.id);
+          for step in block.steps.iter() {
+            println!("  {step}");
+          }
+          println!("}} then({});", block.next);
         }
       }
     }
