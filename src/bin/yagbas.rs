@@ -4,13 +4,15 @@
 
 use clap::{Args, Parser, Subcommand};
 use rayon::prelude::*;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::process::{ExitCode, exit};
+use std::{
+  collections::HashMap,
+  path::PathBuf,
+  process::{ExitCode, exit},
+};
 use yagbas::{
-  Ast, YagError,
-  FileData, Item, S, items_of, separate_ast_statements_into_blocks,
-  tac_blocks_from_expr_blocks, tokens_of, trees_of,
+  Ast, FileData, Item, S, YagError, items_of,
+  separate_ast_statements_into_blocks, tac_blocks_from_expr_blocks, tokens_of,
+  trees_of,
 };
 
 #[test]
@@ -58,7 +60,7 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
     .files
     .par_iter()
     .map(|path_buf| {
-      FileData::load(&path_buf)
+      FileData::load(path_buf)
         .map(items_of)
         .map_err(|ioe| YagError::IO(path_buf.clone(), ioe))
     })
@@ -67,20 +69,18 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   for res in v {
     match res {
       Ok((items, parse_errors)) => {
-        for S(item,_) in items {
-          if let Some(name) = item.get_name() {
-            if let Some(_old_def) = ast.items.insert(name, item) {
-              // todo: multiple definition error
-            }
+        for S(item, _) in items {
+          if let Some(name) = item.get_name()
+            && let Some(_old_def) = ast.items.insert(name, item)
+          {
+            // todo: multiple definition error
           }
         }
         for parse_error in parse_errors {
           err_bucket.push(YagError::AstParseError(parse_error));
         }
       }
-      Err(yag_error) => {
-        err_bucket.push(yag_error)
-      }
+      Err(yag_error) => err_bucket.push(yag_error),
     }
   }
   dbg!(&ast);
