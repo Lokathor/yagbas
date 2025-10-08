@@ -1,10 +1,14 @@
 #![allow(unused_imports)]
+#![allow(unused_mut)]
 #![allow(clippy::type_complexity)]
 
-use std::process::{ExitCode, exit};
-
 use clap::{Args, Parser, Subcommand};
+use rayon::prelude::*;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::process::{ExitCode, exit};
 use yagbas::{
+  Ast, YagError,
   FileData, Item, S, items_of, separate_ast_statements_into_blocks,
   tac_blocks_from_expr_blocks, tokens_of, trees_of,
 };
@@ -24,160 +28,71 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
-  /// Prints all tokens within the source files given.
-  Tokens(FileListArgs),
-  /// Prints all token trees within the source files given.
-  Trees(FileListArgs),
-  /// Prints all items within the source files given.
-  Items(FileListArgs),
-  /// Prints all expr_blocks within the source files given.
-  ExprBlocks(FileListArgs),
-  /// Prints all tac_blocks within the source files given.
-  TacBlocks(FileListArgs),
+  /// Build a yagbas program.
+  Build(BuildArgs),
 }
 
 #[derive(Args, Debug, Clone)]
-pub struct FileListArgs {
+pub struct BuildArgs {
+  /// Show the parsed tokens.
+  #[arg(long)]
+  pub show_tokens: bool,
+  /// Show the parsed token trees.
+  #[arg(long)]
+  pub show_trees: bool,
   /// One or more source files to process.
-  pub files: Vec<String>,
+  pub files: Vec<PathBuf>,
 }
 
-pub fn main() {
+pub fn main() -> ExitCode {
   let cli = Cli::parse();
-  let had_errors: bool = match cli.command {
-    Commands::Tokens(args) => do_tokens(args),
-    Commands::Trees(args) => do_trees(args),
-    Commands::Items(args) => do_items(args),
-    Commands::ExprBlocks(args) => do_expr_blocks(args),
-    Commands::TacBlocks(args) => do_tac_blocks(args),
-  };
-  if had_errors {
-    exit(1);
+  match cli.command {
+    Commands::Build(build_args) => do_build(build_args),
   }
 }
 
-pub fn do_tokens(args: FileListArgs) -> bool {
-  let mut had_error = false;
-  let load_results = args.files.iter().map(|f| FileData::load(f));
-  for r in load_results {
-    match r {
-      Err(io_error) => {
-        eprintln!("IO Error: {io_error}");
-        had_error = true;
-      }
-      Ok(data) => {
-        let path = data.path().display();
-        let tokens = tokens_of(data.content());
-        println!("{path}> TOKENS {tokens:?}");
-      }
-    }
-  }
-  had_error
-}
+pub fn do_build(build_args: BuildArgs) -> ExitCode {
+  let mut err_bucket: Vec<YagError> = Vec::new();
 
-pub fn do_trees(args: FileListArgs) -> bool {
-  let mut had_error = false;
-  let load_results = args.files.iter().map(|f| FileData::load(f));
-  for r in load_results {
-    match r {
-      Err(io_error) => {
-        eprintln!("IO Error: {io_error}");
-        had_error = true;
-      }
-      Ok(data) => {
-        let path = data.path().display();
-        let (trees, errors) = trees_of(data.content());
-        if !errors.is_empty() {
-          eprintln!("{path}> ERRORS {errors:?}");
-          had_error = true;
-        }
-        if !trees.is_empty() {
-          println!("{path}> TREES {trees:?}");
-        }
-      }
-    }
-  }
-  had_error
-}
-
-pub fn do_items(args: FileListArgs) -> bool {
-  let mut had_error = false;
-  let load_results = args.files.iter().filter_map(|f| {
-    FileData::load(f).map_err(|e| eprintln!("`{f}`> IO Error> {e}")).ok()
-  });
-  for data in load_results {
-    let path = data.path().display();
-    let (items, errors) = items_of(data);
-    if !errors.is_empty() {
-      eprintln!("{path}> ERRORS {errors:?}");
-      had_error = true;
-    }
-    if !items.is_empty() {
-      println!("{path}> ITEMS {items:?}");
-    }
-  }
-  had_error
-}
-
-pub fn do_expr_blocks(args: FileListArgs) -> bool {
-  let mut had_error = false;
-  let load_results = args.files.iter().filter_map(|f| {
-    FileData::load(f).map_err(|e| eprintln!("`{f}`> IO Error> {e}")).ok()
-  });
-  for data in load_results {
-    let path = data.path().display();
-    let (items, errors) = items_of(data);
-    if !errors.is_empty() {
-      eprintln!("{path}> ERRORS {errors:?}");
-      had_error = true;
-    }
-    for spanned_item in items {
-      if let Item::Func(ast_func) = spanned_item.0 {
-        let name = ast_func.name.0;
-        println!();
-        println!("= {name}>");
-        let block_list = separate_ast_statements_into_blocks(&ast_func.body);
-        for block in block_list {
-          println!("== block {} {{", block.id);
-          for step in block.steps.iter() {
-            println!("  {step}");
+  let v: Vec<_> = build_args
+    .files
+    .par_iter()
+    .map(|path_buf| {
+      FileData::load(&path_buf)
+        .map(items_of)
+        .map_err(|ioe| YagError::IO(path_buf.clone(), ioe))
+    })
+    .collect();
+  let mut ast = Ast::default();
+  for res in v {
+    match res {
+      Ok((items, parse_errors)) => {
+        for S(item,_) in items {
+          if let Some(name) = item.get_name() {
+            if let Some(_old_def) = ast.items.insert(name, item) {
+              // todo: multiple definition error
+            }
           }
-          println!("}} then({});", block.next);
         }
+        for parse_error in parse_errors {
+          err_bucket.push(YagError::AstParseError(parse_error));
+        }
+      }
+      Err(yag_error) => {
+        err_bucket.push(yag_error)
       }
     }
   }
-  had_error
+  dbg!(&ast);
+
+  if err_bucket.is_empty() {
+    ExitCode::SUCCESS
+  } else {
+    print_errors(&err_bucket);
+    ExitCode::FAILURE
+  }
 }
 
-pub fn do_tac_blocks(args: FileListArgs) -> bool {
-  let mut had_error = false;
-  let load_results = args.files.iter().filter_map(|f| {
-    FileData::load(f).map_err(|e| eprintln!("`{f}`> IO Error> {e}")).ok()
-  });
-  for data in load_results {
-    let path = data.path().display();
-    let (items, errors) = items_of(data);
-    if !errors.is_empty() {
-      eprintln!("{path}> ERRORS {errors:?}");
-      had_error = true;
-    }
-    for spanned_item in items {
-      if let Item::Func(ast_func) = spanned_item.0 {
-        let name = ast_func.name.0;
-        println!();
-        println!("= {name}>");
-        let expr_blocks = separate_ast_statements_into_blocks(&ast_func.body);
-        let tac_blocks = tac_blocks_from_expr_blocks(&expr_blocks);
-        for tac_block in tac_blocks {
-          println!("== block {} {{", tac_block.id);
-          for step in tac_block.steps.iter() {
-            println!("  {step}");
-          }
-          println!("}} {};", tac_block.next);
-        }
-      }
-    }
-  }
-  had_error
+fn print_errors(err_bucket: &[YagError]) {
+  eprintln!("{err_bucket:?}");
 }

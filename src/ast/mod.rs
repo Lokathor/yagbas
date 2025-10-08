@@ -15,8 +15,8 @@ use chumsky::{
   prelude::*,
 };
 use derive_more::Display;
-use str_id::StrID;
 use std::collections::HashMap;
+use str_id::StrID;
 
 /// This is a macro instead of a function because I can't figure out what type
 /// signature to put on this expression so that Rust lets me actually use the
@@ -65,9 +65,9 @@ where
 ///
 /// While each individual item is from a particular source file, the AST
 /// combines all the items across all the files.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Ast {
-  pub items: Vec<S<Item>>,
+  pub items: HashMap<StrID, Item>,
 }
 
 /// An item is basically "a top level definition within a source file".
@@ -79,6 +79,18 @@ pub enum Item {
   Static(AstStatic),
   Struct(AstStruct),
   ItemError,
+}
+impl Item {
+  pub fn get_name(&self) -> Option<StrID> {
+    Some(match self {
+      Self::BitStruct(AstBitStruct{name,..})=>name.0,
+      Self::Const(AstConst{name,..})=>name.0,
+      Self::Func(AstFunc{name,..})=>name.0,
+      Self::Static(AstStatic{name,..})=>name.0,
+      Self::Struct(AstStruct{name,..})=>name.0,
+      Self::ItemError=>return None,
+    })
+  }
 }
 
 mod bitstruct;

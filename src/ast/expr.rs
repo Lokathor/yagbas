@@ -106,8 +106,12 @@ pub enum Expr {
   ExprError,
 }
 impl Expr {
-  pub fn resolve_size_of_static(&mut self, _static_sizes: &HashMap<StrID, usize>) {
-    if let Self::MacroUse(xs) = self && let Some((_name, _args)) = xs.split_last() {
+  pub fn resolve_size_of_static(
+    &mut self, _static_sizes: &HashMap<StrID, usize>,
+  ) {
+    if let Self::MacroUse(xs) = self
+      && let Some((_name, _args)) = xs.split_last()
+    {
       todo!()
     }
   }

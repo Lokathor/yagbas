@@ -16,8 +16,9 @@
 
 use core::{mem::replace, num::NonZeroUsize};
 use derive_more::Display;
-use str_id::StrID;
 use std::collections::HashMap;
+use std::path::PathBuf;
+use str_id::StrID;
 
 pub mod file_data;
 pub use file_data::*;
@@ -33,3 +34,9 @@ pub use ast::*;
 
 pub mod blocks;
 pub use blocks::*;
+
+#[derive(Debug)]
+pub enum YagError {
+  IO(PathBuf, std::io::Error),
+  AstParseError(AstParseError),
+}

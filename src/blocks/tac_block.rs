@@ -187,9 +187,7 @@ fn tac_assign([lhs, rhs]: &[S<Expr>; 2], tacs: &mut Vec<TacStep>) {
     }
     (S(Expr::Deref(xs), _), S(Expr::Reg(r), _)) => {
       let tv_l = match xs.as_slice() {
-        [S(Expr::NumLit(n),_)] => {
-          TacVar::MemAtSymbol(*n)
-        }
+        [S(Expr::NumLit(n), _)] => TacVar::MemAtSymbol(*n),
         _ => {
           tacs.push(TacStep::TacStepError);
           return;
