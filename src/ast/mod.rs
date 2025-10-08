@@ -16,6 +16,7 @@ use chumsky::{
 };
 use derive_more::Display;
 use str_id::StrID;
+use std::collections::HashMap;
 
 /// This is a macro instead of a function because I can't figure out what type
 /// signature to put on this expression so that Rust lets me actually use the

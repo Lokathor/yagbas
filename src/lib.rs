@@ -17,6 +17,7 @@
 use core::{mem::replace, num::NonZeroUsize};
 use derive_more::Display;
 use str_id::StrID;
+use std::collections::HashMap;
 
 pub mod file_data;
 pub use file_data::*;

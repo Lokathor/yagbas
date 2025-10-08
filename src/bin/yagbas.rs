@@ -1,4 +1,4 @@
-#![allow(unused)]
+#![allow(unused_imports)]
 #![allow(clippy::type_complexity)]
 
 use std::process::{ExitCode, exit};
@@ -6,7 +6,7 @@ use std::process::{ExitCode, exit};
 use clap::{Args, Parser, Subcommand};
 use yagbas::{
   FileData, Item, S, items_of, separate_ast_statements_into_blocks,
-  tac_block_from_expr_block, tokens_of, trees_of,
+  tac_blocks_from_expr_blocks, tokens_of, trees_of,
 };
 
 #[test]
@@ -165,12 +165,16 @@ pub fn do_tac_blocks(args: FileListArgs) -> bool {
     for spanned_item in items {
       if let Item::Func(ast_func) = spanned_item.0 {
         let name = ast_func.name.0;
-        println!("{name}>");
-        let expr_block_list =
-          separate_ast_statements_into_blocks(&ast_func.body);
-        for expr_block in expr_block_list {
-          let tac_block = tac_block_from_expr_block(&expr_block);
-          println!("{tac_block:?}");
+        println!();
+        println!("= {name}>");
+        let expr_blocks = separate_ast_statements_into_blocks(&ast_func.body);
+        let tac_blocks = tac_blocks_from_expr_blocks(&expr_blocks);
+        for tac_block in tac_blocks {
+          println!("== block {} {{", tac_block.id);
+          for step in tac_block.steps.iter() {
+            println!("  {step}");
+          }
+          println!("}} {};", tac_block.next);
         }
       }
     }
