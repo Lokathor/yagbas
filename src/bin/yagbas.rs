@@ -75,10 +75,8 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   }
   // now we have a basic AST.
 
-  println!("These are the Items I found:");
-  for s_item in ast.items.values() {
-    println!("* {s_item:?}");
-  }
+  ast.populate_static_sizes();
+  dbg!(&ast.static_sizes);
 
   if err_bucket.is_empty() {
     ExitCode::SUCCESS
