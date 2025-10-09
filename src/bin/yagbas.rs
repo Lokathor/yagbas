@@ -10,7 +10,7 @@ use std::{
   process::{ExitCode, exit},
 };
 use yagbas::{
-  Ast, AstParseError, FileData, Item, S, YagError, items_of,
+  Ast, FileData, Item, S, YagError, items_of,
   separate_ast_statements_into_blocks, tac_blocks_from_expr_blocks, tokens_of,
   trees_of,
 };
@@ -58,20 +58,25 @@ pub fn main() -> ExitCode {
 pub fn do_build(build_args: BuildArgs) -> ExitCode {
   let mut err_bucket: Vec<YagError> = Vec::new();
 
-  let v: Vec<_> =
-    build_args.files.par_iter().map(load_parse(&build_args)).collect();
   let mut ast = Ast::default();
-  for (items, errs) in v {
+  let load_parse_results: Vec<_> =
+    build_args.files.par_iter().map(load_parse(&build_args)).collect();
+  for (items, errs) in load_parse_results {
     err_bucket.extend(errs);
-    for S(item, _) in items {
-      if let Some(name) = item.get_name()
+    for item in items {
+      if let Some(name) = item.0.get_name()
         && let Some(_old_def) = ast.items.insert(name, item)
       {
         // todo: multiple definition error
       }
     }
   }
-  dbg!(&ast);
+  // now we have a basic AST.
+
+  println!("These are the Items I found:");
+  for s_item in ast.items.values() {
+    println!("* {s_item:?}");
+  }
 
   if err_bucket.is_empty() {
     ExitCode::SUCCESS
@@ -82,11 +87,15 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
 }
 
 fn print_errors(err_bucket: &[YagError]) {
+  // TODO: make this the good version, not the bad version.
   for err in err_bucket {
     eprintln!("{err:?}");
   }
 }
 
+/// This makes a closure that can load and parse the items from a given file.
+///
+/// Each file will run this closure once, possibly on separate threads.
 fn load_parse(
   build_args: &BuildArgs,
 ) -> impl Fn(&PathBuf) -> (Vec<S<Item>>, Vec<YagError>) {

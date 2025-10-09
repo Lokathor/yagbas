@@ -67,7 +67,7 @@ where
 /// combines all the items across all the files.
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
-  pub items: HashMap<StrID, Item>,
+  pub items: HashMap<StrID, S<Item>>,
 }
 
 /// An item is basically "a top level definition within a source file".
@@ -133,12 +133,6 @@ pub enum Register {
   DE,
   HL,
   SP,
-}
-
-#[derive(Debug, Clone)]
-pub enum AstParseError {
-  Token(Rich<'static, Token>),
-  TokenTree(Rich<'static, TokenTree>),
 }
 
 pub fn items_of(
