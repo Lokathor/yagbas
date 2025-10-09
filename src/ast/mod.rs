@@ -8,7 +8,7 @@
 
 use std::ops::Range;
 
-use crate::{FileData, FileID, Token, TokenTree, trees_of};
+use crate::{FileData, FileID, Token, TokenTree, YagError, trees_of};
 use chumsky::{
   extra::{Err, Full, ParserExtra, SimpleState},
   input::{BorrowInput, MapExtra, ValueInput},
@@ -142,11 +142,12 @@ pub enum AstParseError {
 }
 
 pub fn items_of(
-  file_data: &'static FileData, trees: Vec<(TokenTree, SimpleSpan)>,
-) -> (Vec<S<Item>>, Vec<AstParseError>) {
+  trees: &[(TokenTree, SimpleSpan)], file_data: &'static FileData,
+  err_bucket: &mut Vec<YagError>,
+) -> Vec<S<Item>> {
   let eoi: SimpleSpan = match trees.last() {
     Some(s) => s.1,
-    None => return (Vec::new(), Vec::new()),
+    None => return Vec::new(),
   };
   let recovery = via_parser(
     item_start_p()
@@ -162,19 +163,16 @@ pub fn items_of(
     .collect::<Vec<_>>();
 
   let (opt_out, item_errors) = module_parser
-    .parse_with_state(
-      make_tt_input(&trees[..], eoi),
-      &mut SimpleState(file_data),
-    )
+    .parse_with_state(make_tt_input(trees, eoi), &mut SimpleState(file_data))
     .into_output_errors();
-  let out = opt_out.unwrap_or_default();
 
-  let item_errors = item_errors
-    .into_iter()
-    .map(|error| AstParseError::TokenTree(error.into_owned()))
-    .collect();
+  err_bucket.extend(
+    item_errors.into_iter().map(|error| {
+      YagError::ItemParseError(error.into_owned(), file_data.id())
+    }),
+  );
 
-  (out, item_errors)
+  opt_out.unwrap_or_default()
 }
 
 type AstExtras<'src> =

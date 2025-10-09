@@ -42,13 +42,15 @@ pub struct BuildArgs {
   /// Show the parsed token trees.
   #[arg(long)]
   pub show_trees: bool,
+  /// Show the parsed items.
+  #[arg(long)]
+  pub show_items: bool,
   /// One or more source files to process.
   pub files: Vec<PathBuf>,
 }
 
 pub fn main() -> ExitCode {
-  let cli = Cli::parse();
-  match cli.command {
+  match Cli::parse().command {
     Commands::Build(build_args) => do_build(build_args),
   }
 }
@@ -56,11 +58,8 @@ pub fn main() -> ExitCode {
 pub fn do_build(build_args: BuildArgs) -> ExitCode {
   let mut err_bucket: Vec<YagError> = Vec::new();
 
-  let v: Vec<_> = build_args
-    .files
-    .par_iter()
-    .map(load_parse(build_args.show_tokens, build_args.show_trees))
-    .collect();
+  let v: Vec<_> =
+    build_args.files.par_iter().map(load_parse(&build_args)).collect();
   let mut ast = Ast::default();
   for (items, errs) in v {
     err_bucket.extend(errs);
@@ -89,7 +88,7 @@ fn print_errors(err_bucket: &[YagError]) {
 }
 
 fn load_parse(
-  show_tokens: bool, show_trees: bool,
+  build_args: &BuildArgs,
 ) -> impl Fn(&PathBuf) -> (Vec<S<Item>>, Vec<YagError>) {
   move |path_buf: &PathBuf| {
     let mut err_bucket = Vec::new();
@@ -104,15 +103,20 @@ fn load_parse(
     };
 
     let tokens = tokens_of(file_data.content());
-    if show_tokens {
+    if build_args.show_tokens {
       println!("{p} TOKENS: {tokens:?}", p = path_buf.display());
     }
 
     let trees = trees_of(&tokens, file_data.id(), &mut err_bucket);
-    if show_trees {
+    if build_args.show_trees {
       println!("{p} TREES: {trees:?}", p = path_buf.display());
     }
 
-    todo!();
+    let items = items_of(&trees, file_data, &mut err_bucket);
+    if build_args.show_items {
+      println!("{p} ITEMS: {items:?}", p = path_buf.display());
+    }
+
+    (items, err_bucket)
   }
 }
