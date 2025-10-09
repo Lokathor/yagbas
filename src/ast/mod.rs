@@ -74,14 +74,10 @@ impl Ast {
   pub fn populate_static_sizes(&mut self) {
     self.static_sizes.clear();
     for item in self.items.values() {
-      match &item.0 {
-        Item::Static(AstStatic { name, expr, .. }) => match &expr.0 {
-          Expr::List(xs) => {
-            self.static_sizes.insert(name.0, xs.len().try_into().unwrap());
-          }
-          _ => (),
-        },
-        _ => (),
+      if let Item::Static(AstStatic { name, expr, .. }) = &item.0 {
+        if let Expr::List(xs) = &expr.0 {
+          self.static_sizes.insert(name.0, xs.len().try_into().unwrap());
+        }
       }
     }
   }
