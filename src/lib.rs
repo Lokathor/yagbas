@@ -11,6 +11,10 @@
 #![allow(clippy::match_single_binding)]
 #![allow(clippy::write_with_newline)]
 #![allow(clippy::unused_unit)]
+#![allow(unused_braces)]
+#![allow(clippy::needless_lifetimes)]
+#![warn(missing_debug_implementations)]
+#![warn(missing_copy_implementations)]
 
 //! Yagbas is a compiler for a language of the same name.
 

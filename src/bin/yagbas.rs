@@ -59,11 +59,13 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   let mut err_bucket: Vec<YagError> = Vec::new();
 
   let mut ast = Ast::default();
-  let load_parse_results: Vec<_> =
+  // load and parse it multi-threaded with rayon.
+  let load_parse_data: Vec<_> =
     build_args.files.par_iter().map(load_parse(&build_args)).collect();
-  for (items, errs) in load_parse_results {
+  for (items, errs) in load_parse_data {
     err_bucket.extend(errs);
     for item in items {
+      // Note(Lokathor): ItemError entries don't have names.
       if let Some(name) = item.0.get_name()
         && let Some(_old_def) = ast.items.insert(name, item)
       {

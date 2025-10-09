@@ -94,7 +94,7 @@ pub enum TacStep {
   Dec(TacVar),
 }
 
-#[derive(Debug, Display, Clone, Default)]
+#[derive(Debug, Display, Clone, Copy, Default)]
 pub enum TacFlow {
   #[default]
   TacFlowError,

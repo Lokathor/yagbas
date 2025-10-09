@@ -4,8 +4,15 @@ use super::*;
 ///
 /// Within the AST, expressions are untyped. Applying types (and generating type
 /// errors) happens after the basic AST is parsed.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum Expr {
+  /// Any error during expression processing
+  #[default]
+  ExprError,
+
+  /// A value produced by an intermediate computation during compilation.
+  Val(i32),
+
   /// `123`, `$FF`, `%10_01_00_00`, etc
   NumLit(StrID),
 
@@ -101,9 +108,6 @@ pub enum Expr {
 
   /// `12 % 4`
   Mod(Box<[S<Self>; 2]>),
-
-  /// Any error during expression processing
-  ExprError,
 }
 impl Expr {
   pub fn resolve_size_of_static(

@@ -1,5 +1,32 @@
 use super::*;
 
+/// Makes a token tree slice into an [Input](chumsky::input::Input).
+///
+/// This is used by all our parsers that need to look at the content of a token
+/// tree group.
+///
+/// * When making a parser that looks at the content of a token tree group, we
+///   need to run a parser on that inner content.
+/// * Running a parser on the content of a tree group uses `Input::map` to turn
+///   our custom [S<T>] type (which chumsky doesn't know about) into `(T,
+///   FileSpan)` (which is what chumsky is expecting).
+/// * If any part of such a parser is recursive (eg, statements, expressions,
+///   etc) then we'd get a type error because Rust doesn't see two calls to
+///   `Input::map` with different closures as being the same type just because
+///   the two closures have the exact same expression.
+/// * So we force all our calls to any parser that uses grouped content to go
+///   through this one specific function, which gives them all the exact same
+///   mapping closure, which lets Rust see that they're all the same type.
+pub fn make_tt_input<'src>(
+  trees: &'src [(TokenTree, SimpleSpan)], eoi: SimpleSpan,
+) -> impl BorrowInput<'src, Token = TokenTree, Span = SimpleSpan> + ValueInput<'src>
+{
+  Input::map(trees, eoi, |(tree, span)| (tree, span))
+}
+
+pub type AstExtras<'src> =
+  Full<Rich<'src, TokenTree, SimpleSpan>, SimpleState<&'static FileData>, ()>;
+
 /// Parse a lone [Token::Ident] and get the [StrID] it's for.
 pub(crate) fn ident_p<'src, I>()
 -> impl Parser<'src, I, StrID, AstExtras<'src>> + Clone
