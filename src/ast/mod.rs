@@ -83,12 +83,12 @@ pub enum Item {
 impl Item {
   pub fn get_name(&self) -> Option<StrID> {
     Some(match self {
-      Self::BitStruct(AstBitStruct{name,..})=>name.0,
-      Self::Const(AstConst{name,..})=>name.0,
-      Self::Func(AstFunc{name,..})=>name.0,
-      Self::Static(AstStatic{name,..})=>name.0,
-      Self::Struct(AstStruct{name,..})=>name.0,
-      Self::ItemError=>return None,
+      Self::BitStruct(AstBitStruct { name, .. }) => name.0,
+      Self::Const(AstConst { name, .. }) => name.0,
+      Self::Func(AstFunc { name, .. }) => name.0,
+      Self::Static(AstStatic { name, .. }) => name.0,
+      Self::Struct(AstStruct { name, .. }) => name.0,
+      Self::ItemError => return None,
     })
   }
 }
@@ -142,14 +142,11 @@ pub enum AstParseError {
 }
 
 pub fn items_of(
-  mut file_data: &'static FileData,
+  file_data: &'static FileData, trees: Vec<(TokenTree, SimpleSpan)>,
 ) -> (Vec<S<Item>>, Vec<AstParseError>) {
-  let (trees, tree_parse_errors) = trees_of(file_data.content());
-  let mut ast_parse_errors =
-    tree_parse_errors.into_iter().map(AstParseError::Token).collect();
   let eoi: SimpleSpan = match trees.last() {
     Some(s) => s.1,
-    None => return (Vec::new(), ast_parse_errors),
+    None => return (Vec::new(), Vec::new()),
   };
   let recovery = via_parser(
     item_start_p()
@@ -172,13 +169,12 @@ pub fn items_of(
     .into_output_errors();
   let out = opt_out.unwrap_or_default();
 
-  ast_parse_errors.extend(
-    item_errors
-      .into_iter()
-      .map(|error| AstParseError::TokenTree(error.into_owned())),
-  );
+  let item_errors = item_errors
+    .into_iter()
+    .map(|error| AstParseError::TokenTree(error.into_owned()))
+    .collect();
 
-  (out, ast_parse_errors)
+  (out, item_errors)
 }
 
 type AstExtras<'src> =

@@ -1,4 +1,4 @@
-use crate::{Token, tokens_of};
+use crate::{FileID, Token, YagError, tokens_of};
 use chumsky::{
   extra::{Err, ParserExtra},
   input::{BorrowInput, ValueInput},
@@ -15,12 +15,12 @@ pub enum TokenTree {
 }
 
 pub fn trees_of(
-  source: &str,
-) -> (Vec<(TokenTree, SimpleSpan)>, Vec<Rich<'static, Token>>) {
-  let tokens: Vec<(Token, SimpleSpan)> = tokens_of(source);
+  tokens: &[(Token, SimpleSpan)], file_id: FileID,
+  err_bucket: &mut Vec<YagError>,
+) -> Vec<(TokenTree, SimpleSpan)> {
   let eoi: SimpleSpan = match tokens.last() {
     Some(s) => s.1,
-    None => return (Vec::new(), Vec::new()),
+    None => return Vec::new(),
   };
   let recovery = via_parser(
     any()
@@ -30,7 +30,49 @@ pub fn trees_of(
       .map_with(|tree, ex| (tree, ex.span())),
   );
 
-  let tree_parser = recursive(|tokens| {
+  let tree_parser =
+    token_tree_p().recover_with(recovery).repeated().collect::<Vec<_>>();
+
+  let (opt_out, errors) = tree_parser
+    .parse(Input::map(tokens, eoi, |(tk, span)| (tk, span)))
+    .into_output_errors();
+  err_bucket.extend(
+    errors
+      .into_iter()
+      .map(|error| YagError::TokenTreeParseError(error.into_owned(), file_id)),
+  );
+
+  opt_out.unwrap_or_default()
+}
+
+/// Allow you to easily assert an output type for a parser.
+///
+/// This lets you check that any parser is actually outputting the type that you
+/// think it is:
+///
+/// ```txt
+/// // triggers a build error if the output type doesn't match
+/// assert_output::<(TokenTree, SimpleSpan), _, _, _>(&p);
+/// ```
+///
+/// This function does not actually run any code, it won't harm the performance
+/// of a release build.
+fn assert_output<'src, O, P, I, E>(_: &P)
+where
+  P: Parser<'src, I, O, E>,
+  I: Input<'src>,
+  E: ParserExtra<'src, I>,
+{
+}
+
+/// Parses one token tree, and its span.
+fn token_tree_p<'src, I>()
+-> impl Parser<'src, I, (TokenTree, SimpleSpan), Err<Rich<'src, Token, SimpleSpan>>>
++ Clone
+where
+  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+{
+  recursive(|tokens| {
     // Looks like `{ ... }`
     let braces = tokens
       .clone()
@@ -81,37 +123,6 @@ pub fn trees_of(
 
     x
   })
-  .recover_with(recovery)
-  .repeated()
-  .collect::<Vec<_>>();
-
-  let (opt_out, errors) = tree_parser
-    .parse(Input::map(&tokens[..], eoi, |(tk, span)| (tk, span)))
-    .into_output_errors();
-  let out = opt_out.unwrap_or_default();
-  let errors = errors.into_iter().map(|error| error.into_owned()).collect();
-
-  (out, errors)
-}
-
-/// Allow you to easily assert an output type for a parser.
-///
-/// This lets you check that any parser is actually outputting the type that you
-/// think it is:
-///
-/// ```txt
-/// // triggers a build error if the output type doesn't match
-/// assert_output::<(TokenTree, SimpleSpan), _, _, _>(&p);
-/// ```
-///
-/// This function does not actually run any code, it won't harm the performance
-/// of a release build.
-fn assert_output<'src, O, P, I, E>(_: &P)
-where
-  P: Parser<'src, I, O, E>,
-  I: Input<'src>,
-  E: ParserExtra<'src, I>,
-{
 }
 
 /// Parses an `OpBrace`, which is then discarded.

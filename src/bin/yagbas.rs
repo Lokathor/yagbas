@@ -10,7 +10,7 @@ use std::{
   process::{ExitCode, exit},
 };
 use yagbas::{
-  Ast, FileData, Item, S, YagError, items_of,
+  Ast, AstParseError, FileData, Item, S, YagError, items_of,
   separate_ast_statements_into_blocks, tac_blocks_from_expr_blocks, tokens_of,
   trees_of,
 };
@@ -59,28 +59,17 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   let v: Vec<_> = build_args
     .files
     .par_iter()
-    .map(|path_buf| {
-      FileData::load(path_buf)
-        .map(items_of)
-        .map_err(|ioe| YagError::IO(path_buf.clone(), ioe))
-    })
+    .map(load_parse(build_args.show_tokens, build_args.show_trees))
     .collect();
   let mut ast = Ast::default();
-  for res in v {
-    match res {
-      Ok((items, parse_errors)) => {
-        for S(item, _) in items {
-          if let Some(name) = item.get_name()
-            && let Some(_old_def) = ast.items.insert(name, item)
-          {
-            // todo: multiple definition error
-          }
-        }
-        for parse_error in parse_errors {
-          err_bucket.push(YagError::AstParseError(parse_error));
-        }
+  for (items, errs) in v {
+    err_bucket.extend(errs);
+    for S(item, _) in items {
+      if let Some(name) = item.get_name()
+        && let Some(_old_def) = ast.items.insert(name, item)
+      {
+        // todo: multiple definition error
       }
-      Err(yag_error) => err_bucket.push(yag_error),
     }
   }
   dbg!(&ast);
@@ -94,5 +83,36 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
 }
 
 fn print_errors(err_bucket: &[YagError]) {
-  eprintln!("{err_bucket:?}");
+  for err in err_bucket {
+    eprintln!("{err:?}");
+  }
+}
+
+fn load_parse(
+  show_tokens: bool, show_trees: bool,
+) -> impl Fn(&PathBuf) -> (Vec<S<Item>>, Vec<YagError>) {
+  move |path_buf: &PathBuf| {
+    let mut err_bucket = Vec::new();
+
+    let load_result = FileData::load(path_buf);
+    let file_data = match load_result {
+      Err(io_error) => {
+        err_bucket.push(YagError::IO(path_buf.clone(), io_error));
+        return (Vec::new(), err_bucket);
+      }
+      Ok(file_data) => file_data,
+    };
+
+    let tokens = tokens_of(file_data.content());
+    if show_tokens {
+      println!("{p} TOKENS: {tokens:?}", p = path_buf.display());
+    }
+
+    let trees = trees_of(&tokens, file_data.id(), &mut err_bucket);
+    if show_trees {
+      println!("{p} TREES: {trees:?}", p = path_buf.display());
+    }
+
+    todo!();
+  }
 }
