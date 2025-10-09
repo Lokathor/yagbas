@@ -71,13 +71,16 @@ pub struct Ast {
 }
 impl Ast {
   /// populate `static_sizes` with values from all the statics.
+  ///
+  /// Currently this only populates a size if a static is declared with a list
+  /// expression.
   pub fn populate_static_sizes(&mut self) {
     self.static_sizes.clear();
     for item in self.items.values() {
-      if let Item::Static(AstStatic { name, expr, .. }) = &item.0 {
-        if let Expr::List(xs) = &expr.0 {
-          self.static_sizes.insert(name.0, xs.len().try_into().unwrap());
-        }
+      if let Item::Static(AstStatic { name, expr, .. }) = &item.0
+        && let Expr::List(xs) = &expr.0
+      {
+        self.static_sizes.insert(name.0, xs.len().try_into().unwrap());
       }
     }
   }
