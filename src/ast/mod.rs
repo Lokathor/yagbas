@@ -5,6 +5,7 @@ use chumsky::{
   prelude::*,
 };
 use derive_more::Display;
+use rayon::prelude::*;
 use std::{collections::HashMap, ops::Range};
 use str_id::StrID;
 
@@ -63,6 +64,9 @@ pub use register::*;
 /// begin to poke the data to eventually output a compiled program.
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
+  /// Errors from AST processing.
+  pub err_bucket: Vec<YagError>,
+
   /// All the items in our AST.
   pub items: HashMap<StrID, S<Item>>,
 
@@ -82,6 +86,22 @@ impl Ast {
       {
         self.static_sizes.insert(name.0, xs.len().try_into().unwrap());
       }
+    }
+  }
+
+  pub fn expand_size_of_static(&mut self) {
+    let err_lists: Vec<_> = self
+      .items
+      .par_iter_mut()
+      .map(|(_name, s_item)| {
+        let mut err_bucket = Vec::new();
+        s_item.0.expand_size_of_static(&self.static_sizes, &mut err_bucket);
+        err_bucket
+      })
+      .collect();
+    //
+    for err_list in err_lists {
+      self.err_bucket.extend(err_list);
     }
   }
 }

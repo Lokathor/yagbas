@@ -1,4 +1,5 @@
 use super::*;
+use internal_iterator_rec::InternalIterator;
 
 /// Function definition
 ///
@@ -9,6 +10,18 @@ pub struct AstFunc {
   pub name: S<StrID>,
   pub args: Vec<(TokenTree, SimpleSpan)>,
   pub body: Vec<S<Statement>>,
+}
+impl AstFunc {
+  pub fn expand_size_of_static(
+    &mut self, static_sizes: &HashMap<StrID, i32>,
+    err_bucket: &mut Vec<YagError>,
+  ) {
+    self.body.iter_mut().for_each(|s| {
+      s.0.iter_exprs_mut().for_each(|x| {
+        x.expand_size_of_static(static_sizes, err_bucket);
+      })
+    });
+  }
 }
 
 /// Parse one [Func]

@@ -21,6 +21,18 @@ impl Item {
       Self::ItemError => return None,
     })
   }
+
+  pub fn expand_size_of_static(
+    &mut self, static_sizes: &HashMap<StrID, i32>,
+    err_bucket: &mut Vec<YagError>,
+  ) {
+    match self {
+      Self::Const(c) => c.expand_size_of_static(static_sizes, err_bucket),
+      Self::Func(f) => f.expand_size_of_static(static_sizes, err_bucket),
+      Self::Static(s) => s.expand_size_of_static(static_sizes, err_bucket),
+      _ => (),
+    }
+  }
 }
 
 pub fn items_of(

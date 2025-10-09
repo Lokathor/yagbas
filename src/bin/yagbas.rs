@@ -56,14 +56,12 @@ pub fn main() -> ExitCode {
 }
 
 pub fn do_build(build_args: BuildArgs) -> ExitCode {
-  let mut err_bucket: Vec<YagError> = Vec::new();
-
   let mut ast = Ast::default();
-  // load and parse it multi-threaded with rayon.
+  // load + parse multi-threaded with rayon.
   let load_parse_data: Vec<_> =
     build_args.files.par_iter().map(load_parse(&build_args)).collect();
   for (items, errs) in load_parse_data {
-    err_bucket.extend(errs);
+    ast.err_bucket.extend(errs);
     for item in items {
       // Note(Lokathor): ItemError entries don't have names.
       if let Some(name) = item.0.get_name()
@@ -78,10 +76,13 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   ast.populate_static_sizes();
   dbg!(&ast.static_sizes);
 
-  if err_bucket.is_empty() {
+  ast.expand_size_of_static();
+  dbg!(&ast);
+
+  if ast.err_bucket.is_empty() {
     ExitCode::SUCCESS
   } else {
-    print_errors(&err_bucket);
+    print_errors(&ast.err_bucket);
     ExitCode::FAILURE
   }
 }
@@ -105,7 +106,7 @@ fn load_parse(
     let load_result = FileData::load(path_buf);
     let file_data = match load_result {
       Err(io_error) => {
-        err_bucket.push(YagError::IO(path_buf.clone(), io_error));
+        err_bucket.push(YagError::IO(path_buf.clone(), format!("{io_error}")));
         return (Vec::new(), err_bucket);
       }
       Ok(file_data) => file_data,

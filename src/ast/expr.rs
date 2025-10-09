@@ -110,13 +110,70 @@ pub enum Expr {
   Mod(Box<[S<Self>; 2]>),
 }
 impl Expr {
-  pub fn resolve_size_of_static(
-    &mut self, _static_sizes: &HashMap<StrID, usize>,
+  pub fn expand_size_of_static(
+    &mut self, static_sizes: &HashMap<StrID, i32>,
+    err_bucket: &mut Vec<YagError>,
   ) {
-    if let Self::MacroUse(xs) = self
-      && let Some((_name, _args)) = xs.split_last()
-    {
-      todo!()
+    match self {
+      Self::MacroUse(xs) => {
+        let (name_x, args) = xs.split_last_mut().expect("macro with no name!");
+        let name: StrID = if let Self::Ident(i) = &name_x.0 {
+          *i
+        } else {
+          panic!("macro name not an ident!");
+        };
+        if name.as_str() == "size_of_static" {
+          match args {
+            [S(Expr::Ident(target), _)] => {
+              if let Some(size) = static_sizes.get(&target) {
+                *self = Expr::Val(*size);
+              } else {
+                err_bucket.push(YagError::SizeOfStatic(name_x.1))
+              }
+            }
+            _ => err_bucket.push(YagError::SizeOfStatic(name_x.1)),
+          }
+        } else {
+          args
+            .iter_mut()
+            .for_each(|x| x.0.expand_size_of_static(static_sizes, err_bucket));
+        }
+      }
+      Self::ExprError
+      | Self::Val(_)
+      | Self::NumLit(_)
+      | Self::Ident(_)
+      | Self::Bool(_)
+      | Self::Reg(_) => (),
+      Self::Structure(xs) | Self::List(xs) | Self::Deref(xs) => {
+        xs.iter_mut()
+          .for_each(|x| x.0.expand_size_of_static(static_sizes, err_bucket));
+      }
+      Self::Dot(b)
+      | Self::Assign(b)
+      | Self::Add(b)
+      | Self::Sub(b)
+      | Self::Mul(b)
+      | Self::Div(b)
+      | Self::BitAnd(b)
+      | Self::BitOr(b)
+      | Self::BitXor(b)
+      | Self::Eq(b)
+      | Self::Ne(b)
+      | Self::Lt(b)
+      | Self::Le(b)
+      | Self::Gt(b)
+      | Self::Ge(b)
+      | Self::ShiftLeft(b)
+      | Self::ShiftRight(b)
+      | Self::Mod(b) => {
+        let [lhs, rhs] = b.as_mut();
+        lhs.0.expand_size_of_static(static_sizes, err_bucket);
+        rhs.0.expand_size_of_static(static_sizes, err_bucket);
+      }
+      Self::Neg(x) | Self::Ref(x) | Self::Inc(x) | Self::Dec(x) => {
+        x.0.expand_size_of_static(static_sizes, err_bucket)
+      }
     }
   }
 }

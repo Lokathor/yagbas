@@ -1,5 +1,8 @@
 use super::*;
 
+use internal_iterator_rec::InternalIteratorRec;
+use internal_iterator_rec::adhoc_internal_iterator_rec;
+
 /// Any of the things that can go in a body of code.
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -11,6 +14,33 @@ pub enum Statement {
   Call(StrID),
   Return,
   StatementError,
+}
+impl Statement {
+  pub fn iter_exprs_mut(
+    &mut self,
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut Expr> {
+    adhoc_internal_iterator_rec!(
+      'r, self, |this: &'r mut Statement, yield_| -> &'r mut Expr {
+        match this {
+          Statement::Expr(x) => yield_(x)?,
+          Statement::IfElse(ie) => {
+            for stmt in ie.if_body.iter_mut() {
+              stmt.0.iter_exprs_mut().try_for_each_rec(yield_)?;
+            }
+            for stmt in ie.else_body.iter_mut() {
+              stmt.0.iter_exprs_mut().try_for_each_rec(yield_)?;
+            }
+          }
+          Statement::Loop(loop_) => {
+            for stmt in loop_.body.iter_mut() {
+              stmt.0.iter_exprs_mut().try_for_each_rec(yield_)?;
+            }
+          }
+          Statement::Break(_) | Statement::Continue(_) | Statement::Call(_) | Statement::Return | Statement::StatementError => (),
+        }
+      }
+    )
+  }
 }
 
 /// Parse one [Statement]

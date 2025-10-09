@@ -19,8 +19,10 @@
 //! Yagbas is a compiler for a language of the same name.
 
 use chumsky::error::Rich;
+use chumsky::prelude::SimpleSpan;
 use core::{mem::replace, num::NonZeroUsize};
 use derive_more::Display;
+use internal_iterator_rec::InternalIterator;
 use std::{collections::HashMap, path::PathBuf};
 use str_id::StrID;
 
@@ -39,9 +41,10 @@ pub use ast::*;
 pub mod blocks;
 pub use blocks::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum YagError {
-  IO(PathBuf, std::io::Error),
+  IO(PathBuf, String),
   TokenTreeParseError(Rich<'static, Token>, FileID),
   ItemParseError(Rich<'static, TokenTree>, FileID),
+  SizeOfStatic(SimpleSpan),
 }
