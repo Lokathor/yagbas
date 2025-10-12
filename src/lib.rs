@@ -46,5 +46,6 @@ pub enum YagError {
   IO(PathBuf, String),
   TokenTreeParseError(Rich<'static, Token>, FileID),
   ItemParseError(Rich<'static, TokenTree>, FileID),
-  SizeOfStatic(SimpleSpan),
+  MacroSizeOfStatic(SimpleSpan),
+  MacroPalette(SimpleSpan),
 }

@@ -6,6 +6,7 @@ use super::*;
 /// errors) happens after the basic AST is parsed.
 #[derive(Debug, Clone, Default)]
 pub enum Expr {
+  // non-recursive
   /// Any error during expression processing
   #[default]
   ExprError,
@@ -25,17 +26,12 @@ pub enum Expr {
   /// `true` or `false`
   Bool(bool),
 
-  /// `LcdCtrl { display_on, bg_on }`, `Position { x= 15, y= 20 }`
-  ///
-  /// Both bitstructs and standard structs use this form. The encoding is that
-  /// the name (and its span) is pushed onto the end of the vec when packing it.
-  Structure(Box<Vec<S<Expr>>>),
+  // recurse many
+  /// `[hl]`
+  Deref(Box<Vec<S<Expr>>>),
 
   /// `{ expr0, expr1, ..., exprN }`
   List(Box<Vec<S<Expr>>>),
-
-  /// `[hl]`
-  Deref(Box<Vec<S<Expr>>>),
 
   /// `macro_name!( expr0, expr1, ... exprN )`
   ///
@@ -43,20 +39,15 @@ pub enum Expr {
   /// the vec.
   MacroUse(Box<Vec<S<Expr>>>),
 
+  /// `LcdCtrl { display_on, bg_on }`, `Position { x= 15, y= 20 }`
+  ///
+  /// Both bitstructs and standard structs use this form. The encoding is that
+  /// the name (and its span) is pushed onto the end of the vec when packing it.
+  Structure(Box<Vec<S<Expr>>>),
+
+  // recurse 2
   /// `array.0`, `b.LcdCtrl.bg_on`, etc
   Dot(Box<[S<Self>; 2]>),
-
-  /// `-12`
-  Neg(Box<S<Self>>),
-
-  /// `&12`
-  Ref(Box<S<Self>>),
-
-  /// `12++`
-  Inc(Box<S<Self>>),
-
-  /// `12--`
-  Dec(Box<S<Self>>),
 
   /// `a = 12`
   Assign(Box<[S<Self>; 2]>),
@@ -108,8 +99,58 @@ pub enum Expr {
 
   /// `12 % 4`
   Mod(Box<[S<Self>; 2]>),
+
+  // recurse 1
+  /// `-12`
+  Neg(Box<S<Self>>),
+
+  /// `&12`
+  Ref(Box<S<Self>>),
+
+  /// `12++`
+  Inc(Box<S<Self>>),
+
+  /// `12--`
+  Dec(Box<S<Self>>),
 }
 impl Expr {
+  pub fn inner_expr_mut(&mut self) -> &mut [S<Expr>] {
+    match self {
+      Self::ExprError
+      | Self::Val(_)
+      | Self::NumLit(_)
+      | Self::Ident(_)
+      | Self::Bool(_)
+      | Self::Reg(_) => &mut [],
+      Self::Structure(xs) | Self::MacroUse(xs) => {
+        // Note(Lokathor): we want to return the slice of the inner expr values, but not the macro's name (the last element of the vec).
+        xs.as_mut_slice().split_last_mut().unwrap().1
+      }
+      Self::List(xs) | Self::Deref(xs) => xs.as_mut_slice(),
+      Self::Dot(b)
+      | Self::Assign(b)
+      | Self::Add(b)
+      | Self::Sub(b)
+      | Self::Mul(b)
+      | Self::Div(b)
+      | Self::BitAnd(b)
+      | Self::BitOr(b)
+      | Self::BitXor(b)
+      | Self::Eq(b)
+      | Self::Ne(b)
+      | Self::Lt(b)
+      | Self::Le(b)
+      | Self::Gt(b)
+      | Self::Ge(b)
+      | Self::ShiftLeft(b)
+      | Self::ShiftRight(b)
+      | Self::Mod(b) => b.as_mut(),
+      Self::Neg(x) | Self::Ref(x) | Self::Inc(x) | Self::Dec(x) => {
+        core::slice::from_mut(&mut *x)
+      }
+    }
+  }
+
   pub fn expand_size_of_static(
     &mut self, static_sizes: &HashMap<StrID, i32>,
     err_bucket: &mut Vec<YagError>,
@@ -128,10 +169,10 @@ impl Expr {
               if let Some(size) = static_sizes.get(&target) {
                 *self = Expr::Val(*size);
               } else {
-                err_bucket.push(YagError::SizeOfStatic(name_x.1))
+                err_bucket.push(YagError::MacroSizeOfStatic(name_x.1))
               }
             }
-            _ => err_bucket.push(YagError::SizeOfStatic(name_x.1)),
+            _ => err_bucket.push(YagError::MacroSizeOfStatic(name_x.1)),
           }
         } else {
           args

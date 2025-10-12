@@ -22,6 +22,12 @@ impl AstFunc {
       })
     });
   }
+
+  pub fn iter_statements_mut(
+    &mut self,
+  ) -> impl Iterator<Item = &mut S<Statement>> + '_ {
+    self.body.iter_mut()
+  }
 }
 
 /// Parse one [Func]
