@@ -114,6 +114,9 @@ pub enum Expr {
   Dec(Box<S<Self>>),
 }
 impl Expr {
+  /// Returns the slice of all inner expressions.
+  ///
+  /// This is mostly used when we want to pass an expression edit "through" a layer that does not care about the current edit.
   pub fn inner_expr_mut(&mut self) -> &mut [S<Expr>] {
     match self {
       Self::ExprError
@@ -180,41 +183,10 @@ impl Expr {
             .for_each(|x| x.0.expand_size_of_static(static_sizes, err_bucket));
         }
       }
-      Self::ExprError
-      | Self::Val(_)
-      | Self::NumLit(_)
-      | Self::Ident(_)
-      | Self::Bool(_)
-      | Self::Reg(_) => (),
-      Self::Structure(xs) | Self::List(xs) | Self::Deref(xs) => {
-        xs.iter_mut()
-          .for_each(|x| x.0.expand_size_of_static(static_sizes, err_bucket));
-      }
-      Self::Dot(b)
-      | Self::Assign(b)
-      | Self::Add(b)
-      | Self::Sub(b)
-      | Self::Mul(b)
-      | Self::Div(b)
-      | Self::BitAnd(b)
-      | Self::BitOr(b)
-      | Self::BitXor(b)
-      | Self::Eq(b)
-      | Self::Ne(b)
-      | Self::Lt(b)
-      | Self::Le(b)
-      | Self::Gt(b)
-      | Self::Ge(b)
-      | Self::ShiftLeft(b)
-      | Self::ShiftRight(b)
-      | Self::Mod(b) => {
-        let [lhs, rhs] = b.as_mut();
-        lhs.0.expand_size_of_static(static_sizes, err_bucket);
-        rhs.0.expand_size_of_static(static_sizes, err_bucket);
-      }
-      Self::Neg(x) | Self::Ref(x) | Self::Inc(x) | Self::Dec(x) => {
-        x.0.expand_size_of_static(static_sizes, err_bucket)
-      }
+      other => other
+        .inner_expr_mut()
+        .iter_mut()
+        .for_each(|x| x.0.expand_size_of_static(static_sizes, err_bucket)),
     }
   }
 }
