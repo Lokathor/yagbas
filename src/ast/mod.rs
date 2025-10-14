@@ -95,7 +95,7 @@ impl Ast {
       .par_iter_mut()
       .map(|(_name, s_item)| {
         let mut err_bucket = Vec::new();
-        s_item.0.expand_size_of_static(&self.static_sizes, &mut err_bucket);
+        expand_size_of_static(s_item, &self.static_sizes, &mut err_bucket);
         err_bucket
       })
       .collect();

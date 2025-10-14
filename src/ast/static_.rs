@@ -12,12 +12,7 @@ pub struct AstStatic {
   pub expr: S<Expr>,
 }
 impl AstStatic {
-  pub fn expand_size_of_static(
-    &mut self, static_sizes: &HashMap<StrID, i32>,
-    err_bucket: &mut Vec<YagError>,
-  ) {
-    self.expr.0.expand_size_of_static(static_sizes, err_bucket);
-  }
+  //
 }
 
 /// Parse one [Static]

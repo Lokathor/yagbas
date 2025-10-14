@@ -153,42 +153,6 @@ impl Expr {
       }
     }
   }
-
-  pub fn expand_size_of_static(
-    &mut self, static_sizes: &HashMap<StrID, i32>,
-    err_bucket: &mut Vec<YagError>,
-  ) {
-    match self {
-      Self::MacroUse(xs) => {
-        let (name_x, args) = xs.split_last_mut().expect("macro with no name!");
-        let name: StrID = if let Self::Ident(i) = &name_x.0 {
-          *i
-        } else {
-          panic!("macro name not an ident!");
-        };
-        if name.as_str() == "size_of_static" {
-          match args {
-            [S(Expr::Ident(target), _)] => {
-              if let Some(size) = static_sizes.get(&target) {
-                *self = Expr::Val(*size);
-              } else {
-                err_bucket.push(YagError::MacroSizeOfStatic(name_x.1))
-              }
-            }
-            _ => err_bucket.push(YagError::MacroSizeOfStatic(name_x.1)),
-          }
-        } else {
-          args
-            .iter_mut()
-            .for_each(|x| x.0.expand_size_of_static(static_sizes, err_bucket));
-        }
-      }
-      other => other
-        .inner_expr_mut()
-        .iter_mut()
-        .for_each(|x| x.0.expand_size_of_static(static_sizes, err_bucket)),
-    }
-  }
 }
 
 macro_rules! infix_maker {

@@ -21,17 +21,58 @@ impl Item {
       Self::ItemError => return None,
     })
   }
+}
 
-  pub fn expand_size_of_static(
-    &mut self, static_sizes: &HashMap<StrID, i32>,
+#[allow(unused)]
+pub fn expand_size_of_static(
+  s_item: &mut S<Item>, static_sizes: &HashMap<StrID, i32>,
+  err_bucket: &mut Vec<YagError>,
+) {
+  fn per_expr(
+    s_expr: &mut S<Expr>, static_sizes: &HashMap<StrID, i32>,
     err_bucket: &mut Vec<YagError>,
   ) {
-    match self {
-      Self::Const(c) => c.expand_size_of_static(static_sizes, err_bucket),
-      Self::Func(f) => f.expand_size_of_static(static_sizes, err_bucket),
-      Self::Static(s) => s.expand_size_of_static(static_sizes, err_bucket),
-      _ => (),
+    match s_expr {
+      S(Expr::MacroUse(xs), span) => {
+        let (name_x, args) = xs.split_last_mut().expect("macro with no name!");
+        let name: StrID = if let Expr::Ident(i) = &name_x.0 {
+          *i
+        } else {
+          panic!("macro name not an ident!");
+        };
+        if name.as_str() == "size_of_static" {
+          match args {
+            [S(Expr::Ident(target), _)] => {
+              if let Some(size) = static_sizes.get(target) {
+                s_expr.0 = Expr::Val(*size);
+              } else {
+                err_bucket.push(YagError::MacroSizeOfStatic(name_x.1))
+              }
+            }
+            _ => err_bucket.push(YagError::MacroSizeOfStatic(name_x.1)),
+          }
+        } else {
+          args
+            .iter_mut()
+            .for_each(|s_expr| per_expr(s_expr, static_sizes, err_bucket));
+        }
+      }
+      S(other, _span) => other
+        .inner_expr_mut()
+        .iter_mut()
+        .for_each(|s_expr| per_expr(s_expr, static_sizes, err_bucket)),
     }
+  };
+
+  match s_item {
+    S(Item::Const(c), span) => per_expr(&mut c.expr, static_sizes, err_bucket),
+    S(Item::Static(s), span) => per_expr(&mut s.expr, static_sizes, err_bucket),
+    S(Item::Func(f), span) => {
+      for s_statement in f.iter_s_statements_mut() {
+        todo!();
+      }
+    }
+    _ => (),
   }
 }
 

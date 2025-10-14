@@ -12,18 +12,7 @@ pub struct AstFunc {
   pub body: Vec<S<Statement>>,
 }
 impl AstFunc {
-  pub fn expand_size_of_static(
-    &mut self, static_sizes: &HashMap<StrID, i32>,
-    err_bucket: &mut Vec<YagError>,
-  ) {
-    self.body.iter_mut().for_each(|s| {
-      s.0.iter_exprs_mut().for_each(|x| {
-        x.expand_size_of_static(static_sizes, err_bucket);
-      })
-    });
-  }
-
-  pub fn iter_statements_mut(
+  pub fn iter_s_statements_mut(
     &mut self,
   ) -> impl Iterator<Item = &mut S<Statement>> + '_ {
     self.body.iter_mut()
