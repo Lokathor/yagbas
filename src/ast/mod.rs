@@ -1,3 +1,4 @@
+use super::*;
 use crate::{FileData, FileID, Token, TokenTree, YagError, trees_of};
 use chumsky::{
   extra::{Err, Full, ParserExtra, SimpleState},
@@ -64,9 +65,6 @@ pub use register::*;
 /// begin to poke the data to eventually output a compiled program.
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
-  /// Errors from AST processing.
-  pub err_bucket: Vec<YagError>,
-
   /// All the items in our AST.
   pub items: HashMap<StrID, S<Item>>,
 
@@ -90,19 +88,9 @@ impl Ast {
   }
 
   pub fn expand_size_of_static(&mut self) {
-    let err_lists: Vec<_> = self
-      .items
-      .par_iter_mut()
-      .map(|(_name, s_item)| {
-        let mut err_bucket = Vec::new();
-        expand_size_of_static(s_item, &self.static_sizes, &mut err_bucket);
-        err_bucket
-      })
-      .collect();
-    //
-    for err_list in err_lists {
-      self.err_bucket.extend(err_list);
-    }
+    self.items.par_iter_mut().for_each(|(_name, s_item)| {
+      per_item_expand_size_of_static(s_item, &self.static_sizes);
+    });
   }
 }
 

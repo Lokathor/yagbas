@@ -15,7 +15,7 @@ pub enum ExprBlockFlow {
 #[derive(Debug, Clone, Default, Display)]
 pub enum ExprBlockStep {
   /// Evaluate an expression.
-  Expr(Expr),
+  Expr(S<Expr>),
   /// Call a function.
   ///
   /// * Functions dont currently return a value, so they are always their own

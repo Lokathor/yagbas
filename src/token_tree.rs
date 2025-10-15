@@ -1,4 +1,4 @@
-use crate::{FileID, Token, YagError, tokens_of};
+use crate::{FileID, Token, YagError, log_error, tokens_of};
 use chumsky::{
   extra::{Err, ParserExtra},
   input::{BorrowInput, ValueInput},
@@ -16,7 +16,6 @@ pub enum TokenTree {
 
 pub fn trees_of(
   tokens: &[(Token, SimpleSpan)], file_id: FileID,
-  err_bucket: &mut Vec<YagError>,
 ) -> Vec<(TokenTree, SimpleSpan)> {
   let eoi: SimpleSpan = match tokens.last() {
     Some(s) => s.1,
@@ -36,11 +35,10 @@ pub fn trees_of(
   let (opt_out, errors) = tree_parser
     .parse(Input::map(tokens, eoi, |(tk, span)| (tk, span)))
     .into_output_errors();
-  err_bucket.extend(
-    errors
-      .into_iter()
-      .map(|error| YagError::TokenTreeParseError(error.into_owned(), file_id)),
-  );
+
+  errors.into_iter().for_each(|error| {
+    log_error(YagError::TokenTreeParseError(file_id, error.into_owned()))
+  });
 
   opt_out.unwrap_or_default()
 }

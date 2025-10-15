@@ -168,7 +168,7 @@ fn tac_steps_from_expr_step(
     ExprBlockStep::Call(id) => {
       tacs.push(TacStep::Call(*id));
     }
-    ExprBlockStep::Expr(Expr::Assign(b)) => {
+    ExprBlockStep::Expr(S(Expr::Assign(b), _span)) => {
       tac_assign(b.as_ref(), tacs);
     }
     _other => {

@@ -41,11 +41,5 @@ pub use ast::*;
 pub mod blocks;
 pub use blocks::*;
 
-#[derive(Debug, Clone)]
-pub enum YagError {
-  IO(PathBuf, String),
-  TokenTreeParseError(Rich<'static, Token>, FileID),
-  ItemParseError(Rich<'static, TokenTree>, FileID),
-  MacroSizeOfStatic(SimpleSpan),
-  MacroPalette(SimpleSpan),
-}
+pub mod error;
+pub use error::*;

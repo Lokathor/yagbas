@@ -10,7 +10,7 @@ use std::{
   process::{ExitCode, exit},
 };
 use yagbas::{
-  Ast, FileData, Item, S, YagError, items_of,
+  Ast, FileData, Item, S, YagError, items_of, log_error, print_any_errors,
   separate_ast_statements_into_blocks, tac_blocks_from_expr_blocks, tokens_of,
   trees_of,
 };
@@ -60,8 +60,7 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   // load + parse multi-threaded with rayon.
   let load_parse_data: Vec<_> =
     build_args.files.par_iter().map(load_parse(&build_args)).collect();
-  for (items, errs) in load_parse_data {
-    ast.err_bucket.extend(errs);
+  for items in load_parse_data {
     for item in items {
       // Note(Lokathor): ItemError entries don't have names.
       if let Some(name) = item.0.get_name()
@@ -79,35 +78,19 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   ast.expand_size_of_static();
   dbg!(&ast);
 
-  if ast.err_bucket.is_empty() {
-    ExitCode::SUCCESS
-  } else {
-    print_errors(&ast.err_bucket);
-    ExitCode::FAILURE
-  }
-}
-
-fn print_errors(err_bucket: &[YagError]) {
-  // TODO: make this the good version, not the bad version.
-  for err in err_bucket {
-    eprintln!("{err:?}");
-  }
+  if print_any_errors() { ExitCode::FAILURE } else { ExitCode::SUCCESS }
 }
 
 /// This makes a closure that can load and parse the items from a given file.
 ///
 /// Each file will run this closure once, possibly on separate threads.
-fn load_parse(
-  build_args: &BuildArgs,
-) -> impl Fn(&PathBuf) -> (Vec<S<Item>>, Vec<YagError>) {
+fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<S<Item>> {
   move |path_buf: &PathBuf| {
-    let mut err_bucket = Vec::new();
-
     let load_result = FileData::load(path_buf);
     let file_data = match load_result {
       Err(io_error) => {
-        err_bucket.push(YagError::IO(path_buf.clone(), format!("{io_error}")));
-        return (Vec::new(), err_bucket);
+        log_error(YagError::IO(path_buf.clone(), format!("{io_error}")));
+        return Vec::new();
       }
       Ok(file_data) => file_data,
     };
@@ -117,16 +100,16 @@ fn load_parse(
       println!("{p} TOKENS: {tokens:?}", p = path_buf.display());
     }
 
-    let trees = trees_of(&tokens, file_data.id(), &mut err_bucket);
+    let trees = trees_of(&tokens, file_data.id());
     if build_args.show_trees {
       println!("{p} TREES: {trees:?}", p = path_buf.display());
     }
 
-    let items = items_of(&trees, file_data, &mut err_bucket);
+    let items = items_of(&trees, file_data);
     if build_args.show_items {
       println!("{p} ITEMS: {items:?}", p = path_buf.display());
     }
 
-    (items, err_bucket)
+    items
   }
 }

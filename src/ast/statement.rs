@@ -6,7 +6,7 @@ use internal_iterator_rec::adhoc_internal_iterator_rec;
 /// Any of the things that can go in a body of code.
 #[derive(Debug, Clone)]
 pub enum Statement {
-  Expr(Expr),
+  Expr(S<Expr>),
   IfElse(Box<IfElse>),
   Loop(Box<Loop>),
   Break(Option<StrID>),
@@ -16,24 +16,24 @@ pub enum Statement {
   StatementError,
 }
 impl Statement {
-  pub fn iter_exprs_mut(
+  pub fn iter_s_exprs_mut(
     &mut self,
-  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut Expr> {
+  ) -> impl '_ + InternalIteratorRec<Item = &'_ mut S<Expr>> {
     adhoc_internal_iterator_rec!(
-      'r, self, |this: &'r mut Statement, yield_| -> &'r mut Expr {
+      'r, self, |this: &'r mut Statement, yield_| -> &'r mut S<Expr> {
         match this {
           Statement::Expr(x) => yield_(x)?,
           Statement::IfElse(ie) => {
             for stmt in ie.if_body.iter_mut() {
-              stmt.0.iter_exprs_mut().try_for_each_rec(yield_)?;
+              stmt.0.iter_s_exprs_mut().try_for_each_rec(yield_)?;
             }
             for stmt in ie.else_body.iter_mut() {
-              stmt.0.iter_exprs_mut().try_for_each_rec(yield_)?;
+              stmt.0.iter_s_exprs_mut().try_for_each_rec(yield_)?;
             }
           }
           Statement::Loop(loop_) => {
             for stmt in loop_.body.iter_mut() {
-              stmt.0.iter_exprs_mut().try_for_each_rec(yield_)?;
+              stmt.0.iter_s_exprs_mut().try_for_each_rec(yield_)?;
             }
           }
           Statement::Break(_) | Statement::Continue(_) | Statement::Call(_) | Statement::Return | Statement::StatementError => (),
@@ -62,7 +62,7 @@ where
       .collect()
       .nested_in(braces_content_p(make_input));
 
-    let expr = expr_p(make_input).map(|S(expr, _span)| Statement::Expr(expr));
+    let expr = expr_p(make_input).map(Statement::Expr);
     let loop_ = {
       let name = quote_p()
         .ignore_then(ident_p())
