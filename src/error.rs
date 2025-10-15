@@ -1,4 +1,5 @@
 use super::*;
+use core::iter::IntoIterator;
 use std::sync::Mutex;
 use std::sync::PoisonError;
 
@@ -15,9 +16,13 @@ pub enum YagError {
 pub static ERROR_BUCKET: Mutex<Vec<YagError>> = Mutex::new(Vec::new());
 
 pub fn log_error(e: YagError) {
+  log_error_iter([e]);
+}
+
+pub fn log_error_iter<I: IntoIterator<Item = YagError>>(i: I) {
   let mut locked_vec =
     ERROR_BUCKET.lock().unwrap_or_else(PoisonError::into_inner);
-  locked_vec.push(e);
+  locked_vec.extend(i);
 }
 
 /// Returns `true` if there is an error printed.

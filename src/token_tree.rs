@@ -1,4 +1,4 @@
-use crate::{FileID, Token, YagError, log_error, tokens_of};
+use super::*;
 use chumsky::{
   extra::{Err, ParserExtra},
   input::{BorrowInput, ValueInput},
@@ -36,9 +36,11 @@ pub fn trees_of(
     .parse(Input::map(tokens, eoi, |(tk, span)| (tk, span)))
     .into_output_errors();
 
-  errors.into_iter().for_each(|error| {
-    log_error(YagError::TokenTreeParseError(file_id, error.into_owned()))
-  });
+  log_error_iter(
+    errors
+      .into_iter()
+      .map(|error| YagError::TokenTreeParseError(file_id, error.into_owned())),
+  );
 
   opt_out.unwrap_or_default()
 }

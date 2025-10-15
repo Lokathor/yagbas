@@ -120,9 +120,11 @@ pub fn items_of(
     .parse_with_state(make_tt_input(trees, eoi), &mut SimpleState(file_data))
     .into_output_errors();
 
-  item_errors.into_iter().for_each(|error| {
-    log_error(YagError::ItemParseError(file_data.id(), error.into_owned()))
-  });
+  log_error_iter(
+    item_errors.into_iter().map(|error| {
+      YagError::ItemParseError(file_data.id(), error.into_owned())
+    }),
+  );
 
   opt_out.unwrap_or_default()
 }
