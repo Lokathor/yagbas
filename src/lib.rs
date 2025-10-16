@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 #![allow(unused_mut)]
 #![allow(unused_imports)]
+#![allow(unused_parens)]
 #![allow(clippy::ptr_arg)]
 #![allow(clippy::let_and_return)]
 #![allow(clippy::type_complexity)]

@@ -55,6 +55,7 @@ pub fn main() -> ExitCode {
   }
 }
 
+#[allow(unused)]
 pub fn do_build(build_args: BuildArgs) -> ExitCode {
   let mut ast = Ast::default();
   // load + parse multi-threaded with rayon.
@@ -66,18 +67,42 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
       if let Some(name) = item.0.get_name()
         && let Some(_old_def) = ast.items.insert(name, item)
       {
-        // todo: multiple definition error
+        todo!("multiple definition: {name}");
       }
     }
   }
   // now we have a basic AST.
 
   ast.populate_static_sizes();
-  dbg!(&ast.static_sizes);
-
+  ast.populate_ir_bitstructs();
+  ast.populate_const_exprs();
+  // todo: populate static defs
   ast.do_per_item_data_cleanup();
-  for f in ast.items.values().filter(|i| matches!(i, S(Item::Func(_), _))) {
-    dbg!(&f);
+
+  //dbg!(&ast.ir_bitstructs);
+
+  for i in ast.items.values() {
+    match &i.0 {
+      Item::Func(f) => {
+        println!();
+        println!("== fn {}>", f.name);
+        let blocks = separate_ast_statements_into_blocks(&f.body);
+        for (i, block) in blocks.iter().enumerate() {
+          if i > 0 {
+            println!();
+          }
+          println!("block {} {{", block.id);
+          for step in block.steps.iter() {
+            println!("  {step}");
+          }
+          println!("}} then {};", block.next);
+        }
+      }
+      Item::Const(c) => {
+        //dbg!(&c);
+      }
+      _ => (),
+    }
   }
 
   if print_any_errors() { ExitCode::FAILURE } else { ExitCode::SUCCESS }

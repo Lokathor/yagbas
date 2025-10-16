@@ -164,14 +164,94 @@ fn per_expr_parse_numlit(s_expr: &mut S<Expr>, file_id: FileID) {
   }
 }
 
+fn per_expr_bitstruct_literals(
+  s_expr: &mut S<Expr>, ir_bitstructs: &HashMap<StrID, IrBitStruct>,
+  file_id: FileID,
+) {
+  match s_expr {
+    S(Expr::Structure(xs), _span) => {
+      let (name_x, args) = xs.split_last_mut().expect("bad parser");
+      let struct_name = if let Expr::Ident(i) = &name_x.0 {
+        *i
+      } else {
+        panic!("name not an ident!");
+      };
+      if let Some(ir) = ir_bitstructs.get(&struct_name) {
+        let mut out = 0_u8;
+        for S(field_x, _span) in args {
+          if let Expr::Ident(name) = field_x {
+            if let Some(bit) = ir.get_bit_of(*name) {
+              out |= (1 << bit);
+            } else {
+              todo!("named a missing field: {name}");
+            }
+          } else {
+            todo!("field expr not ident");
+          }
+        }
+        s_expr.0 = Expr::Val(i32::from(out));
+      } else {
+        todo!("bitstruct not defined");
+      }
+    }
+    S(other, _span) => other.inner_expr_mut().iter_mut().for_each(|s_expr| {
+      per_expr_bitstruct_literals(s_expr, ir_bitstructs, file_id)
+    }),
+  }
+}
+
+fn per_expr_check_static_refs(
+  s_expr: &mut S<Expr>, static_sizes: &HashMap<StrID, i32>, file_id: FileID,
+) {
+  match s_expr {
+    S(Expr::Ref(s_x), _span) => match &**s_x {
+      S(Expr::Ident(static_name), _span) => {
+        if static_sizes.contains_key(static_name) {
+          s_expr.0 = Expr::RefToStatic(*static_name);
+        } else {
+          todo!("static missing");
+        }
+      }
+      _other_content => {
+        todo!();
+      }
+    },
+    S(other, _span) => other.inner_expr_mut().iter_mut().for_each(|s_expr| {
+      per_expr_check_static_refs(s_expr, static_sizes, file_id);
+    }),
+  }
+}
+
+fn per_expr_replace_const_idents(
+  s_expr: &mut S<Expr>, const_exprs: &HashMap<StrID, Expr>, file_id: FileID,
+) {
+  match s_expr {
+    S(Expr::Ident(i), _span) => {
+      if let Some(xpr) = const_exprs.get(i) {
+        s_expr.0 = xpr.clone();
+      } else {
+        // Think: is this an error?
+      }
+    }
+    S(other, _span) => other.inner_expr_mut().iter_mut().for_each(|s_expr| {
+      per_expr_replace_const_idents(s_expr, const_exprs, file_id);
+    }),
+  }
+}
+
 pub fn per_item_data_cleanup(
   s_item: &mut S<Item>, static_sizes: &HashMap<StrID, i32>,
+  ir_bitstructs: &HashMap<StrID, IrBitStruct>,
+  const_exprs: &HashMap<StrID, Expr>,
 ) {
   let file_id = s_item.0.file_id();
   s_item.0.iter_s_exprs_mut().for_each(|s_expr| {
     per_expr_expand_size_of_static(s_expr, static_sizes, file_id);
+    per_expr_check_static_refs(s_expr, static_sizes, file_id);
     per_expr_expand_palette(s_expr, file_id);
     per_expr_parse_numlit(s_expr, file_id);
+    per_expr_bitstruct_literals(s_expr, ir_bitstructs, file_id);
+    per_expr_replace_const_idents(s_expr, const_exprs, file_id)
   })
 }
 

@@ -14,6 +14,9 @@ pub enum Expr {
   /// A value produced by an intermediate computation during compilation.
   Val(i32),
 
+  /// Reference to a static value.
+  RefToStatic(StrID),
+
   /// `123`, `$FF`, `%10_01_00_00`, etc
   NumLit(StrID),
 
@@ -124,7 +127,8 @@ impl Expr {
       | Self::NumLit(_)
       | Self::Ident(_)
       | Self::Bool(_)
-      | Self::Reg(_) => &mut [],
+      | Self::Reg(_)
+      | Self::RefToStatic(_) => &mut [],
       Self::Structure(xs) | Self::MacroUse(xs) => {
         // Note(Lokathor): we want to return the slice of the inner expr values, but not the macro's name (the last element of the vec).
         xs.as_mut_slice().split_last_mut().unwrap().1

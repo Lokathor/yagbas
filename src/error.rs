@@ -1,4 +1,5 @@
 use super::*;
+use chumsky::error::{RichPattern, RichReason};
 use core::iter::IntoIterator;
 use std::sync::Mutex;
 use std::sync::PoisonError;
@@ -12,6 +13,8 @@ pub enum YagError {
   MacroSizeOfStaticBadArgs(FileID, SimpleSpan),
   MacroPaletteBadArgs(FileID, SimpleSpan),
   BadNumLit(FileID, SimpleSpan),
+  DuplicateFieldName(FileID, SimpleSpan),
+  IllegalFieldName(FileID, SimpleSpan),
 }
 
 pub static ERROR_BUCKET: Mutex<Vec<YagError>> = Mutex::new(Vec::new());

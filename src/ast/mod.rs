@@ -70,6 +70,11 @@ pub struct Ast {
 
   /// The RAM/ROM sizes (in bytes) of all static items.
   pub static_sizes: HashMap<StrID, i32>,
+
+  /// Bitstruct data verified into a useful internal format.
+  pub ir_bitstructs: HashMap<StrID, IrBitStruct>,
+
+  pub const_exprs: HashMap<StrID, Expr>,
 }
 impl Ast {
   /// populate `static_sizes` with values from all the statics.
@@ -87,9 +92,45 @@ impl Ast {
     }
   }
 
+  pub fn populate_ir_bitstructs(&mut self) {
+    self.ir_bitstructs.clear();
+    self.ir_bitstructs.par_extend(self.items.par_iter().filter_map(
+      |(_k, v)| match &v.0 {
+        Item::BitStruct(b) => {
+          IrBitStruct::try_from_ast_data(b).map(|ir| (ir.name, ir))
+        }
+        _ => None,
+      },
+    ));
+  }
+
+  pub fn populate_const_exprs(&mut self) {
+    self.const_exprs.clear();
+    self.const_exprs.par_extend(self.items.par_iter().filter_map(|(_k, v)| {
+      match &v.0 {
+        Item::Const(c) => {
+          if let Expr::NumLit(n) = &c.expr.0 {
+            match parse_num_lit(*n) {
+              Some(i) => Some((c.name.0, Expr::Val(i))),
+              None => todo!("bad lit err"),
+            }
+          } else {
+            todo!("illegal const expr");
+          }
+        }
+        _ => None,
+      }
+    }));
+  }
+
   pub fn do_per_item_data_cleanup(&mut self) {
     self.items.par_iter_mut().for_each(|(_name, s_item)| {
-      per_item_data_cleanup(s_item, &self.static_sizes);
+      per_item_data_cleanup(
+        s_item,
+        &self.static_sizes,
+        &self.ir_bitstructs,
+        &self.const_exprs,
+      );
     });
   }
 }

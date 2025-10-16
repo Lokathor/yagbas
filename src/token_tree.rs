@@ -13,6 +13,7 @@ pub enum TokenTree {
   Braces(Vec<(TokenTree, SimpleSpan)>),
   TreeError,
 }
+// TODO: we can make this type 25% smaller if we replace the Vec with a boxed slice.
 
 pub fn trees_of(
   tokens: &[(Token, SimpleSpan)], file_id: FileID,

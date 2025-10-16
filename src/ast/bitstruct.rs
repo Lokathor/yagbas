@@ -11,6 +11,50 @@ pub struct AstBitStruct {
   pub fields: Vec<(S<StrID>, S<StrID>)>,
 }
 
+#[derive(Debug, Clone)]
+pub struct IrBitStruct {
+  pub file_id: FileID,
+  pub name: StrID,
+  pub name_span: SimpleSpan,
+  pub bit_names: [Option<StrID>; 8],
+  pub name_spans: [Option<SimpleSpan>; 8],
+  pub bit_spans: [Option<SimpleSpan>; 8],
+}
+impl IrBitStruct {
+  pub fn try_from_ast_data(b: &AstBitStruct) -> Option<Self> {
+    let mut out = Self {
+      file_id: b.file_id,
+      name: b.name.0,
+      name_span: b.name.1,
+      bit_names: [None; 8],
+      name_spans: [None; 8],
+      bit_spans: [None; 8],
+    };
+
+    let mut bad = false;
+    for (s_f_name, s_f_bit) in b.fields.iter() {
+      if let Some(i) = parse_num_lit(s_f_bit.0)
+        && let Some(u) = usize::try_from(i).ok()
+        && u < 8
+      {
+        if let Some(_cur) = out.bit_names[u] {
+          log_error(YagError::DuplicateFieldName(b.file_id, s_f_name.1));
+          bad = true;
+        } else {
+          out.bit_names[u] = Some(s_f_name.0);
+          out.name_spans[u] = Some(s_f_name.1);
+          out.bit_spans[u] = Some(s_f_bit.1);
+        }
+      }
+    }
+    if bad { None } else { Some(out) }
+  }
+
+  pub fn get_bit_of(&self, name: StrID) -> Option<usize> {
+    self.bit_names.iter().position(|bit_name| *bit_name == Some(name))
+  }
+}
+
 /// Parse one [BitStruct]
 pub(crate) fn bitstruct_p<'src, I, M>(
   make_input: M,

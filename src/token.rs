@@ -187,6 +187,11 @@ impl Token {
   }
 }
 
+#[test]
+fn test_token_size() {
+  assert_eq!(core::mem::size_of::<Token>(), 1);
+}
+
 pub fn tokens_of(source: &str) -> Vec<(Token, SimpleSpan)> {
   Token::lexer(source)
     .spanned()
