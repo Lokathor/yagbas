@@ -10,7 +10,8 @@ pub enum YagError {
   ItemParseError(FileID, Rich<'static, TokenTree>),
   MacroSizeOfStaticNoSize(FileID, SimpleSpan),
   MacroSizeOfStaticBadArgs(FileID, SimpleSpan),
-  MacroPalette(FileID, SimpleSpan),
+  MacroPaletteBadArgs(FileID, SimpleSpan),
+  BadNumLit(FileID, SimpleSpan),
 }
 
 pub static ERROR_BUCKET: Mutex<Vec<YagError>> = Mutex::new(Vec::new());

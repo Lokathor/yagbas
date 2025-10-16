@@ -75,8 +75,10 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   ast.populate_static_sizes();
   dbg!(&ast.static_sizes);
 
-  ast.expand_size_of_static();
-  dbg!(&ast);
+  ast.do_per_item_data_cleanup();
+  for f in ast.items.values().filter(|i| matches!(i, S(Item::Func(_), _))) {
+    dbg!(&f);
+  }
 
   if print_any_errors() { ExitCode::FAILURE } else { ExitCode::SUCCESS }
 }

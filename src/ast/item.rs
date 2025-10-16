@@ -87,12 +87,91 @@ fn per_expr_expand_size_of_static(
   }
 }
 
-pub fn per_item_expand_size_of_static(
+fn per_expr_expand_palette(s_expr: &mut S<Expr>, file_id: FileID) {
+  match s_expr {
+    S(Expr::MacroUse(xs), _span) => {
+      let (name_x, args) = xs.split_last_mut().expect("macro with no name!");
+      let name: StrID = if let Expr::Ident(i) = &name_x.0 {
+        *i
+      } else {
+        panic!("macro name not an ident!");
+      };
+      if name.as_str() == "palette" {
+        match args {
+          [
+            S(Expr::NumLit(x), x_s),
+            S(Expr::NumLit(y), y_s),
+            S(Expr::NumLit(z), z_s),
+            S(Expr::NumLit(w), w_s),
+          ] => {
+            let x = parse_num_lit(*x);
+            let y = parse_num_lit(*y);
+            let z = parse_num_lit(*z);
+            let w = parse_num_lit(*w);
+            if x.is_none() {
+              log_error(YagError::MacroPaletteBadArgs(file_id, *x_s));
+            }
+            if y.is_none() {
+              log_error(YagError::MacroPaletteBadArgs(file_id, *y_s));
+            }
+            if z.is_none() {
+              log_error(YagError::MacroPaletteBadArgs(file_id, *z_s));
+            }
+            if w.is_none() {
+              log_error(YagError::MacroPaletteBadArgs(file_id, *w_s));
+            }
+            s_expr.0 = if let Some(x) = x
+              && let Some(y) = y
+              && let Some(z) = z
+              && let Some(w) = w
+            {
+              Expr::Val(x | (y << 2) | (z << 4) | (w << 6))
+            } else {
+              Expr::ExprError
+            };
+          }
+          _ => log_error(YagError::MacroPaletteBadArgs(file_id, name_x.1)),
+        }
+      } else {
+        args
+          .iter_mut()
+          .for_each(|s_expr| per_expr_expand_palette(s_expr, file_id));
+      }
+    }
+    S(other, _span) => other
+      .inner_expr_mut()
+      .iter_mut()
+      .for_each(|s_expr| per_expr_expand_palette(s_expr, file_id)),
+  }
+}
+
+fn per_expr_parse_numlit(s_expr: &mut S<Expr>, file_id: FileID) {
+  match s_expr {
+    S(Expr::NumLit(n), span) => match parse_num_lit(*n) {
+      Some(i) => s_expr.0 = Expr::Val(i),
+      None => {
+        log_error(YagError::BadNumLit(file_id, *span));
+        s_expr.0 = Expr::ExprError;
+      }
+    },
+    other => {
+      other
+        .0
+        .inner_expr_mut()
+        .iter_mut()
+        .for_each(|s_expr| per_expr_parse_numlit(s_expr, file_id));
+    }
+  }
+}
+
+pub fn per_item_data_cleanup(
   s_item: &mut S<Item>, static_sizes: &HashMap<StrID, i32>,
 ) {
   let file_id = s_item.0.file_id();
   s_item.0.iter_s_exprs_mut().for_each(|s_expr| {
     per_expr_expand_size_of_static(s_expr, static_sizes, file_id);
+    per_expr_expand_palette(s_expr, file_id);
+    per_expr_parse_numlit(s_expr, file_id);
   })
 }
 

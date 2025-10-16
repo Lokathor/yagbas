@@ -24,6 +24,7 @@ impl Statement {
         match this {
           Statement::Expr(x) => yield_(x)?,
           Statement::IfElse(ie) => {
+            yield_(&mut ie.condition)?;
             for stmt in ie.if_body.iter_mut() {
               stmt.0.iter_s_exprs_mut().try_for_each_rec(yield_)?;
             }

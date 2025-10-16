@@ -87,9 +87,9 @@ impl Ast {
     }
   }
 
-  pub fn expand_size_of_static(&mut self) {
+  pub fn do_per_item_data_cleanup(&mut self) {
     self.items.par_iter_mut().for_each(|(_name, s_item)| {
-      per_item_expand_size_of_static(s_item, &self.static_sizes);
+      per_item_data_cleanup(s_item, &self.static_sizes);
     });
   }
 }
@@ -102,9 +102,9 @@ pub fn parse_num_lit(str_id: StrID) -> Option<i32> {
     for c in hex_str.chars() {
       match c.to_ascii_lowercase() {
         '_' => continue,
-        'a'..='f' => {
+        lower @ 'a'..='f' => {
           t *= 16;
-          t += (c as u8 - b'a') as i32;
+          t += 10 + (lower as u8 - b'a') as i32;
         }
         '0'..='9' => {
           t *= 16;
