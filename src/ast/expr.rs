@@ -362,6 +362,20 @@ impl core::fmt::Display for Expr {
         }
         Display::fmt(")", f)
       }
+      Self::Call(xs) => {
+        let xs_len = xs.len();
+        if let Some(name) = xs.last() {
+          Display::fmt(&name, f)?;
+        }
+        Display::fmt("(", f)?;
+        for (i, x) in xs.iter().take(xs_len.saturating_sub(1)).enumerate() {
+          if i > 0 {
+            Display::fmt(", ", f)?;
+          }
+          Display::fmt(&x, f)?;
+        }
+        Display::fmt(")", f)
+      }
       Self::Assign(b) => {
         let [lhs, rhs] = b.as_ref();
         Display::fmt(&lhs, f)?;
