@@ -79,8 +79,6 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   // todo: populate static defs
   ast.do_per_item_data_cleanup();
 
-  //dbg!(&ast.ir_bitstructs);
-
   for i in ast.items.values() {
     match &i.0 {
       Item::Func(f) => {
@@ -91,7 +89,7 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
           if i > 0 {
             println!();
           }
-          println!("block {} {{", block.id);
+          println!("expr_block {} {{", block.id);
           for step in block.steps.iter() {
             println!("  {step}");
           }
