@@ -1,6 +1,6 @@
 use super::*;
 
-/// Block flow with [Expr] branch consitions.
+/// Block flow with [Expr] branch conditions.
 #[derive(Debug, Clone, Display)]
 pub enum ExprBlockFlow {
   /// Jump to this block.
@@ -16,15 +16,6 @@ pub enum ExprBlockFlow {
 pub enum ExprBlockStep {
   /// Evaluate an expression.
   Expr(S<Expr>),
-  /// Call a function.
-  ///
-  /// * Functions dont currently return a value, so they are always their own
-  ///   separate statement.
-  /// * The ABI of all functions is currently that they pass in all registers
-  ///   and all of memory, and then all inputs are clobbered by the call. A
-  ///   better ABI might be implemented in the future.
-  #[display("{_0}()")]
-  Call(StrID),
   /// An error of some kind.
   ///
   /// Likely causes:
@@ -75,9 +66,6 @@ pub fn separate_ast_statements_into_blocks(
           // these just carry forward
           Statement::Expr(expr) => {
             current.steps.push(S(ExprBlockStep::Expr(expr.clone()), *span));
-          }
-          Statement::Call(str_id) => {
-            current.steps.push(S(ExprBlockStep::Call(*str_id), *span));
           }
           Statement::StatementError => {
             current.steps.push(S(ExprBlockStep::ExprBlockStepError, *span));

@@ -11,7 +11,6 @@ pub enum Statement {
   Loop(Box<Loop>),
   Break(Option<StrID>),
   Continue(Option<StrID>),
-  Call(StrID),
   Return,
   StatementError,
 }
@@ -37,7 +36,7 @@ impl Statement {
               stmt.0.iter_s_exprs_mut().try_for_each_rec(yield_)?;
             }
           }
-          Statement::Break(_) | Statement::Continue(_) | Statement::Call(_) | Statement::Return | Statement::StatementError => (),
+          Statement::Break(_) | Statement::Continue(_) | Statement::Return | Statement::StatementError => (),
         }
       }
     )
@@ -85,7 +84,6 @@ where
     let continue_ = kw_continue_p()
       .ignore_then(quote_p().ignore_then(ident_p()).or_not())
       .map(Statement::Continue);
-    let call = ident_p().then_ignore(parens_p()).map(Statement::Call);
     let if_else = {
       let if_body = braced_statements.clone();
       let else_body = braced_statements.clone();
@@ -111,7 +109,7 @@ where
 
     // Note(Lokathor): I'm not sure if it's significant that we try to parse a
     // call before an expression, but they do both start with an `ident`, so
-    choice((call, expr, loop_, return_, break_, continue_, if_else))
+    choice((expr, loop_, return_, break_, continue_, if_else))
   })
 }
 

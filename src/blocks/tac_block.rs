@@ -165,9 +165,6 @@ fn tac_steps_from_expr_step(
     ExprBlockStep::ExprBlockStepError => {
       tacs.push(TacStep::TacStepError);
     }
-    ExprBlockStep::Call(id) => {
-      tacs.push(TacStep::Call(*id));
-    }
     ExprBlockStep::Expr(S(Expr::Assign(b), _span)) => {
       tac_assign(b.as_ref(), tacs);
     }
@@ -183,17 +180,6 @@ fn tac_assign([lhs, rhs]: &[S<Expr>; 2], tacs: &mut Vec<TacStep>) {
     (S(Expr::Reg(r), _), S(Expr::NumLit(n), _)) => {
       let tv_l = (*r).into();
       let tv_r = TacVar::NumLit(*n);
-      tacs.push(TacStep::Set(tv_l, tv_r));
-    }
-    (S(Expr::Deref(xs), _), S(Expr::Reg(r), _)) => {
-      let tv_l = match xs.as_slice() {
-        [S(Expr::NumLit(n), _)] => TacVar::MemAtSymbol(*n),
-        _ => {
-          tacs.push(TacStep::TacStepError);
-          return;
-        }
-      };
-      let tv_r = (*r).into();
       tacs.push(TacStep::Set(tv_l, tv_r));
     }
     _ => {

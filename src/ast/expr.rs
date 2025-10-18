@@ -30,11 +30,14 @@ pub enum Expr {
   Bool(bool),
 
   // recurse many
-  /// `[hl]`
-  Deref(Box<Vec<S<Expr>>>),
-
   /// `{ expr0, expr1, ..., exprN }`
   List(Box<Vec<S<Expr>>>),
+
+  /// `fn_name(arg0, arg1, ..., argN)`
+  ///
+  /// The encoding is that the name (and its span) is put as the last element of
+  /// the vec.
+  Call(Box<Vec<S<Expr>>>),
 
   /// `macro_name!( expr0, expr1, ... exprN )`
   ///
@@ -115,11 +118,15 @@ pub enum Expr {
 
   /// `12--`
   Dec(Box<S<Self>>),
+
+  /// `[hl]`
+  Deref(Box<S<Self>>),
 }
 impl Expr {
   /// Returns the slice of all inner expressions.
   ///
-  /// This is mostly used when we want to pass an expression edit "through" a layer that does not care about the current edit.
+  /// This is mostly used when we want to pass an expression edit "through" a
+  /// layer that does not care about the current edit.
   pub fn inner_expr_mut(&mut self) -> &mut [S<Expr>] {
     match self {
       Self::ExprError
@@ -129,11 +136,12 @@ impl Expr {
       | Self::Bool(_)
       | Self::Reg(_)
       | Self::RefToStatic(_) => &mut [],
-      Self::Structure(xs) | Self::MacroUse(xs) => {
-        // Note(Lokathor): we want to return the slice of the inner expr values, but not the macro's name (the last element of the vec).
+      Self::Structure(xs) | Self::MacroUse(xs) | Self::Call(xs) => {
+        // Note(Lokathor): we want to return the slice of the inner expr values,
+        // but not the macro's name (the last element of the vec).
         xs.as_mut_slice().split_last_mut().unwrap().1
       }
-      Self::List(xs) | Self::Deref(xs) => xs.as_mut_slice(),
+      Self::List(xs) => xs.as_mut_slice(),
       Self::Dot(b)
       | Self::Assign(b)
       | Self::Add(b)
@@ -152,9 +160,11 @@ impl Expr {
       | Self::ShiftLeft(b)
       | Self::ShiftRight(b)
       | Self::Mod(b) => b.as_mut(),
-      Self::Neg(x) | Self::Ref(x) | Self::Inc(x) | Self::Dec(x) => {
-        core::slice::from_mut(&mut *x)
-      }
+      Self::Neg(x)
+      | Self::Ref(x)
+      | Self::Deref(x)
+      | Self::Inc(x)
+      | Self::Dec(x) => core::slice::from_mut(&mut *x),
     }
   }
 }
@@ -189,6 +199,22 @@ where
 
   recursive(|expr| {
     let atom = {
+      let call = ident_p()
+        .map_with(S::from_extras)
+        .then(
+          expr
+            .clone()
+            .separated_by(comma_p())
+            .collect::<Vec<_>>()
+            .nested_in(parens_content_p(make_input)),
+        )
+        .map(|(S(name, name_span), mut args)| {
+          let name_ex = S(Expr::Ident(name), name_span);
+          args.push(name_ex);
+          Expr::Call(Box::new(args))
+        })
+        .labelled("call_expr")
+        .as_context();
       let macro_ = ident_p()
         .map_with(S::from_extras)
         .then_ignore(exclamation_p())
@@ -213,10 +239,8 @@ where
       let bool = bool_p().map(Expr::Bool);
       let deref = expr
         .clone()
-        .separated_by(comma_p())
-        .collect::<Vec<_>>()
         .nested_in(brackets_content_p(make_input))
-        .map(|exprs| Expr::Deref(Box::new(exprs)))
+        .map(|expr| Expr::Deref(Box::new(expr)))
         .labelled("deref_expr")
         .as_context();
       let list = newline_p()
@@ -255,6 +279,7 @@ where
       // Note(Lokathor): some stuff is "ident and then more", so just an ident
       // has to go at the end of the list.
       choice((
+        call,
         macro_,
         structure_lit,
         num,
@@ -318,14 +343,9 @@ impl core::fmt::Display for Expr {
         Display::fmt("&", f)?;
         Display::fmt(&x, f)
       }
-      Self::Deref(xs) => {
+      Self::Deref(x) => {
         Display::fmt("[", f)?;
-        for (i, x) in xs.iter().enumerate() {
-          if i > 0 {
-            Display::fmt(", ", f)?;
-          }
-          Display::fmt(&x, f)?;
-        }
+        Display::fmt(x, f)?;
         Display::fmt("]", f)
       }
       Self::MacroUse(xs) => {
