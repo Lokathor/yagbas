@@ -76,22 +76,6 @@ impl From<Register> for TacVar {
 pub enum TacStep {
   #[default]
   TacStepError,
-
-  /// ident()
-  #[display("{_0}()")]
-  Call(StrID),
-
-  /// `dst = src`
-  #[display("{_0} = {_1}")]
-  Set(TacVar, TacVar),
-
-  /// `var++`
-  #[display("{_0}++")]
-  Inc(TacVar),
-
-  /// `var--`
-  #[display("{_0}--")]
-  Dec(TacVar),
 }
 
 #[derive(Debug, Display, Clone, Copy, Default)]
@@ -165,26 +149,7 @@ fn tac_steps_from_expr_step(
     ExprBlockStep::ExprBlockStepError => {
       tacs.push(TacStep::TacStepError);
     }
-    ExprBlockStep::Expr(S(Expr::Assign(b), _span)) => {
-      tac_assign(b.as_ref(), tacs);
-    }
-    _other => {
-      dbg!(&_other);
-      tacs.push(TacStep::TacStepError)
-    }
-  }
-}
-
-fn tac_assign([lhs, rhs]: &[S<Expr>; 2], tacs: &mut Vec<TacStep>) {
-  match (lhs, rhs) {
-    (S(Expr::Reg(r), _), S(Expr::NumLit(n), _)) => {
-      let tv_l = (*r).into();
-      let tv_r = TacVar::NumLit(*n);
-      tacs.push(TacStep::Set(tv_l, tv_r));
-    }
-    _ => {
-      dbg!("Assign", &lhs, &rhs);
-    }
+    _other => tacs.push(TacStep::TacStepError),
   }
 }
 

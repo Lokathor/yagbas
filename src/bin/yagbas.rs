@@ -84,12 +84,13 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
       Item::Func(f) => {
         println!();
         println!("== fn {}>", f.name);
-        let blocks = separate_ast_statements_into_blocks(&f.body);
-        for (i, block) in blocks.iter().enumerate() {
+        let expr_blocks = separate_ast_statements_into_blocks(&f.body);
+        let tac_block = tac_blocks_from_expr_blocks(&expr_blocks);
+        for (i, block) in tac_block.iter().enumerate() {
           if i > 0 {
             println!();
           }
-          println!("expr_block {} {{", block.id);
+          println!("tac_block {} {{", block.id);
           for step in block.steps.iter() {
             println!("  {step}");
           }
