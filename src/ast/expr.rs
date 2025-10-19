@@ -347,6 +347,11 @@ impl core::fmt::Display for Expr {
         Display::fmt("&", f)?;
         Display::fmt(&x, f)
       }
+      Self::MemAddr(u) => {
+        Display::fmt("Mem[", f)?;
+        write!(f, "${u:04X}")?;
+        Display::fmt("]", f)
+      }
       Self::Deref(x) => {
         Display::fmt("[", f)?;
         Display::fmt(x, f)?;

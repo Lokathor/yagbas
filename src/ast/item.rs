@@ -239,6 +239,27 @@ fn per_expr_replace_const_idents(
   }
 }
 
+fn per_expr_replace_memory_addresses(s_expr: &mut S<Expr>, file_id: FileID) {
+  match s_expr {
+    S(Expr::Deref(x), _span) => match &mut **x {
+      S(Expr::Val(i), _span) => {
+        if let Ok(u) = u16::try_from(*i) {
+          s_expr.0 = Expr::MemAddr(u);
+        } else {
+          log_error(YagError::MemAddrOutOfRange(file_id, *_span, *i));
+          s_expr.0 = Expr::ExprError;
+        }
+      }
+      S(other, _span) => other.inner_expr_mut().iter_mut().for_each(|s_expr| {
+        per_expr_replace_memory_addresses(s_expr, file_id);
+      }),
+    },
+    S(other, _span) => other.inner_expr_mut().iter_mut().for_each(|s_expr| {
+      per_expr_replace_memory_addresses(s_expr, file_id);
+    }),
+  }
+}
+
 pub fn per_item_data_cleanup(
   s_item: &mut S<Item>, static_sizes: &HashMap<StrID, i32>,
   ir_bitstructs: &HashMap<StrID, IrBitStruct>,
@@ -251,7 +272,8 @@ pub fn per_item_data_cleanup(
     per_expr_expand_palette(s_expr, file_id);
     per_expr_parse_numlit(s_expr, file_id);
     per_expr_bitstruct_literals(s_expr, ir_bitstructs, file_id);
-    per_expr_replace_const_idents(s_expr, const_exprs, file_id)
+    per_expr_replace_const_idents(s_expr, const_exprs, file_id);
+    per_expr_replace_memory_addresses(s_expr, file_id);
   })
 }
 

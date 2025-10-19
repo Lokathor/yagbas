@@ -15,6 +15,7 @@ pub enum YagError {
   BadNumLit(FileID, SimpleSpan),
   DuplicateFieldName(FileID, SimpleSpan),
   IllegalFieldName(FileID, SimpleSpan),
+  MemAddrOutOfRange(FileID, SimpleSpan, i32),
 }
 
 pub static ERROR_BUCKET: Mutex<Vec<YagError>> = Mutex::new(Vec::new());
