@@ -14,6 +14,9 @@ pub enum Expr {
   /// A value produced by an intermediate computation during compilation.
   Val(i32),
 
+  /// The memory at a given address.
+  MemAddr(u16),
+
   /// Reference to a static value.
   RefToStatic(StrID),
 
@@ -135,7 +138,8 @@ impl Expr {
       | Self::Ident(_)
       | Self::Bool(_)
       | Self::Reg(_)
-      | Self::RefToStatic(_) => &mut [],
+      | Self::RefToStatic(_)
+      | Self::MemAddr(_) => &mut [],
       Self::Structure(xs) | Self::MacroUse(xs) | Self::Call(xs) => {
         // Note(Lokathor): we want to return the slice of the inner expr values,
         // but not the macro's name (the last element of the vec).
