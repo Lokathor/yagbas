@@ -41,8 +41,6 @@ pub enum TacVar {
   #[display("{_0}")]
   Ident(StrID),
   #[display("{_0}")]
-  NumLit(StrID),
-  #[display("{_0}")]
   Value(i32),
   #[display("[${_0:04X}]")]
   MemAtAddr(u16),
@@ -76,6 +74,16 @@ impl From<Register> for TacVar {
 pub enum TacStep {
   #[default]
   TacStepError,
+
+  #[display("R8({_0}) = I8({_1})")]
+  AssignReg8Const8(TacVar, u8),
+  #[display("R16({_0}) = I16({_1})")]
+  AssignReg16Const16(TacVar, u16),
+
+  #[display("Mem(${_0:04X}) = a")]
+  WriteAToMem(u16),
+  #[display("a = Mem(${_0:04X})")]
+  ReadMemToA(u16),
 }
 
 #[derive(Debug, Display, Clone, Copy, Default)]
@@ -149,7 +157,10 @@ fn tac_steps_from_expr_step(
     ExprBlockStep::ExprBlockStepError => {
       tacs.push(TacStep::TacStepError);
     }
-    _other => tacs.push(TacStep::TacStepError),
+    other => {
+      eprintln!("BAD_TAC_STEP: {other}");
+      tacs.push(TacStep::TacStepError);
+    }
   }
 }
 
