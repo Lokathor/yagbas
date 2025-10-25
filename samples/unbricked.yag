@@ -1,0 +1,308 @@
+
+const BRICK_LEFT = 5
+const BRICK_RIGHT = 6
+const BLANK_TILE = 0
+const DIGIT_OFFSET = $1A
+const SCORE_TENS = $9870
+const SCORE_ONES = $9871
+
+static mut wCurKeys = 0
+static mut wNewKeys = 0
+static mut wBallMomentumX = 1
+static mut wBallMomentumY = -1
+static mut wScore = 0
+
+fn main(_) {
+  'wait_for_vblank: loop {
+    a = [LY]
+    if a == 144 {
+      a = LcdCtrl {}
+      [LCDC] = a
+      break 'wait_for_vblank
+    }
+  }
+  
+  de = &Tiles
+  hl = $9000
+  bc = size_of_static!(Tiles)
+  memcpy(_)
+  
+  de = &TileMap
+  hl = $9800
+  bc = size_of_static!(TileMap)
+  memcpy(_)
+  
+  de = &Paddle
+  hl = $8000
+  bc = size_of_static!(Paddle)
+  memcpy(_)
+  
+  de = &Ball
+  hl = $8010
+  bc = size_of_static!(Ball)
+  memcpy(_)
+  
+  a = 0
+  b = 160
+  hl = OAMRAM
+  'clear_oam: loop {
+    [hl++] = a
+    if b-- == 0 {
+      break 'clear_oam
+    }
+  }
+  
+  // paddle
+  write_obj!(0, OamEntry {
+    y=128, //todo offset
+    x=16, //todo offset
+    tile_id=0,
+    attrs=0,
+  })
+  
+  // ball
+  write_obj!(1, OamEntry {
+    y=100, //todo offset
+    x=32,//todo offset
+    tile_id=1,
+    attrs=0,
+  })
+  
+  a = LcdCtrl { enabled, background, objects }
+  [LCDC] = a
+  a = palette!(0,1,2,3)
+  [BGP] = a
+  [OBJPAL0] = a
+  
+  'gameplay: loop {
+    'wait_for_vblank: loop {
+      a = [LY]
+      if a == 144 {
+        break 'wait_for_vblank
+      }
+    }
+    
+    a = update_keys(a=_,b=_)
+    
+    if a.PadF.left {
+      a = [OAMRAM.0.x]
+      a--
+      [OAMRAM.0.x] = a
+    } else if a.PadF.right {
+      a = [OAMRAM.0.x]
+      a++
+      [OAMRAM.0.x] = a
+    }
+    
+    a = [wBallMomentumX]
+    b = a
+    a = [OAMRAM.1.x]
+    a += b
+    [OAMRAM.1.x] = a
+    
+    a = [wBallMomentumY]
+    b = a
+    a = [OAMRAM.1.y]
+    a += b
+    [OAMRAM.1.y] = a
+    
+    // bounce on top
+    a = [OAMRAM.1.x] - 8
+    b = a
+    a = [OAMRAM.1.y] - (16+1)
+    c = a
+    hl = get_tile_by_pixel(a,b,c)
+    a = [hl]
+    if is_wall_tile(a) {
+      check_and_handle_brick(a, hl)
+      a = 1
+      [wBallMomentumY] = a
+    }
+    
+    // bounce on right
+    a = [OAMRAM.1.x] - (8-1)
+    b = a
+    a = [OAMRAM.1.y] - 16
+    c = a
+    hl = get_tile_by_pixel(a,b,c)
+    a = [hl]
+    if is_wall_tile(a) {
+      check_and_handle_brick(a, hl)
+      a = -1
+      [wBallMomentumX] = a
+    }
+    
+    // bounce on left
+    a = [OAMRAM.1.x] - (8+1)
+    b = a
+    a = [OAMRAM.1.y] - 16
+    c = a
+    hl = get_tile_by_pixel(a,b,c)
+    a = [hl]
+    if is_wall_tile(a) {
+      check_and_handle_brick(a, hl)
+      a = 1
+      [wBallMomentumX] = a
+    }
+    
+    // bounce on bottom
+    a = [OAMRAM.1.x] - 8
+    b = a
+    a = [OAMRAM.1.y] - (16-1)
+    c = a
+    hl = get_tile_by_pixel(a,b,c)
+    a = [hl]
+    if is_wall_tile(a) {
+      check_and_handle_brick(a, hl)
+      a = -1
+      [wBallMomentumY] = a
+    }
+    
+    // bounce off paddle
+    a = [OAMRAM.0.y]
+    b = a
+    a = [OAMRAM.1.y] + 6
+    if a == b {
+      a = [OAMRAM.1.x]
+      b = a
+      a = [OAMRAM.0.x] - 8
+      if a == b {
+        a += (8+16)
+        if a < b {
+          a = -1
+          [wBallMomentum] = a
+        }
+      }
+    }
+    
+    //
+  }
+}
+
+fn increase_score_packed_bcd(a:_,hl:_){
+  a ^= 0
+  a++
+  hl = &wScore
+  a += [hl] + carry
+  decimal_adjust_a!()
+  [hl] = a
+  update_score_board()
+}
+
+fn update_score_board(a:_,hl:_) {
+  a = high_nibble!([wScore]) + DIGIT_OFFSET
+  [SCORE_TENS] = a
+  a = low_nibble!([wScore]) + DIGIT_OFFSET
+  [SCORE_ONES] = a
+}
+
+fn check_and_handle_brick(a:_, hl) {
+  a = [hl]
+  if a == BRICK_LEFT {
+    [hl] = BLANK_TILE
+    hl++
+    [hl] = BLANK_TILE
+    increase_score_packed_bcd(a,hl)
+  }
+  if a == BRICK_RIGHT {
+    [hl] = BLANK_TILE
+    hl--
+    [hl] = BLANK_TILE
+    increase_score_packed_bcd(a,hl)
+  }
+}
+
+// b = X
+// c = Y
+// return = the tile address
+fn get_tile_by_pixel(a:_,b,c) -> hl {
+  a = c & %1111_1000
+  hl = a
+  hl *= 4
+  a = (b / 8) + 1
+  l = a
+  a += h + carry
+  a -= l
+  h = a
+  bc = $9800
+  hl += bc
+  return hl
+}
+
+// a = tile id
+// zf = if a is a wall tile.
+fn is_wall_tile(a) -> zf {
+  if a == 0 {
+    return true
+  }
+  if a == 1 {
+    return true
+  }
+  if a == 2 {
+    return true
+  }
+  // skip 3
+  if a == 4 {
+    return true
+  }
+  if a == 5 {
+    return true
+  }
+  if a == 6 {
+    return true
+  }
+  if a == 7 {
+    return true
+  }
+  return false
+}
+
+fn update_keys_one_nibble(a) -> a {
+  [P1] = a
+  known_ret()
+  a = [P1]
+  a = [P1]
+  a = [P1]
+  a |= $F0
+}
+fn known_return(){}
+fn update_keys(a:_, b:_) -> a {
+  a = P1F_GET_BTN
+  a = update_keys_one_nibble(a)
+  b = a // b = unpressed buttons
+  a = P1F_GET_DPAD
+  a = update_keys_one_nibble(a)
+  swap!(a)
+  a ^= b
+  b = a // b = pressed buttons + directions
+  a = P1F_GET_NONE
+  [P1] = a
+  
+  a = [wCurKeys]
+  a ^= b
+  a &= b
+  [wNewKeys] = a
+  a = b
+  [wCurKeys] = a
+  return a
+}
+
+// Copies `bc` bytes from `de` to `hl`.
+// * Assumes that `bc` is non-zero
+fn memcpy(_) {
+  bc--
+  b++
+  c++
+  loop {
+    a = [de]
+    [hl++] = a
+    de++
+    if c-- != 0 {
+      continue
+    }
+    if b-- != 0 {
+      continue
+    }
+	  return
+  }
+}

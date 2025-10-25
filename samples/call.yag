@@ -1,8 +1,0 @@
-// function call examples
-
-fn foo() {
-}
-
-fn bar() {
-  foo()
-}
