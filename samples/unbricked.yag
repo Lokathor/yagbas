@@ -2,9 +2,12 @@
 const BRICK_LEFT = 5
 const BRICK_RIGHT = 6
 const BLANK_TILE = 0
-const DIGIT_OFFSET = $1A
+const DIGIT_TILE_OFFSET = $1A
 const SCORE_TENS = $9870
 const SCORE_ONES = $9871
+const VBLANK_START = 144
+const PADDLE = 0
+const BALL = 1
 
 static mut wCurKeys = 0
 static mut wNewKeys = 0
@@ -13,9 +16,12 @@ static mut wBallMomentumY = -1
 static mut wScore = 0
 
 fn main(_) {
+  a = AudioMain {}
+  [AudioMain] = a
+  
   'wait_for_vblank: loop {
     a = [LY]
-    if a == 144 {
+    if a == VBLANK_START {
       a = LcdCtrl {}
       [LCDC] = a
       break 'wait_for_vblank
@@ -44,7 +50,7 @@ fn main(_) {
   
   a = 0
   b = 160
-  hl = OAMRAM
+  hl = &OAMRAM
   'clear_oam: loop {
     [hl++] = a
     if b-- == 0 {
@@ -52,64 +58,73 @@ fn main(_) {
     }
   }
   
-  // paddle
-  write_obj!(0, OamEntry {
-    y=128, //todo offset
-    x=16, //todo offset
-    tile_id=0,
+  write_obj!(PADDLE, OamEntry {
+    y=128+16,
+    x=16+8,
+    tile_id=PADDLE,
     attrs=0,
   })
   
-  // ball
-  write_obj!(1, OamEntry {
-    y=100, //todo offset
-    x=32,//todo offset
-    tile_id=1,
+  write_obj!(BALL, OamEntry {
+    y=100+16,
+    x=32+8,
+    tile_id=BALL,
     attrs=0,
   })
   
-  a = LcdCtrl { enabled, background, objects }
-  [LCDC] = a
   a = palette!(0,1,2,3)
   [BGP] = a
-  [OBJPAL0] = a
+  [OBJ_PAL.0] = a
+  a = LcdCtrl { enabled, background, objects }
+  [LCDC] = a
   
   'gameplay: loop {
     'wait_for_vblank: loop {
       a = [LY]
-      if a == 144 {
+      if a == VBLANK_START {
         break 'wait_for_vblank
       }
     }
     
-    a = update_keys(a=_,b=_)
+    update_keys(a=_,b=_)
     
-    if a.PadF.left {
-      a = [OAMRAM.0.x]
+    do_movement(_)
+    
+    do_bounces(_)
+  }
+}
+
+fn update_objects(_) {
+  a = [wCurKeys]
+  
+  if a.PadF.left {
+      a = [OAMRAM.PADDLE.x]
       a--
-      [OAMRAM.0.x] = a
+      [OAMRAM.PADDLE.x] = a
     } else if a.PadF.right {
-      a = [OAMRAM.0.x]
+      a = [OAMRAM.PADDLE.x]
       a++
-      [OAMRAM.0.x] = a
+      [OAMRAM.PADDLE.x] = a
     }
     
     a = [wBallMomentumX]
     b = a
-    a = [OAMRAM.1.x]
+    a = [OAMRAM.BALL.x]
     a += b
-    [OAMRAM.1.x] = a
+    [OAMRAM.BALL.x] = a
     
     a = [wBallMomentumY]
     b = a
-    a = [OAMRAM.1.y]
+    a = [OAMRAM.BALL.y]
     a += b
-    [OAMRAM.1.y] = a
-    
-    // bounce on top
-    a = [OAMRAM.1.x] - 8
+    [OAMRAM.BALL.y] = a
+}
+
+fn do_bounces(_) {
+  // bounce on top
+    a = [OAMRAM.BALL.x] - 8
     b = a
-    a = [OAMRAM.1.y] - (16+1)
+    a = [OAMRAM.BALL.y] - (16+1)
     c = a
     hl = get_tile_by_pixel(a,b,c)
     a = [hl]
@@ -120,9 +135,9 @@ fn main(_) {
     }
     
     // bounce on right
-    a = [OAMRAM.1.x] - (8-1)
+    a = [OAMRAM.BALL.x] - (8-1)
     b = a
-    a = [OAMRAM.1.y] - 16
+    a = [OAMRAM.BALL.y] - 16
     c = a
     hl = get_tile_by_pixel(a,b,c)
     a = [hl]
@@ -133,9 +148,9 @@ fn main(_) {
     }
     
     // bounce on left
-    a = [OAMRAM.1.x] - (8+1)
+    a = [OAMRAM.BALL.x] - (8+1)
     b = a
-    a = [OAMRAM.1.y] - 16
+    a = [OAMRAM.BALL.y] - 16
     c = a
     hl = get_tile_by_pixel(a,b,c)
     a = [hl]
@@ -146,9 +161,9 @@ fn main(_) {
     }
     
     // bounce on bottom
-    a = [OAMRAM.1.x] - 8
+    a = [OAMRAM.BALL.x] - 8
     b = a
-    a = [OAMRAM.1.y] - (16-1)
+    a = [OAMRAM.BALL.y] - (16-1)
     c = a
     hl = get_tile_by_pixel(a,b,c)
     a = [hl]
@@ -159,13 +174,13 @@ fn main(_) {
     }
     
     // bounce off paddle
-    a = [OAMRAM.0.y]
+    a = [OAMRAM.PADDLE.y]
     b = a
-    a = [OAMRAM.1.y] + 6
+    a = [OAMRAM.BALL.y] + 6
     if a == b {
-      a = [OAMRAM.1.x]
+      a = [OAMRAM.BALL.x]
       b = a
-      a = [OAMRAM.0.x] - 8
+      a = [OAMRAM.PADDLE.x] - 8
       if a == b {
         a += (8+16)
         if a < b {
@@ -174,25 +189,24 @@ fn main(_) {
         }
       }
     }
-    
-    //
-  }
 }
 
 fn increase_score_packed_bcd(a:_,hl:_){
-  a ^= 0
-  a++
   hl = &wScore
-  a += [hl] + carry
+  a = 1
+  a += [hl]
   decimal_adjust_a!()
+  if a > $99 {
+    a = $99
+  }
   [hl] = a
   update_score_board()
 }
 
-fn update_score_board(a:_,hl:_) {
-  a = high_nibble!([wScore]) + DIGIT_OFFSET
+fn update_score_board(a:_) {
+  a = high_nibble!([wScore]) + DIGIT_TILE_OFFSET
   [SCORE_TENS] = a
-  a = low_nibble!([wScore]) + DIGIT_OFFSET
+  a = low_nibble!([wScore]) + DIGIT_TILE_OFFSET
   [SCORE_ONES] = a
 }
 
@@ -203,8 +217,7 @@ fn check_and_handle_brick(a:_, hl) {
     hl++
     [hl] = BLANK_TILE
     increase_score_packed_bcd(a,hl)
-  }
-  if a == BRICK_RIGHT {
+  } else if a == BRICK_RIGHT {
     [hl] = BLANK_TILE
     hl--
     [hl] = BLANK_TILE
@@ -267,17 +280,25 @@ fn update_keys_one_nibble(a) -> a {
 }
 fn known_return(){}
 fn update_keys(a:_, b:_) -> a {
+  // collect buttons
   a = P1F_GET_BTN
   a = update_keys_one_nibble(a)
-  b = a // b = unpressed buttons
+  b = a // now b = *unpressed* buttons
+  
+  // collect directions
   a = P1F_GET_DPAD
   a = update_keys_one_nibble(a)
+  
+  // combine the data and fix
   swap!(a)
   a ^= b
-  b = a // b = pressed buttons + directions
+  b = a // now b = pressed buttons + directions
+  
+  // release the input hardware
   a = P1F_GET_NONE
   [P1] = a
   
+  // update globals
   a = [wCurKeys]
   a ^= b
   a &= b
