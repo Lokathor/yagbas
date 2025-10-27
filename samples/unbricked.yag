@@ -98,97 +98,97 @@ fn update_objects(_) {
   a = [wCurKeys]
   
   if a.PadF.left {
-      a = [OAMRAM.PADDLE.x]
-      a--
-      [OAMRAM.PADDLE.x] = a
-    } else if a.PadF.right {
-      a = [OAMRAM.PADDLE.x]
-      a++
-      [OAMRAM.PADDLE.x] = a
-    }
-    
-    a = [wBallMomentumX]
-    b = a
-    a = [OAMRAM.BALL.x]
-    a += b
-    [OAMRAM.BALL.x] = a
-    
-    a = [wBallMomentumY]
-    b = a
-    a = [OAMRAM.BALL.y]
-    a += b
-    [OAMRAM.BALL.y] = a
+    a = [OAMRAM.PADDLE.x]
+    a--
+    [OAMRAM.PADDLE.x] = a
+  } else if a.PadF.right {
+    a = [OAMRAM.PADDLE.x]
+    a++
+    [OAMRAM.PADDLE.x] = a
+  }
+  
+  a = [wBallMomentumX]
+  b = a
+  a = [OAMRAM.BALL.x]
+  a += b
+  [OAMRAM.BALL.x] = a
+  
+  a = [wBallMomentumY]
+  b = a
+  a = [OAMRAM.BALL.y]
+  a += b
+  [OAMRAM.BALL.y] = a
 }
 
 fn do_bounces(_) {
   // bounce on top
-    a = [OAMRAM.BALL.x] - 8
+  a = [OAMRAM.BALL.x] - 8
+  b = a
+  a = [OAMRAM.BALL.y] - (16+1)
+  c = a
+  hl = get_tile_by_pixel(a,b,c)
+  a = [hl]
+  if is_wall_tile(a) {
+    check_and_handle_brick(a, hl)
+    a = 1
+    [wBallMomentumY] = a
+  }
+  
+  // bounce on right
+  a = [OAMRAM.BALL.x] - (8-1)
+  b = a
+  a = [OAMRAM.BALL.y] - 16
+  c = a
+  hl = get_tile_by_pixel(a,b,c)
+  a = [hl]
+  if is_wall_tile(a) {
+    check_and_handle_brick(a, hl)
+    a = -1
+    [wBallMomentumX] = a
+  }
+  
+  // bounce on left
+  a = [OAMRAM.BALL.x] - (8+1)
+  b = a
+  a = [OAMRAM.BALL.y] - 16
+  c = a
+  hl = get_tile_by_pixel(a,b,c)
+  a = [hl]
+  if is_wall_tile(a) {
+    check_and_handle_brick(a, hl)
+    a = 1
+    [wBallMomentumX] = a
+  }
+  
+  // bounce on bottom
+  a = [OAMRAM.BALL.x] - 8
+  b = a
+  a = [OAMRAM.BALL.y] - (16-1)
+  c = a
+  hl = get_tile_by_pixel(a,b,c)
+  a = [hl]
+  if is_wall_tile(a) {
+    check_and_handle_brick(a, hl)
+    a = -1
+    [wBallMomentumY] = a
+  }
+  
+  // bounce off paddle
+  a = [OAMRAM.PADDLE.y]
+  b = a
+  a = [OAMRAM.BALL.y] + 6
+  if a == b {
+    a = [OAMRAM.BALL.x]
     b = a
-    a = [OAMRAM.BALL.y] - (16+1)
-    c = a
-    hl = get_tile_by_pixel(a,b,c)
-    a = [hl]
-    if is_wall_tile(a) {
-      check_and_handle_brick(a, hl)
-      a = 1
-      [wBallMomentumY] = a
-    }
-    
-    // bounce on right
-    a = [OAMRAM.BALL.x] - (8-1)
-    b = a
-    a = [OAMRAM.BALL.y] - 16
-    c = a
-    hl = get_tile_by_pixel(a,b,c)
-    a = [hl]
-    if is_wall_tile(a) {
-      check_and_handle_brick(a, hl)
-      a = -1
-      [wBallMomentumX] = a
-    }
-    
-    // bounce on left
-    a = [OAMRAM.BALL.x] - (8+1)
-    b = a
-    a = [OAMRAM.BALL.y] - 16
-    c = a
-    hl = get_tile_by_pixel(a,b,c)
-    a = [hl]
-    if is_wall_tile(a) {
-      check_and_handle_brick(a, hl)
-      a = 1
-      [wBallMomentumX] = a
-    }
-    
-    // bounce on bottom
-    a = [OAMRAM.BALL.x] - 8
-    b = a
-    a = [OAMRAM.BALL.y] - (16-1)
-    c = a
-    hl = get_tile_by_pixel(a,b,c)
-    a = [hl]
-    if is_wall_tile(a) {
-      check_and_handle_brick(a, hl)
-      a = -1
-      [wBallMomentumY] = a
-    }
-    
-    // bounce off paddle
-    a = [OAMRAM.PADDLE.y]
-    b = a
-    a = [OAMRAM.BALL.y] + 6
+    a = [OAMRAM.PADDLE.x] - 8
     if a == b {
-      a = [OAMRAM.BALL.x]
-      b = a
-      a = [OAMRAM.PADDLE.x] - 8
-      if a == b {
-        a += (8+16)
-        if a < b {
-          a = -1
-          [wBallMomentum] = a
-        }
+      a += (8+16)
+      if a < b {
+        a = -1
+        [wBallMomentum] = a
       }
     }
+  }
 }
 
 fn increase_score_packed_bcd(a:_,hl:_){
