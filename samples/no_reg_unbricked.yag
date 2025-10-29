@@ -15,15 +15,6 @@ static mut wBallMomentumX = 1
 static mut wBallMomentumY = -1
 static mut wScore = 0
 
-fn safe_disable_lcd() {
-  loop {
-    if [LY] == VBLANK_START {
-      [LCDC] = LcdCtrl {}
-      return
-    }
-  }
-}
-
 fn main(_) {
   [AudioMain] = AudioMain {}
   
@@ -50,21 +41,34 @@ fn main(_) {
     attrs=0,
   })
   
+  [IF] = Interrupts {}
+  [IE] = Interrupts { vblank }
+  enable_interrupts!()
+  
   let pal = palette!(0,1,2,3)
   [BGP] = pal
   [OBJ_PAL.0] = pal
   [LCDC] = LcdCtrl { enabled, background, objects }
   
   'gameplay: loop {
-    'wait_for_vblank: loop {
-      if [LY] == VBLANK_START {
-        break 'wait_for_vblank
-      }
-    }
-    
+    halt!() // halts until an irq returns.
     update_keys()
+    update_objects()
     do_movement()
     do_bounces()
+  }
+}
+
+#[interrupt_handler(vblank)]
+fn vblank_handler() {}
+
+fn safe_disable_lcd() {
+  loop {
+    // note: volatile read.
+    if [LY] == VBLANK_START {
+      [LCDC] = LcdCtrl {}
+      return
+    }
   }
 }
 
@@ -124,60 +128,37 @@ fn do_bounces() {
   todo!()
 }
 
-fn increase_score_packed_bcd(a:_,hl:_){
-  hl = &wScore
-  a = 1
-  a += [hl]
-  decimal_adjust_a!()
-  if a > $99 {
-    a = $99
+fn increase_score() {
+  [wScore] += 1
+  decimal_adjust!([wScore])
+  if [wScore] > $99 {
+    [wScore] = $99
   }
-  [hl] = a
-  update_score_board()
+  [SCORE_TENS] = high_nibble!([wScore]) + DIGIT_TILE_OFFSET
+  [SCORE_ONES] = low_nibble!([wScore]) + DIGIT_TILE_OFFSET
 }
 
-fn update_score_board(a:_) {
-  a = high_nibble!([wScore]) + DIGIT_TILE_OFFSET
-  [SCORE_TENS] = a
-  a = low_nibble!([wScore]) + DIGIT_TILE_OFFSET
-  [SCORE_ONES] = a
-}
-
-fn check_and_handle_brick(a:_, hl) {
-  a = [hl]
-  if a == BRICK_LEFT {
-    [hl] = BLANK_TILE
-    hl++
-    [hl] = BLANK_TILE
-    increase_score_packed_bcd(a,hl)
-  } else if a == BRICK_RIGHT {
-    [hl] = BLANK_TILE
-    hl--
-    [hl] = BLANK_TILE
-    increase_score_packed_bcd(a,hl)
+fn check_and_handle_brick(tile_addr) {
+  if [tile_addr] == BRICK_LEFT {
+    [tile_addr] = BLANK_TILE
+    [tile_addr+1] = BLANK_TILE
+    increase_score()
+  } else if [tile_addr] == BRICK_RIGHT {
+    [tile_addr] = BLANK_TILE
+    [tile_addr+1] = BLANK_TILE
+    increase_score()
   }
 }
 
-// b = X
-// c = Y
-// return = the tile address
-fn get_tile_by_pixel(a:_,b,c) -> hl {
-  a = c & %1111_1000
-  hl = a
-  hl *= 4
-  a = (b / 8) + 1
-  l = a
-  a += h + carry
-  a -= l
-  h = a
-  bc = $9800
-  hl += bc
-  return hl
+fn get_tile_by_pixel(x_pix: U8, y_pix: U8) -> Usize {
+  let y_tile = y_pix / 8
+  let x_tile = x_pix / 8
+  return $9800 + (y_tile*32) + x_tile
 }
 
 // a = tile id
 // zf = if a is a wall tile.
-fn is_wall_tile(a) -> zf {
+fn is_wall_tile(a) -> bool {
   if a == 0 {
     return true
   }

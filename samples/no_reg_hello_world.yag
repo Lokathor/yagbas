@@ -14,7 +14,7 @@ fn safe_disable_lcd() {
   loop {
     // note: LY would be volatile typed.
     if [LY] == VBLANK_START {
-      [LCD_CTRL] = LcdCtrl {}
+      [LCDC] = LcdCtrl {}
       break
     }
   }
