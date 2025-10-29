@@ -3,6 +3,14 @@
 
 fn main() {
   [AUDIO_MAIN] = AudioMain {}
+  safe_disable_lcd()
+  memcpy(TILE_BLOCK_2, &TILE_DATA, size_of!(TILE_DATA))
+  memcpy(TILE_MAP_0, &TILEMAP_DATA, size_of!(TILEMAP_DATA))
+  [BG_PAL] = palette!(0,1,2,3)
+  [LCDC] = LcdControl { enabled, bg_and_win }
+}
+
+fn safe_disable_lcd() {
   loop {
     // note: LY would be volatile typed.
     if [LY] == VBLANK_START {
@@ -10,16 +18,12 @@ fn main() {
       break
     }
   }
-  memcpy(TILE_BLOCK_2, &TILE_DATA, size_of!(TILE_DATA))
-  memcpy(TILE_MAP_0, &TILEMAP_DATA, size_of!(TILEMAP_DATA))
-  [BG_PAL] = palette!(0,1,2,3)
-  [LCDC] = LcdControl { enabled, bg_and_win }
 }
 
-fn memcpy(dst: Ptr, src: Ptr, count: NonZeroUsize) {
+fn memcpy(dst: Ptr, src: Ptr, count: Usize) {
   for _ in count to 0 {
     [dst] = [src]
-    dst+=1
-    src+=1
+    dst += 1
+    src += 1
   }
 }
