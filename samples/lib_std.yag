@@ -1,0 +1,51 @@
+
+#[location($FF26)]
+static mmio NR52: AudioMain;
+
+bitstruct AudioMain {
+  ch1_active: 0,
+  ch2_active: 1,
+  ch3_active: 2,
+  ch4_active: 3,
+  audio_enabled: 7,
+}
+
+#[location($FF40)]
+static mmio LCDC: LcdCtrl;
+
+bitstruct LcdCtrl {
+  bg_win_enabled: 0,
+  objects_enabled: 1,
+  object16: 2,
+  bg_tilemap_1: 3,
+  bg_win_tiles_signed: 4,
+  window_enabled: 5,
+  win_tilemap_1: 4,
+  lcd_enabled: 7,
+}
+
+#[location($FF44)]
+static mmio LY: u8;
+
+// non-CGB mode backgorund palette
+#[location($FF47)]
+static mmio BGP: Palette;
+
+bitstruct Palette {
+  i0: u2,
+  i1: u2,
+  i2: u2,
+  i3: u2,
+}
+
+const STANDARD_PALETTE = Palette {
+  i0: 0, i1: 1, i2: 2, i3: 3,
+}
+
+fn memcpy(dst: ptr, src: ptr, count: u16) {
+  loop count times {
+    [dst] = [src]
+    dst += 1
+    src += 1
+  }
+}
