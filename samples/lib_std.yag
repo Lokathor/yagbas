@@ -1,4 +1,31 @@
 
+#[location($FF00)]
+static mmio P1: u8;
+
+bitstruct KeysPressed {
+  a: 0,
+  b: 1,
+  select: 2,
+  start: 3,
+  right: 4,
+  left: 5,
+  up: 6,
+  down: 7,
+}
+
+fn get_keys_pressed() -> KeysPressed {
+  [P1] = 0b1101_1111 // buttons
+  // todo: force burn time
+  let buttons_released = [P1] | $F0
+  [P1] = 0b1110_1111 // directions
+  // todo: force burn time
+  let dpad_released = [P1] | $F0
+  [P1] = 0b1111_1111 // release input
+  let all_released = swap!(dpad_released) | buttons_released
+  let all_pressed = all_released ^ -1
+  return KeysPressed(all_pressed)
+}
+
 #[location($FF26)]
 static mmio NR52: AudioMain;
 
@@ -27,19 +54,37 @@ bitstruct LcdCtrl {
 #[location($FF44)]
 static mmio LY: u8;
 
+const VBLANK_START = 144
+
 // non-CGB mode backgorund palette
 #[location($FF47)]
 static mmio BGP: Palette;
 
 bitstruct Palette {
-  i0: u2,
-  i1: u2,
-  i2: u2,
-  i3: u2,
+  i0: 0-1,
+  i1: 2-3,
+  i2: 4-5,
+  i3: 6-7,
 }
 
 const STANDARD_PALETTE = Palette {
   i0: 0, i1: 1, i2: 2, i3: 3,
+}
+
+struct Obj {
+  y: u8,
+  x: u8,
+  tile_id: u8,
+  attrs: ObjAttrs,
+}
+
+bitstruct ObjAttrs {
+  cgb_palette: 0-2,
+  cgb_tile_bank: 3,
+  dmg_pal_1: 4,
+  x_flip: 5,
+  y_flip: 6,
+  bg_win_priority: 7,
 }
 
 fn memcpy(dst: ptr, src: ptr, count: u16) {
@@ -47,5 +92,12 @@ fn memcpy(dst: ptr, src: ptr, count: u16) {
     [dst] = [src]
     dst += 1
     src += 1
+  }
+}
+
+fn memclr(dst: ptr, count: u16) {
+  loop count times {
+    [dst] = 0
+    dst += 1
   }
 }
