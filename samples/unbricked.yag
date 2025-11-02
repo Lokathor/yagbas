@@ -55,7 +55,7 @@ fn main() {
         break
       }
     }
-    // todo: get input
+    update_input();
     do_paddle_adjustments();
     do_ball_bounces();
     do_ball_momentum();
