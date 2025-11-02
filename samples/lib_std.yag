@@ -1,4 +1,23 @@
 
+#[location($FE00)]
+static mmio OAM_RAM: [Obj; 40];
+
+struct Obj {
+  y: u8,
+  x: u8,
+  tile_id: u8,
+  attrs: ObjAttrs,
+}
+
+bitstruct ObjAttrs {
+  cgb_palette: 0-2,
+  cgb_tile_bank: 3,
+  dmg_pal_1: 4,
+  x_flip: 5,
+  y_flip: 6,
+  bg_win_priority: 7,
+}
+
 #[location($FF00)]
 static mmio P1: u8;
 
@@ -56,6 +75,10 @@ static mmio LY: u8;
 
 const VBLANK_START = 144
 
+// https://gbdev.io/pandocs/OAM_DMA_Transfer.html
+#[location($FF46)]
+static mmio DMA: u8;
+
 // non-CGB mode backgorund palette
 #[location($FF47)]
 static mmio BGP: Palette;
@@ -71,22 +94,6 @@ const STANDARD_PALETTE = Palette {
   i0: 0, i1: 1, i2: 2, i3: 3,
 }
 
-struct Obj {
-  y: u8,
-  x: u8,
-  tile_id: u8,
-  attrs: ObjAttrs,
-}
-
-bitstruct ObjAttrs {
-  cgb_palette: 0-2,
-  cgb_tile_bank: 3,
-  dmg_pal_1: 4,
-  x_flip: 5,
-  y_flip: 6,
-  bg_win_priority: 7,
-}
-
 fn memcpy(dst: ptr, src: ptr, count: u16) {
   loop count times {
     [dst] = [src]
@@ -96,6 +103,13 @@ fn memcpy(dst: ptr, src: ptr, count: u16) {
 }
 
 fn memclr(dst: ptr, count: u16) {
+  loop count times {
+    [dst] = 0
+    dst += 1
+  }
+}
+
+fn memclr_small(dst: ptr, count: u8) {
   loop count times {
     [dst] = 0
     dst += 1

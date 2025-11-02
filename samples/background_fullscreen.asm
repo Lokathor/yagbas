@@ -1,73 +1,32 @@
-; Fullscreen Background Example for the Nintendo Game Boy
-; by Dave VanEe 2022
-; Tested with RGBDS 1.0.0
-; License: CC0 (https://creativecommons.org/publicdomain/zero/1.0/)
 
-include "hardware.inc"  ; Include hardware definitions so we can use nice names for things
+#[hram]
+static mut VBlankDone = 0;
 
+fn vblank_vector() {
+  [VBlankDone] = 1
+  [LCDC] = LcdCtrl {
+    lcd_enabled, bg_win_enabled, 
+  }
+}
 
-SECTION "MemCopy Routine", ROM0
-; Since we're copying data few times, we'll define a reusable memory copy routine
-; Copy BC bytes of data from HL to DE
-MemCopy:
-    ld a, [hli]         ; Load a byte from the address HL points to into the register A, increment HL
-    ld [de], a          ; Load the byte in the A register to the address DE points to
-    inc de              ; Increment the destination pointer in DE
-    dec bc              ; Decrement the loop counter in BC
-    ld a, b             ; Load the value in B into A
-    or c                ; Logical OR the value in A (from B) with C
-    jr nz, MemCopy      ; If B and C are both zero, OR B will be zero, otherwise keep looping
-    ret                 ; Return back to where the routine was called from
+fn stat_vector() {
+  [LCDC] = LcdCtrl {
+    lcd_enabled, bg_win_enabled, bg_win_tiles_signed,
+  }
+}
 
+fn main() {
+  disable_interrupts!()
+  set_stack_pointer!($E000)
+  [NR52] = AudioMain {}
+  'wait_for_vblank: loop {
+    if [LY] == VBLANK_START {
+      break
+    }
+  }
+  [LCDC] = LcdCtrl {}
+}
 
-; The VBlank vector is where execution is passed when the VBlank interrupt fires
-SECTION "VBlank Vector", ROM0[$40]
-; We only have 8 bytes here, so take care of what we can in 5 bytes and then jump to the rest of the handler
-VBlank:
-    push af             ; Push AF to the stack
-    ld a, 1             ; Load a non-zero value into A
-    ldh [hVBlankDone], a; Set a flag indicating VBlank has fired, which will allow WaitVBlank to exit
-    jp VBlankHandler    ; Jump to the rest of the handler
-
-
-; The STAT vector is where execution is passed when the STAT interrupt fires
-SECTION "STAT Vector", ROM0[$48]
-; We can fit the entire handler inside the 8 bytes we have, so there's no need to jump away here
-    push af             ; Push AF to the stack
-    ld a, LCDC_ON | LCDC_BLOCK21 | LCDC_BG_ON | LCDC_OBJ_OFF | LCDC_WIN_OFF
-    ldh [rLCDC], a      ; Set the background to use the tile starting at $8800 after the LYC interrupt line
-    pop af              ; Pop AF off the stack
-    reti                ; Return and enable interrupts (ret + ei)
-
-
-; The rest of the VBlank handler is contained in ROM0 to ensure it's always accessible without banking
-SECTION "VBlank Handler", ROM0
-VBlankHandler:
-    ld a, LCDC_ON | LCDC_BLOCK01 | LCDC_BG_ON | LCDC_OBJ_OFF | LCDC_WIN_OFF
-    ldh [rLCDC], a      ; Set the background to use the tile starting at $8000 from the top of the screen
-    pop af              ; Pop AF off the stack
-    reti                ; Return and enable interrupts (ret + ei)
-
-
-; Define a section that starts at the point the bootrom execution ends
-SECTION "Start", ROM0[$0100]
-    jp EntryPoint       ; Jump past the header space to our actual code
-
-    ds $150-@, 0        ; Allocate space for RGBFIX to insert our ROM header by allocating
-                        ;  the number of bytes from our current location (@) to the end of the
-                        ;  header ($150)
-
-EntryPoint:
-    di                  ; Disable interrupts during setup
-    ld sp, $e000        ; Set the stack pointer to the end of WRAM
-
-    ; Turn off the LCD when it's safe to do so (during VBlank)
-.waitVBlank
-    ldh a, [rLY]        ; Read the LY register to check the current scanline
-    cp SCREEN_HEIGHT_PX ; Compare the current scanline to the first scanline of VBlank
-    jr c, .waitVBlank   ; Loop as long as the carry flag is set
-    xor a               ; Once we exit the loop we're safely in VBlank
-    ldh [rLCDC], a      ; Disable the LCD (must be done during VBlank to protect the LCD)
 
     ; Copy the first 240 tiles to VRAM starting at $8000
     ld hl, TileData     ; Load the source address of our tiles into HL
@@ -113,8 +72,6 @@ EntryPoint:
     ldh [rSCX], a       ; Set the background scroll registers to show the top-left
     ldh [rSCY], a       ;  corner of the background in the top-left corner of the screen
 
-    ldh [hVBlankDone], a; Initialize the hVBlankDone flag just to be safe
-
     ; Setup the VBlank and STAT interrupts
     ld a, STAT_LYC      ; Load the flag to enable LYC STAT interrupts into A
     ldh [rSTAT], a      ; Load the prepared flag into rSTAT to enable the LY=LYC interrupt source 
@@ -149,11 +106,6 @@ WaitVBlank:
     or a                ; This is a shortcut version of 'cp 0', to see if the flag has been set by our VBlank handler
     jr z, .loop         ; If the flag isn't set, halt again
     ret                 ; Return back to where the routine was called from
-
-SECTION "VBlank Variables", HRAM
-; Reserve space in HRAM to track when the VBlank interrupt has fired
-hVBlankDone:
-    ds 1
 
 SECTION "Tile Data", ROMX
 TileData:
