@@ -50,6 +50,18 @@ fn get_keys_pressed() -> KeysPressed {
   return KeysPressed(all_pressed)
 }
 
+// https://gbdev.io/pandocs/Interrupts.html#ff0f--if-interrupt-flag
+#[location($FF0F)]
+static mmio IF: Interrupts;
+
+bitstruct Interrupts {
+  vblank: 0,
+  lcd_stat: 1,
+  timer: 2,
+  serial: 3,
+  joypad: 4,
+}
+
 #[location($FF26)]
 static mmio NR52: AudioMain;
 
@@ -75,6 +87,18 @@ bitstruct LcdCtrl {
   lcd_enabled: 7,
 }
 
+#[location($FF41)]
+static mmio STAT: LcdStatus;
+
+bitstruct LcdStatus {
+  ppu_mode: 0-1,
+  lyc_eq_ly_currently: 2,
+  mode_0_irq: 3,
+  mode_1_irq: 4,
+  mode_2_irq: 5,
+  lyc_eq_ly_irq: 6,
+}
+
 #[location($FF42)]
 static mmio SCY: u8;
 
@@ -84,13 +108,16 @@ static mmio SCX: u8;
 #[location($FF44)]
 static mmio LY: u8;
 
+#[location($FF45)]
+static mmio LYC: u8;
+
 const VBLANK_START = 144
 
 // https://gbdev.io/pandocs/OAM_DMA_Transfer.html
 #[location($FF46)]
 static mmio DMA: u8;
 
-// non-CGB mode backgorund palette
+// non-CGB mode background palette
 #[location($FF47)]
 static mmio BGP: Palette;
 
@@ -104,6 +131,10 @@ bitstruct Palette {
 const STANDARD_PALETTE = Palette {
   i0: 0, i1: 1, i2: 2, i3: 3,
 }
+
+// https://gbdev.io/pandocs/Interrupts.html#ffff--ie-interrupt-enable
+#[location($FFFF)]
+static mmio IE: Interrupts;
 
 fn memcpy(dst: ptr, src: ptr, count: u16) {
   loop count times {

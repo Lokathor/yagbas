@@ -1,7 +1,15 @@
+/*
+Fullscreen Background Example for the Nintendo Game Boy
+based on the assembly example by tbsp
+https://github.com/tbsp/simple-gb-asm-examples/blob/master/src/background-fullscreen/background-fullscreen.asm
+*/
 
 #[hram]
-static mut VBlankDone = 0;
+static mut VBlankDone: u8 = 0;
 
+static TileData: [Tile; _] = include_png_tiles!("starry-night-tiles.png");
+
+#[irq_handler]
 fn vblank_vector() {
   [VBlankDone] = 1
   [LCDC] = LcdCtrl {
@@ -9,6 +17,7 @@ fn vblank_vector() {
   }
 }
 
+#[irq_handler]
 fn stat_vector() {
   [LCDC] = LcdCtrl {
     lcd_enabled, bg_win_enabled, bg_win_tiles_signed,
@@ -55,7 +64,7 @@ fn main() {
   [SCX] = 0
   [SCY] = 0
   
-  // todo: setup stat and vblank interrupts
+  setup_vblank_and_stat_interrupts()
   
   [LCDC] = LdcCtrl { lcd_enabled, bg_win_enabled }
   loop {
@@ -63,18 +72,15 @@ fn main() {
   }
 }
 
-    ; Setwrup the VBlank and STAT interrupts
-    ld a, STAT_LYC      ; Load the flag to enable LYC STAT interrupts into A
-    ldh [rSTAT], a      ; Load the prepared flag into rSTAT to enable the LY=LYC interrupt source 
-    ld a, 96            ; Set which line to trigger the LY=LYC interrupt on by setting the rLYC register
-    ldh [rLYC], a       ;  ...
-    ld a, IE_VBLANK | IE_STAT ; Load the flag to enable the VBlank and STAT interrupts into A
-    ldh [rIE], a        ; Load the prepared flag into the interrupt enable register
-    xor a               ; Set A to zero
-    ldh [rIF], a        ; Clear any lingering flags from the interrupt flag register to avoid false interrupts
-    ei                  ; enable interrupts!
+fn setup_vblank_and_stat_interrupts() {
+  [STAT] = LcdStatus { lyc_eq_ly_irq }
+  [LYC] = 96
+  [IE] = Interrupts { vblank, stat }
+  [IF] = Interrupts {}
+  enable_interrupts!()
+}
 
-fm wait_vblank() {
+fn wait_vblank() {
   [VBlankDone] = 0
   loop {
     halt!()
@@ -83,7 +89,3 @@ fm wait_vblank() {
     }
   }
 }
-
-SECTION "Tile Data", ROMX
-TileData:
-    incbin "starry-night-tiles.2bpp" ; Include binary tile data inline using incbin
