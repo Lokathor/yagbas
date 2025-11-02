@@ -1,8 +1,8 @@
 
-const TILEMAP_WIDTH = 32
-const TILEMAP_HEIGHT = 32
-const SCREEN_WIDTH_TILES = 20
-const SCREEN_HEIGHT_TILES = 18
+const TILEMAP_WIDTH = 32;
+const TILEMAP_HEIGHT = 32;
+const SCREEN_WIDTH_TILES = 20;
+const SCREEN_HEIGHT_TILES = 18;
 
 #[location($FE00)]
 static mmio OAM_RAM: [Obj; 40];
@@ -38,16 +38,16 @@ bitstruct KeysPressed {
 }
 
 fn get_keys_pressed() -> KeysPressed {
-  [P1] = 0b1101_1111 // buttons
+  *P1 = 0b1101_1111; // buttons
   // todo: force burn time
-  let buttons_released = [P1] | $F0
-  [P1] = 0b1110_1111 // directions
+  let buttons_released = *P1 | $F0;
+  *P1 = 0b1110_1111; // directions
   // todo: force burn time
-  let dpad_released = [P1] | $F0
-  [P1] = 0b1111_1111 // release input
-  let all_released = swap!(dpad_released) | buttons_released
-  let all_pressed = all_released ^ -1
-  return KeysPressed(all_pressed)
+  let dpad_released = *P1 | $F0;
+  *P1 = 0b1111_1111; // release input
+  let all_released = swap!(dpad_released) | buttons_released;
+  let all_pressed = all_released ^ -1;
+  return KeysPressed(all_pressed);
 }
 
 // https://gbdev.io/pandocs/Interrupts.html#ff0f--if-interrupt-flag
@@ -138,22 +138,22 @@ static mmio IE: Interrupts;
 
 fn memcpy(dst: ptr, src: ptr, count: u16) {
   loop count times {
-    [dst] = [src]
-    dst += 1
-    src += 1
+    *dst = *src;
+    dst += 1;
+    src += 1;
   }
 }
 
 fn memclr(dst: ptr, count: u16) {
   loop count times {
-    [dst] = 0
-    dst += 1
+    *dst = 0;
+    dst += 1;
   }
 }
 
 fn memclr_small(dst: ptr, count: u8) {
   loop count times {
-    [dst] = 0
-    dst += 1
+    *dst = 0;
+    dst += 1;
   }
 }

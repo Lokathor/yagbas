@@ -11,80 +11,80 @@ static TileData: [Tile; _] = include_png_tiles!("starry-night-tiles.png");
 
 #[irq_handler]
 fn vblank_vector() {
-  [VBlankDone] = 1
-  [LCDC] = LcdCtrl {
+  *VBlankDone = 1;
+  *LCDC = LcdCtrl {
     lcd_enabled, bg_win_enabled, 
-  }
+  };
 }
 
 #[irq_handler]
 fn stat_vector() {
-  [LCDC] = LcdCtrl {
+  *LCDC = LcdCtrl {
     lcd_enabled, bg_win_enabled, bg_win_tiles_signed,
-  }
+  };
 }
 
 fn main() {
-  disable_interrupts!()
-  set_stack_pointer!($E000)
-  [NR52] = AudioMain {}
+  disable_interrupts!();
+  set_stack_pointer!($E000);
+  *NR52 = AudioMain {};
   'wait_for_vblank: loop {
-    if [LY] == VBLANK_START {
+    if *LY == VBLANK_START {
       break
     }
   }
-  [LCDC] = LcdCtrl {}
+  *LCDC = LcdCtrl {};
   // copy just 240 tiles
-  memcpy($8000, TileData, size_of!(TileData.0)*240)
+  memcpy($8000, TileData, size_of!(TileData.0)*240);
   // copy the other 120 tiles
-  memcpy($9000, TileData.241, size_of!(TileData.0)*120)
+  memcpy($9000, TileData.241, size_of!(TileData.0)*120);
   
-  let tiles_per_row_advance = TILEMAP_WIDTH-SCREEN_WIDTH_TILES
-  let tile_addr = $9800
-  let id = 0
-  let y = SCREEN_HEIGHT_TILES
-  let x = SCREEN_WIDTH_TILES
+  let tiles_per_row_advance = TILEMAP_WIDTH-SCREEN_WIDTH_TILES;
+  let tile_addr = $9800;
+  let id = 0;
+  let y = SCREEN_HEIGHT_TILES;
+  let x = SCREEN_WIDTH_TILES;
   loop {
     loop x times {
-      [tile_addr] = id
-      tile_addr += 1
-      id += 1
+      *tile_addr = id;
+      tile_addr += 1;
+      id += 1;
     }
-    tile_addr += tiles_per_row_advance
-    y -= 1
+    tile_addr += tiles_per_row_advance;
+    y -= 1;
     if y == 7 {
-      id = 0
+      id = 0;
     }
     if y == 0 {
       break
     }
   }
   
-  [BGP] = STANDARD_PALETTE
-  [SCX] = 0
-  [SCY] = 0
+  [BGP] = STANDARD_PALETTE;
+  [SCX] = 0;
+  [SCY] = 0;
   
-  setup_vblank_and_stat_interrupts()
+  setup_vblank_and_stat_interrupts();
   
-  [LCDC] = LdcCtrl { lcd_enabled, bg_win_enabled }
+  *LCDC = LdcCtrl { lcd_enabled, bg_win_enabled };
   loop {
-    wait_vblank()
+    wait_vblank();
   }
 }
 
 fn setup_vblank_and_stat_interrupts() {
-  [STAT] = LcdStatus { lyc_eq_ly_irq }
-  [LYC] = 96
-  [IE] = Interrupts { vblank, stat }
-  [IF] = Interrupts {}
-  enable_interrupts!()
+  *STAT = LcdStatus { lyc_eq_ly_irq };
+  *LYC = 96;
+  *IE = Interrupts { vblank, stat };
+  *IF = Interrupts {};
+  enable_interrupts!();
 }
 
 fn wait_vblank() {
-  [VBlankDone] = 0
+  *VBlankDone = 0;
   loop {
-    halt!()
-    if [VBlankDone] != 0 {
+    halt!();
+    if *VBlankDone != 0 {
       return
     }
   }

@@ -3,19 +3,19 @@ adaptation of https://gbdev.io/gb-asm-tutorial/part1/hello_world.html
 */
 
 fn main() {
-  [NR52] = AudioMain {}
+  *NR52 = AudioMain {};
   'wait_for_vblank: loop {
-    if [LY] == VBLANK_START {
+    if *LY == VBLANK_START {
       break
     }
   }
-  [LCDC] = LcdCtrl {}
+  *LCDC = LcdCtrl {};
   
-  memcpy($9000, Tiles, size_of!(Tiles))
-  memcpy($9800, Tilemap, size_of!(TileMap))
+  memcpy($9000, Tiles, size_of!(Tiles));
+  memcpy($9800, Tilemap, size_of!(TileMap));
   
-  [LCD] = LcdCtrl { lcd_enabled, bg_win_enabled }
-  [BGP] = STANDARD_PALETTE
+  *LCD = LcdCtrl { lcd_enabled, bg_win_enabled };
+  *BGP = STANDARD_PALETTE;
 }
 
 static Tiles: [Tile; _] = {

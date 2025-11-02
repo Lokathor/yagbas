@@ -2,12 +2,12 @@
 adaptation of https://gbdev.io/gb-asm-tutorial/part2/getting-started.html
 */
 
-const BRICK_LEFT = 5
-const BRICK_RIGHT = 6
-const BLANK_TILE = 8
-const DIGIT_OFFSET = $1A
-const PADDLE_INDEX = 0
-const BALL_INDEX = 1
+const BRICK_LEFT = 5;
+const BRICK_RIGHT = 6;
+const BLANK_TILE = 8;
+const DIGIT_OFFSET = $1A;
+const PADDLE_INDEX = 0;
+const BALL_INDEX = 1;
 
 #[location($9870)]
 static mmio SCORE_TENS: u8;
@@ -21,106 +21,106 @@ static mut NewLeys = KeysPressed {};
 static mut Score = 0;
 
 fn main() {
-  [NR52] = AudioMain {}
+  *NR52 = AudioMain {};
   loop {
-    if [LY] == VBLANK_START {
-      [LCDC] = LcdCtrl {}
+    if *LY == VBLANK_START {
+      *LCDC = LcdCtrl {};
       break
     }
   }
-  memcpy($9000, Tile, size_of!(Tiles))
-  memcpy($9800, Tilemap, size_of!(Tilemap))
-  memcpy($8000, Paddle, size_of!(Paddle))
-  memcpy($8010, Ball, size_of!(Ball))
-  memclr(OAM_RAM, size_of!(OAM_RAM))
-  OAM_RAM.PADDLE_INDEX = Obj {
+  memcpy($9000, Tile, size_of!(Tiles));
+  memcpy($9800, Tilemap, size_of!(Tilemap));
+  memcpy($8000, Paddle, size_of!(Paddle));
+  memcpy($8010, Ball, size_of!(Ball));
+  memclr(OAM_RAM, size_of!(OAM_RAM));
+  OAM_RAM[PADDLE_INDEX] = Obj {
     y = 128+16,
     x = 16+8,
     id = PADDLE_INDEX,
     attrs = ObjAttrs {},
-  }
-  OAM_RAM.BALL_INDEX = Obj {
+  };
+  OAM_RAM[BALL_INDEX] = Obj {
     y = 100+16,
     x = 32+8,
     id = BALL_INDEX,
     attrs = ObjAttrs {},
-  }
-  [LCDC] = LcdCtrl { lcd_enabled, bg_win_enabled, objects_enabled }
-  [BGP] = STANDARD_PALETTE
-  [OBP0] = STANDARD_PALETTE
+  };
+  *LCDC = LcdCtrl { lcd_enabled, bg_win_enabled, objects_enabled };
+  *BGP = STANDARD_PALETTE;
+  *OBP0 = STANDARD_PALETTE;
   
   'gameplay: loop {
     'wait_for_vblank: loop {
-      if [LY] == VBLANK_START {
+      if *LY == VBLANK_START {
         break
       }
     }
     // todo: get input
-    do_paddle_adjustments()
-    do_ball_bounces()
-    do_ball_momentum()
+    do_paddle_adjustments();
+    do_ball_bounces();
+    do_ball_momentum();
   }
 }
 
 fn do_ball_momentum() {
-  [OAM_RAM.BALL_INDEX.x] += [BallMomentumX]
-  [OAM_RAM.BALL_INDEX.y] += [BallMomentumY]
+  *OAM_RAM[BALL_INDEX].x += *BallMomentumX;
+  *OAM_RAM[BALL_INDEX].y += *BallMomentumY;
 }
 
 fn do_ball_bounces() {
   // bounce on top
-  let x = [OAM_RAM.BALL_INDEX.x]-8
-  let y = [OAM_RAM.BALL_INDEX.y]-(16+1)
-  let tile_addr = get_pixel_by_tile(x, y)
+  let x = OAM_RAM[BALL_INDEX].x-8;
+  let y = OAM_RAM[BALL_INDEX].y-(16+1);
+  let tile_addr = get_pixel_by_tile(x, y);
   if is_wall_tile(tile_addr) {
-    check_and_handle_brick(tile_addr)
-    [BallMomentumY] = 1
+    check_and_handle_brick(tile_addr);
+    *BallMomentumY = 1;
   }
   
   // bounce on right
-  let x = [OAM_RAM.BALL_INDEX.x]-(8-1)
-  let y = [OAM_RAM.BALL_INDEX.y]-16
-  let tile_addr = get_pixel_by_tile(x, y)
+  let x = OAM_RAM[BALL_INDEX].x-(8-1);
+  let y = OAM_RAM[BALL_INDEX].y-16;
+  let tile_addr = get_pixel_by_tile(x, y);
   if is_wall_tile(tile_addr) {
-    check_and_handle_brick(tile_addr)
-    [BallMomentumX] = -1
+    check_and_handle_brick(tile_addr);
+    *BallMomentumX = -1;
   }
   
   // bounce on left
-  let x = [OAM_RAM.BALL_INDEX.x]-(8+1)
-  let y = [OAM_RAM.BALL_INDEX.y]-16
-  let tile_addr = get_pixel_by_tile(x, y)
+  let x = OAM_RAM[BALL_INDEX].x-(8+1);
+  let y = OAM_RAM[BALL_INDEX].y-16;
+  let tile_addr = get_pixel_by_tile(x, y);
   if is_wall_tile(tile_addr) {
-    check_and_handle_brick(tile_addr)
-    [BallMomentumX] = 1
+    check_and_handle_brick(tile_addr);
+    *BallMomentumX = 1;
   }
   
   // bounce on bottom
-  let x = [OAM_RAM.BALL_INDEX.x]-8
-  let y = [OAM_RAM.BALL_INDEX.y]-(16-1)
-  let tile_addr = get_pixel_by_tile(x, y)
+  let x = OAM_RAM[BALL_INDEX].x-8;
+  let y = OAM_RAM[BALL_INDEX].y-(16-1);
+  let tile_addr = get_pixel_by_tile(x, y);
   if is_wall_tile(tile_addr) {
-    check_and_handle_brick(tile_addr)
-    [BallMomentumY] = -1
+    check_and_handle_brick(tile_addr);
+    *BallMomentumY = -1;
   }
   
   // bounce on paddle
-  let paddle_y = [OAM_RAM.PADDLE_INDEX.y]
-  let ball_y = [OAM_RAM.BALL_INDEX.y]
+  let paddle_y = OAM_RAM[PADDLE_INDEX].y;
+  let ball_y = OAM_RAM[BALL_INDEX].y;
   if paddle_y == ball_y {
-    let paddle_x = [OAM_RAM.PADDLE_INDEX.x]
-    let ball_x = [OAM_RAM.BALL_INDEX.y]
+    let paddle_x = OAM_RAM[PADDLE_INDEX].x;
+    let ball_x = OAM_RAM[BALL_INDEX].x;
     if paddle_x + 16 >= ball_x && paddle_x - 8 < ball_x {
-      [wBallMomentumY] = -1
+      *wBallMomentumY = -1;
     }
   }
 }
 
 fn do_paddle_adjustments() {
-  if [CurKeys].left && [OAM_RAM.PADDLE_INDEX.x] != 15 {
-    [OAM_RAM.PADDLE_INDEX.x] -= 1
-  } else if [CurKeys].right && [OAM_RAM.PADDLE_INDEX.x] != 105 {
-    [OAM_RAM.PADDLE_INDEX.x] += 1
+  if CurKeys.left && OAM_RAM[PADDLE_INDEX].x != 15 {
+    OAM_RAM[PADDLE_INDEX].x -= 1;
+  } else if CurKeys.right && OAM_RAM[PADDLE_INDEX].x != 105 {
+    OAM_RAM[PADDLE_INDEX].x += 1;
   }
 }
 
@@ -156,39 +156,40 @@ fn is_wall_tile(tile: u8) -> bool {
 }
 
 fn increase_score_packed_bcd() {
-  let score = [Score]
-  score += 1
-  decimal_adjust!(score)
+  let score = *Score;
+  score += 1;
+  decimal_adjust!(score);
   if score > $99 {
-    score = $99
+    score = $99;
   }
-  [Score] = score
-  update_scoreboard()
+  *Score = score;
+  update_scoreboard();
 }
 
 fn update_scoreboard() {
-  [SCORE_TENS] = high_nibble!([Score]) + DIGIT_OFFSET
-  [SCORE_ONES] = low_nibble!([Score]) + DIGIT_OFFSET
+  let s = *Score;
+  *SCORE_TENS = high_nibble!(s) + DIGIT_OFFSET;
+  *SCORE_ONES = low_nibble!(s) + DIGIT_OFFSET;
 }
 
-fn check_and_handle_brick(tile_addr: u16) {
-  if [tile_addr] == BRICK_LEFT {
-    [tile_addr] = BLANK_TILE
-    tile_addr += 1
-    [tile_addr] = BLANK_TILE
-    increase_score_packed_bcd()
-  } else if [tile_addr] == BRICK_RIGHT {
-    [tile_addr] = BLANK_TILE
-    tile_addr += 1
-    [tile_addr] = BLANK_TILE
-    increase_score_packed_bcd()
+fn check_and_handle_brick(tile_addr: ptr) {
+  if *tile_addr == BRICK_LEFT {
+    *tile_addr = BLANK_TILE;
+    tile_addr += 1;
+    *tile_addr = BLANK_TILE;
+    increase_score_packed_bcd();
+  } else if *tile_addr == BRICK_RIGHT {
+    *tile_addr = BLANK_TILE;
+    tile_addr += 1;
+    *tile_addr = BLANK_TILE;
+    increase_score_packed_bcd();
   }
 }
 
 fn update_input() {
-  let pressed = get_keys_pressed()
-  [NewKeys] = [CurKeys] ^ pressed
-  [CurKeys] = pressed
+  let pressed = get_keys_pressed();
+  *NewKeys = *CurKeys ^ pressed;
+  *CurKeys = pressed;
 }
 
 static Tiles: [Tile; _] = {

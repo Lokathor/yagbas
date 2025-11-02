@@ -7,11 +7,11 @@ static mut WordVariable: u16 = 2
 static mut Buffer: [u8; 16] = [3; 16]
 
 fn main() {
-  [ByteVariable] = 100
-  [WordVariable] = 1000
-  memclr_small(Buffer, size_of!(Buffer))
-  let bite = [ByteVariable]
-  let chomp = [WordVariable]
+  *ByteVariable = 100;
+  *WordVariable = 1000;
+  memclr_small(Buffer, size_of!(Buffer));
+  let bite = *ByteVariable;
+  let chomp = *WordVariable;
   
   loop {}
 }
