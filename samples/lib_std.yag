@@ -1,4 +1,9 @@
 
+const TILEMAP_WIDTH = 32
+const TILEMAP_HEIGHT = 32
+const SCREEN_WIDTH_TILES = 20
+const SCREEN_HEIGHT_TILES = 18
+
 #[location($FE00)]
 static mmio OAM_RAM: [Obj; 40];
 
@@ -69,6 +74,12 @@ bitstruct LcdCtrl {
   win_tilemap_1: 4,
   lcd_enabled: 7,
 }
+
+#[location($FF42)]
+static mmio SCY: u8;
+
+#[location($FF43)]
+static mmio SCX: u8;
 
 #[location($FF44)]
 static mmio LY: u8;

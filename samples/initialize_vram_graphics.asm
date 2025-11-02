@@ -1,8 +1,3 @@
-; Simple example to show how to load initial graphics data into VRAM.
-; This is only applicable during initial start of your rom, as it disables the LCD
-; to get full access to VRAM. This will make the screen white during this time.
-
-INCLUDE "hardware.inc"
 
 SECTION "graphics", ROM0
 graphicTiles:
@@ -30,55 +25,31 @@ opt g.123
   db $7e, $00, $81, $00, $a5, $24, $81, $00, $81, $00, $81, $24, $81, $18, $7e, $00
 .end:
 
-SECTION "entry", ROM0[$100]
-  jp start
 
-SECTION "main", ROM0[$150]
-start:
-  call disableLCD
-  call loadTiles
-  call loadPalette
-  call enableLCD
+fn main() {
+  disable_lcd()
+  load_tiles()
+  load_palette()
+  enable_lcd()
+  loop {}
+}
 
-haltLoop:
-  halt
-  jp   haltLoop
-  
-disableLCD:
-  ; Disable the LCD, needs to happen during VBlank, or else we damage hardware
-.waitForVBlank:
-  ld   a, [rLY]
-  cp   144
-  jr   c, .waitForVBlank
+fn disable_lcd() {
+  loop {
+    if [LY] == VBLANK_START {
+      break
+    }
+  }
+}
 
-  xor  a
-  ld   [rLCDC], a ; disable the LCD by writting zero to LCDC
-  ret
+fn load_palette() {
+  [BGP] = STANDARD_PALETTE
+}
 
-loadPalette:
-  ld   a, %11100100
-  ld   [rBGP], a
-  ret
+fn load_tiles() {
+  memcpy($8000, GraphicTiles, size_of!(GraphicTiles))
+}
 
-; Load the graphics tiles into VRAM
-loadTiles:
-  ld   hl, graphicTiles
-  ld   de, graphicTiles.end - graphicTiles  ; We set de to the amount of bytes to copy.
-  ld   bc, _VRAM
-
-.copyTilesLoop:
-  ; Copy a byte from ROM to VRAM, and increase both hl, bc to the next location.
-  ld   a, [hl+]
-  ld   [bc], a
-  inc  bc
-  ; Decrease the amount of bytes we still need to copy and check if the amount left is zero.
-  dec  de
-  ld   a, d
-  or   e
-  jp   nz, .copyTilesLoop
-  ret
-
-enableLCD:
-  ld   a, LCDCF_BGON | LCDCF_BG8000 | LCDCF_ON
-  ldh  [rLCDC], a
-  ret
+fn enable_lcd() {
+  [LCDC] = LcdCtrl { bg_win_enabled, lcd_enabled }
+}
