@@ -1,0 +1,39 @@
+
+static GraphicTiles: Tile = {
+  $00,7e,
+  $00,81,
+  $24,a5,
+  $00,81,
+  $00,81,
+  $24,81,
+  $18,81,
+  $00,7e,
+}
+
+fn main() {
+  disable_lcd()
+  load_tiles()
+  load_palette()
+  enable_lcd()
+  loop {}
+}
+
+fn disable_lcd() {
+  loop {
+    if [LY] == VBLANK_START {
+      break
+    }
+  }
+}
+
+fn load_palette() {
+  [BGP] = STANDARD_PALETTE
+}
+
+fn load_tiles() {
+  memcpy($8000, GraphicTiles, size_of!(GraphicTiles))
+}
+
+fn enable_lcd() {
+  [LCDC] = LcdCtrl { bg_win_enabled, lcd_enabled }
+}
