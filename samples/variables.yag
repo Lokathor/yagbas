@@ -1,3 +1,6 @@
+/*
+adaptation of https://github.com/daid/gameboy-assembly-by-example/blob/master/asm-basic/variables.asm
+*/
 
 static mut ByteVariable = 1
 static mut WordVariable: u16 = 2
