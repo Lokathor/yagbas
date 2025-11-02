@@ -126,19 +126,8 @@ impl Token {
   #[inline(always)]
   pub fn lexer<'source>(
     source: &'source <Self as Logos>::Source,
-  ) -> Lexer<'source, Self>
-  where
-    <Self as Logos<'source>>::Extras: Default,
-  {
-    <Self as Logos>::lexer(source)
-  }
-  /// Allows the [lexer_with_extras][Logos::lexer_with_extras] method to be
-  /// called without needing to import the trait.
-  #[inline(always)]
-  pub fn lexer_with_extras<'source>(
-    source: &'source <Self as Logos>::Source, extras: <Self as Logos>::Extras,
   ) -> Lexer<'source, Self> {
-    <Self as Logos>::lexer_with_extras(source, extras)
+    <Self as Logos>::lexer(source)
   }
 }
 
@@ -150,9 +139,9 @@ fn test_token_size() {
 pub fn tokens_of(source: &str) -> Vec<(Token, SimpleSpan)> {
   Token::lexer(source)
     .spanned()
-    .map(|(token, range)| {
+    .map(|(token_result, range)| {
       (
-        token.unwrap_or(Token::TokenError),
+        token_result.unwrap_or(Token::TokenError),
         SimpleSpan { start: range.start, end: range.end, context: () },
       )
     })
