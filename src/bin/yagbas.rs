@@ -10,9 +10,7 @@ use std::{
   process::{ExitCode, exit},
 };
 use yagbas::{
-  Ast, FileData, Item, S, YagError, items_of, log_error, print_any_errors,
-  separate_ast_statements_into_blocks, tac_blocks_from_expr_blocks, tokens_of,
-  trees_of,
+  FileData, YagError, log_error, print_any_errors, tokens_of, trees_of,
 };
 
 #[test]
@@ -57,13 +55,14 @@ pub fn main() -> ExitCode {
 
 #[allow(unused)]
 pub fn do_build(build_args: BuildArgs) -> ExitCode {
-  let mut ast = Ast::default();
+  //let mut ast = Ast::default();
   // load + parse multi-threaded with rayon.
   let load_parse_data: Vec<_> =
     build_args.files.par_iter().map(load_parse(&build_args)).collect();
   for items in load_parse_data {
     for item in items {
       // Note(Lokathor): ItemError entries don't have names.
+      #[cfg(false)]
       if let Some(name) = item.0.get_name()
         && let Some(_old_def) = ast.items.insert(name, item)
       {
@@ -73,12 +72,13 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
   }
   // now we have a basic AST.
 
-  ast.populate_static_sizes();
-  ast.populate_ir_bitstructs();
-  ast.populate_const_exprs();
+  //ast.populate_static_sizes();
+  //ast.populate_ir_bitstructs();
+  //ast.populate_const_exprs();
   // todo: populate static defs
-  ast.do_per_item_data_cleanup();
+  //ast.do_per_item_data_cleanup();
 
+  #[cfg(false)]
   for i in ast.items.values() {
     match &i.0 {
       Item::Func(f) => {
@@ -110,7 +110,7 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
 /// This makes a closure that can load and parse the items from a given file.
 ///
 /// Each file will run this closure once, possibly on separate threads.
-fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<S<Item>> {
+fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<()> {
   move |path_buf: &PathBuf| {
     let load_result = FileData::load(path_buf);
     let file_data = match load_result {
@@ -131,11 +131,11 @@ fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<S<Item>> {
       println!("{p} TREES: {trees:?}", p = path_buf.display());
     }
 
-    let items = items_of(&trees, file_data);
+    //let items = items_of(&trees, file_data);
     if build_args.show_items {
-      println!("{p} ITEMS: {items:?}", p = path_buf.display());
+      //println!("{p} ITEMS: {items:?}", p = path_buf.display());
     }
 
-    items
+    Vec::new() //items
   }
 }

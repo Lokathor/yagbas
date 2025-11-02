@@ -2,7 +2,7 @@ use chumsky::span::SimpleSpan;
 use logos::{Lexer, Logos};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, logos::Logos)]
-#[logos(skip r#"[[ \t]]"#)] // ignore space and tab between tokens
+#[logos(skip r#"[[ \t\r\n]]"#)] // ignore space and tab between tokens
 pub enum Token {
   /* TOKEN TREE MARKERS */
   #[regex(r"\[", priority = 5)]
@@ -22,97 +22,52 @@ pub enum Token {
   #[token(r"*/", priority = 5)]
   ClBlockComment,
 
+  #[token(r"///[^\r\n]*", priority = 5)]
+  DocComment,
+  #[regex(r"//[^\r\n]*", priority = 4)]
+  LineComment,
+
   /* KEYWORDS */
-  #[token("a", priority = 4)]
-  #[token("A", priority = 4)]
-  KwA,
-  #[token("af", priority = 4)]
-  #[token("AF", priority = 4)]
-  KwAF,
-  #[token("b", priority = 4)]
-  #[token("B", priority = 4)]
-  KwB,
-  #[token("bc", priority = 4)]
-  #[token("BC", priority = 4)]
-  KwBC,
   #[regex(r"bitstruct", priority = 4)]
   KwBitStruct,
   #[regex(r"break", priority = 4)]
   KwBreak,
-  #[token("c", priority = 4)]
-  #[token("C", priority = 4)]
-  KwC,
   #[regex(r"const", priority = 4)]
   KwConst,
   #[regex(r"continue", priority = 4)]
   KwContinue,
-  #[token("d", priority = 4)]
-  #[token("D", priority = 4)]
-  KwD,
-  #[token("de", priority = 4)]
-  #[token("DE", priority = 4)]
-  KwDE,
-  #[token("e", priority = 4)]
-  #[token("E", priority = 4)]
-  KwE,
   #[regex(r"else", priority = 4)]
   KwElse,
-  #[token("f", priority = 4)]
-  #[token("F", priority = 4)]
-  KwF,
   #[regex(r"false", priority = 4)]
   KwFalse,
   #[regex(r"fn", priority = 4)]
   KwFn,
-  #[token("h", priority = 4)]
-  #[token("H", priority = 4)]
-  KwH,
-  #[token("hl", priority = 4)]
-  #[token("HL", priority = 4)]
-  KwHL,
   #[regex(r"if", priority = 4)]
   KwIf,
-  #[token("l", priority = 4)]
-  #[token("L", priority = 4)]
-  KwL,
   #[regex(r"let", priority = 4)]
   KwLet,
   #[regex(r"loop", priority = 4)]
   KwLoop,
+  #[regex(r"mmio", priority = 4)]
+  KwMmio,
   #[regex(r"mut", priority = 4)]
   KwMut,
-  #[token("nc", priority = 4)]
-  #[token("NC", priority = 4)]
-  KwNC,
-  #[token("nz", priority = 4)]
-  #[token("NZ", priority = 4)]
-  KwNZ,
   #[regex(r"return", priority = 4)]
   KwReturn,
-  #[token("sp", priority = 4)]
-  #[token("SP", priority = 4)]
-  KwSP,
   #[regex(r"static", priority = 4)]
   KwStatic,
   #[regex(r"struct", priority = 4)]
   KwStruct,
   #[regex(r"true", priority = 4)]
   KwTrue,
-  #[token("z", priority = 4)]
-  #[token("Z", priority = 4)]
-  KwZ,
 
   /* IDENTS, NUMBERS, AND LINE COMMENTS */
   #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*", priority = 3)]
   Ident,
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)", priority = 3)]
   NumLit,
-  #[regex(r"//[^\r\n]*", priority = 3)]
-  LineComment,
 
   /* PUNCTUATION (ordered approximately by US QWERTY layout) */
-  #[regex(r"\r\n|\r|\n", priority = 2)]
-  Newline,
   #[regex(r"~", priority = 2)]
   Tilde,
   #[regex(r"`", priority = 2)]
