@@ -28,7 +28,7 @@ fn main() {
       break
     }
   }
-  memcpy($9000, Tile, size_of!(Tiles));
+  memcpy($9000, Tiles, size_of!(Tiles));
   memcpy($9800, Tilemap, size_of!(Tilemap));
   memcpy($8000, Paddle, size_of!(Paddle));
   memcpy($8010, Ball, size_of!(Ball));
