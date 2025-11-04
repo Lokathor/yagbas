@@ -5,116 +5,117 @@ use logos::{Lexer, Logos};
 #[logos(skip r#"[[ \t\r\n]]"#)] // ignore space and tab between tokens
 pub enum Token {
   /* TOKEN TREE MARKERS */
-  #[regex(r"\[", priority = 5)]
+  #[regex(r"\[")]
   OpBracket,
-  #[regex(r"\]", priority = 5)]
+  #[regex(r"\]")]
   ClBracket,
-  #[regex(r"\{", priority = 5)]
+  #[regex(r"\{")]
   OpBrace,
-  #[regex(r"\}", priority = 5)]
+  #[regex(r"\}")]
   ClBrace,
-  #[regex(r"\(", priority = 5)]
+  #[regex(r"\(")]
   OpParen,
-  #[regex(r"\)", priority = 5)]
+  #[regex(r"\)")]
   ClParen,
-  #[token(r"/*", priority = 5)]
+  #[regex(r"/\*")]
   OpBlockComment,
-  #[token(r"*/", priority = 5)]
+  #[regex(r"\*/")]
   ClBlockComment,
+  
+  /* TOKEN TREE LONE ITEMS */
 
-  #[token(r"///[^\r\n]*", priority = 5)]
+  #[regex(r"///[^\r\n]*")]
   DocComment,
-  #[regex(r"//[^\r\n]*", priority = 4)]
+  #[regex(r"//![^\r\n]*")]
+  InteriorComment,
+  #[regex(r"//[^\r\n]*")]
   LineComment,
 
-  /* KEYWORDS */
-  #[regex(r"bitstruct", priority = 4)]
+  #[regex(r"bitstruct")]
   KwBitStruct,
-  #[regex(r"break", priority = 4)]
+  #[regex(r"break")]
   KwBreak,
-  #[regex(r"const", priority = 4)]
+  #[regex(r"const")]
   KwConst,
-  #[regex(r"continue", priority = 4)]
+  #[regex(r"continue")]
   KwContinue,
-  #[regex(r"else", priority = 4)]
+  #[regex(r"else")]
   KwElse,
-  #[regex(r"false", priority = 4)]
+  #[regex(r"false")]
   KwFalse,
-  #[regex(r"fn", priority = 4)]
+  #[regex(r"fn")]
   KwFn,
-  #[regex(r"if", priority = 4)]
+  #[regex(r"if")]
   KwIf,
-  #[regex(r"let", priority = 4)]
+  #[regex(r"let")]
   KwLet,
-  #[regex(r"loop", priority = 4)]
+  #[regex(r"loop")]
   KwLoop,
-  #[regex(r"mmio", priority = 4)]
+  #[regex(r"mmio")]
   KwMmio,
-  #[regex(r"mut", priority = 4)]
+  #[regex(r"mut")]
   KwMut,
-  #[regex(r"return", priority = 4)]
+  #[regex(r"return")]
   KwReturn,
-  #[regex(r"static", priority = 4)]
+  #[regex(r"static")]
   KwStatic,
-  #[regex(r"struct", priority = 4)]
+  #[regex(r"struct")]
   KwStruct,
-  #[regex(r"true", priority = 4)]
+  #[regex(r"true")]
   KwTrue,
-
-  /* IDENTS, NUMBERS, AND LINE COMMENTS */
-  #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*", priority = 3)]
+  
+  #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*",)]
   Ident,
-  #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)", priority = 3)]
+  #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)")]
   NumLit,
-
-  /* PUNCTUATION (ordered approximately by US QWERTY layout) */
-  #[regex(r"~", priority = 2)]
+  
+  #[regex(r"~")]
   Tilde,
-  #[regex(r"`", priority = 2)]
+  #[regex(r"`")]
   Backtick,
-  #[regex(r"!", priority = 2)]
+  #[regex(r"!")]
   Exclamation,
-  #[regex(r"@", priority = 2)]
+  #[regex(r"@")]
   AtSign,
-  #[regex(r"#", priority = 2)]
+  #[regex(r"#")]
   Hash,
-  #[regex(r"\$", priority = 2)]
+  #[regex(r"\$")]
   Dollar,
-  #[regex(r"%", priority = 2)]
+  #[regex(r"%")]
   Percent,
-  #[regex(r"\^", priority = 2)]
+  #[regex(r"\^")]
   Caret,
-  #[regex(r"&", priority = 2)]
+  #[regex(r"&")]
   Ampersand,
-  #[regex(r"\*", priority = 2)]
+  #[regex(r"\*")]
   Asterisk,
-  #[regex(r"-", priority = 2)]
+  #[regex(r"-")]
   Minus,
-  #[regex(r"\+", priority = 2)]
+  #[regex(r"\+")]
   Plus,
-  #[regex(r"=", priority = 2)]
+  #[regex(r"=")]
   Equal,
-  #[regex(r"\|", priority = 2)]
+  #[regex(r"\|")]
   Pipe,
-  #[regex(r"\\", priority = 2)]
+  #[regex(r"\\")]
   Backslash,
-  #[regex(r":", priority = 2)]
+  #[regex(r":")]
   Colon,
-  #[regex(r";", priority = 2)]
+  #[regex(r";")]
   Semicolon,
-  #[regex(r"'", priority = 2)]
+  #[regex(r"'")]
   Quote,
-  #[regex(r"<", priority = 2)]
+  #[regex(r"<")]
   LessThan,
-  #[regex(r",", priority = 2)]
+  #[regex(r",")]
   Comma,
-  #[regex(r">", priority = 2)]
+  #[regex(r">")]
   GreaterThan,
-  #[regex(r"\.", priority = 2)]
+  #[regex(r"\.")]
   Period,
-  #[regex(r"\?", priority = 2)]
+  #[regex(r"\?")]
   Question,
-  #[regex(r"/", priority = 2)]
+  #[regex(r"/")]
   Slash,
 
   /* OTHER */
@@ -131,19 +132,55 @@ impl Token {
   }
 }
 
-#[test]
-fn test_token_size() {
-  assert_eq!(core::mem::size_of::<Token>(), 1);
-}
-
-pub fn tokens_of(source: &str) -> Vec<(Token, SimpleSpan)> {
+pub fn tokens_of(source: &str) -> Vec<(Token, SimpleSpan<u32>)> {
   Token::lexer(source)
     .spanned()
     .map(|(token_result, range)| {
       (
         token_result.unwrap_or(Token::TokenError),
-        SimpleSpan { start: range.start, end: range.end, context: () },
+        SimpleSpan { start: range.start.try_into().unwrap(), end: range.end.try_into().unwrap(), context: () },
       )
     })
     .collect()
+}
+
+/// it's easier to unit test without spans, so we write unit tests with this.
+#[allow(unused)]
+fn lex(source: &str) -> Vec<Token> {
+  Token::lexer(source)
+    .map(|token_result| 
+      token_result.unwrap_or(Token::TokenError)
+    )
+    .collect()
+}
+
+#[test]
+fn test_token_size() {
+  assert_eq!(core::mem::size_of::<Token>(), 1);
+}
+
+#[test]
+fn test_lexing() {
+  use Token::*;
+  assert_eq!(lex(""), &[]);
+  assert_eq!(lex("/*"), &[OpBlockComment]);
+  assert_eq!(lex("/ *"), &[Slash, Asterisk]);
+  assert_eq!(lex("*/"), &[ClBlockComment]);
+  assert_eq!(lex("* /"), &[Asterisk, Slash]);
+  assert_eq!(lex("///"), &[DocComment]);
+  assert_eq!(lex("//"), &[LineComment]);
+  assert_eq!(lex("///*"), &[DocComment]);
+  assert_eq!(lex("// /*"), &[LineComment]);
+  assert_eq!(lex("// */"), &[LineComment]);
+  assert_eq!(lex("if"), &[KwIf]);
+  assert_eq!(lex("IF"), &[Ident]);
+  assert_eq!(lex("_"), &[Ident]);
+  assert_eq!(lex("_0"), &[Ident]);
+  assert_eq!(lex("0_"), &[NumLit]);
+  assert_eq!(lex("$"), &[Dollar]);
+  assert_eq!(lex("$F"), &[NumLit]);
+  assert_eq!(lex("$ F"), &[Dollar, Ident]);
+  assert_eq!(lex("%"), &[Percent]);
+  assert_eq!(lex("%F"), &[NumLit]);
+  assert_eq!(lex("% F"), &[Percent, Ident]);
 }
