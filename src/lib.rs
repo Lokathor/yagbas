@@ -44,3 +44,5 @@ pub use token_tree::*;
 
 pub mod error;
 pub use error::*;
+
+pub type Span32 = SimpleSpan<u32>;

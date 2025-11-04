@@ -7,8 +7,8 @@ use std::sync::PoisonError;
 #[derive(Debug, Clone)]
 pub enum YagError {
   IO(PathBuf, String),
-  TokenTreeParseError(FileID, Rich<'static, Token>),
-  ItemParseError(FileID, Rich<'static, TokenTree>),
+  TokenTreeParseError(FileID, Rich<'static, Token, Span32>),
+  ItemParseError(FileID, Rich<'static, TokenTree, Span32>),
   MacroSizeOfStaticNoSize(FileID, SimpleSpan),
   MacroSizeOfStaticBadArgs(FileID, SimpleSpan),
   MacroPaletteBadArgs(FileID, SimpleSpan),

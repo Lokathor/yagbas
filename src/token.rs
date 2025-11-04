@@ -1,5 +1,6 @@
 use chumsky::span::SimpleSpan;
 use logos::{Lexer, Logos};
+use crate::Span32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, logos::Logos)]
 #[logos(skip r#"[[ \t\r\n]]"#)] // ignore space and tab between tokens
@@ -21,9 +22,8 @@ pub enum Token {
   OpBlockComment,
   #[regex(r"\*/")]
   ClBlockComment,
-  
-  /* TOKEN TREE LONE ITEMS */
 
+  /* TOKEN TREE LONE ITEMS */
   #[regex(r"///[^\r\n]*")]
   DocComment,
   #[regex(r"//![^\r\n]*")]
@@ -63,12 +63,12 @@ pub enum Token {
   KwStruct,
   #[regex(r"true")]
   KwTrue,
-  
-  #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*",)]
+
+  #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*")]
   Ident,
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)")]
   NumLit,
-  
+
   #[regex(r"~")]
   Tilde,
   #[regex(r"`")]
@@ -125,20 +125,22 @@ impl Token {
   /// Allows the [lexer][Logos::lexer] method to be called without needing to
   /// import the trait.
   #[inline(always)]
-  pub fn lexer<'source>(
-    source: &'source <Self as Logos>::Source,
-  ) -> Lexer<'source, Self> {
+  pub fn lexer<'s>(source: &'s str) -> Lexer<'s, Self> {
     <Self as Logos>::lexer(source)
   }
 }
 
-pub fn tokens_of(source: &str) -> Vec<(Token, SimpleSpan<u32>)> {
+pub fn tokens_of(source: &str) -> Vec<(Token, Span32)> {
   Token::lexer(source)
     .spanned()
     .map(|(token_result, range)| {
       (
         token_result.unwrap_or(Token::TokenError),
-        SimpleSpan { start: range.start.try_into().unwrap(), end: range.end.try_into().unwrap(), context: () },
+        SimpleSpan {
+          start: range.start.try_into().unwrap(),
+          end: range.end.try_into().unwrap(),
+          context: (),
+        },
       )
     })
     .collect()
@@ -148,9 +150,7 @@ pub fn tokens_of(source: &str) -> Vec<(Token, SimpleSpan<u32>)> {
 #[allow(unused)]
 fn lex(source: &str) -> Vec<Token> {
   Token::lexer(source)
-    .map(|token_result| 
-      token_result.unwrap_or(Token::TokenError)
-    )
+    .map(|token_result| token_result.unwrap_or(Token::TokenError))
     .collect()
 }
 

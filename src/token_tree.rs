@@ -8,17 +8,17 @@ use chumsky::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenTree {
   Lone(Token),
-  Parens(Vec<(TokenTree, SimpleSpan)>),
-  Brackets(Vec<(TokenTree, SimpleSpan)>),
-  Braces(Vec<(TokenTree, SimpleSpan)>),
+  Parens(Vec<(TokenTree, Span32)>),
+  Brackets(Vec<(TokenTree, Span32)>),
+  Braces(Vec<(TokenTree, Span32)>),
   TreeError,
 }
 // TODO: we can make this type 25% smaller if we replace the Vec with a boxed slice.
 
 pub fn trees_of(
-  tokens: &[(Token, SimpleSpan)], file_id: FileID,
-) -> Vec<(TokenTree, SimpleSpan)> {
-  let eoi: SimpleSpan = match tokens.last() {
+  tokens: &[(Token, Span32)], file_id: FileID,
+) -> Vec<(TokenTree, Span32)> {
+  let eoi: Span32 = match tokens.last() {
     Some(s) => s.1,
     None => return Vec::new(),
   };
@@ -68,10 +68,10 @@ where
 
 /// Parses one token tree, and its span.
 fn token_tree_p<'src, I>()
--> impl Parser<'src, I, (TokenTree, SimpleSpan), Err<Rich<'src, Token, SimpleSpan>>>
+-> impl Parser<'src, I, (TokenTree, Span32), Err<Rich<'src, Token, Span32>>>
 + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   recursive(|tokens| {
     // Looks like `{ ... }`
@@ -103,7 +103,7 @@ where
     let lone =
       non_tree_token_p().map_with(|out, ex| (TokenTree::Lone(out), ex.span()));
 
-    assert_output::<(TokenTree, SimpleSpan), _, _, _>(&lone);
+    assert_output::<(TokenTree, Span32), _, _, _>(&lone);
 
     // comments get stripped from the output.
     let comment = {
@@ -128,9 +128,9 @@ where
 
 /// Parses an `OpBrace`, which is then discarded.
 fn open_brace_p<'src, I>()
--> impl Parser<'src, I, (), Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::OpBrace => (),
@@ -141,9 +141,9 @@ where
 
 /// Parses a `ClBrace`, which is then discarded.
 fn close_brace_p<'src, I>()
--> impl Parser<'src, I, (), Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::ClBrace => (),
@@ -154,9 +154,9 @@ where
 
 /// Parses an `OpBracket`, which is then discarded.
 fn open_bracket_p<'src, I>()
--> impl Parser<'src, I, (), Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::OpBracket => (),
@@ -167,9 +167,9 @@ where
 
 /// Parses a `ClBracket`, which is then discarded.
 fn close_bracket_p<'src, I>()
--> impl Parser<'src, I, (), Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::ClBracket => (),
@@ -180,9 +180,9 @@ where
 
 /// Parses an `OpParen`, which is then discarded.
 fn open_paren_p<'src, I>()
--> impl Parser<'src, I, (), Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::OpParen => (),
@@ -193,9 +193,9 @@ where
 
 /// Parses a `ClParen`, which is then discarded.
 fn close_paren_p<'src, I>()
--> impl Parser<'src, I, (), Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::ClParen => (),
@@ -206,9 +206,9 @@ where
 
 /// Parses an `OpCommentBlock`, which is then discarded.
 fn open_comment_p<'src, I>()
--> impl Parser<'src, I, (), Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::OpBlockComment => (),
@@ -219,9 +219,9 @@ where
 
 /// Parses a `ClCommentBlock`, which is then discarded.
 fn close_comment_p<'src, I>()
--> impl Parser<'src, I, (), Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::ClBlockComment => (),
@@ -232,9 +232,9 @@ where
 
 /// Parses a token which isn't a tree opener or closer.
 fn non_tree_token_p<'src, I>()
--> impl Parser<'src, I, Token, Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, Token, Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   none_of([
     Token::OpBracket,
@@ -252,9 +252,9 @@ where
 
 /// Parses an `SingleComment`, which is then discarded.
 fn single_line_comment_p<'src, I>()
--> impl Parser<'src, I, (), Err<Rich<'src, Token, SimpleSpan>>> + Clone
+-> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
-  I: BorrowInput<'src, Token = Token, Span = SimpleSpan> + ValueInput<'src>,
+  I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::LineComment => (),
