@@ -68,6 +68,8 @@ pub enum Expr {
   BitAnd(Box<ExprBinOp>),
   BitOr(Box<ExprBinOp>),
   BitXor(Box<ExprBinOp>),
+  BoolAnd(Box<ExprBinOp>),
+  BoolOr(Box<ExprBinOp>),
   Index(Box<ExprBinOp>),
   Dot(Box<ExprBinOp>),
   Eq(Box<ExprBinOp>),
@@ -106,14 +108,14 @@ pub struct ExprBinOp {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprCall {
-  target: Expr,
+  target: StrID,
   target_span: Span32,
   args: Vec<ExprUnOp>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprMacro {
-  target: Expr,
+  target: StrID,
   target_span: Span32,
   args: Vec<ExprUnOp>,
 }
@@ -122,15 +124,15 @@ pub struct ExprMacro {
 pub struct ExprStruct {
   ty: StrID,
   ty_span: Span32,
-  args: Vec<(FieldAssign, Span32)>,
+  args: Vec<FieldAssign>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub enum FieldAssign {
   #[default]
   FieldAssignError,
-  Ident(StrID),
-  IdentEq(StrID, Expr),
+  Ident(StrID, Span32),
+  IdentEq(StrID, Span32, Expr, Span32),
 }
 
 #[test]
@@ -147,6 +149,7 @@ pub struct AstConst {
   pub ty_span: Span32,
   pub expr: Expr,
   pub expr_span: Span32,
+  pub attributes: Vec<Expr>,
   pub file_id: FileID,
   pub total_span: Span32,
 }
