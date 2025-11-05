@@ -3,7 +3,7 @@ use logos::{Lexer, Logos};
 use crate::Span32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, logos::Logos)]
-#[logos(skip r#"[[ \t\r\n]]"#)] // ignore space and tab between tokens
+#[logos(skip r#"[[ \t\r\n]]"#)] // ignore whitespace between tokens
 pub enum Token {
   /* TOKEN TREE MARKERS */
   #[regex(r"\[")]
@@ -156,6 +156,7 @@ fn lex(source: &str) -> Vec<Token> {
 
 #[test]
 fn test_token_size() {
+  // note(lokathor): any change in size might be justified (and so we would update this test), but we should still take note of it happening.
   assert_eq!(core::mem::size_of::<Token>(), 1);
 }
 
