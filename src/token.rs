@@ -1,6 +1,6 @@
+use crate::Span32;
 use chumsky::span::SimpleSpan;
 use logos::{Lexer, Logos};
-use crate::Span32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, logos::Logos)]
 #[logos(skip r#"[[ \t\r\n]]"#)] // ignore whitespace between tokens

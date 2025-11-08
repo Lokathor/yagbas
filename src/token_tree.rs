@@ -17,8 +17,8 @@ pub enum TokenTree {
 #[test]
 fn test_token_tree_size() {
   // note(lokathor): any change in size might be justified (and so we would update this test), but we should still take note of it happening.
-  assert_eq!(size_of::<TokenTree>(), size_of::<[usize;3]>());
-  assert_eq!(size_of::<(TokenTree, Span32)>(), size_of::<[usize;4]>());
+  assert_eq!(size_of::<TokenTree>(), size_of::<[usize; 3]>());
+  assert_eq!(size_of::<(TokenTree, Span32)>(), size_of::<[usize; 4]>());
 }
 
 pub fn trees_of(
@@ -74,8 +74,7 @@ where
 
 /// Parses one token tree, and its span.
 fn token_tree_p<'src, I>()
--> impl Parser<'src, I, (TokenTree, Span32), Err<Rich<'src, Token, Span32>>>
-+ Clone
+-> impl Parser<'src, I, (TokenTree, Span32), Err<Rich<'src, Token, Span32>>> + Clone
 where
   I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
@@ -86,7 +85,9 @@ where
       .repeated()
       .collect::<Vec<_>>()
       .delimited_by(open_brace_p(), close_brace_p())
-      .map_with(|out, ex| (TokenTree::Braces(out.into_boxed_slice()), ex.span()));
+      .map_with(|out, ex| {
+        (TokenTree::Braces(out.into_boxed_slice()), ex.span())
+      });
 
     // Looks like `[ ... ]`
     let brackets = tokens
@@ -94,7 +95,9 @@ where
       .repeated()
       .collect::<Vec<_>>()
       .delimited_by(open_bracket_p(), close_bracket_p())
-      .map_with(|out, ex| (TokenTree::Brackets(out.into_boxed_slice()), ex.span()));
+      .map_with(|out, ex| {
+        (TokenTree::Brackets(out.into_boxed_slice()), ex.span())
+      });
 
     // Looks like `( ... )`
     let parens = tokens
@@ -102,7 +105,9 @@ where
       .repeated()
       .collect::<Vec<_>>()
       .delimited_by(open_paren_p(), close_paren_p())
-      .map_with(|out, ex| (TokenTree::Parens(out.into_boxed_slice()), ex.span()));
+      .map_with(|out, ex| {
+        (TokenTree::Parens(out.into_boxed_slice()), ex.span())
+      });
 
     // Looks like something that does *NOT* open or close one of the other
     // types.
