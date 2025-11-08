@@ -19,10 +19,17 @@
 
 //! Yagbas is a compiler for a language of the same name.
 
-use chumsky::error::Rich;
-use chumsky::prelude::SimpleSpan;
-use core::mem::size_of;
-use core::{mem::replace, num::NonZeroUsize};
+use chumsky::{
+  error::Rich,
+  extra::{Full, SimpleState},
+  input::{BorrowInput, Input, ValueInput},
+  prelude::*,
+};
+use core::{
+  mem::{replace, size_of},
+  num::NonZeroUsize,
+  ops::Range,
+};
 use derive_more::Display;
 use internal_iterator_rec::InternalIterator;
 use std::{collections::HashMap, path::PathBuf};
@@ -30,6 +37,9 @@ use str_id::StrID;
 
 pub mod error;
 pub use error::*;
+
+pub mod parsing_junk_drawer;
+pub use parsing_junk_drawer::*;
 
 pub mod file_data;
 pub use file_data::*;
@@ -51,5 +61,17 @@ pub use ast_const::*;
 
 pub mod ast_static;
 pub use ast_static::*;
+
+pub mod ast_function;
+pub use ast_function::*;
+
+pub mod ast_struct;
+pub use ast_struct::*;
+
+pub mod ast_bitstruct;
+pub use ast_bitstruct::*;
+
+pub mod statement;
+pub use statement::*;
 
 pub type Span32 = SimpleSpan<u32>;
