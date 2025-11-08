@@ -141,6 +141,18 @@ fn test_expr_size() {
   assert_eq!(size_of::<Expr>(), size_of::<[usize;2]>());
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub enum AstAttribute {
+  #[default]
+  AttributeError,
+  /// like `#[hram]`
+  Ident(StrID, Span32),
+  /// like `#[game_revision = 2]`
+  Assignment(StrID, Span32, Expr),
+  /// like `#[location($FF00)]`
+  Call(StrID, Span32, Vec<AstAttribute>),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstConst {
   pub name: StrID,
@@ -152,4 +164,26 @@ pub struct AstConst {
   pub attributes: Vec<Expr>,
   pub file_id: FileID,
   pub total_span: Span32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AstStatic {
+  pub name: StrID,
+  pub name_span: Span32,
+  pub ty: StrID,
+  pub ty_span: Span32,
+  pub expr: Expr,
+  pub expr_span: Span32,
+  pub attributes: Vec<Expr>,
+  pub file_id: FileID,
+  pub total_span: Span32,
+  pub mutability: DataMutability,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum DataMutability {
+  #[default]
+  Immutable,
+  Mutable,
+  MemoryMappedIO,
 }
