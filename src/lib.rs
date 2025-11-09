@@ -40,6 +40,9 @@ pub use token::*;
 pub mod token_tree;
 pub use token_tree::*;
 
+pub mod yag_parser;
+pub use yag_parser::*;
+
 pub type Span32 = SimpleSpan<u32>;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
