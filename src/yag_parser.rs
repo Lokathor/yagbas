@@ -25,3 +25,27 @@ where
   I: YagParserInput<'src>,
 {
 }
+
+impl<'src, I, O, T> YagParser<'src, I, O> for T
+where
+  T: Parser<
+      'src,
+      I,
+      O,
+      Full<Rich<'src, TokenTree, Span32>, SimpleState<YagParserState>, ()>,
+    >,
+  T: Clone,
+  I: YagParserInput<'src>,
+{
+}
+
+#[test]
+fn test_impl_return_readabilty() {
+  #[allow(unused)]
+  fn example_parser<'src, I>() -> impl YagParser<'src, I, ()>
+  where
+    I: YagParserInput<'src>,
+  {
+    chumsky::prelude::todo()
+  }
+}
