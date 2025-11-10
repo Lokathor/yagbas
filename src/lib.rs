@@ -53,6 +53,9 @@ pub use token_tree::*;
 pub mod expr;
 pub use expr::*;
 
+pub mod yag_parser;
+pub use yag_parser::*;
+
 pub mod ast_attribute;
 pub use ast_attribute::*;
 
