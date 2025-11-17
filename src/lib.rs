@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+//#![forbid(unsafe_code)]
 #![allow(unused_mut)]
 #![allow(unused_braces)]
 #![allow(unused_parens)]

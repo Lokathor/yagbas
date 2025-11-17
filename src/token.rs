@@ -2,7 +2,18 @@ use crate::Span32;
 use chumsky::span::SimpleSpan;
 use logos::{Lexer, Logos};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, logos::Logos)]
+#[derive(
+  Debug,
+  Clone,
+  Copy,
+  Default,
+  PartialEq,
+  Eq,
+  PartialOrd,
+  Ord,
+  Hash,
+  logos::Logos,
+)]
 #[logos(skip r#"[[ \t\r\n]]"#)] // ignore whitespace between tokens
 pub enum Token {
   /* TOKEN TREE MARKERS */
@@ -119,6 +130,7 @@ pub enum Token {
   Slash,
 
   /* OTHER */
+  #[default]
   TokenError,
 }
 impl Token {

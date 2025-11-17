@@ -5,12 +5,13 @@ use chumsky::{
   prelude::*,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TokenTree {
   Lone(Token),
   Parens(Box<[(TokenTree, Span32)]>),
   Brackets(Box<[(TokenTree, Span32)]>),
   Braces(Box<[(TokenTree, Span32)]>),
+  #[default]
   TreeError,
 }
 
