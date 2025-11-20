@@ -77,3 +77,34 @@ pub fn kw_struct_p<'src>() -> impl YagParser<'src, ()> {
     Lone(KwStruct) => ()
   }
 }
+
+pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
+  select! {
+    Lone(Ident) = ex => {
+      let state: &SimpleState<YagParserState> = ex.state();
+      let source: &str = state.source;
+      let span: Span32 = ex.span();
+      let range: Range<usize> = span.start.try_into().unwrap()..span.end.try_into().unwrap();
+      let str_id = StrID::from(&source[range]);
+      str_id
+    }
+  }
+}
+pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
+  select! {
+    Lone(NumLit) = ex => {
+      let state: &SimpleState<YagParserState> = ex.state();
+      let source: &str = state.source;
+      let span: Span32 = ex.span();
+      let range: Range<usize> = span.start.try_into().unwrap()..span.end.try_into().unwrap();
+      let str_id = StrID::from(&source[range]);
+      str_id
+    }
+  }
+}
+pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
+  select! {
+    Lone(KwTrue) => true,
+    Lone(KwFalse) => false,
+  }
+}
