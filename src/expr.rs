@@ -11,6 +11,8 @@ pub enum Expr {
   Call(Box<ExprCall>),
   Macro(Box<ExprMacro>),
   Struct(Box<ExprStruct>),
+  IfElse(Box<ExprIfElse>),
+  Block(Box<ExprBlock>),
 
   Deref(Box<ExprUnOp>),
   Neg(Box<ExprUnOp>),
@@ -98,4 +100,18 @@ pub enum FieldAssign {
   FieldAssignError,
   Ident(StrID, Span32),
   IdentEq(StrID, Span32, Expr, Span32),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprIfElse {
+  condition: Expr,
+  if_body: Vec<Statement>,
+  else_body: Vec<Statement>,
+  total_span: Span32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprBlock {
+  body: Vec<Statement>,
+  total_span: Span32,
 }
