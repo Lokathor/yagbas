@@ -3,7 +3,8 @@ use super::*;
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Statement {
   span: Span32,
-  attribues: Vec<AstAttribute>,
+  /// this is an option box vec to save on a lot of space per statement.
+  attribues: Option<Box<Vec<AstAttribute>>>,
   /// use `None` when there's an error, instead of an explicit error variant.
   kind: Option<StatementKind>,
 }
