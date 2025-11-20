@@ -11,6 +11,7 @@ pub struct Expr {
 pub enum ExprKind {
   NumLit(ExprNumLit),
   Ident(ExprIdent),
+  Bool(bool),
 
   /// `[ ... , ... , ... ]`
   ///

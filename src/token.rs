@@ -43,7 +43,7 @@ pub enum Token {
   LineComment,
 
   #[regex(r"bitstruct")]
-  KwBitStruct,
+  KwBitstruct,
   #[regex(r"break")]
   KwBreak,
   #[regex(r"const")]
@@ -52,8 +52,6 @@ pub enum Token {
   KwContinue,
   #[regex(r"else")]
   KwElse,
-  #[regex(r"false")]
-  KwFalse,
   #[regex(r"fn")]
   KwFn,
   #[regex(r"if")]
@@ -68,17 +66,21 @@ pub enum Token {
   KwMut,
   #[regex(r"return")]
   KwReturn,
+  #[regex(r"rom")]
+  KwRom,
   #[regex(r"static")]
   KwStatic,
   #[regex(r"struct")]
   KwStruct,
-  #[regex(r"true")]
-  KwTrue,
 
   #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*")]
   Ident,
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)")]
   NumLit,
+  #[regex(r"false")]
+  KwFalse,
+  #[regex(r"true")]
+  KwTrue,
 
   #[regex(r"~")]
   Tilde,
