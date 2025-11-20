@@ -198,4 +198,5 @@ fn test_lexing() {
   assert_eq!(lex("%"), &[Percent]);
   assert_eq!(lex("%F"), &[NumLit]);
   assert_eq!(lex("% F"), &[Percent, Ident]);
+  assert_eq!(lex("."), &[Period]);
 }
