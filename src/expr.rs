@@ -7,17 +7,32 @@ pub enum Expr {
 
   NumLit(Box<ExprNumLit>),
   Ident(Box<ExprIdent>),
-  List(Box<Vec<ExprUnOp>>),
+
+  /// `[ ... , ... , ... ]`
+  ///
+  /// square brackets around sub-expressions that forms a series of elements.
+  List(Box<ExprList>),
+  /// `{ ... ; ... ; ... }`
+  ///
+  /// braces around a series of statements.
+  Block(Box<ExprBlock>),
+
   Call(Box<ExprCall>),
   Macro(Box<ExprMacro>),
-  Struct(Box<ExprStruct>),
+  StructLit(Box<ExprStructLit>),
+
   IfElse(Box<ExprIfElse>),
-  Block(Box<ExprBlock>),
+  Loop(Box<ExprLoop>),
+  LoopTimes(Box<ExprLoopTimes>),
+  Break(Box<ExprBreak>),
+  Continue(Box<ExprContinue>),
+  Return(Box<ExprReturn>),
 
   Deref(Box<ExprUnOp>),
   Neg(Box<ExprUnOp>),
   Ref(Box<ExprUnOp>),
 
+  Assign(Box<ExprBinOp>),
   Add(Box<ExprBinOp>),
   Sub(Box<ExprBinOp>),
   Mul(Box<ExprBinOp>),
@@ -88,7 +103,7 @@ pub struct ExprMacro {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ExprStruct {
+pub struct ExprStructLit {
   ty: StrID,
   ty_span: Span32,
   args: Vec<FieldAssign>,
@@ -111,7 +126,52 @@ pub struct ExprIfElse {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprList {
+  elements: Vec<Expr>,
+  total_span: Span32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprBlock {
   body: Vec<Statement>,
+  total_span: Span32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprLoop {
+  name: Option<StrID>,
+  body: Vec<Statement>,
+  total_span: Span32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprLoopTimes {
+  name: Option<StrID>,
+  times: StrID,
+  times_span: Span32,
+  body: Vec<Statement>,
+  total_span: Span32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprBreak {
+  target: Option<StrID>,
+  target_span: Span32,
+  expr: Option<Expr>,
+  expr_span: Span32,
+  total_span: Span32,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct ExprContinue {
+  target: Option<StrID>,
+  target_span: Span32,
+  total_span: Span32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprReturn {
+  expr: Option<Expr>,
+  expr_span: Span32,
   total_span: Span32,
 }
