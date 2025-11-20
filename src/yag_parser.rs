@@ -8,7 +8,7 @@ use chumsky::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct YagParserState {
-  //todo: add read-only parser state data.
+  pub source: &'static str,
 }
 
 pub type YagParserInput<'src> = MappedInput<
