@@ -1,58 +1,62 @@
 use super::*;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub enum Expr {
-  #[default]
-  ExprError,
+pub struct Expr {
+  span: Span32,
+  /// use `None` here instead of an explicit error kind.
+  kind: Option<Box<ExprKind>>,
+}
 
-  NumLit(Box<ExprNumLit>),
-  Ident(Box<ExprIdent>),
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ExprKind {
+  NumLit(ExprNumLit),
+  Ident(ExprIdent),
 
   /// `[ ... , ... , ... ]`
   ///
   /// square brackets around sub-expressions that forms a series of elements.
-  List(Box<ExprList>),
+  List(ExprList),
   /// `{ ... ; ... ; ... }`
   ///
   /// braces around a series of statements.
-  Block(Box<ExprBlock>),
+  Block(ExprBlock),
 
-  Call(Box<ExprCall>),
-  Macro(Box<ExprMacro>),
-  StructLit(Box<ExprStructLit>),
+  Call(ExprCall),
+  Macro(ExprMacro),
+  StructLit(ExprStructLit),
 
-  IfElse(Box<ExprIfElse>),
-  Loop(Box<ExprLoop>),
-  LoopTimes(Box<ExprLoopTimes>),
-  Break(Box<ExprBreak>),
-  Continue(Box<ExprContinue>),
-  Return(Box<ExprReturn>),
+  IfElse(ExprIfElse),
+  Loop(ExprLoop),
+  LoopTimes(ExprLoopTimes),
+  Break(ExprBreak),
+  Continue(ExprContinue),
+  Return(ExprReturn),
 
-  Deref(Box<ExprUnOp>),
-  Neg(Box<ExprUnOp>),
-  Ref(Box<ExprUnOp>),
+  Deref(ExprUnOp),
+  Neg(ExprUnOp),
+  Ref(ExprUnOp),
 
-  Assign(Box<ExprBinOp>),
-  Add(Box<ExprBinOp>),
-  Sub(Box<ExprBinOp>),
-  Mul(Box<ExprBinOp>),
-  Div(Box<ExprBinOp>),
-  Mod(Box<ExprBinOp>),
-  ShiftLeft(Box<ExprBinOp>),
-  ShiftRight(Box<ExprBinOp>),
-  BitAnd(Box<ExprBinOp>),
-  BitOr(Box<ExprBinOp>),
-  BitXor(Box<ExprBinOp>),
-  BoolAnd(Box<ExprBinOp>),
-  BoolOr(Box<ExprBinOp>),
-  Index(Box<ExprBinOp>),
-  Dot(Box<ExprBinOp>),
-  Eq(Box<ExprBinOp>),
-  Ne(Box<ExprBinOp>),
-  Lt(Box<ExprBinOp>),
-  Le(Box<ExprBinOp>),
-  Gt(Box<ExprBinOp>),
-  Ge(Box<ExprBinOp>),
+  Assign(ExprBinOp),
+  Add(ExprBinOp),
+  Sub(ExprBinOp),
+  Mul(ExprBinOp),
+  Div(ExprBinOp),
+  Mod(ExprBinOp),
+  ShiftLeft(ExprBinOp),
+  ShiftRight(ExprBinOp),
+  BitAnd(ExprBinOp),
+  BitOr(ExprBinOp),
+  BitXor(ExprBinOp),
+  BoolAnd(ExprBinOp),
+  BoolOr(ExprBinOp),
+  Index(ExprBinOp),
+  Dot(ExprBinOp),
+  Eq(ExprBinOp),
+  Ne(ExprBinOp),
+  Lt(ExprBinOp),
+  Le(ExprBinOp),
+  Gt(ExprBinOp),
+  Ge(ExprBinOp),
 }
 
 #[test]
@@ -65,27 +69,22 @@ fn test_expr_size() {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ExprNumLit {
   lit: StrID,
-  lit_span: Span32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ExprIdent {
   ident: StrID,
-  ident_span: Span32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprUnOp {
   inner: Expr,
-  inner_span: Span32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprBinOp {
   lhs: Expr,
-  lhs_span: Span32,
   rhs: Expr,
-  rhs_span: Span32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -122,26 +121,22 @@ pub struct ExprIfElse {
   condition: Expr,
   if_body: Vec<Statement>,
   else_body: Vec<Statement>,
-  total_span: Span32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprList {
   elements: Vec<Expr>,
-  total_span: Span32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprBlock {
   body: Vec<Statement>,
-  total_span: Span32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprLoop {
   name: Option<StrID>,
   body: Vec<Statement>,
-  total_span: Span32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -150,28 +145,24 @@ pub struct ExprLoopTimes {
   times: StrID,
   times_span: Span32,
   body: Vec<Statement>,
-  total_span: Span32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprBreak {
   target: Option<StrID>,
   target_span: Span32,
-  expr: Option<Expr>,
-  expr_span: Span32,
-  total_span: Span32,
+  val: Option<Expr>,
+  val_span: Span32,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct ExprContinue {
   target: Option<StrID>,
   target_span: Span32,
-  total_span: Span32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprReturn {
-  expr: Option<Expr>,
-  expr_span: Span32,
-  total_span: Span32,
+  val: Option<Expr>,
+  val_span: Span32,
 }
