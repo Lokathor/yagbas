@@ -5,15 +5,23 @@ use chumsky::{
   prelude::*,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TokenTree {
   Lone(Token),
-  Parens(Vec<(TokenTree, Span32)>),
-  Brackets(Vec<(TokenTree, Span32)>),
-  Braces(Vec<(TokenTree, Span32)>),
+  Parens(Box<Vec<(TokenTree, Span32)>>),
+  Brackets(Box<Vec<(TokenTree, Span32)>>),
+  Braces(Box<Vec<(TokenTree, Span32)>>),
+  #[default]
   TreeError,
 }
-// TODO: we can make this type 25% smaller if we replace the Vec with a boxed slice.
+
+#[test]
+fn test_token_tree_size() {
+  // note(lokathor): any change in size might be justified (and so we would
+  // update this test), but we should still take note of it happening.
+  assert_eq!(size_of::<TokenTree>(), size_of::<[usize; 3]>());
+  assert_eq!(size_of::<(TokenTree, Span32)>(), size_of::<[usize; 4]>());
+}
 
 pub fn trees_of(
   tokens: &[(Token, Span32)], file_id: FileID,
@@ -68,8 +76,7 @@ where
 
 /// Parses one token tree, and its span.
 fn token_tree_p<'src, I>()
--> impl Parser<'src, I, (TokenTree, Span32), Err<Rich<'src, Token, Span32>>>
-+ Clone
+-> impl Parser<'src, I, (TokenTree, Span32), Err<Rich<'src, Token, Span32>>> + Clone
 where
   I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
@@ -78,25 +85,25 @@ where
     let braces = tokens
       .clone()
       .repeated()
-      .collect()
+      .collect::<Vec<_>>()
       .delimited_by(open_brace_p(), close_brace_p())
-      .map_with(|out, ex| (TokenTree::Braces(out), ex.span()));
+      .map_with(|out, ex| (TokenTree::Braces(Box::new(out)), ex.span()));
 
     // Looks like `[ ... ]`
     let brackets = tokens
       .clone()
       .repeated()
-      .collect()
+      .collect::<Vec<_>>()
       .delimited_by(open_bracket_p(), close_bracket_p())
-      .map_with(|out, ex| (TokenTree::Brackets(out), ex.span()));
+      .map_with(|out, ex| (TokenTree::Brackets(Box::new(out)), ex.span()));
 
     // Looks like `( ... )`
     let parens = tokens
       .clone()
       .repeated()
-      .collect()
+      .collect::<Vec<_>>()
       .delimited_by(open_paren_p(), close_paren_p())
-      .map_with(|out, ex| (TokenTree::Parens(out), ex.span()));
+      .map_with(|out, ex| (TokenTree::Parens(Box::new(out)), ex.span()));
 
     // Looks like something that does *NOT* open or close one of the other
     // types.
@@ -107,8 +114,7 @@ where
 
     // comments get stripped from the output.
     let comment = {
-      // Looks like `// ...`
-      let single_comment = single_line_comment_p();
+      let lone = lone_comment_p();
       // Looks like `/* ... */`
       let block_comment = tokens
         .clone()
@@ -116,7 +122,7 @@ where
         .delimited_by(open_comment_p(), close_comment_p())
         .ignored();
 
-      single_comment.or(block_comment)
+      lone.or(block_comment)
     };
 
     let x =
@@ -250,14 +256,16 @@ where
   .as_context()
 }
 
-/// Parses an `SingleComment`, which is then discarded.
-fn single_line_comment_p<'src, I>()
+/// Parses any individual comment token, which is then discarded.
+fn lone_comment_p<'src, I>()
 -> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
   I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   select! {
     Token::LineComment => (),
+    Token::DocComment => (),
+    Token::InteriorComment => (),
   }
   .labelled("single_comment")
   .as_context()

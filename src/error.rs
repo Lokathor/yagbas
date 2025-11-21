@@ -1,25 +1,17 @@
 use super::*;
 use chumsky::error::{RichPattern, RichReason};
 use core::iter::IntoIterator;
-use std::sync::Mutex;
-use std::sync::PoisonError;
+use std::sync::{Mutex, PoisonError};
 
 #[derive(Debug, Clone)]
 pub enum YagError {
   IO(PathBuf, String),
   TokenTreeParseError(FileID, Rich<'static, Token, Span32>),
-  ItemParseError(FileID, Rich<'static, TokenTree, Span32>),
-  MacroSizeOfStaticNoSize(FileID, SimpleSpan),
-  MacroSizeOfStaticBadArgs(FileID, SimpleSpan),
-  MacroPaletteBadArgs(FileID, SimpleSpan),
-  BadNumLit(FileID, SimpleSpan),
-  DuplicateFieldName(FileID, SimpleSpan),
-  IllegalFieldName(FileID, SimpleSpan),
-  MemAddrOutOfRange(FileID, SimpleSpan, i32),
 }
 
 pub static ERROR_BUCKET: Mutex<Vec<YagError>> = Mutex::new(Vec::new());
 
+/// Calls `log_error_iter` for a single error.
 pub fn log_error(e: YagError) {
   log_error_iter([e]);
 }
