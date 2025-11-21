@@ -61,7 +61,7 @@ pub struct ExprIdent {
 ///
 /// The span of "this" op ends up covering the inner expression as well as the
 /// operator token, while the span of "inner" will naturally be the span of only
-/// the inner operation.
+/// the inner sub-expression.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprUnOp {
   inner: Expr,
