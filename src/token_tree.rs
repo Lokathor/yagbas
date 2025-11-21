@@ -8,16 +8,17 @@ use chumsky::{
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TokenTree {
   Lone(Token),
-  Parens(Box<[(TokenTree, Span32)]>),
-  Brackets(Box<[(TokenTree, Span32)]>),
-  Braces(Box<[(TokenTree, Span32)]>),
+  Parens(Box<Vec<(TokenTree, Span32)>>),
+  Brackets(Box<Vec<(TokenTree, Span32)>>),
+  Braces(Box<Vec<(TokenTree, Span32)>>),
   #[default]
   TreeError,
 }
 
 #[test]
 fn test_token_tree_size() {
-  // note(lokathor): any change in size might be justified (and so we would update this test), but we should still take note of it happening.
+  // note(lokathor): any change in size might be justified (and so we would
+  // update this test), but we should still take note of it happening.
   assert_eq!(size_of::<TokenTree>(), size_of::<[usize; 3]>());
   assert_eq!(size_of::<(TokenTree, Span32)>(), size_of::<[usize; 4]>());
 }
@@ -86,9 +87,7 @@ where
       .repeated()
       .collect::<Vec<_>>()
       .delimited_by(open_brace_p(), close_brace_p())
-      .map_with(|out, ex| {
-        (TokenTree::Braces(out.into_boxed_slice()), ex.span())
-      });
+      .map_with(|out, ex| (TokenTree::Braces(Box::new(out)), ex.span()));
 
     // Looks like `[ ... ]`
     let brackets = tokens
@@ -96,9 +95,7 @@ where
       .repeated()
       .collect::<Vec<_>>()
       .delimited_by(open_bracket_p(), close_bracket_p())
-      .map_with(|out, ex| {
-        (TokenTree::Brackets(out.into_boxed_slice()), ex.span())
-      });
+      .map_with(|out, ex| (TokenTree::Brackets(Box::new(out)), ex.span()));
 
     // Looks like `( ... )`
     let parens = tokens
@@ -106,9 +103,7 @@ where
       .repeated()
       .collect::<Vec<_>>()
       .delimited_by(open_paren_p(), close_paren_p())
-      .map_with(|out, ex| {
-        (TokenTree::Parens(out.into_boxed_slice()), ex.span())
-      });
+      .map_with(|out, ex| (TokenTree::Parens(Box::new(out)), ex.span()));
 
     // Looks like something that does *NOT* open or close one of the other
     // types.
