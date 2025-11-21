@@ -1,5 +1,15 @@
 use super::*;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AstItem {
+  ItemError,
+  Bitbag(AstBitbag),
+  Struct(AstStruct),
+  Const(AstConst),
+  Static(AstStatic),
+  Function(AstFunction),
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub enum AstAttribute {
   #[default]
@@ -13,7 +23,7 @@ pub enum AstAttribute {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AstBitstruct {
+pub struct AstBitbag {
   pub span: Span32,
   pub name: StrID,
   pub name_span: Span32,

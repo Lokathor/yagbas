@@ -65,9 +65,9 @@ fn test_impl_return_readabilty() {
 use crate::Token::*;
 use crate::TokenTree::*;
 
-pub fn kw_bitstruct_p<'src>() -> impl YagParser<'src, ()> {
+pub fn kw_bitbag_p<'src>() -> impl YagParser<'src, ()> {
   select! {
-    Lone(KwBitstruct) => ()
+    Lone(KwBitbag) => ()
   }
 }
 pub fn kw_break_p<'src>() -> impl YagParser<'src, ()> {

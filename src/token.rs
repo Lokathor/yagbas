@@ -42,8 +42,8 @@ pub enum Token {
   #[regex(r"//[^\r\n]*")]
   LineComment,
 
-  #[regex(r"bitstruct")]
-  KwBitstruct,
+  #[regex(r"bitbag")]
+  KwBitbag,
   #[regex(r"break")]
   KwBreak,
   #[regex(r"const")]
