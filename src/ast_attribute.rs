@@ -4,10 +4,10 @@ use super::*;
 pub enum AstAttribute {
   #[default]
   AttributeError,
-  /// like `#[hram]`
+  /// looks like `#[hram]`
   Ident(StrID, Span32),
-  /// like `#[game_revision = 2]`
+  /// looks like `#[game_revision = 2]`
   Assignment(StrID, Span32, Expr),
-  /// like `#[location($FF00)]`
+  /// looks like `#[location($FF00)]`
   Call(StrID, Span32, Vec<AstAttribute>),
 }

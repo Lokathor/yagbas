@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstStatic {
+  pub span: Span32,
   pub name: StrID,
   pub name_span: Span32,
   pub ty: StrID,
@@ -10,7 +11,6 @@ pub struct AstStatic {
   pub expr_span: Span32,
   pub attributes: Vec<AstAttribute>,
   pub file_id: FileID,
-  pub total_span: Span32,
   pub memory_kind: MemoryKind,
 }
 
@@ -20,8 +20,8 @@ pub enum MemoryKind {
   Rom,
   /// Data in a "normal" mutable RAM region.
   ///
-  /// Repeated writes to the same RAM location inside of a function are allowed
-  /// to be collapsed to a single write of the final "actual" value.
+  /// Repeated reads/writes to the same RAM location inside of a function are
+  /// allowed to be collapsed to a single access.
   Ram,
   /// Data that is Memory-mapped IO.
   ///
