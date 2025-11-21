@@ -3,14 +3,17 @@ use super::*;
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Statement {
   span: Span32,
-  /// this is an option box vec to save on a lot of space per statement.
+  kind: Box<StatementKind>,
+  /// nearly all statements won't have any attributes, so we save a lot of
+  /// allocations by making this an option.
   attribues: Option<Box<Vec<AstAttribute>>>,
-  /// use `None` when there's an error, instead of an explicit error variant.
-  kind: Option<StatementKind>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub enum StatementKind {
+  #[default]
+  StatementKindError,
+
   /// `let varname: vartype;`
   Let(StrID, Option<StrID>),
 

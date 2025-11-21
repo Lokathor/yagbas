@@ -3,12 +3,14 @@ use super::*;
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Expr {
   span: Span32,
-  /// use `None` here instead of an explicit error kind.
-  kind: Option<Box<ExprKind>>,
+  kind: Box<ExprKind>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub enum ExprKind {
+  #[default]
+  ExprError,
+
   NumLit(ExprNumLit),
   Ident(ExprIdent),
   Bool(bool),
@@ -17,6 +19,7 @@ pub enum ExprKind {
   ///
   /// square brackets around sub-expressions that forms a series of elements.
   List(ExprList),
+
   /// `{ ... ; ... ; ... }`
   ///
   /// braces around a series of statements.
@@ -33,31 +36,8 @@ pub enum ExprKind {
   Continue(ExprContinue),
   Return(ExprReturn),
 
-  Deref(ExprUnOp),
-  Neg(ExprUnOp),
-  Ref(ExprUnOp),
-
-  Assign(ExprBinOp),
-  Add(ExprBinOp),
-  Sub(ExprBinOp),
-  Mul(ExprBinOp),
-  Div(ExprBinOp),
-  Mod(ExprBinOp),
-  ShiftLeft(ExprBinOp),
-  ShiftRight(ExprBinOp),
-  BitAnd(ExprBinOp),
-  BitOr(ExprBinOp),
-  BitXor(ExprBinOp),
-  BoolAnd(ExprBinOp),
-  BoolOr(ExprBinOp),
-  Index(ExprBinOp),
-  Dot(ExprBinOp),
-  Eq(ExprBinOp),
-  Ne(ExprBinOp),
-  Lt(ExprBinOp),
-  Le(ExprBinOp),
-  Gt(ExprBinOp),
-  Ge(ExprBinOp),
+  UnOp(ExprUnOp),
+  BinOp(ExprBinOp),
 }
 
 #[test]
@@ -77,29 +57,71 @@ pub struct ExprIdent {
   ident: StrID,
 }
 
+/// Unary operation expression.
+///
+/// The span of "this" op ends up covering the inner expression as well as the
+/// operator token, while the span of "inner" will naturally be the span of only
+/// the inner operation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprUnOp {
   inner: Expr,
+  kind: UnOpKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum UnOpKind {
+  /// `*x`
+  Deref,
+  /// `-x`
+  Neg,
+  /// `&x`
+  Ref,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprBinOp {
   lhs: Expr,
   rhs: Expr,
+  kind: BinOpKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BinOpKind {
+  Assign,
+  Add,
+  Sub,
+  Mul,
+  Div,
+  Mod,
+  ShiftLeft,
+  ShiftRight,
+  BitAnd,
+  BitOr,
+  BitXor,
+  BoolAnd,
+  BoolOr,
+  Index,
+  Dot,
+  Eq,
+  Ne,
+  Lt,
+  Le,
+  Gt,
+  Ge,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprCall {
   target: StrID,
   target_span: Span32,
-  args: Vec<ExprUnOp>,
+  args: Vec<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprMacro {
   target: StrID,
   target_span: Span32,
-  args: Vec<ExprUnOp>,
+  args: Vec<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
