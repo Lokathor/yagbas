@@ -1,13 +1,11 @@
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum AstItem {
-  ItemError,
-  Bitbag(AstBitbag),
-  Struct(AstStruct),
-  Const(AstConst),
-  Static(AstStatic),
-  Function(AstFunction),
+pub struct AstItem {
+  file_id: FileID,
+  span: Span32,
+  attributes: Vec<AstAttribute>,
+  kind: AstItemKind,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -23,42 +21,94 @@ pub enum AstAttribute {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AstItemKind {
+  ItemKindError,
+  Bitbag(AstBitbag),
+  Struct(AstStruct),
+  Const(AstConst),
+  Static(AstStatic),
+  Function(AstFunction),
+}
+
+/// Declares a type with field names assigned to bit positions.
+///
+/// ```yag
+/// bitbag NameHere {
+///   one_field: 0,
+///   another_field: 7,
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstBitbag {
-  pub span: Span32,
   pub name: StrID,
   pub name_span: Span32,
-  pub attributes: Vec<AstAttribute>,
-  pub fields: Vec<AstBitstructFieldDef>,
-  pub file_id: FileID,
+  pub fields: Vec<AstBitbagFieldDef>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AstBitstructFieldDef {
+pub struct AstBitbagFieldDef {
   pub span: Span32,
+  /// we want to allow attribues mostly so that we can allow `cfg`.
+  pub attributes: Vec<AstAttribute>,
   pub name: StrID,
   pub name_span: Span32,
   pub bit: Expr,
   pub bit_span: Span32,
-  pub attributes: Vec<AstAttribute>,
+}
+
+/// Declares a type where each field is some other type of data.
+///
+/// ```yag
+/// struct NameHere {
+///   one_field: u8,
+///   another_field: i8,
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AstStruct {
+  pub name: StrID,
+  pub name_span: Span32,
+  pub fields: Vec<AstStructFieldDef>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AstConst {
+pub struct AstStructFieldDef {
   pub span: Span32,
+  /// we want to allow attribues mostly so that we can allow `cfg`.
+  pub attributes: Vec<AstAttribute>,
+  pub name: StrID,
+  pub name_span: Span32,
+  pub ty: StrID,
+  pub ty_span: Span32,
+}
+
+/// Gives a name to a constant expression.
+///
+/// ```yag
+/// const NAME_HERE: Ty = Expression;
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AstConst {
   pub name: StrID,
   pub name_span: Span32,
   pub ty: StrID,
   pub ty_span: Span32,
   pub expr: Expr,
   pub expr_span: Span32,
-  pub attributes: Vec<AstAttribute>,
-  pub file_id: FileID,
 }
 
+/// A callable body of code within the program.
+///
+/// ```yag
+/// fn name_here(args:ArgTy, arg1:ArgTy1, ...) -> ReturnTy {
+///   statement;
+///   statement;
+///   // ..
+///   return_value
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstFunction {
-  span: Span32,
-  file_id: FileID,
   name: StrID,
   name_span: Span32,
   args: Vec<AstFunctionArg>,
@@ -75,53 +125,29 @@ pub struct AstFunctionArg {
   ty_span: Span32,
 }
 
+/// Static data within the program.
+///
+/// ```yag
+/// static memory_kind NAME_HERE: Ty = InitializationExpression;
+/// ```
+///
+/// * `static rom` is immutable data, such as tile or tilemap data.
+/// * `static ram` is plain mutable data, such as a current position.
+/// * `static mmio` is volatile mutable data, for memory-mapped IO.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstStatic {
-  pub span: Span32,
+  pub memory_kind: MemoryKind,
   pub name: StrID,
   pub name_span: Span32,
   pub ty: StrID,
   pub ty_span: Span32,
   pub expr: Expr,
   pub expr_span: Span32,
-  pub attributes: Vec<AstAttribute>,
-  pub file_id: FileID,
-  pub memory_kind: MemoryKind,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MemoryKind {
-  /// Data in an immutable ROM region.
   Rom,
-  /// Data in a "normal" mutable RAM region.
-  ///
-  /// Repeated reads/writes to the same RAM location inside of a function are
-  /// allowed to be collapsed to a single access.
   Ram,
-  /// Data that is Memory-mapped IO.
-  ///
-  /// All accesses to MMIO are what Rust/LLVM call "volatile". Every read/write
-  /// needs to actually happen. Repeated writes or reads of the same location
-  /// cannot be combined.
   MemoryMappedIO,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AstStruct {
-  pub span: Span32,
-  pub name: StrID,
-  pub name_span: Span32,
-  pub attributes: Vec<AstAttribute>,
-  pub fields: Vec<AstStructFieldDef>,
-  pub file_id: FileID,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AstStructFieldDef {
-  pub span: Span32,
-  pub name: StrID,
-  pub name_span: Span32,
-  pub ty: StrID,
-  pub ty_span: Span32,
-  pub attributes: Vec<AstAttribute>,
 }
