@@ -1,13 +1,22 @@
 use super::*;
 
+/// An item defines a "stand alone thing" within the program.
+///
+/// * Currently there's no namespacing of items, so no two items should ever
+///   share the same name. This is an annoying limitation on yagbas programmers,
+///   so a namespace system will hopefully be added in the future.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstItem {
-  file_id: FileID,
-  span: Span32,
-  attributes: Vec<AstAttribute>,
-  kind: AstItemKind,
+  pub file_id: FileID,
+  pub span: Span32,
+  pub attributes: Vec<AstAttribute>,
+  pub name: StrID,
+  pub name_span: Span32,
+  pub kind: AstItemKind,
 }
 
+/// Attributes declare optional metadata or configuration for items and for
+/// individutal statements.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub enum AstAttribute {
   #[default]
@@ -40,8 +49,6 @@ pub enum AstItemKind {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstBitbag {
-  pub name: StrID,
-  pub name_span: Span32,
   pub fields: Vec<AstBitbagFieldDef>,
 }
 
@@ -66,8 +73,6 @@ pub struct AstBitbagFieldDef {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstStruct {
-  pub name: StrID,
-  pub name_span: Span32,
   pub fields: Vec<AstStructFieldDef>,
 }
 
@@ -89,8 +94,6 @@ pub struct AstStructFieldDef {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstConst {
-  pub name: StrID,
-  pub name_span: Span32,
   pub ty: StrID,
   pub ty_span: Span32,
   pub expr: Expr,
@@ -109,8 +112,6 @@ pub struct AstConst {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstFunction {
-  name: StrID,
-  name_span: Span32,
   args: Vec<AstFunctionArg>,
   return_ty: StrID,
   return_ty_span: Span32,
@@ -137,8 +138,6 @@ pub struct AstFunctionArg {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstStatic {
   pub memory_kind: MemoryKind,
-  pub name: StrID,
-  pub name_span: Span32,
   pub ty: StrID,
   pub ty_span: Span32,
   pub expr: Expr,
