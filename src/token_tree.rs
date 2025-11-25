@@ -19,8 +19,8 @@ pub enum TokenTree {
 fn test_token_tree_size() {
   // note(lokathor): any change in size might be justified (and so we would
   // update this test), but we should still take note of it happening.
-  assert_eq!(size_of::<TokenTree>(), size_of::<[usize; 3]>());
-  assert_eq!(size_of::<(TokenTree, Span32)>(), size_of::<[usize; 4]>());
+  assert_eq!(size_of::<TokenTree>(), size_of::<[usize; 2]>());
+  assert_eq!(size_of::<(TokenTree, Span32)>(), size_of::<[usize; 3]>());
 }
 
 pub fn trees_of(
