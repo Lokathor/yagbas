@@ -137,10 +137,10 @@ pub enum MemoryKind {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstFunction {
-  args: Vec<AstFunctionArg>,
-  return_ty: StrID,
-  return_ty_span: Span32,
-  body: Vec<Statement>,
+  pub args: Vec<AstFunctionArg>,
+  pub return_ty: StrID,
+  pub return_ty_span: Span32,
+  pub body: Vec<Statement>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -157,10 +157,10 @@ pub struct AstFunctionArg {
 /// mindful about the size of this type.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Statement {
-  span: Span32,
+  pub span: Span32,
   /// most statements have 0 attributes, so we Option this.
-  attribues: Option<Box<Vec<AstAttribute>>>,
-  kind: Box<StatementKind>,
+  pub attribues: Option<Box<Vec<AstAttribute>>>,
+  pub kind: Box<StatementKind>,
 }
 
 /// The different kinds of statement that exist.
@@ -188,8 +188,8 @@ pub enum StatementKind {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Expr {
-  span: Span32,
-  kind: Box<ExprKind>,
+  pub span: Span32,
+  pub kind: Box<ExprKind>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -235,12 +235,12 @@ fn test_expr_size() {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ExprNumLit {
-  lit: StrID,
+  pub lit: StrID,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ExprIdent {
-  ident: StrID,
+  pub ident: StrID,
 }
 
 /// Unary operation expression.
@@ -250,8 +250,8 @@ pub struct ExprIdent {
 /// the inner sub-expression.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprUnOp {
-  inner: Expr,
-  kind: UnOpKind,
+  pub inner: Expr,
+  pub kind: UnOpKind,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -266,9 +266,9 @@ pub enum UnOpKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprBinOp {
-  lhs: Expr,
-  rhs: Expr,
-  kind: BinOpKind,
+  pub lhs: Expr,
+  pub rhs: Expr,
+  pub kind: BinOpKind,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -298,23 +298,23 @@ pub enum BinOpKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprCall {
-  target: StrID,
-  target_span: Span32,
-  args: Vec<Expr>,
+  pub target: StrID,
+  pub target_span: Span32,
+  pub args: Vec<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprMacro {
-  target: StrID,
-  target_span: Span32,
-  args: Vec<Expr>,
+  pub target: StrID,
+  pub target_span: Span32,
+  pub args: Vec<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExprStructLit {
-  ty: StrID,
-  ty_span: Span32,
-  args: Vec<FieldAssign>,
+  pub ty: StrID,
+  pub ty_span: Span32,
+  pub args: Vec<FieldAssign>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -327,51 +327,51 @@ pub enum FieldAssign {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprIfElse {
-  condition: Expr,
-  if_body: Vec<Statement>,
-  else_body: Vec<Statement>,
+  pub condition: Expr,
+  pub if_body: Vec<Statement>,
+  pub else_body: Vec<Statement>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprList {
-  elements: Vec<Expr>,
+  pub elements: Vec<Expr>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprBlock {
-  body: Vec<Statement>,
+  pub body: Vec<Statement>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprLoop {
-  name: Option<StrID>,
-  body: Vec<Statement>,
+  pub name: Option<StrID>,
+  pub body: Vec<Statement>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprLoopTimes {
-  name: Option<StrID>,
-  times: StrID,
-  times_span: Span32,
-  body: Vec<Statement>,
+  pub name: Option<StrID>,
+  pub times: StrID,
+  pub times_span: Span32,
+  pub body: Vec<Statement>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprBreak {
-  target: Option<StrID>,
-  target_span: Span32,
-  val: Option<Expr>,
-  val_span: Span32,
+  pub target: Option<StrID>,
+  pub target_span: Span32,
+  pub val: Option<Expr>,
+  pub val_span: Span32,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct ExprContinue {
-  target: Option<StrID>,
-  target_span: Span32,
+  pub target: Option<StrID>,
+  pub target_span: Span32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprReturn {
-  val: Option<Expr>,
-  val_span: Span32,
+  pub val: Option<Expr>,
+  pub val_span: Span32,
 }

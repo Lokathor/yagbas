@@ -141,6 +141,12 @@ pub fn kw_struct_p<'src>() -> impl YagParser<'src, ()> {
   }
 }
 
+pub fn punct_hash_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Hash) => ()
+  }
+}
+
 pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
   select! {
     Lone(Ident) = ex => {
@@ -170,4 +176,16 @@ pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
     Lone(KwTrue) => true,
     Lone(KwFalse) => false,
   }
+}
+
+pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
+  chumsky::prelude::todo()
+}
+
+pub fn statement_p<'src>() -> impl YagParser<'src, Statement> {
+  chumsky::prelude::todo()
+}
+
+pub fn attribute_p<'src>() -> impl YagParser<'src, AstAttribute> {
+  chumsky::prelude::todo()
 }
