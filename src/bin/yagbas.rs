@@ -126,9 +126,9 @@ fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<()> {
       println!("{p} TOKENS: {tokens:?}", p = path_buf.display());
     }
 
-    let trees = trees_of(&tokens, file_data.id());
+    //let trees = trees_of(&tokens, file_data.id());
     if build_args.show_trees {
-      println!("{p} TREES: {trees:?}", p = path_buf.display());
+      //println!("{p} TREES: {trees:?}", p = path_buf.display());
     }
 
     //let items = items_of(&trees, file_data);

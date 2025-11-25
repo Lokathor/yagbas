@@ -23,12 +23,12 @@ fn test_token_tree_size() {
   assert_eq!(size_of::<(TokenTree, Span32)>(), size_of::<[usize; 3]>());
 }
 
-pub fn trees_of(
-  tokens: &[(Token, Span32)], file_id: FileID,
-) -> Vec<(TokenTree, Span32)> {
+pub fn trees_of<'src>(
+  tokens: &'src [(Token, Span32)],
+) -> (Vec<(TokenTree, Span32)>, Vec<Rich<'src, Token, Span32>>) {
   let eoi: Span32 = match tokens.last() {
     Some(s) => s.1,
-    None => return Vec::new(),
+    None => return (Vec::new(), Vec::new()),
   };
   let recovery = via_parser(
     any()
@@ -45,13 +45,7 @@ pub fn trees_of(
     .parse(Input::map(tokens, eoi, |(tk, span)| (tk, span)))
     .into_output_errors();
 
-  log_error_iter(
-    errors
-      .into_iter()
-      .map(|error| YagError::TokenTreeParseError(file_id, error.into_owned())),
-  );
-
-  opt_out.unwrap_or_default()
+  (opt_out.unwrap_or_default(), errors)
 }
 
 /// Allow you to easily assert an output type for a parser.

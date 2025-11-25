@@ -1,5 +1,6 @@
 use super::*;
 use chumsky::prelude::*;
+use chumsky::recovery::Strategy;
 use chumsky::{
   Parser,
   error::Rich,
@@ -62,8 +63,34 @@ fn test_impl_return_readabilty() {
   }
 }
 
+#[inline]
+#[allow(unused)]
+fn span32(start: u32, end: u32) -> Span32 {
+  Span32 { start, end, context: () }
+}
+
 use crate::Token::*;
 use crate::TokenTree::*;
+
+/// Lets you `select_ref!` the content out of some `Braces`
+pub fn braces_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>> {
+  select_ref! {
+    TokenTree::Braces(b) = ex => make_yag_parser_input(b),
+  }
+}
+/// Lets you `select_ref!` the content out of some `Brackets`
+pub fn brackets_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>>
+{
+  select_ref! {
+    TokenTree::Brackets(b) = ex => make_yag_parser_input(b),
+  }
+}
+/// Lets you `select_ref!` the content out of some `Parens`
+pub fn parens_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>> {
+  select_ref! {
+    TokenTree::Parens(b) = ex => make_yag_parser_input(b),
+  }
+}
 
 pub fn kw_bitbag_p<'src>() -> impl YagParser<'src, ()> {
   select! {
@@ -141,6 +168,16 @@ pub fn kw_struct_p<'src>() -> impl YagParser<'src, ()> {
   }
 }
 
+pub fn punct_comma_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Comma) => ()
+  }
+}
+pub fn punct_equal_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Equal) => ()
+  }
+}
 pub fn punct_hash_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Hash) => ()
@@ -178,14 +215,18 @@ pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
   }
 }
 
+/// looks like `# [ EXPR ]`
+pub fn attribute_p<'src>() -> impl YagParser<'src, Expr> {
+  punct_hash_p().ignore_then(expr_p().nested_in(brackets_content_p()))
+  // TODO: if we read a hash and stuff in brackets, then even if the stuff isn't
+  // a valid expression we should record it as an attribute we found (with an
+  // error kind)
+}
+
 pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
   chumsky::prelude::todo()
 }
 
 pub fn statement_p<'src>() -> impl YagParser<'src, Statement> {
-  chumsky::prelude::todo()
-}
-
-pub fn attribute_p<'src>() -> impl YagParser<'src, AstAttribute> {
   chumsky::prelude::todo()
 }

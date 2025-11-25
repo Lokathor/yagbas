@@ -9,24 +9,10 @@ use super::*;
 pub struct AstItem {
   pub file_id: FileID,
   pub span: Span32,
-  pub attributes: Vec<AstAttribute>,
+  pub attributes: Vec<Expr>,
   pub name: StrID,
   pub name_span: Span32,
   pub kind: AstItemKind,
-}
-
-/// Attributes declare optional metadata or configuration for items and for
-/// individutal statements.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub enum AstAttribute {
-  #[default]
-  AttributeError,
-  /// looks like `#[hram]`
-  Ident(StrID, Span32),
-  /// looks like `#[game_revision = 2]`
-  Assignment(StrID, Span32, Expr),
-  /// looks like `#[location($FF00)]`
-  Call(StrID, Span32, Vec<AstAttribute>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -56,7 +42,7 @@ pub struct AstBitbag {
 pub struct AstBitbagFieldDef {
   pub span: Span32,
   /// we want to allow attribues mostly so that we can allow `cfg`.
-  pub attributes: Vec<AstAttribute>,
+  pub attributes: Vec<Expr>,
   pub name: StrID,
   pub name_span: Span32,
   pub bit: Expr,
@@ -79,8 +65,7 @@ pub struct AstStruct {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstStructFieldDef {
   pub span: Span32,
-  /// we want to allow attribues mostly so that we can allow `cfg`.
-  pub attributes: Vec<AstAttribute>,
+  pub attributes: Vec<Expr>,
   pub name: StrID,
   pub name_span: Span32,
   pub ty: StrID,
@@ -158,8 +143,9 @@ pub struct AstFunctionArg {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Statement {
   pub span: Span32,
-  /// most statements have 0 attributes, so we Option this.
-  pub attribues: Option<Box<Vec<AstAttribute>>>,
+  /// most statements have 0 attributes, and there are many statemnts in a
+  /// program, so we Option this.
+  pub attribues: Option<Box<Vec<Expr>>>,
   pub kind: Box<StatementKind>,
 }
 
