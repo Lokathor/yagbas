@@ -100,6 +100,31 @@ pub struct AstConst {
   pub expr_span: Span32,
 }
 
+/// Static data within the program.
+///
+/// ```yag
+/// static memory_kind NAME_HERE: Ty = InitializationExpression;
+/// ```
+///
+/// * `static rom` is immutable data, such as tile or tilemap data.
+/// * `static ram` is plain mutable data, such as a current position.
+/// * `static mmio` is volatile mutable data, for memory-mapped IO.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AstStatic {
+  pub memory_kind: MemoryKind,
+  pub ty: StrID,
+  pub ty_span: Span32,
+  pub expr: Expr,
+  pub expr_span: Span32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MemoryKind {
+  Rom,
+  Ram,
+  MemoryMappedIO,
+}
+
 /// A callable body of code within the program.
 ///
 /// ```yag
@@ -126,27 +151,227 @@ pub struct AstFunctionArg {
   ty_span: Span32,
 }
 
-/// Static data within the program.
+/// One single line of code in a body of code.
 ///
-/// ```yag
-/// static memory_kind NAME_HERE: Ty = InitializationExpression;
-/// ```
+/// There's one `Vec<Statement>` per body of code in the AST, so we should be
+/// mindful about the size of this type.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct Statement {
+  span: Span32,
+  /// most statements have 0 attributes, so we Option this.
+  attribues: Option<Box<Vec<AstAttribute>>>,
+  kind: Box<StatementKind>,
+}
+
+/// The different kinds of statement that exist.
 ///
-/// * `static rom` is immutable data, such as tile or tilemap data.
-/// * `static ram` is plain mutable data, such as a current position.
-/// * `static mmio` is volatile mutable data, for memory-mapped IO.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AstStatic {
-  pub memory_kind: MemoryKind,
-  pub ty: StrID,
-  pub ty_span: Span32,
-  pub expr: Expr,
-  pub expr_span: Span32,
+/// Currently there's only two "actual" statement kinds: Let and Expr.
+/// * `Let` introduces a new local variable.
+/// * `Expr` performs an expression, generally an assignment, call, or loop.
+/// * `LetAssign` is semantically identical to Let followed by an Expr(Assign),
+///   and this kind can be split up during some early stage of the compiler. It
+///   exists as a combination tag so that the parsing is simpler.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub enum StatementKind {
+  #[default]
+  StatementKindError,
+
+  /// looks like `let varname: vartype;`
+  Let(StrID, Option<StrID>),
+
+  /// looks like `let varname: vartype = expr;`
+  LetAssign(StrID, Option<StrID>, Expr),
+
+  /// Any expression on its own can be a statement.
+  Expr(Expr),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct Expr {
+  span: Span32,
+  kind: Box<ExprKind>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub enum ExprKind {
+  #[default]
+  ExprError,
+
+  NumLit(ExprNumLit),
+  Ident(ExprIdent),
+  Bool(bool),
+
+  /// `[ ... , ... , ... ]`
+  ///
+  /// square brackets around sub-expressions that forms a series of elements.
+  List(ExprList),
+
+  /// `{ ... ; ... ; ... }`
+  ///
+  /// braces around a series of statements.
+  Block(ExprBlock),
+
+  Call(ExprCall),
+  Macro(ExprMacro),
+  StructLit(ExprStructLit),
+
+  IfElse(ExprIfElse),
+  Loop(ExprLoop),
+  LoopTimes(ExprLoopTimes),
+  Break(ExprBreak),
+  Continue(ExprContinue),
+  Return(ExprReturn),
+
+  UnOp(ExprUnOp),
+  BinOp(ExprBinOp),
+}
+
+#[test]
+fn test_expr_size() {
+  // note(lokathor): any change in size might be justified (and so we would
+  // update this test), but we should still take note of it happening.
+  assert_eq!(size_of::<Expr>(), size_of::<[usize; 2]>());
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MemoryKind {
-  Rom,
-  Ram,
-  MemoryMappedIO,
+pub struct ExprNumLit {
+  lit: StrID,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ExprIdent {
+  ident: StrID,
+}
+
+/// Unary operation expression.
+///
+/// The span of "this" op ends up covering the inner expression as well as the
+/// operator token, while the span of "inner" will naturally be the span of only
+/// the inner sub-expression.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExprUnOp {
+  inner: Expr,
+  kind: UnOpKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum UnOpKind {
+  /// `*x`
+  Deref,
+  /// `-x`
+  Neg,
+  /// `&x`
+  Ref,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExprBinOp {
+  lhs: Expr,
+  rhs: Expr,
+  kind: BinOpKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BinOpKind {
+  Assign,
+  Add,
+  Sub,
+  Mul,
+  Div,
+  Mod,
+  ShiftLeft,
+  ShiftRight,
+  BitAnd,
+  BitOr,
+  BitXor,
+  BoolAnd,
+  BoolOr,
+  Index,
+  Dot,
+  Eq,
+  Ne,
+  Lt,
+  Le,
+  Gt,
+  Ge,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExprCall {
+  target: StrID,
+  target_span: Span32,
+  args: Vec<Expr>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExprMacro {
+  target: StrID,
+  target_span: Span32,
+  args: Vec<Expr>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExprStructLit {
+  ty: StrID,
+  ty_span: Span32,
+  args: Vec<FieldAssign>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub enum FieldAssign {
+  #[default]
+  FieldAssignError,
+  Ident(StrID, Span32),
+  IdentEq(StrID, Span32, Expr, Span32),
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprIfElse {
+  condition: Expr,
+  if_body: Vec<Statement>,
+  else_body: Vec<Statement>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprList {
+  elements: Vec<Expr>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprBlock {
+  body: Vec<Statement>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprLoop {
+  name: Option<StrID>,
+  body: Vec<Statement>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprLoopTimes {
+  name: Option<StrID>,
+  times: StrID,
+  times_span: Span32,
+  body: Vec<Statement>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprBreak {
+  target: Option<StrID>,
+  target_span: Span32,
+  val: Option<Expr>,
+  val_span: Span32,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct ExprContinue {
+  target: Option<StrID>,
+  target_span: Span32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct ExprReturn {
+  val: Option<Expr>,
+  val_span: Span32,
 }
