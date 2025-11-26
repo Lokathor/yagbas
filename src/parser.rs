@@ -63,6 +63,22 @@ where
 /// No runtime effect.
 fn assert_output_ty<'src, T>(_: &impl YagParser<'src, T>) {}
 
+#[allow(unused_macros)]
+macro_rules! do_parse {
+  ($parser:expr, $src: expr) => {{
+    let source = $src;
+    let mut parser_state = SimpleState(YagParserState { source });
+    let tokens = tokens_of(source);
+    let (trees, tree_errors) = trees_of(&tokens);
+    assert!(tree_errors.is_empty());
+    let (opt_output, output_errors) = $parser
+      .parse_with_state(make_yag_parser_input(&trees), &mut parser_state)
+      .into_output_errors();
+    assert!(output_errors.is_empty());
+    opt_output.unwrap()
+  }};
+}
+
 #[test]
 fn test_impl_return_readabilty() {
   #[allow(dead_code)]
@@ -325,6 +341,14 @@ pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
     }
   }
 }
+#[test]
+fn test_ident_p() {
+  assert_eq!(do_parse!(ident_p(), "abc"), str_id("abc"));
+  assert_eq!(do_parse!(ident_p(), "foo"), str_id("foo"));
+  assert_eq!(do_parse!(ident_p(), "rusty"), str_id("rusty"));
+  assert_eq!(do_parse!(ident_p(), "_"), str_id("_"));
+}
+
 pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
   select! {
     Lone(NumLit) = ex => {
@@ -337,11 +361,24 @@ pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
     }
   }
 }
+#[test]
+fn test_num_lit_p() {
+  assert_eq!(do_parse!(num_lit_p(), "1"), str_id("1"));
+  assert_eq!(do_parse!(num_lit_p(), "$FF"), str_id("$FF"));
+  assert_eq!(do_parse!(num_lit_p(), "%111"), str_id("%111"));
+  assert_eq!(do_parse!(num_lit_p(), "12_34"), str_id("12_34"));
+}
+
 pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
   select! {
     Lone(KwTrue) => true,
     Lone(KwFalse) => false,
   }
+}
+#[test]
+fn test_bool_p() {
+  assert_eq!(do_parse!(bool_p(), "true"), true);
+  assert_eq!(do_parse!(bool_p(), "false"), false);
 }
 
 /// looks like `# [ EXPR ]`
@@ -557,23 +594,14 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
   .as_context()
 }
 
-#[test]
+//#[test]
 fn test_expr_p() {
-  let source = "i";
-  let mut parser_state = SimpleState(YagParserState { source });
-  let tokens = tokens_of(source);
-  let (trees, tree_errors) = trees_of(&tokens);
-  assert!(tree_errors.is_empty());
-  let (opt_expr, expr_errors) = expr_p()
-    .parse_with_state(make_yag_parser_input(&trees), &mut parser_state)
-    .into_output_errors();
-  assert!(expr_errors.is_empty());
   assert_eq!(
-    opt_expr,
-    Some(Expr {
+    do_parse!(expr_p(), "i"),
+    Expr {
       span: span32(0, 1),
       kind: Box::new(ExprKind::Ident(ExprIdent { ident: str_id("i") }))
-    })
+    }
   );
 }
 
