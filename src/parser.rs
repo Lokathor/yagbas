@@ -55,6 +55,14 @@ where
 {
 }
 
+/// Lets us assert a particular expected output type for the parser.
+///
+/// This is necesary because rust doesn't allow a let binding to use "impl
+/// trait" as the type declaration.
+///
+/// No runtime effect.
+fn assert_output_ty<'src, T>(_: &impl YagParser<'src, T>) {}
+
 #[test]
 fn test_impl_return_readabilty() {
   #[allow(dead_code)]
@@ -67,6 +75,11 @@ fn test_impl_return_readabilty() {
 #[allow(unused)]
 fn span32(start: u32, end: u32) -> Span32 {
   Span32 { start, end, context: () }
+}
+#[inline]
+#[allow(unused)]
+fn str_id(str: &str) -> StrID {
+  StrID::from(str)
 }
 
 use crate::Token::*;
@@ -168,9 +181,34 @@ pub fn kw_struct_p<'src>() -> impl YagParser<'src, ()> {
   }
 }
 
+pub fn punct_asterisk_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Asterisk) => ()
+  }
+}
+pub fn punct_ampersand_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Ampersand) => ()
+  }
+}
+pub fn punct_caret_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Caret) => ()
+  }
+}
 pub fn punct_comma_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Comma) => ()
+  }
+}
+pub fn punct_colon_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Colon) => ()
+  }
+}
+pub fn punct_greater_than_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(GreaterThan) => ()
   }
 }
 pub fn punct_equal_p<'src>() -> impl YagParser<'src, ()> {
@@ -178,10 +216,101 @@ pub fn punct_equal_p<'src>() -> impl YagParser<'src, ()> {
     Lone(Equal) => ()
   }
 }
+pub fn punct_exclamation_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Exclamation) => ()
+  }
+}
 pub fn punct_hash_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Hash) => ()
   }
+}
+pub fn punct_less_than_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(LessThan) => ()
+  }
+}
+pub fn punct_minus_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Minus) => ()
+  }
+}
+pub fn punct_percent_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Percent) => ()
+  }
+}
+pub fn punct_period_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Period) => ()
+  }
+}
+pub fn punct_pipe_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Pipe) => ()
+  }
+}
+pub fn punct_plus_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Plus) => ()
+  }
+}
+pub fn punct_quote_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Quote) => ()
+  }
+}
+pub fn punct_semicolon_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Semicolon) => ()
+  }
+}
+pub fn punct_slash_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Slash) => ()
+  }
+}
+
+/// `==`
+pub fn cmp_eq_p<'src>() -> impl YagParser<'src, ()> {
+  punct_equal_p().ignore_then(punct_equal_p())
+}
+/// `!=`
+pub fn cmp_ne_p<'src>() -> impl YagParser<'src, ()> {
+  punct_exclamation_p().ignore_then(punct_equal_p())
+}
+/// `>`
+pub fn cmp_gt_p<'src>() -> impl YagParser<'src, ()> {
+  punct_greater_than_p()
+}
+/// `<`
+pub fn cmp_lt_p<'src>() -> impl YagParser<'src, ()> {
+  punct_less_than_p()
+}
+/// `>=`
+pub fn cmp_ge_p<'src>() -> impl YagParser<'src, ()> {
+  punct_greater_than_p().ignore_then(punct_equal_p())
+}
+/// `<=`
+pub fn cmp_le_p<'src>() -> impl YagParser<'src, ()> {
+  punct_less_than_p().ignore_then(punct_equal_p())
+}
+/// `&&`
+pub fn short_circuit_and_p<'src>() -> impl YagParser<'src, ()> {
+  punct_ampersand_p().ignore_then(punct_ampersand_p())
+}
+/// `||`
+pub fn short_circuit_or_p<'src>() -> impl YagParser<'src, ()> {
+  punct_pipe_p().ignore_then(punct_pipe_p())
+}
+/// `>>`
+pub fn shr_p<'src>() -> impl YagParser<'src, ()> {
+  punct_greater_than_p().ignore_then(punct_greater_than_p())
+}
+/// `<<`
+pub fn shl_p<'src>() -> impl YagParser<'src, ()> {
+  punct_less_than_p().ignore_then(punct_less_than_p())
 }
 
 pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
@@ -218,15 +347,259 @@ pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
 /// looks like `# [ EXPR ]`
 pub fn attribute_p<'src>() -> impl YagParser<'src, Expr> {
   punct_hash_p().ignore_then(expr_p().nested_in(brackets_content_p()))
-  // TODO: if we read a hash and stuff in brackets, then even if the stuff isn't
+  // TODO: if we read a hash and "stuff" in brackets, then even if the stuff isn't
   // a valid expression we should record it as an attribute we found (with an
-  // error kind)
+  // error kind). I think that we need to give this a recovery to make that happen.
 }
 
+/// looks like any expression
 pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
-  chumsky::prelude::todo()
+  recursive(|expr_parser| {
+    let atom = {
+      let num_lit = num_lit_p().map(|lit| ExprKind::NumLit(ExprNumLit { lit }));
+      let ident = ident_p().map(|ident| ExprKind::Ident(ExprIdent { ident }));
+      let bool_ = bool_p().map(|b| ExprKind::Bool(b));
+      let list = expr_parser
+        .clone()
+        .separated_by(punct_comma_p())
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .nested_in(brackets_content_p())
+        .map(|elements| ExprKind::List(ExprList { elements }));
+      // TODO: we need to somehow track when a body has a trailing semicolon.
+      let block = statement_p()
+        .separated_by(punct_semicolon_p())
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .nested_in(braces_content_p())
+        .map(|body| ExprKind::Block(ExprBlock { body }));
+      let call = ident_p()
+        .map_with(|i, ex| (i, ex.span()))
+        .then(
+          expr_parser
+            .clone()
+            .separated_by(punct_comma_p())
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .nested_in(parens_content_p()),
+        )
+        .map(|((target, target_span), args)| {
+          ExprKind::Call(ExprCall { target, target_span, args })
+        });
+      let macro_ = ident_p()
+        .map_with(|i, ex| (i, ex.span()))
+        .then_ignore(punct_exclamation_p())
+        .then(
+          expr_parser
+            .clone()
+            .separated_by(punct_comma_p())
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .nested_in(parens_content_p()),
+        )
+        .map(|((target, target_span), args)| {
+          ExprKind::Macro(ExprMacro { target, target_span, args })
+        });
+      let struct_lit = ident_p()
+        .map_with(|i, ex| (i, ex.span()))
+        .then(
+          expr_parser
+            .clone()
+            .separated_by(punct_comma_p())
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .nested_in(braces_content_p()),
+        )
+        .map(|((ty, ty_span), args)| {
+          ExprKind::StructLit(ExprStructLit { ty, ty_span, args })
+        });
+      let if_else = kw_if_p()
+        .ignore_then(expr_parser.clone())
+        .then(
+          statement_p()
+            .separated_by(punct_semicolon_p())
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .nested_in(braces_content_p()),
+        )
+        .then(
+          kw_else_p()
+            .ignore_then(
+              statement_p()
+                .separated_by(punct_semicolon_p())
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .nested_in(braces_content_p()),
+            )
+            .or_not(),
+        )
+        .map(|((condition, if_body), else_body)| {
+          ExprKind::IfElse(ExprIfElse {
+            condition,
+            if_body,
+            else_body: else_body.unwrap_or_default(),
+          })
+        });
+      let loop_ = punct_quote_p()
+        .ignore_then(ident_p())
+        .then_ignore(punct_colon_p())
+        .or_not()
+        .then_ignore(kw_loop_p())
+        .then(
+          statement_p()
+            .separated_by(punct_semicolon_p())
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .nested_in(braces_content_p()),
+        )
+        .map(|(name, body)| ExprKind::Loop(ExprLoop { name, body }));
+      // TODO: loop times
+      let break_ = kw_break_p()
+        .ignore_then(
+          punct_quote_p()
+            .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
+            .or_not(),
+        )
+        .then(expr_parser.clone().or_not())
+        .map(|(target, value)| ExprKind::Break(ExprBreak { target, value }));
+      let continue_ = kw_continue_p()
+        .ignore_then(
+          punct_quote_p()
+            .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
+            .or_not(),
+        )
+        .map(|target| ExprKind::Continue(ExprContinue { target }));
+      let return_ = kw_return_p()
+        .ignore_then(expr_parser.clone().or_not())
+        .map(|value| ExprKind::Return(ExprReturn { value }));
+      // TODO: can we prevent the boxing of the inner expression which we then
+      // immediately unbox?
+      let paren_group_expr =
+        expr_parser.clone().nested_in(parens_content_p()).map(|xpr| *xpr.kind);
+
+      let ident_using = choice((call, macro_, struct_lit, ident));
+      let loop_using = choice((loop_,));
+      choice((
+        num_lit,
+        ident_using,
+        bool_,
+        list,
+        block,
+        if_else,
+        loop_using,
+        break_,
+        continue_,
+        return_,
+        paren_group_expr,
+      ))
+      .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
+    };
+    assert_output_ty::<Expr>(&atom);
+
+    macro_rules! infix_maker {
+      ($kind: path) => {
+        |lhs, _op, rhs, extras| Expr {
+          span: extras.span(),
+          kind: Box::new(ExprKind::BinOp(ExprBinOp { lhs, rhs, kind: $kind })),
+        }
+      };
+    }
+    macro_rules! prefix_maker {
+      ($kind: path) => {
+        |_op, inner, extras| Expr {
+          span: extras.span(),
+          kind: Box::new(ExprKind::UnOp(ExprUnOp { inner, kind: $kind })),
+        }
+      };
+    }
+    #[allow(unused)]
+    macro_rules! postfix_maker {
+      ($kind: path) => {
+        |atom, _op, extras| todo!()
+      };
+    }
+    use chumsky::pratt::*;
+    let with_pratt = atom.pratt((
+      infix(left(2), punct_equal_p(), infix_maker!(BinOpKind::Assign)),
+      // 3: range operators
+      infix(left(4), short_circuit_or_p(), infix_maker!(BinOpKind::BoolOr)),
+      infix(left(5), short_circuit_and_p(), infix_maker!(BinOpKind::BoolAnd)),
+      infix(left(6), cmp_eq_p(), infix_maker!(BinOpKind::Eq)),
+      infix(left(6), cmp_ne_p(), infix_maker!(BinOpKind::Ne)),
+      infix(left(6), cmp_lt_p(), infix_maker!(BinOpKind::Lt)),
+      infix(left(6), cmp_gt_p(), infix_maker!(BinOpKind::Gt)),
+      infix(left(6), cmp_le_p(), infix_maker!(BinOpKind::Le)),
+      infix(left(6), cmp_ge_p(), infix_maker!(BinOpKind::Ge)),
+      infix(left(7), punct_pipe_p(), infix_maker!(BinOpKind::BitOr)),
+      infix(left(8), punct_caret_p(), infix_maker!(BinOpKind::BitXor)),
+      infix(left(9), punct_ampersand_p(), infix_maker!(BinOpKind::BitAnd)),
+      infix(left(10), shl_p(), infix_maker!(BinOpKind::ShiftLeft)),
+      infix(left(10), shr_p(), infix_maker!(BinOpKind::ShiftRight)),
+      infix(left(11), punct_plus_p(), infix_maker!(BinOpKind::Add)),
+      infix(left(11), punct_minus_p(), infix_maker!(BinOpKind::Sub)),
+      infix(left(12), punct_asterisk_p(), infix_maker!(BinOpKind::Mul)),
+      infix(left(12), punct_slash_p(), infix_maker!(BinOpKind::Div)),
+      infix(left(12), punct_percent_p(), infix_maker!(BinOpKind::Mod)),
+      prefix(13, punct_minus_p(), prefix_maker!(UnOpKind::Neg)),
+      prefix(13, punct_exclamation_p(), prefix_maker!(UnOpKind::Not)),
+      prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
+      prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
+      // 14: question-mark-operator
+      // 15: fn-call and index
+      infix(left(16), punct_period_p(), infix_maker!(BinOpKind::Dot)),
+      // 17: method calls
+      // 18: path
+    ));
+
+    with_pratt
+  })
+  .labelled("expression")
+  .as_context()
 }
 
+#[test]
+fn test_expr_p() {
+  let source = "i";
+  let mut parser_state = SimpleState(YagParserState { source });
+  let tokens = tokens_of(source);
+  let (trees, tree_errors) = trees_of(&tokens);
+  assert!(tree_errors.is_empty());
+  let (opt_expr, expr_errors) = expr_p()
+    .parse_with_state(make_yag_parser_input(&trees), &mut parser_state)
+    .into_output_errors();
+  assert!(expr_errors.is_empty());
+  assert_eq!(
+    opt_expr,
+    Some(Expr {
+      span: span32(0, 1),
+      kind: Box::new(ExprKind::Ident(ExprIdent { ident: str_id("i") }))
+    })
+  );
+}
+
+/// looks like any statement
 pub fn statement_p<'src>() -> impl YagParser<'src, Statement> {
-  chumsky::prelude::todo()
+  let attributes = attribute_p().repeated().collect::<Vec<_>>();
+  let kind = {
+    let let_ = kw_let_p()
+      .ignore_then(ident_p())
+      .then(punct_colon_p().ignore_then(ident_p()).or_not())
+      .then(punct_equal_p().ignore_then(expr_p()).or_not())
+      .map(|((varname, opt_ty), opt_init)| match opt_init {
+        Some(init) => StatementKind::LetAssign(varname, opt_ty, init),
+        None => StatementKind::Let(varname, opt_ty),
+      });
+    let xpr = expr_p().map(|x| StatementKind::Expr(x));
+
+    choice((let_, xpr))
+  };
+  attributes.then(kind).map_with(|(the_attributes, kind), ex| Statement {
+    span: ex.span(),
+    attribues: if the_attributes.is_empty() {
+      None
+    } else {
+      Some(Box::new(the_attributes))
+    },
+    kind: Box::new(kind),
+  })
 }
