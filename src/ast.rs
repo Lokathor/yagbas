@@ -162,7 +162,7 @@ pub enum StatementKind {
   #[default]
   StatementKindError,
 
-  /// looks like `let varname: vartype;`
+  /// looks like `let varname: vartype`
   Let(StrID, Option<StrID>),
 
   /// looks like `let varname: vartype = expr;`
@@ -248,6 +248,8 @@ pub enum UnOpKind {
   Neg,
   /// `&x`
   Ref,
+  /// `!x`
+  Not,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -300,15 +302,7 @@ pub struct ExprMacro {
 pub struct ExprStructLit {
   pub ty: StrID,
   pub ty_span: Span32,
-  pub args: Vec<FieldAssign>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub enum FieldAssign {
-  #[default]
-  FieldAssignError,
-  Ident(StrID, Span32),
-  IdentEq(StrID, Span32, Expr, Span32),
+  pub args: Vec<Expr>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -344,20 +338,16 @@ pub struct ExprLoopTimes {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprBreak {
-  pub target: Option<StrID>,
-  pub target_span: Span32,
-  pub val: Option<Expr>,
-  pub val_span: Span32,
+  pub target: Option<(StrID, Span32)>,
+  pub value: Option<Expr>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct ExprContinue {
-  pub target: Option<StrID>,
-  pub target_span: Span32,
+  pub target: Option<(StrID, Span32)>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprReturn {
-  pub val: Option<Expr>,
-  pub val_span: Span32,
+  pub value: Option<Expr>,
 }
