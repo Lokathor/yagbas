@@ -11,6 +11,7 @@ use chumsky::{
 #[derive(Debug, Clone, Copy)]
 pub struct YagParserState {
   pub source: &'static str,
+  pub file_id: FileID,
 }
 
 pub type YagParserInput<'src> = MappedInput<
@@ -314,7 +315,6 @@ pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
     }
   }
 }
-
 pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
   select! {
     Lone(NumLit) = ex => {
@@ -327,7 +327,6 @@ pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
     }
   }
 }
-
 pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
   select! {
     Lone(KwTrue) => true,
@@ -579,6 +578,7 @@ macro_rules! define_statement_parser {
     })
   }};
 }
+
 pub fn expr_p_and_statement_p<'src>()
 -> (impl YagParser<'src, Expr>, impl YagParser<'src, Statement>) {
   let mut expression_parser = Recursive::declare();
@@ -589,4 +589,51 @@ pub fn expr_p_and_statement_p<'src>()
     .define(define_statement_parser!(expression_parser, statement_parser));
 
   (expression_parser, statement_parser)
+}
+
+pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
+  let attributes_p =
+    punct_hash_p().ignore_then(expr_p().nested_in(brackets_content_p()));
+  let bitbag_p = {
+    let field_def_p = attributes_p
+      .clone()
+      .repeated()
+      .collect::<Vec<_>>()
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then_ignore(punct_colon_p())
+      .then(expr_p().map_with(|bit, ex| (bit, ex.span())))
+      .map_with(|(((attributes, (name, name_span)), (bit, bit_span))), ex| {
+        AstBitbagFieldDef {
+          span: ex.span(),
+          attributes,
+          name,
+          name_span,
+          bit,
+          bit_span,
+        }
+      });
+    attributes_p
+      .clone()
+      .repeated()
+      .collect::<Vec<_>>()
+      .then_ignore(kw_bitbag_p())
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(
+        field_def_p
+          .separated_by(punct_comma_p())
+          .allow_trailing()
+          .collect::<Vec<_>>()
+          .nested_in(braces_content_p()),
+      )
+      .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
+        file_id: ex.state().file_id,
+        attributes,
+        name,
+        name_span,
+        span: ex.span(),
+        kind: AstItemKind::Bitbag(AstBitbag { fields }),
+      })
+  };
+
+  choice((bitbag_p,))
 }

@@ -7,13 +7,17 @@ use yagbas::*;
 macro_rules! do_parse {
   ($parser:expr, $src: expr) => {{
     let source = $src;
-    let mut parser_state = SimpleState(YagParserState { source });
+    let file_id: FileID = fake_file_id(1);
+    let mut parser_state = SimpleState(YagParserState { source, file_id });
     let tokens = tokens_of(source);
     let (trees, tree_errors) = trees_of(&tokens);
     assert!(tree_errors.is_empty());
     let (opt_output, output_errors) = $parser
       .parse_with_state(make_yag_parser_input(&trees), &mut parser_state)
       .into_output_errors();
+    for error in &output_errors {
+      println!("ERROR: {error:?}");
+    }
     assert!(output_errors.is_empty());
     opt_output.unwrap()
   }};
@@ -25,6 +29,13 @@ fn span32(start: u32, end: u32) -> Span32 {
 
 fn str_id(str: &str) -> StrID {
   StrID::from(str)
+}
+
+fn fake_file_id(u: usize) -> FileID {
+  if u == 0 {
+    panic!()
+  }
+  unsafe { core::mem::transmute(u) }
 }
 
 fn mk_ident(span: Span32, ident: &str) -> Expr {
@@ -323,3 +334,43 @@ fn test_expr_p_add() {
 }
 
 // todo pratt parsing test cases
+
+#[test]
+fn test_item_p_bitbag() {
+  assert_eq!(
+    do_parse!(item_p(), "bitbag Test { zero: 0, one: 1 }"),
+    AstItem {
+      attributes: Vec::new(),
+      file_id: fake_file_id(1),
+      span: span32(0, 31),
+      name: str_id("Test"),
+      name_span: span32(7, 11),
+      kind: AstItemKind::Bitbag(AstBitbag {
+        fields: vec![
+          AstBitbagFieldDef {
+            attributes: vec![],
+            span: span32(14, 21),
+            name: str_id("zero"),
+            name_span: span32(14, 18),
+            bit: Expr {
+              span: span32(20, 21),
+              kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("0") })),
+            },
+            bit_span: span32(20, 21)
+          },
+          AstBitbagFieldDef {
+            attributes: vec![],
+            span: span32(23, 29),
+            name: str_id("one"),
+            name_span: span32(23, 26),
+            bit: Expr {
+              span: span32(28, 29),
+              kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("1") })),
+            },
+            bit_span: span32(28, 29),
+          },
+        ]
+      })
+    }
+  );
+}
