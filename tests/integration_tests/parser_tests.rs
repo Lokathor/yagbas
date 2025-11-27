@@ -19,15 +19,28 @@ macro_rules! do_parse {
   }};
 }
 
-#[inline]
-#[allow(unused)]
 fn span32(start: u32, end: u32) -> Span32 {
   Span32 { start, end, context: () }
 }
-#[inline]
-#[allow(unused)]
+
 fn str_id(str: &str) -> StrID {
   StrID::from(str)
+}
+
+fn mk_ident(span: Span32, ident: &str) -> Expr {
+  Expr {
+    span,
+    kind: Box::new(ExprKind::Ident(ExprIdent { ident: str_id(ident) })),
+  }
+}
+fn mk_num_lit(span: Span32, lit: &str) -> Expr {
+  Expr {
+    span,
+    kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id(lit) })),
+  }
+}
+fn mk_bool(span: Span32, b: bool) -> Expr {
+  Expr { span, kind: Box::new(ExprKind::Bool(b)) }
 }
 
 #[test]
@@ -54,36 +67,18 @@ fn test_bool_p() {
 
 #[test]
 fn test_expr_p_ident() {
-  assert_eq!(
-    do_parse!(expr_p(), "i"),
-    Expr {
-      span: span32(0, 1),
-      kind: Box::new(ExprKind::Ident(ExprIdent { ident: str_id("i") }))
-    }
-  );
+  assert_eq!(do_parse!(expr_p(), "a"), mk_ident(span32(0, 1), "a"));
 }
 
 #[test]
 fn test_expr_p_num_lit() {
-  assert_eq!(
-    do_parse!(expr_p(), "123"),
-    Expr {
-      span: span32(0, 3),
-      kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("123") }))
-    }
-  );
+  assert_eq!(do_parse!(expr_p(), "123"), mk_num_lit(span32(0, 3), "123"));
 }
 
 #[test]
 fn test_expr_p_bool() {
-  assert_eq!(
-    do_parse!(expr_p(), "true"),
-    Expr { span: span32(0, 4), kind: Box::new(ExprKind::Bool(true)) }
-  );
-  assert_eq!(
-    do_parse!(expr_p(), "false"),
-    Expr { span: span32(0, 5), kind: Box::new(ExprKind::Bool(false)) }
-  );
+  assert_eq!(do_parse!(expr_p(), "true"), mk_bool(span32(0, 4), true));
+  assert_eq!(do_parse!(expr_p(), "false"), mk_bool(span32(0, 5), false));
 }
 
 #[test]
@@ -243,6 +238,55 @@ fn test_expr_p_return() {
           span: span32(7, 8),
           kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
         })
+      }))
+    }
+  );
+}
+
+#[test]
+fn test_expr_p_add() {
+  assert_eq!(
+    do_parse!(expr_p(), "2+3"),
+    Expr {
+      span: span32(0, 3),
+      kind: Box::new(ExprKind::BinOp(ExprBinOp {
+        lhs: Expr {
+          span: span32(0, 1),
+          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+        },
+        rhs: Expr {
+          span: span32(2, 3),
+          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("3") }))
+        },
+        kind: BinOpKind::Add,
+      }))
+    }
+  );
+
+  assert_eq!(
+    do_parse!(expr_p(), "2+3+4"),
+    Expr {
+      span: span32(0, 5),
+      kind: Box::new(ExprKind::BinOp(ExprBinOp {
+        lhs: Expr {
+          span: span32(0, 3),
+          kind: Box::new(ExprKind::BinOp(ExprBinOp {
+            lhs: Expr {
+              span: span32(0, 1),
+              kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+            },
+            rhs: Expr {
+              span: span32(2, 3),
+              kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("3") }))
+            },
+            kind: BinOpKind::Add,
+          }))
+        },
+        rhs: Expr {
+          span: span32(4, 5),
+          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("4") }))
+        },
+        kind: BinOpKind::Add,
       }))
     }
   );
