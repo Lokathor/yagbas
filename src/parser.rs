@@ -403,6 +403,7 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
         .collect::<Vec<_>>()
         .nested_in(brackets_content_p())
         .map(|elements| ExprKind::List(ExprList { elements }));
+      /*
       // TODO: we need to somehow track when a body has a trailing semicolon.
       let block = statement_p()
         .separated_by(punct_semicolon_p())
@@ -410,6 +411,7 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
         .collect::<Vec<_>>()
         .nested_in(braces_content_p())
         .map(|body| ExprKind::Block(ExprBlock { body }));
+      */
       let call = ident_p()
         .map_with(|i, ex| (i, ex.span()))
         .then(
@@ -450,6 +452,7 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
         .map(|((ty, ty_span), args)| {
           ExprKind::StructLit(ExprStructLit { ty, ty_span, args })
         });
+      /*
       let if_else = kw_if_p()
         .ignore_then(expr_parser.clone())
         .then(
@@ -490,6 +493,7 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
             .nested_in(braces_content_p()),
         )
         .map(|(name, body)| ExprKind::Loop(ExprLoop { name, body }));
+      */
       // TODO: loop times
       let break_ = kw_break_p()
         .ignore_then(
@@ -515,15 +519,15 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
         expr_parser.clone().nested_in(parens_content_p()).map(|xpr| *xpr.kind);
 
       let ident_using = choice((call, macro_, struct_lit, ident));
-      let loop_using = choice((loop_,));
+      //let loop_using = choice((loop_,));
       choice((
         num_lit,
         ident_using,
         bool_,
         list,
-        block,
-        if_else,
-        loop_using,
+        //block,
+        //if_else,
+        //loop_using,
         break_,
         continue_,
         return_,
@@ -594,7 +598,7 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
   .as_context()
 }
 
-//#[test]
+#[test]
 fn test_expr_p() {
   assert_eq!(
     do_parse!(expr_p(), "i"),
@@ -603,6 +607,161 @@ fn test_expr_p() {
       kind: Box::new(ExprKind::Ident(ExprIdent { ident: str_id("i") }))
     }
   );
+  assert_eq!(
+    do_parse!(expr_p(), "123"),
+    Expr {
+      span: span32(0, 3),
+      kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("123") }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "true"),
+    Expr { span: span32(0, 4), kind: Box::new(ExprKind::Bool(true)) }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "false"),
+    Expr { span: span32(0, 5), kind: Box::new(ExprKind::Bool(false)) }
+  );
+
+  assert_eq!(
+    do_parse!(expr_p(), "[true, false]"),
+    Expr {
+      span: span32(0, 13),
+      kind: Box::new(ExprKind::List(ExprList {
+        elements: vec![
+          Expr { span: span32(1, 5), kind: Box::new(ExprKind::Bool(true)) },
+          Expr { span: span32(7, 12), kind: Box::new(ExprKind::Bool(false)) }
+        ]
+      }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "sqrt(123)"),
+    Expr {
+      span: span32(0, 9),
+      kind: Box::new(ExprKind::Call(ExprCall {
+        target: str_id("sqrt"),
+        target_span: span32(0, 4),
+        args: vec![Expr {
+          span: span32(5, 8),
+          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("123") }))
+        }]
+      }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "do_it!(123)"),
+    Expr {
+      span: span32(0, 11),
+      kind: Box::new(ExprKind::Macro(ExprMacro {
+        target: str_id("do_it"),
+        target_span: span32(0, 5),
+        args: vec![Expr {
+          span: span32(7, 10),
+          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("123") }))
+        }]
+      }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "LcdCtrl { enabled }"),
+    Expr {
+      span: span32(0, 19),
+      kind: Box::new(ExprKind::StructLit(ExprStructLit {
+        ty: str_id("LcdCtrl"),
+        ty_span: span32(0, 7),
+        args: vec![Expr {
+          span: span32(10, 17),
+          kind: Box::new(ExprKind::Ident(ExprIdent {
+            ident: str_id("enabled")
+          }))
+        }]
+      }))
+    }
+  );
+
+  assert_eq!(
+    do_parse!(expr_p(), "break"),
+    Expr {
+      span: span32(0, 5),
+      kind: Box::new(ExprKind::Break(ExprBreak { target: None, value: None }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "break 'abc"),
+    Expr {
+      span: span32(0, 10),
+      kind: Box::new(ExprKind::Break(ExprBreak {
+        target: Some((str_id("abc"), span32(7, 10))),
+        value: None
+      }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "break 2"),
+    Expr {
+      span: span32(0, 7),
+      kind: Box::new(ExprKind::Break(ExprBreak {
+        target: None,
+        value: Some(Expr {
+          span: span32(6, 7),
+          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+        })
+      }))
+    }
+  );
+
+  assert_eq!(
+    do_parse!(expr_p(), "break 'abc 2"),
+    Expr {
+      span: span32(0, 12),
+      kind: Box::new(ExprKind::Break(ExprBreak {
+        target: Some((str_id("abc"), span32(7, 10))),
+        value: Some(Expr {
+          span: span32(11, 12),
+          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+        })
+      }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "continue"),
+    Expr {
+      span: span32(0, 8),
+      kind: Box::new(ExprKind::Continue(ExprContinue { target: None }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "continue 'abc"),
+    Expr {
+      span: span32(0, 13),
+      kind: Box::new(ExprKind::Continue(ExprContinue {
+        target: Some((str_id("abc"), span32(10, 13))),
+      }))
+    }
+  );
+
+  assert_eq!(
+    do_parse!(expr_p(), "return"),
+    Expr {
+      span: span32(0, 6),
+      kind: Box::new(ExprKind::Return(ExprReturn { value: None }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "return 2"),
+    Expr {
+      span: span32(0, 8),
+      kind: Box::new(ExprKind::Return(ExprReturn {
+        value: Some(Expr {
+          span: span32(7, 8),
+          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+        })
+      }))
+    }
+  );
+
+  // todo pratt parsing test cases
 }
 
 /// looks like any statement
