@@ -98,7 +98,7 @@ fn test_expr_p_list() {
 }
 
 #[test]
-fn test_expr_p_body() {
+fn test_expr_p_block() {
   assert_eq!(
     do_parse!(expr_p(), "{ true; false }"),
     Expr {
