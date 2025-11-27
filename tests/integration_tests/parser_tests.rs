@@ -98,6 +98,36 @@ fn test_expr_p_list() {
 }
 
 #[test]
+fn test_expr_p_body() {
+  assert_eq!(
+    do_parse!(expr_p(), "{ true; false }"),
+    Expr {
+      span: span32(0, 15),
+      kind: Box::new(ExprKind::Block(ExprBlock {
+        body: vec![
+          Statement {
+            attribues: None,
+            span: span32(2, 6),
+            kind: Box::new(StatementKind::Expr(Expr {
+              span: span32(2, 6),
+              kind: Box::new(ExprKind::Bool(true))
+            }))
+          },
+          Statement {
+            attribues: None,
+            span: span32(8, 13),
+            kind: Box::new(StatementKind::Expr(Expr {
+              span: span32(8, 13),
+              kind: Box::new(ExprKind::Bool(false))
+            }))
+          }
+        ]
+      }))
+    }
+  );
+}
+
+#[test]
 fn test_expr_p_call() {
   assert_eq!(
     do_parse!(expr_p(), "sqrt(123)"),

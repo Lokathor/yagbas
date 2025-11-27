@@ -335,41 +335,60 @@ pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
   }
 }
 
-/// looks like `# [ EXPR ]`
-pub fn attribute_p<'src>() -> impl YagParser<'src, Expr> {
-  punct_hash_p().ignore_then(expr_p().nested_in(brackets_content_p()))
-  // TODO: if we read a hash and "stuff" in brackets, then even if the stuff isn't
-  // a valid expression we should record it as an attribute we found (with an
-  // error kind). I think that we need to give this a recovery to make that happen.
+pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
+  expr_p_and_statement_p().0
+}
+pub fn statement_p<'src>() -> impl YagParser<'src, Statement> {
+  expr_p_and_statement_p().1
 }
 
-/// looks like any expression
-pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
-  recursive(|expr_parser| {
+macro_rules! infix_maker {
+  ($kind: path) => {
+    |lhs, _op, rhs, extras| Expr {
+      span: extras.span(),
+      kind: Box::new(ExprKind::BinOp(ExprBinOp { lhs, rhs, kind: $kind })),
+    }
+  };
+}
+macro_rules! prefix_maker {
+  ($kind: path) => {
+    |_op, inner, extras| Expr {
+      span: extras.span(),
+      kind: Box::new(ExprKind::UnOp(ExprUnOp { inner, kind: $kind })),
+    }
+  };
+}
+#[allow(unused)]
+macro_rules! postfix_maker {
+  ($kind: path) => {
+    |atom, _op, extras| todo!()
+  };
+}
+macro_rules! define_expression_parser {
+  ($expression_parser:expr, $statement_parser:expr) => {{
     let atom = {
       let num_lit = num_lit_p().map(|lit| ExprKind::NumLit(ExprNumLit { lit }));
       let ident = ident_p().map(|ident| ExprKind::Ident(ExprIdent { ident }));
       let bool_ = bool_p().map(|b| ExprKind::Bool(b));
-      let list = expr_parser
+      let list = $expression_parser
         .clone()
         .separated_by(punct_comma_p())
         .allow_trailing()
         .collect::<Vec<_>>()
         .nested_in(brackets_content_p())
         .map(|elements| ExprKind::List(ExprList { elements }));
-      /*
       // TODO: we need to somehow track when a body has a trailing semicolon.
-      let block = statement_p()
+      let block = $statement_parser
+        .clone()
         .separated_by(punct_semicolon_p())
         .allow_trailing()
         .collect::<Vec<_>>()
         .nested_in(braces_content_p())
         .map(|body| ExprKind::Block(ExprBlock { body }));
-      */
       let call = ident_p()
         .map_with(|i, ex| (i, ex.span()))
         .then(
-          expr_parser
+          $expression_parser
             .clone()
             .separated_by(punct_comma_p())
             .allow_trailing()
@@ -383,7 +402,7 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
         .map_with(|i, ex| (i, ex.span()))
         .then_ignore(punct_exclamation_p())
         .then(
-          expr_parser
+          $expression_parser
             .clone()
             .separated_by(punct_comma_p())
             .allow_trailing()
@@ -396,7 +415,7 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
       let struct_lit = ident_p()
         .map_with(|i, ex| (i, ex.span()))
         .then(
-          expr_parser
+          $expression_parser
             .clone()
             .separated_by(punct_comma_p())
             .allow_trailing()
@@ -406,11 +425,11 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
         .map(|((ty, ty_span), args)| {
           ExprKind::StructLit(ExprStructLit { ty, ty_span, args })
         });
-      /*
       let if_else = kw_if_p()
-        .ignore_then(expr_parser.clone())
+        .ignore_then($expression_parser.clone())
         .then(
-          statement_p()
+          $statement_parser
+            .clone()
             .separated_by(punct_semicolon_p())
             .allow_trailing()
             .collect::<Vec<_>>()
@@ -419,7 +438,8 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
         .then(
           kw_else_p()
             .ignore_then(
-              statement_p()
+              $statement_parser
+                .clone()
                 .separated_by(punct_semicolon_p())
                 .allow_trailing()
                 .collect::<Vec<_>>()
@@ -440,14 +460,14 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
         .or_not()
         .then_ignore(kw_loop_p())
         .then(
-          statement_p()
+          $statement_parser
+            .clone()
             .separated_by(punct_semicolon_p())
             .allow_trailing()
             .collect::<Vec<_>>()
             .nested_in(braces_content_p()),
         )
         .map(|(name, body)| ExprKind::Loop(ExprLoop { name, body }));
-      */
       // TODO: loop times
       let break_ = kw_break_p()
         .ignore_then(
@@ -455,7 +475,7 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
             .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
             .or_not(),
         )
-        .then(expr_parser.clone().or_not())
+        .then($expression_parser.clone().or_not())
         .map(|(target, value)| ExprKind::Break(ExprBreak { target, value }));
       let continue_ = kw_continue_p()
         .ignore_then(
@@ -465,23 +485,25 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
         )
         .map(|target| ExprKind::Continue(ExprContinue { target }));
       let return_ = kw_return_p()
-        .ignore_then(expr_parser.clone().or_not())
+        .ignore_then($expression_parser.clone().or_not())
         .map(|value| ExprKind::Return(ExprReturn { value }));
       // TODO: can we prevent the boxing of the inner expression which we then
       // immediately unbox?
-      let paren_group_expr =
-        expr_parser.clone().nested_in(parens_content_p()).map(|xpr| *xpr.kind);
+      let paren_group_expr = $expression_parser
+        .clone()
+        .nested_in(parens_content_p())
+        .map(|xpr| *xpr.kind);
 
       let ident_using = choice((call, macro_, struct_lit, ident));
-      //let loop_using = choice((loop_,));
+      let loop_using = choice((loop_,));
       choice((
         num_lit,
         ident_using,
         bool_,
         list,
-        //block,
-        //if_else,
-        //loop_using,
+        block,
+        if_else,
+        loop_using,
         break_,
         continue_,
         return_,
@@ -491,28 +513,6 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
     };
     assert_output_ty::<Expr>(&atom);
 
-    macro_rules! infix_maker {
-      ($kind: path) => {
-        |lhs, _op, rhs, extras| Expr {
-          span: extras.span(),
-          kind: Box::new(ExprKind::BinOp(ExprBinOp { lhs, rhs, kind: $kind })),
-        }
-      };
-    }
-    macro_rules! prefix_maker {
-      ($kind: path) => {
-        |_op, inner, extras| Expr {
-          span: extras.span(),
-          kind: Box::new(ExprKind::UnOp(ExprUnOp { inner, kind: $kind })),
-        }
-      };
-    }
-    #[allow(unused)]
-    macro_rules! postfix_maker {
-      ($kind: path) => {
-        |atom, _op, extras| todo!()
-      };
-    }
     use chumsky::pratt::*;
     let with_pratt = atom.pratt((
       infix(left(2), punct_equal_p(), infix_maker!(BinOpKind::Assign)),
@@ -547,34 +547,46 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
     ));
 
     with_pratt
-  })
-  .labelled("expression")
-  .as_context()
+  }};
 }
+macro_rules! define_statement_parser {
+  ($expression_parser:expr, $statement_parser:expr) => {{
+    let attributes = punct_hash_p()
+      .ignore_then($expression_parser.clone().nested_in(brackets_content_p()))
+      .repeated()
+      .collect::<Vec<_>>();
+    let kind = {
+      let let_ = kw_let_p()
+        .ignore_then(ident_p())
+        .then(punct_colon_p().ignore_then(ident_p()).or_not())
+        .then(punct_equal_p().ignore_then($expression_parser.clone()).or_not())
+        .map(|((varname, opt_ty), opt_init)| match opt_init {
+          Some(init) => StatementKind::LetAssign(varname, opt_ty, init),
+          None => StatementKind::Let(varname, opt_ty),
+        });
+      let xpr = $expression_parser.clone().map(|x| StatementKind::Expr(x));
 
-/// looks like any statement
-pub fn statement_p<'src>() -> impl YagParser<'src, Statement> {
-  let attributes = attribute_p().repeated().collect::<Vec<_>>();
-  let kind = {
-    let let_ = kw_let_p()
-      .ignore_then(ident_p())
-      .then(punct_colon_p().ignore_then(ident_p()).or_not())
-      .then(punct_equal_p().ignore_then(expr_p()).or_not())
-      .map(|((varname, opt_ty), opt_init)| match opt_init {
-        Some(init) => StatementKind::LetAssign(varname, opt_ty, init),
-        None => StatementKind::Let(varname, opt_ty),
-      });
-    let xpr = expr_p().map(|x| StatementKind::Expr(x));
+      choice((let_, xpr))
+    };
+    attributes.then(kind).map_with(|(the_attributes, kind), ex| Statement {
+      span: ex.span(),
+      attribues: if the_attributes.is_empty() {
+        None
+      } else {
+        Some(Box::new(the_attributes))
+      },
+      kind: Box::new(kind),
+    })
+  }};
+}
+pub fn expr_p_and_statement_p<'src>()
+-> (impl YagParser<'src, Expr>, impl YagParser<'src, Statement>) {
+  let mut expression_parser = Recursive::declare();
+  let mut statement_parser = Recursive::declare();
+  expression_parser
+    .define(define_expression_parser!(expression_parser, statement_parser));
+  statement_parser
+    .define(define_statement_parser!(expression_parser, statement_parser));
 
-    choice((let_, xpr))
-  };
-  attributes.then(kind).map_with(|(the_attributes, kind), ex| Statement {
-    span: ex.span(),
-    attribues: if the_attributes.is_empty() {
-      None
-    } else {
-      Some(Box::new(the_attributes))
-    },
-    kind: Box::new(kind),
-  })
+  (expression_parser, statement_parser)
 }
