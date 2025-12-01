@@ -328,6 +328,20 @@ pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
   }
 }
 
+pub fn memory_kind_p<'src>() -> impl YagParser<'src, MemoryKind> {
+  ident_p()
+    .filter(|i: &StrID| match i.as_str() {
+      "rom" | "ram" | "mmio" => true,
+      _ => false,
+    })
+    .map(|i| match i.as_str() {
+      "rom" => MemoryKind::Rom,
+      "ram" => MemoryKind::Ram,
+      "mmio" => MemoryKind::MemoryMappedIO,
+      _ => unimplemented!(),
+    })
+}
+
 pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
   expr_p_and_statement_p().0
 }
@@ -585,13 +599,12 @@ pub fn expr_p_and_statement_p<'src>()
 }
 
 pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
-  let attributes_p =
+  let one_attribute =
     punct_hash_p().ignore_then(expr_p().nested_in(brackets_content_p()));
+  let attributes = one_attribute.repeated().collect::<Vec<_>>();
   let bitbag_p = {
-    let field_def_p = attributes_p
+    let field_def_p = attributes
       .clone()
-      .repeated()
-      .collect::<Vec<_>>()
       .then(ident_p().map_with(|i, ex| (i, ex.span())))
       .then_ignore(punct_colon_p())
       .then(expr_p().map_with(|bit, ex| (bit, ex.span())))
@@ -605,10 +618,8 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
           bit_span,
         }
       });
-    attributes_p
+    attributes
       .clone()
-      .repeated()
-      .collect::<Vec<_>>()
       .then_ignore(kw_bitbag_p())
       .then(ident_p().map_with(|i, ex| (i, ex.span())))
       .then(
@@ -627,6 +638,160 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
         kind: AstItemKind::Bitbag(AstBitbag { fields }),
       })
   };
+  let struct_ = {
+    let field_def_p = attributes
+      .clone()
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then_ignore(punct_colon_p())
+      .then(ident_p().map_with(|bit, ex| (bit, ex.span())))
+      .map_with(|(((attributes, (name, name_span)), (ty, ty_span))), ex| {
+        AstStructFieldDef {
+          span: ex.span(),
+          attributes,
+          name,
+          name_span,
+          ty,
+          ty_span,
+        }
+      });
+    attributes
+      .clone()
+      .then_ignore(kw_struct_p())
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(
+        field_def_p
+          .separated_by(punct_comma_p())
+          .allow_trailing()
+          .collect::<Vec<_>>()
+          .nested_in(braces_content_p()),
+      )
+      .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
+        file_id: ex.state().file_id,
+        attributes,
+        name,
+        name_span,
+        span: ex.span(),
+        kind: AstItemKind::Struct(AstStruct { fields }),
+      })
+  };
+  let const_ = {
+    attributes
+      .clone()
+      .then_ignore(kw_const_p())
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then_ignore(punct_colon_p())
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then_ignore(punct_equal_p())
+      .then(expr_p())
+      .then_ignore(punct_semicolon_p())
+      .map_with(
+        |(((attributes, (name, name_span)), (ty, ty_span)), expr), ex| {
+          AstItem {
+            file_id: ex.state().file_id,
+            attributes,
+            name,
+            name_span,
+            span: ex.span(),
+            kind: AstItemKind::Const(AstConst { ty, ty_span, expr }),
+          }
+        },
+      )
+  };
+  let static_ = {
+    attributes
+      .clone()
+      .then_ignore(kw_static_p())
+      .then(memory_kind_p())
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then_ignore(punct_colon_p())
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then_ignore(punct_equal_p())
+      .then(expr_p())
+      .then_ignore(punct_semicolon_p())
+      .map_with(
+        |(
+          (((attributes, memory_kind), (name, name_span)), (ty, ty_span)),
+          expr,
+        ),
+         ex| {
+          AstItem {
+            file_id: ex.state().file_id,
+            attributes,
+            name,
+            name_span,
+            span: ex.span(),
+            kind: AstItemKind::Static(AstStatic {
+              memory_kind,
+              ty,
+              ty_span,
+              expr,
+            }),
+          }
+        },
+      )
+  };
+  let function = {
+    let function_arg_p = attributes
+      .clone()
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then_ignore(punct_colon_p())
+      .then(ident_p().map_with(|bit, ex| (bit, ex.span())))
+      .map_with(|(((attributes, (name, name_span)), (ty, ty_span))), ex| {
+        AstFunctionArg {
+          span: ex.span(),
+          attributes,
+          name,
+          name_span,
+          ty,
+          ty_span,
+        }
+      });
+    attributes
+      .clone()
+      .then_ignore(kw_fn_p())
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(
+        function_arg_p
+          .separated_by(punct_comma_p())
+          .allow_trailing()
+          .collect::<Vec<_>>()
+          .nested_in(parens_content_p()),
+      )
+      .then_ignore(punct_minus_p().then_ignore(punct_greater_than_p()))
+      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(
+        statement_p()
+          .separated_by(punct_semicolon_p())
+          .collect::<Vec<_>>()
+          .then(punct_semicolon_p().or_not())
+          .map(|(body, trailing)| StatementBody {
+            body,
+            trailing_semicolon: trailing.is_some(),
+          }),
+      )
+      .map_with(
+        |(
+          (
+            ((attributes, (name, name_span)), args),
+            (return_ty, return_ty_span),
+          ),
+          body,
+        ),
+         ex| AstItem {
+          file_id: ex.state().file_id,
+          attributes,
+          name,
+          name_span,
+          span: ex.span(),
+          kind: AstItemKind::Function(AstFunction {
+            args,
+            return_ty,
+            return_ty_span,
+            body,
+          }),
+        },
+      )
+  };
 
-  choice((bitbag_p,))
+  choice((bitbag_p, struct_, const_, static_, function))
 }

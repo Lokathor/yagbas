@@ -82,7 +82,6 @@ pub struct AstConst {
   pub ty: StrID,
   pub ty_span: Span32,
   pub expr: Expr,
-  pub expr_span: Span32,
 }
 
 /// Static data within the program.
@@ -100,7 +99,6 @@ pub struct AstStatic {
   pub ty: StrID,
   pub ty_span: Span32,
   pub expr: Expr,
-  pub expr_span: Span32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -125,15 +123,17 @@ pub struct AstFunction {
   pub args: Vec<AstFunctionArg>,
   pub return_ty: StrID,
   pub return_ty_span: Span32,
-  pub body: Vec<Statement>,
+  pub body: StatementBody,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstFunctionArg {
-  name: StrID,
-  name_span: Span32,
-  ty: StrID,
-  ty_span: Span32,
+  pub span: Span32,
+  pub attributes: Vec<Expr>,
+  pub name: StrID,
+  pub name_span: Span32,
+  pub ty: StrID,
+  pub ty_span: Span32,
 }
 
 /// One single line of code in a body of code.
