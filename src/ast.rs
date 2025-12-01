@@ -305,7 +305,7 @@ pub struct StatementBody {
 pub struct ExprIfElse {
   pub condition: Expr,
   pub if_: StatementBody,
-  pub else_: StatementBody,
+  pub else_: Option<StatementBody>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
