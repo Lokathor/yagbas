@@ -1,6 +1,7 @@
 use super::*;
 use chumsky::prelude::*;
 use chumsky::recovery::Strategy;
+use chumsky::recursive::Indirect;
 use chumsky::{
   Parser,
   error::Rich,
@@ -21,6 +22,9 @@ pub type YagParserInput<'src> = MappedInput<
   fn(&'src (TokenTree, Span32)) -> (&'src TokenTree, &'src Span32),
 >;
 
+pub type YagParserExtra<'src> =
+  Full<Rich<'src, TokenTree, Span32>, SimpleState<YagParserState>, ()>;
+
 fn mapper<'src>(
   (tt, span): &'src (TokenTree, Span32),
 ) -> (&'src TokenTree, &'src Span32) {
@@ -35,23 +39,13 @@ pub fn make_yag_parser_input<'src>(
 }
 
 pub trait YagParser<'src, O>:
-  Parser<
-    'src,
-    YagParserInput<'src>,
-    O,
-    Full<Rich<'src, TokenTree, Span32>, SimpleState<YagParserState>, ()>,
-  > + Clone
+  Parser<'src, YagParserInput<'src>, O, YagParserExtra<'src>> + Clone
 {
 }
 
 impl<'src, O, T> YagParser<'src, O> for T
 where
-  T: Parser<
-      'src,
-      YagParserInput<'src>,
-      O,
-      Full<Rich<'src, TokenTree, Span32>, SimpleState<YagParserState>, ()>,
-    >,
+  T: Parser<'src, YagParserInput<'src>, O, YagParserExtra<'src>>,
   T: Clone,
 {
 }
@@ -364,13 +358,17 @@ macro_rules! postfix_maker {
   };
 }
 
-// TODO: these should be functions that accept &mut Recursive, not macros. RA
-// cannot help us with the code body while they're macros.
-
-macro_rules! define_expression_parser {
-  ($expression_parser:expr, $statement_parser:expr) => {{
+fn define_expression_parser<'b, 'src: 'b>(
+  expression_parser: &mut Recursive<
+    Indirect<'src, 'b, YagParserInput<'src>, Expr, YagParserExtra<'src>>,
+  >,
+  statement_parser: &mut Recursive<
+    Indirect<'src, 'b, YagParserInput<'src>, Statement, YagParserExtra<'src>>,
+  >,
+) {
+  expression_parser.define({
     let atom = {
-      let statement_body_p = $statement_parser
+      let statement_body_p = statement_parser
         .clone()
         .separated_by(punct_semicolon_p())
         .collect::<Vec<_>>()
@@ -383,7 +381,7 @@ macro_rules! define_expression_parser {
       let num_lit = num_lit_p().map(|lit| ExprKind::NumLit(lit));
       let ident = ident_p().map(|ident| ExprKind::Ident(ident));
       let bool_ = bool_p().map(|b| ExprKind::Bool(b));
-      let list = $expression_parser
+      let list = expression_parser
         .clone()
         .separated_by(punct_comma_p())
         .allow_trailing()
@@ -395,7 +393,7 @@ macro_rules! define_expression_parser {
       let call = ident_p()
         .map_with(|i, ex| (i, ex.span()))
         .then(
-          $expression_parser
+          expression_parser
             .clone()
             .separated_by(punct_comma_p())
             .allow_trailing()
@@ -409,7 +407,7 @@ macro_rules! define_expression_parser {
         .map_with(|i, ex| (i, ex.span()))
         .then_ignore(punct_exclamation_p())
         .then(
-          $expression_parser
+          expression_parser
             .clone()
             .separated_by(punct_comma_p())
             .allow_trailing()
@@ -422,7 +420,7 @@ macro_rules! define_expression_parser {
       let struct_lit = ident_p()
         .map_with(|i, ex| (i, ex.span()))
         .then(
-          $expression_parser
+          expression_parser
             .clone()
             .separated_by(punct_comma_p())
             .allow_trailing()
@@ -433,7 +431,7 @@ macro_rules! define_expression_parser {
           ExprKind::StructLit(ExprStructLit { ty, ty_span, args })
         });
       let if_else = kw_if_p()
-        .ignore_then($expression_parser.clone())
+        .ignore_then(expression_parser.clone())
         .then(statement_body_p.clone())
         .then(kw_else_p().ignore_then(statement_body_p.clone()).or_not())
         .map(|((condition, if_), else_)| {
@@ -464,7 +462,7 @@ macro_rules! define_expression_parser {
             .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
             .or_not(),
         )
-        .then($expression_parser.clone().or_not())
+        .then(expression_parser.clone().or_not())
         .map(|(target, value)| ExprKind::Break(ExprBreak { target, value }));
       let continue_ = kw_continue_p()
         .ignore_then(
@@ -474,11 +472,11 @@ macro_rules! define_expression_parser {
         )
         .map(|target| ExprKind::Continue(ExprContinue { target }));
       let return_ = kw_return_p()
-        .ignore_then($expression_parser.clone().or_not())
+        .ignore_then(expression_parser.clone().or_not())
         .map(|value| ExprKind::Return(ExprReturn { value }));
       // TODO: can we prevent the boxing of the inner expression which we then
       // immediately unbox?
-      let paren_group_expr = $expression_parser
+      let paren_group_expr = expression_parser
         .clone()
         .nested_in(parens_content_p())
         .map(|xpr| *xpr.kind);
@@ -536,24 +534,32 @@ macro_rules! define_expression_parser {
     ));
 
     with_pratt
-  }};
+  });
 }
-macro_rules! define_statement_parser {
-  ($expression_parser:expr, $statement_parser:expr) => {{
+
+fn define_statement_parser<'b, 'src: 'b>(
+  expression_parser: &mut Recursive<
+    Indirect<'src, 'b, YagParserInput<'src>, Expr, YagParserExtra<'src>>,
+  >,
+  statement_parser: &mut Recursive<
+    Indirect<'src, 'b, YagParserInput<'src>, Statement, YagParserExtra<'src>>,
+  >,
+) {
+  statement_parser.define({
     let attributes = punct_hash_p()
-      .ignore_then($expression_parser.clone().nested_in(brackets_content_p()))
+      .ignore_then(expression_parser.clone().nested_in(brackets_content_p()))
       .repeated()
       .collect::<Vec<_>>();
     let kind = {
       let let_ = kw_let_p()
         .ignore_then(ident_p())
         .then(punct_colon_p().ignore_then(ident_p()).or_not())
-        .then(punct_equal_p().ignore_then($expression_parser.clone()).or_not())
+        .then(punct_equal_p().ignore_then(expression_parser.clone()).or_not())
         .map(|((varname, opt_ty), opt_init)| match opt_init {
           Some(init) => StatementKind::LetAssign(varname, opt_ty, init),
           None => StatementKind::Let(varname, opt_ty),
         });
-      let xpr = $expression_parser.clone().map(|x| StatementKind::ExprStmt(x));
+      let xpr = expression_parser.clone().map(|x| StatementKind::ExprStmt(x));
 
       choice((let_, xpr))
     };
@@ -566,18 +572,15 @@ macro_rules! define_statement_parser {
       },
       kind: Box::new(kind),
     })
-  }};
+  });
 }
 
 pub fn expr_p_and_statement_p<'src>()
 -> (impl YagParser<'src, Expr>, impl YagParser<'src, Statement>) {
   let mut expression_parser = Recursive::declare();
   let mut statement_parser = Recursive::declare();
-  expression_parser
-    .define(define_expression_parser!(expression_parser, statement_parser));
-  statement_parser
-    .define(define_statement_parser!(expression_parser, statement_parser));
-
+  define_expression_parser(&mut expression_parser, &mut statement_parser);
+  define_statement_parser(&mut expression_parser, &mut statement_parser);
   (expression_parser, statement_parser)
 }
 
