@@ -276,6 +276,14 @@ fn test_expr_p_return() {
 }
 
 #[test]
+fn test_expr_p_loop_times() {
+  assert_eq!(
+    do_parse!(expr_p(), "loop 3 times { foo() }"),
+    Expr { span: span32(0, 0), kind: Box::new(ExprKind::ExprKindError) }
+  );
+}
+
+#[test]
 fn test_expr_p_add() {
   assert_eq!(
     do_parse!(expr_p(), "2+3"),

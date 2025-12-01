@@ -181,7 +181,7 @@ pub struct Expr {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub enum ExprKind {
   #[default]
-  ExprError,
+  ExprKindError,
 
   NumLit(StrID),
   Ident(StrID),
@@ -310,13 +310,13 @@ pub struct ExprIfElse {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprLoop {
-  pub name: Option<StrID>,
+  pub name: Option<(StrID, Span32)>,
   pub steps: StatementBody,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprLoopTimes {
-  pub name: Option<StrID>,
+  pub name: Option<(StrID, Span32)>,
   pub times: StrID,
   pub times_span: Span32,
   pub steps: StatementBody,

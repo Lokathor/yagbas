@@ -440,13 +440,24 @@ macro_rules! define_expression_parser {
           ExprKind::IfElse(ExprIfElse { condition, if_, else_ })
         });
       let loop_ = punct_quote_p()
-        .ignore_then(ident_p())
+        .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
         .then_ignore(punct_colon_p())
         .or_not()
         .then_ignore(kw_loop_p())
         .then(statement_body_p.clone().nested_in(braces_content_p()))
         .map(|(name, steps)| ExprKind::Loop(ExprLoop { name, steps }));
-      // TODO: loop times
+      let times_kw = StrID::from("times");
+      let loop_times = punct_quote_p()
+        .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
+        .then_ignore(punct_colon_p())
+        .or_not()
+        .then_ignore(kw_loop_p())
+        .then(choice((ident_p(), num_lit_p())).map_with(|i, ex| (i, ex.span())))
+        .then_ignore(ident_p().filter(move |str_id| *str_id == times_kw))
+        .then(statement_body_p.clone().nested_in(braces_content_p()))
+        .map(|((name, (times, times_span)), steps)| {
+          ExprKind::LoopTimes(ExprLoopTimes { name, times, times_span, steps })
+        });
       let break_ = kw_break_p()
         .ignore_then(
           punct_quote_p()
@@ -473,7 +484,7 @@ macro_rules! define_expression_parser {
         .map(|xpr| *xpr.kind);
 
       let ident_using = choice((call, macro_, struct_lit, ident));
-      let loop_using = choice((loop_,));
+      let loop_using = choice((loop_times, loop_));
       choice((
         num_lit,
         ident_using,
