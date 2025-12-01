@@ -169,7 +169,7 @@ pub enum StatementKind {
   LetAssign(StrID, Option<StrID>, Expr),
 
   /// Any expression on its own can be a statement.
-  Expr(Expr),
+  ExprStmt(Expr),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]

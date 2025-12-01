@@ -363,6 +363,10 @@ macro_rules! postfix_maker {
     |atom, _op, extras| todo!()
   };
 }
+
+// TODO: these should be functions that accept &mut Recursive, not macros. RA
+// cannot help us with the code body while they're macros.
+
 macro_rules! define_expression_parser {
   ($expression_parser:expr, $statement_parser:expr) => {{
     let atom = {
@@ -430,12 +434,8 @@ macro_rules! define_expression_parser {
         });
       let if_else = kw_if_p()
         .ignore_then($expression_parser.clone())
-        .then(statement_body_p.clone().nested_in(braces_content_p()))
-        .then(
-          kw_else_p()
-            .ignore_then(statement_body_p.clone().nested_in(braces_content_p()))
-            .or_not(),
-        )
+        .then(statement_body_p.clone())
+        .then(kw_else_p().ignore_then(statement_body_p.clone()).or_not())
         .map(|((condition, if_), else_)| {
           ExprKind::IfElse(ExprIfElse { condition, if_, else_ })
         });
@@ -444,7 +444,7 @@ macro_rules! define_expression_parser {
         .then_ignore(punct_colon_p())
         .or_not()
         .then_ignore(kw_loop_p())
-        .then(statement_body_p.clone().nested_in(braces_content_p()))
+        .then(statement_body_p.clone())
         .map(|(name, steps)| ExprKind::Loop(ExprLoop { name, steps }));
       let times_kw = StrID::from("times");
       let loop_times = punct_quote_p()
@@ -454,7 +454,7 @@ macro_rules! define_expression_parser {
         .then_ignore(kw_loop_p())
         .then(choice((ident_p(), num_lit_p())).map_with(|i, ex| (i, ex.span())))
         .then_ignore(ident_p().filter(move |str_id| *str_id == times_kw))
-        .then(statement_body_p.clone().nested_in(braces_content_p()))
+        .then(statement_body_p.clone())
         .map(|((name, (times, times_span)), steps)| {
           ExprKind::LoopTimes(ExprLoopTimes { name, times, times_span, steps })
         });
@@ -553,7 +553,7 @@ macro_rules! define_statement_parser {
           Some(init) => StatementKind::LetAssign(varname, opt_ty, init),
           None => StatementKind::Let(varname, opt_ty),
         });
-      let xpr = $expression_parser.clone().map(|x| StatementKind::Expr(x));
+      let xpr = $expression_parser.clone().map(|x| StatementKind::ExprStmt(x));
 
       choice((let_, xpr))
     };

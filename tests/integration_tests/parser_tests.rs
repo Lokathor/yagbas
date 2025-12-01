@@ -101,6 +101,20 @@ fn test_expr_p_list() {
 }
 
 #[test]
+fn test_expr_p_block_empty() {
+  assert_eq!(
+    do_parse!(expr_p(), "{}"),
+    Expr {
+      span: span32(0, 2),
+      kind: Box::new(ExprKind::Block(StatementBody {
+        body: vec![],
+        trailing_semicolon: false
+      }))
+    }
+  );
+}
+
+#[test]
 fn test_expr_p_block() {
   assert_eq!(
     do_parse!(expr_p(), "{ true; false }"),
@@ -111,7 +125,7 @@ fn test_expr_p_block() {
           Statement {
             attribues: None,
             span: span32(2, 6),
-            kind: Box::new(StatementKind::Expr(Expr {
+            kind: Box::new(StatementKind::ExprStmt(Expr {
               span: span32(2, 6),
               kind: Box::new(ExprKind::Bool(true))
             }))
@@ -119,7 +133,7 @@ fn test_expr_p_block() {
           Statement {
             attribues: None,
             span: span32(8, 13),
-            kind: Box::new(StatementKind::Expr(Expr {
+            kind: Box::new(StatementKind::ExprStmt(Expr {
               span: span32(8, 13),
               kind: Box::new(ExprKind::Bool(false))
             }))
@@ -276,9 +290,71 @@ fn test_expr_p_return() {
 }
 
 #[test]
-fn test_expr_p_loop_times() {
+fn test_expr_p_loop_empty() {
   assert_eq!(
-    do_parse!(expr_p(), "loop 3 times { foo() }"),
+    do_parse!(expr_p(), "loop {}"),
+    Expr {
+      span: span32(0, 7),
+      kind: Box::new(ExprKind::Loop(ExprLoop {
+        name: None,
+        steps: StatementBody { body: vec![], trailing_semicolon: false }
+      }))
+    }
+  );
+}
+
+#[test]
+fn test_expr_p_loop() {
+  assert_eq!(
+    do_parse!(expr_p(), "loop { 1 }"),
+    Expr {
+      span: span32(0, 10),
+      kind: Box::new(ExprKind::Loop(ExprLoop {
+        name: None,
+        steps: StatementBody {
+          body: vec![Statement {
+            attribues: None,
+            span: span32(7, 8),
+            kind: Box::new(StatementKind::ExprStmt(Expr {
+              span: span32(7, 8),
+              kind: Box::new(ExprKind::NumLit(str_id("1")))
+            }))
+          }],
+          trailing_semicolon: false
+        }
+      }))
+    }
+  );
+}
+
+#[test]
+fn test_expr_p_loop_times_empty() {
+  assert_eq!(
+    do_parse!(expr_p(), "loop 3 times {}"),
+    Expr {
+      span: span32(0, 15),
+      kind: Box::new(ExprKind::LoopTimes(ExprLoopTimes {
+        name: None,
+        times: str_id("3"),
+        times_span: span32(5, 6),
+        steps: StatementBody { body: vec![], trailing_semicolon: false }
+      }))
+    }
+  );
+}
+
+#[test]
+fn test_expr_p_if_empty() {
+  assert_eq!(
+    do_parse!(expr_p(), "if condition {}"),
+    Expr { span: span32(0, 0), kind: Box::new(ExprKind::ExprKindError) }
+  );
+}
+
+#[test]
+fn test_expr_p_if_else_empty() {
+  assert_eq!(
+    do_parse!(expr_p(), "if condition {} else {}"),
     Expr { span: span32(0, 0), kind: Box::new(ExprKind::ExprKindError) }
   );
 }
