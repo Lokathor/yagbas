@@ -39,16 +39,10 @@ fn fake_file_id(u: usize) -> FileID {
 }
 
 fn mk_ident(span: Span32, ident: &str) -> Expr {
-  Expr {
-    span,
-    kind: Box::new(ExprKind::Ident(ExprIdent { ident: str_id(ident) })),
-  }
+  Expr { span, kind: Box::new(ExprKind::Ident(str_id(ident))) }
 }
 fn mk_num_lit(span: Span32, lit: &str) -> Expr {
-  Expr {
-    span,
-    kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id(lit) })),
-  }
+  Expr { span, kind: Box::new(ExprKind::NumLit(str_id(lit))) }
 }
 fn mk_bool(span: Span32, b: bool) -> Expr {
   Expr { span, kind: Box::new(ExprKind::Bool(b)) }
@@ -98,12 +92,10 @@ fn test_expr_p_list() {
     do_parse!(expr_p(), "[true, false]"),
     Expr {
       span: span32(0, 13),
-      kind: Box::new(ExprKind::List(ExprList {
-        elements: vec![
-          Expr { span: span32(1, 5), kind: Box::new(ExprKind::Bool(true)) },
-          Expr { span: span32(7, 12), kind: Box::new(ExprKind::Bool(false)) }
-        ]
-      }))
+      kind: Box::new(ExprKind::List(vec![
+        Expr { span: span32(1, 5), kind: Box::new(ExprKind::Bool(true)) },
+        Expr { span: span32(7, 12), kind: Box::new(ExprKind::Bool(false)) }
+      ]))
     }
   );
 }
@@ -114,7 +106,7 @@ fn test_expr_p_block() {
     do_parse!(expr_p(), "{ true; false }"),
     Expr {
       span: span32(0, 15),
-      kind: Box::new(ExprKind::Block(ExprBlock {
+      kind: Box::new(ExprKind::Block(StatementBody {
         body: vec![
           Statement {
             attribues: None,
@@ -132,7 +124,8 @@ fn test_expr_p_block() {
               kind: Box::new(ExprKind::Bool(false))
             }))
           }
-        ]
+        ],
+        trailing_semicolon: false
       }))
     }
   );
@@ -149,7 +142,7 @@ fn test_expr_p_call() {
         target_span: span32(0, 4),
         args: vec![Expr {
           span: span32(5, 8),
-          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("123") }))
+          kind: Box::new(ExprKind::NumLit(str_id("123")))
         }]
       }))
     }
@@ -167,7 +160,7 @@ fn test_expr_p_macro() {
         target_span: span32(0, 5),
         args: vec![Expr {
           span: span32(7, 10),
-          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("123") }))
+          kind: Box::new(ExprKind::NumLit(str_id("123")))
         }]
       }))
     }
@@ -185,9 +178,7 @@ fn test_expr_p_struct_lit() {
         ty_span: span32(0, 7),
         args: vec![Expr {
           span: span32(10, 17),
-          kind: Box::new(ExprKind::Ident(ExprIdent {
-            ident: str_id("enabled")
-          }))
+          kind: Box::new(ExprKind::Ident(str_id("enabled")))
         }]
       }))
     }
@@ -221,7 +212,7 @@ fn test_expr_p_break() {
         target: None,
         value: Some(Expr {
           span: span32(6, 7),
-          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+          kind: Box::new(ExprKind::NumLit(str_id("2")))
         })
       }))
     }
@@ -234,7 +225,7 @@ fn test_expr_p_break() {
         target: Some((str_id("abc"), span32(7, 10))),
         value: Some(Expr {
           span: span32(11, 12),
-          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+          kind: Box::new(ExprKind::NumLit(str_id("2")))
         })
       }))
     }
@@ -277,7 +268,7 @@ fn test_expr_p_return() {
       kind: Box::new(ExprKind::Return(ExprReturn {
         value: Some(Expr {
           span: span32(7, 8),
-          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+          kind: Box::new(ExprKind::NumLit(str_id("2")))
         })
       }))
     }
@@ -293,11 +284,11 @@ fn test_expr_p_add() {
       kind: Box::new(ExprKind::BinOp(ExprBinOp {
         lhs: Expr {
           span: span32(0, 1),
-          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+          kind: Box::new(ExprKind::NumLit(str_id("2")))
         },
         rhs: Expr {
           span: span32(2, 3),
-          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("3") }))
+          kind: Box::new(ExprKind::NumLit(str_id("3")))
         },
         kind: BinOpKind::Add,
       }))
@@ -314,18 +305,18 @@ fn test_expr_p_add() {
           kind: Box::new(ExprKind::BinOp(ExprBinOp {
             lhs: Expr {
               span: span32(0, 1),
-              kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("2") }))
+              kind: Box::new(ExprKind::NumLit(str_id("2")))
             },
             rhs: Expr {
               span: span32(2, 3),
-              kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("3") }))
+              kind: Box::new(ExprKind::NumLit(str_id("3")))
             },
             kind: BinOpKind::Add,
           }))
         },
         rhs: Expr {
           span: span32(4, 5),
-          kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("4") }))
+          kind: Box::new(ExprKind::NumLit(str_id("4")))
         },
         kind: BinOpKind::Add,
       }))
@@ -354,7 +345,7 @@ fn test_item_p_bitbag() {
             name_span: span32(14, 18),
             bit: Expr {
               span: span32(20, 21),
-              kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("0") })),
+              kind: Box::new(ExprKind::NumLit(str_id("0"))),
             },
             bit_span: span32(20, 21)
           },
@@ -365,7 +356,7 @@ fn test_item_p_bitbag() {
             name_span: span32(23, 26),
             bit: Expr {
               span: span32(28, 29),
-              kind: Box::new(ExprKind::NumLit(ExprNumLit { lit: str_id("1") })),
+              kind: Box::new(ExprKind::NumLit(str_id("1"))),
             },
             bit_span: span32(28, 29),
           },

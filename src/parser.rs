@@ -366,8 +366,18 @@ macro_rules! postfix_maker {
 macro_rules! define_expression_parser {
   ($expression_parser:expr, $statement_parser:expr) => {{
     let atom = {
-      let num_lit = num_lit_p().map(|lit| ExprKind::NumLit(ExprNumLit { lit }));
-      let ident = ident_p().map(|ident| ExprKind::Ident(ExprIdent { ident }));
+      let statement_body_p = $statement_parser
+        .clone()
+        .separated_by(punct_semicolon_p())
+        .collect::<Vec<_>>()
+        .then(punct_semicolon_p().or_not())
+        .nested_in(braces_content_p())
+        .map(|(body, semi)| StatementBody {
+          body,
+          trailing_semicolon: semi.is_some(),
+        });
+      let num_lit = num_lit_p().map(|lit| ExprKind::NumLit(lit));
+      let ident = ident_p().map(|ident| ExprKind::Ident(ident));
       let bool_ = bool_p().map(|b| ExprKind::Bool(b));
       let list = $expression_parser
         .clone()
@@ -375,15 +385,9 @@ macro_rules! define_expression_parser {
         .allow_trailing()
         .collect::<Vec<_>>()
         .nested_in(brackets_content_p())
-        .map(|elements| ExprKind::List(ExprList { elements }));
+        .map(ExprKind::List);
       // TODO: we need to somehow track when a body has a trailing semicolon.
-      let block = $statement_parser
-        .clone()
-        .separated_by(punct_semicolon_p())
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .nested_in(braces_content_p())
-        .map(|body| ExprKind::Block(ExprBlock { body }));
+      let block = statement_body_p.clone().map(ExprKind::Block);
       let call = ident_p()
         .map_with(|i, ex| (i, ex.span()))
         .then(
@@ -426,47 +430,22 @@ macro_rules! define_expression_parser {
         });
       let if_else = kw_if_p()
         .ignore_then($expression_parser.clone())
-        .then(
-          $statement_parser
-            .clone()
-            .separated_by(punct_semicolon_p())
-            .allow_trailing()
-            .collect::<Vec<_>>()
-            .nested_in(braces_content_p()),
-        )
+        .then(statement_body_p.clone().nested_in(braces_content_p()))
         .then(
           kw_else_p()
-            .ignore_then(
-              $statement_parser
-                .clone()
-                .separated_by(punct_semicolon_p())
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .nested_in(braces_content_p()),
-            )
+            .ignore_then(statement_body_p.clone().nested_in(braces_content_p()))
             .or_not(),
         )
-        .map(|((condition, if_body), else_body)| {
-          ExprKind::IfElse(ExprIfElse {
-            condition,
-            if_body,
-            else_body: else_body.unwrap_or_default(),
-          })
+        .map(|((condition, if_), else_)| {
+          ExprKind::IfElse(ExprIfElse { condition, if_, else_ })
         });
       let loop_ = punct_quote_p()
         .ignore_then(ident_p())
         .then_ignore(punct_colon_p())
         .or_not()
         .then_ignore(kw_loop_p())
-        .then(
-          $statement_parser
-            .clone()
-            .separated_by(punct_semicolon_p())
-            .allow_trailing()
-            .collect::<Vec<_>>()
-            .nested_in(braces_content_p()),
-        )
-        .map(|(name, body)| ExprKind::Loop(ExprLoop { name, body }));
+        .then(statement_body_p.clone().nested_in(braces_content_p()))
+        .map(|(name, steps)| ExprKind::Loop(ExprLoop { name, steps }));
       // TODO: loop times
       let break_ = kw_break_p()
         .ignore_then(
