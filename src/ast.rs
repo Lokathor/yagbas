@@ -183,19 +183,19 @@ pub enum ExprKind {
   #[default]
   ExprError,
 
-  NumLit(ExprNumLit),
-  Ident(ExprIdent),
+  NumLit(StrID),
+  Ident(StrID),
   Bool(bool),
 
   /// `[ ... , ... , ... ]`
   ///
   /// square brackets around sub-expressions that forms a series of elements.
-  List(ExprList),
+  List(Vec<Expr>),
 
   /// `{ ... ; ... ; ... }`
   ///
   /// braces around a series of statements.
-  Block(ExprBlock),
+  Block(StatementBody),
 
   Call(ExprCall),
   Macro(ExprMacro),
@@ -217,16 +217,6 @@ fn test_expr_size() {
   // note(lokathor): any change in size might be justified (and so we would
   // update this test), but we should still take note of it happening.
   assert_eq!(size_of::<Expr>(), size_of::<[usize; 2]>());
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ExprNumLit {
-  pub lit: StrID,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ExprIdent {
-  pub ident: StrID,
 }
 
 /// Unary operation expression.
@@ -306,26 +296,22 @@ pub struct ExprStructLit {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct StatementBody {
+  pub body: Vec<Statement>,
+  pub trailing_semicolon: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprIfElse {
   pub condition: Expr,
-  pub if_body: Vec<Statement>,
-  pub else_body: Vec<Statement>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct ExprList {
-  pub elements: Vec<Expr>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct ExprBlock {
-  pub body: Vec<Statement>,
+  pub if_: StatementBody,
+  pub else_: StatementBody,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprLoop {
   pub name: Option<StrID>,
-  pub body: Vec<Statement>,
+  pub steps: StatementBody,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -333,7 +319,7 @@ pub struct ExprLoopTimes {
   pub name: Option<StrID>,
   pub times: StrID,
   pub times_span: Span32,
-  pub body: Vec<Statement>,
+  pub steps: StatementBody,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
