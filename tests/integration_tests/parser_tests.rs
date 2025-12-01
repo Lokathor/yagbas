@@ -143,6 +143,33 @@ fn test_expr_p_block() {
       }))
     }
   );
+  assert_eq!(
+    do_parse!(expr_p(), "{ true; false; }"),
+    Expr {
+      span: span32(0, 16),
+      kind: Box::new(ExprKind::Block(StatementBody {
+        body: vec![
+          Statement {
+            attribues: None,
+            span: span32(2, 6),
+            kind: Box::new(StatementKind::ExprStmt(Expr {
+              span: span32(2, 6),
+              kind: Box::new(ExprKind::Bool(true))
+            }))
+          },
+          Statement {
+            attribues: None,
+            span: span32(8, 13),
+            kind: Box::new(StatementKind::ExprStmt(Expr {
+              span: span32(8, 13),
+              kind: Box::new(ExprKind::Bool(false))
+            }))
+          }
+        ],
+        trailing_semicolon: true
+      }))
+    }
+  );
 }
 
 #[test]
@@ -337,6 +364,18 @@ fn test_expr_p_loop_times_empty() {
         name: None,
         times: str_id("3"),
         times_span: span32(5, 6),
+        steps: StatementBody { body: vec![], trailing_semicolon: false }
+      }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "loop count times {}"),
+    Expr {
+      span: span32(0, 19),
+      kind: Box::new(ExprKind::LoopTimes(ExprLoopTimes {
+        name: None,
+        times: str_id("count"),
+        times_span: span32(5, 10),
         steps: StatementBody { body: vec![], trailing_semicolon: false }
       }))
     }
