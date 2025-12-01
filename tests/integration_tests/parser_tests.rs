@@ -87,6 +87,14 @@ fn test_expr_p_bool() {
 }
 
 #[test]
+fn test_expr_p_list_empty() {
+  assert_eq!(
+    do_parse!(expr_p(), "[]"),
+    Expr { span: span32(0, 2), kind: Box::new(ExprKind::List(vec![])) }
+  );
+}
+
+#[test]
 fn test_expr_p_list() {
   assert_eq!(
     do_parse!(expr_p(), "[true, false]"),
@@ -209,11 +217,40 @@ fn test_expr_p_macro() {
 }
 
 #[test]
+fn test_expr_p_struct_lit_empty() {
+  assert_eq!(
+    do_parse!(expr_p(), "LcdCtrl {}"),
+    Expr {
+      span: span32(0, 10),
+      kind: Box::new(ExprKind::StructLit(ExprStructLit {
+        ty: str_id("LcdCtrl"),
+        ty_span: span32(0, 7),
+        args: vec![]
+      }))
+    }
+  );
+}
+
+#[test]
 fn test_expr_p_struct_lit() {
   assert_eq!(
     do_parse!(expr_p(), "LcdCtrl { enabled }"),
     Expr {
       span: span32(0, 19),
+      kind: Box::new(ExprKind::StructLit(ExprStructLit {
+        ty: str_id("LcdCtrl"),
+        ty_span: span32(0, 7),
+        args: vec![Expr {
+          span: span32(10, 17),
+          kind: Box::new(ExprKind::Ident(str_id("enabled")))
+        }]
+      }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "LcdCtrl { enabled, }"),
+    Expr {
+      span: span32(0, 20),
       kind: Box::new(ExprKind::StructLit(ExprStructLit {
         ty: str_id("LcdCtrl"),
         ty_span: span32(0, 7),
@@ -447,7 +484,7 @@ fn test_expr_p_add() {
   );
 }
 
-// todo pratt parsing test cases
+// todo many more pratt parsing test cases
 
 #[test]
 fn test_item_p_bitbag() {
