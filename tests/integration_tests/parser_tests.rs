@@ -1,3 +1,4 @@
+use chumsky::extra::State;
 use chumsky::inspector::SimpleState;
 use chumsky::prelude::*;
 use str_id::StrID;
@@ -544,4 +545,102 @@ fn test_item_p_bitbag() {
       })
     }
   );
+}
+
+#[test]
+fn test_item_p_struct() {
+  assert_eq!(
+    do_parse!(item_p(), "struct Test { zero: u8, one: i8 }"),
+    AstItem {
+      attributes: Vec::new(),
+      file_id: fake_file_id(1),
+      span: span32(0, 33),
+      name: str_id("Test"),
+      name_span: span32(7, 11),
+      kind: AstItemKind::Struct(AstStruct {
+        fields: vec![
+          AstStructFieldDef {
+            attributes: vec![],
+            span: span32(14, 22),
+            name: str_id("zero"),
+            name_span: span32(14, 18),
+            ty: str_id("u8"),
+            ty_span: span32(20, 22)
+          },
+          AstStructFieldDef {
+            attributes: vec![],
+            span: span32(24, 31),
+            name: str_id("one"),
+            name_span: span32(24, 27),
+            ty: str_id("i8"),
+            ty_span: span32(29, 31),
+          },
+        ]
+      })
+    }
+  );
+}
+
+#[test]
+fn test_item_p_const() {
+  assert_eq!(
+    do_parse!(item_p(), "const ONE: u8 = 1;"),
+    AstItem {
+      span: span32(0, 18),
+      attributes: vec![],
+      file_id: fake_file_id(1),
+      name: str_id("ONE"),
+      name_span: span32(6, 9),
+      kind: AstItemKind::Const(AstConst {
+        ty: str_id("u8"),
+        ty_span: span32(11, 13),
+        expr: Expr {
+          span: span32(16, 17),
+          kind: Box::new(ExprKind::NumLit(str_id("1")))
+        }
+      }),
+    }
+  )
+}
+
+#[test]
+fn test_item_p_static() {
+  assert_eq!(
+    do_parse!(item_p(), "static rom DATA: i8 = 3;"),
+    AstItem {
+      span: span32(0, 24),
+      attributes: vec![],
+      file_id: fake_file_id(1),
+      name: str_id("DATA"),
+      name_span: span32(11, 15),
+      kind: AstItemKind::Static(AstStatic {
+        memory_kind: MemoryKind::Rom,
+        ty: str_id("i8"),
+        ty_span: span32(17, 19),
+        expr: Expr {
+          span: span32(22, 23),
+          kind: Box::new(ExprKind::NumLit(str_id("3")))
+        }
+      }),
+    }
+  )
+}
+
+#[test]
+fn test_item_p_function() {
+  assert_eq!(
+    do_parse!(item_p(), "fn foo() {}"),
+    AstItem {
+      span: span32(0, 11),
+      attributes: vec![],
+      file_id: fake_file_id(1),
+      name: str_id("foo"),
+      name_span: span32(3, 6),
+      kind: AstItemKind::Function(AstFunction {
+        args: vec![],
+        return_info: None,
+        body: StatementBody { body: vec![], trailing_semicolon: false }
+      }),
+    }
+  )
 }

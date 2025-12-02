@@ -134,14 +134,14 @@ pub fn kw_loop_p<'src>() -> impl YagParser<'src, ()> {
     Lone(KwLoop) => ()
   }
 }
-pub fn kw_mmio_p<'src>() -> impl YagParser<'src, ()> {
+pub fn kw_mmio_p<'src>() -> impl YagParser<'src, MemoryKind> {
   select! {
-    Lone(KwMmio) => ()
+    Lone(KwMmio) => MemoryKind::MemoryMappedIO
   }
 }
-pub fn kw_mut_p<'src>() -> impl YagParser<'src, ()> {
+pub fn kw_ram_p<'src>() -> impl YagParser<'src, MemoryKind> {
   select! {
-    Lone(KwMut) => ()
+    Lone(KwRam) => MemoryKind::Ram
   }
 }
 pub fn kw_return_p<'src>() -> impl YagParser<'src, ()> {
@@ -149,9 +149,9 @@ pub fn kw_return_p<'src>() -> impl YagParser<'src, ()> {
     Lone(KwReturn) => ()
   }
 }
-pub fn kw_rom_p<'src>() -> impl YagParser<'src, ()> {
+pub fn kw_rom_p<'src>() -> impl YagParser<'src, MemoryKind> {
   select! {
-    Lone(KwRom) => ()
+    Lone(KwRom) => MemoryKind::Rom
   }
 }
 pub fn kw_static_p<'src>() -> impl YagParser<'src, ()> {
@@ -341,24 +341,14 @@ pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
 }
 
 pub fn memory_kind_p<'src>() -> impl YagParser<'src, MemoryKind> {
-  ident_p()
-    .filter(|i: &StrID| match i.as_str() {
-      "rom" | "ram" | "mmio" => true,
-      _ => false,
-    })
-    .map(|i| match i.as_str() {
-      "rom" => MemoryKind::Rom,
-      "ram" => MemoryKind::Ram,
-      "mmio" => MemoryKind::MemoryMappedIO,
-      _ => unimplemented!(),
-    })
+  choice((kw_ram_p(), kw_rom_p(), kw_mmio_p()))
 }
 
 pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
-  expr_p_and_statement_p().0
+  recursive_parser_group_p().0
 }
 pub fn statement_p<'src>() -> impl YagParser<'src, Statement> {
-  expr_p_and_statement_p().2
+  recursive_parser_group_p().2
 }
 
 macro_rules! infix_maker {
@@ -737,7 +727,7 @@ fn define_statement_parser<'b, 'src: 'b>(
   });
 }
 
-pub fn expr_p_and_statement_p<'src>() -> (
+pub fn recursive_parser_group_p<'src>() -> (
   impl YagParser<'src, Expr>,
   impl YagParser<'src, Expr>,
   impl YagParser<'src, Statement>,
@@ -922,38 +912,37 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
           .collect::<Vec<_>>()
           .nested_in(parens_content_p()),
       )
-      .then_ignore(punct_minus_p().then_ignore(punct_greater_than_p()))
-      .then(spanned_ident_p())
+      .then(
+        punct_minus_p()
+          .then_ignore(punct_greater_than_p())
+          .ignore_then(spanned_ident_p())
+          .or_not(),
+      )
       .then(
         statement_p()
           .separated_by(punct_semicolon_p())
           .collect::<Vec<_>>()
           .then(punct_semicolon_p().or_not())
+          .nested_in(braces_content_p())
           .map(|(body, trailing)| StatementBody {
             body,
             trailing_semicolon: trailing.is_some(),
           }),
       )
       .map_with(
-        |(
-          (
-            ((attributes, (name, name_span)), args),
-            (return_ty, return_ty_span),
-          ),
-          body,
-        ),
-         ex| AstItem {
-          file_id: ex.state().file_id,
-          attributes,
-          name,
-          name_span,
-          span: ex.span(),
-          kind: AstItemKind::Function(AstFunction {
-            args,
-            return_ty,
-            return_ty_span,
-            body,
-          }),
+        |((((attributes, (name, name_span)), args), return_info), body), ex| {
+          AstItem {
+            file_id: ex.state().file_id,
+            attributes,
+            name,
+            name_span,
+            span: ex.span(),
+            kind: AstItemKind::Function(AstFunction {
+              args,
+              return_info,
+              body,
+            }),
+          }
         },
       )
   };

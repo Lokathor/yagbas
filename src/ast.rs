@@ -121,8 +121,7 @@ pub enum MemoryKind {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstFunction {
   pub args: Vec<AstFunctionArg>,
-  pub return_ty: StrID,
-  pub return_ty_span: Span32,
+  pub return_info: Option<(StrID, Span32)>,
   pub body: StatementBody,
 }
 

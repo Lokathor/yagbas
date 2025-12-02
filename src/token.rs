@@ -62,8 +62,8 @@ pub enum Token {
   KwLoop,
   #[regex(r"mmio")]
   KwMmio,
-  #[regex(r"mut")]
-  KwMut,
+  #[regex(r"ram")]
+  KwRam,
   #[regex(r"return")]
   KwReturn,
   #[regex(r"rom")]
