@@ -31,7 +31,7 @@ pub struct FileID(NonZeroUsize);
 impl core::fmt::Display for FileID {
   #[inline]
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    core::fmt::Debug::fmt(self, f)
+    write!(f, "{}", self.get_data().path().display())
   }
 }
 impl FileID {
