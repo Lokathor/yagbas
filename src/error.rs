@@ -1,12 +1,14 @@
 use super::*;
+use ariadne::{Cache, CharSet, Config, FnCache, Label, Report, ReportKind};
 use chumsky::error::{RichPattern, RichReason};
 use core::iter::IntoIterator;
 use std::sync::{Mutex, PoisonError};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum YagError {
   IO(PathBuf, String),
   TokenTreeParseError(FileID, Rich<'static, Token, Span32>),
+  ItemParseError(FileID, Rich<'static, TokenTree, Span32>),
 }
 
 pub static ERROR_BUCKET: Mutex<Vec<YagError>> = Mutex::new(Vec::new());
@@ -24,11 +26,32 @@ pub fn log_error_iter<I: IntoIterator<Item = YagError>>(i: I) {
 
 /// Returns `true` if there is an error printed.
 pub fn print_any_errors() -> bool {
+  let mut cache = file_data_cache_sources();
+  let config = Config::new().with_char_set(CharSet::Ascii).with_color(false);
+
   let mut locked_vec =
     ERROR_BUCKET.lock().unwrap_or_else(PoisonError::into_inner);
-  // TODO: sort the vec as much as possible before printing.
+  locked_vec.sort();
   for e in locked_vec.iter() {
-    eprintln!("{e:?}");
+    match e {
+      YagError::IO(_, _) => eprintln!("{e:?}"),
+      YagError::TokenTreeParseError(_, _) => eprintln!("{e:?}"),
+      YagError::ItemParseError(file_id, rich) => {
+        let a_span =
+          (*file_id, (rich.span().start as usize)..(rich.span().end as usize));
+        Report::build(ReportKind::Error, a_span.clone())
+          .with_config(config)
+          .with_label(Label::new(a_span.clone()))
+          .with_message(format!(
+            "found {f:?} expected {ex:?}",
+            f = rich.found(),
+            ex = rich.expected().collect::<Vec<_>>(),
+          ))
+          .finish()
+          .eprint(&mut cache)
+          .unwrap();
+      }
+    }
   }
   !locked_vec.is_empty()
 }
