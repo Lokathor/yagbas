@@ -310,16 +310,7 @@ pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
   }
 }
 pub fn spanned_ident_p<'src>() -> impl YagParser<'src, (StrID, Span32)> {
-  select! {
-    Lone(Ident) = ex => {
-      let state: &SimpleState<YagParserState> = ex.state();
-      let source: &str = state.source;
-      let span: Span32 = ex.span();
-      let range: Range<usize> = span.start.try_into().unwrap()..span.end.try_into().unwrap();
-      let str_id = StrID::from(&source[range]);
-      (str_id, ex.span())
-    }
-  }
+  ident_p().map_with(|i, ex| (i, ex.span()))
 }
 pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
   select! {
@@ -342,6 +333,8 @@ pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
 
 pub fn memory_kind_p<'src>() -> impl YagParser<'src, MemoryKind> {
   choice((kw_ram_p(), kw_rom_p(), kw_mmio_p()))
+    .labelled("memory_kind")
+    .as_context()
 }
 
 pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
