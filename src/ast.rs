@@ -336,3 +336,24 @@ pub struct ExprContinue {
 pub struct ExprReturn {
   pub value: Option<Expr>,
 }
+
+pub fn items_of<'src>(
+  trees: &'src [(TokenTree, Span32)], yag_state: YagParserState,
+) -> (Vec<AstItem>, Vec<Rich<'src, TokenTree, Span32>>) {
+  let eoi: Span32 = match trees.last() {
+    Some(s) => s.1,
+    None => return (Vec::new(), Vec::new()),
+  };
+  let mut simple_state = SimpleState(yag_state);
+
+  let item_parser = item_p().repeated().collect::<Vec<_>>();
+
+  let (opt_out, errors) = item_parser
+    .parse_with_state(
+      Input::map(trees, eoi, |(tk, span)| (tk, span)),
+      &mut simple_state,
+    )
+    .into_output_errors();
+
+  (opt_out.unwrap_or_default(), errors)
+}
