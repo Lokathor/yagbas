@@ -10,7 +10,8 @@ use std::{
   process::{ExitCode, exit},
 };
 use yagbas::{
-  FileData, YagError, log_error, print_any_errors, tokens_of, trees_of,
+  AstItem, FileData, YagError, YagParserState, items_of, log_error,
+  log_error_iter, print_any_errors, tokens_of, trees_of,
 };
 
 #[test]
@@ -55,54 +56,9 @@ pub fn main() -> ExitCode {
 
 #[allow(unused)]
 pub fn do_build(build_args: BuildArgs) -> ExitCode {
-  //let mut ast = Ast::default();
   // load + parse multi-threaded with rayon.
   let load_parse_data: Vec<_> =
     build_args.files.par_iter().map(load_parse(&build_args)).collect();
-  for items in load_parse_data {
-    for item in items {
-      // Note(Lokathor): ItemError entries don't have names.
-      #[cfg(false)]
-      if let Some(name) = item.0.get_name()
-        && let Some(_old_def) = ast.items.insert(name, item)
-      {
-        todo!("multiple definition: {name}");
-      }
-    }
-  }
-  // now we have a basic AST.
-
-  //ast.populate_static_sizes();
-  //ast.populate_ir_bitstructs();
-  //ast.populate_const_exprs();
-  // todo: populate static defs
-  //ast.do_per_item_data_cleanup();
-
-  #[cfg(false)]
-  for i in ast.items.values() {
-    match &i.0 {
-      Item::Func(f) => {
-        println!();
-        println!("== fn {}>", f.name);
-        let expr_blocks = separate_ast_statements_into_blocks(&f.body);
-        let tac_block = tac_blocks_from_expr_blocks(&expr_blocks);
-        for (i, block) in tac_block.iter().enumerate() {
-          if i > 0 {
-            println!();
-          }
-          println!("tac_block {} {{", block.id);
-          for step in block.steps.iter() {
-            println!("  {step}");
-          }
-          println!("}} then {};", block.next);
-        }
-      }
-      Item::Const(c) => {
-        //dbg!(&c);
-      }
-      _ => (),
-    }
-  }
 
   if print_any_errors() { ExitCode::FAILURE } else { ExitCode::SUCCESS }
 }
@@ -110,7 +66,7 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
 /// This makes a closure that can load and parse the items from a given file.
 ///
 /// Each file will run this closure once, possibly on separate threads.
-fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<()> {
+fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<AstItem> {
   move |path_buf: &PathBuf| {
     let load_result = FileData::load(path_buf);
     let file_data = match load_result {
@@ -126,16 +82,28 @@ fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<()> {
       println!("{p} TOKENS: {tokens:?}", p = path_buf.display());
     }
 
-    //let trees = trees_of(&tokens, file_data.id());
+    let (trees, tree_errors) = trees_of(&tokens);
     if build_args.show_trees {
-      //println!("{p} TREES: {trees:?}", p = path_buf.display());
+      println!("{p} TREES: {trees:?}", p = path_buf.display());
     }
+    log_error_iter(
+      tree_errors
+        .into_iter()
+        .map(|e| YagError::TokenTreeParseError(file_data.id(), e.into_owned())),
+    );
 
-    //let items = items_of(&trees, file_data);
+    let yag_state =
+      YagParserState { file_id: file_data.id(), source: file_data.content() };
+    let (items, item_errors) = items_of(&trees, yag_state);
     if build_args.show_items {
-      //println!("{p} ITEMS: {items:?}", p = path_buf.display());
+      println!("{p} ITEMS: {items:?}", p = path_buf.display());
     }
+    log_error_iter(
+      item_errors
+        .into_iter()
+        .map(|e| YagError::ItemParseError(file_data.id(), e.into_owned())),
+    );
 
-    Vec::new() //items
+    items
   }
 }
