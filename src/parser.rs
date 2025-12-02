@@ -358,7 +358,7 @@ pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
   expr_p_and_statement_p().0
 }
 pub fn statement_p<'src>() -> impl YagParser<'src, Statement> {
-  expr_p_and_statement_p().1
+  expr_p_and_statement_p().2
 }
 
 macro_rules! infix_maker {
@@ -377,20 +377,14 @@ macro_rules! prefix_maker {
     }
   };
 }
-#[allow(unused)]
-macro_rules! postfix_maker {
-  ($kind: path) => {
-    |atom, _op, extras| todo!()
-  };
-}
+
+type YagRecursive<'b, 'src, T> =
+  Recursive<Indirect<'src, 'b, YagParserInput<'src>, T, YagParserExtra<'src>>>;
 
 fn define_expression_parser<'b, 'src: 'b>(
-  expression_parser: &mut Recursive<
-    Indirect<'src, 'b, YagParserInput<'src>, Expr, YagParserExtra<'src>>,
-  >,
-  statement_parser: &mut Recursive<
-    Indirect<'src, 'b, YagParserInput<'src>, Statement, YagParserExtra<'src>>,
-  >,
+  expression_parser: &mut YagRecursive<'b, 'src, Expr>,
+  condition_parser: &mut YagRecursive<'b, 'src, Expr>,
+  statement_parser: &mut YagRecursive<'b, 'src, Statement>,
 ) {
   expression_parser.define({
     let atom = {
@@ -453,18 +447,12 @@ fn define_expression_parser<'b, 'src: 'b>(
           ExprKind::StructLit(ExprStructLit { ty, ty_span, args })
         });
       let if_else = kw_if_p()
-        .ignore_then(expression_parser.clone())
+        .ignore_then(condition_parser.clone())
         .then(statement_body_p.clone())
-        /*
         .then(kw_else_p().ignore_then(statement_body_p.clone()).or_not())
         .map(|((condition, if_), else_)| {
           ExprKind::IfElse(ExprIfElse { condition, if_, else_ })
         });
-        */
-        .map(|(condition, if_)| {
-          ExprKind::IfElse(ExprIfElse { condition, if_, else_: None })
-        });
-
       let loop_ = punct_quote_p()
         .ignore_then(spanned_ident_p())
         .then_ignore(punct_colon_p())
@@ -557,13 +545,167 @@ fn define_expression_parser<'b, 'src: 'b>(
   });
 }
 
+/// Conditions are almost just like expressions, but struct literals aren't
+/// allowed directly.
+///
+/// If you use parens, then inside those parens can do a "full" expression,
+/// including a struct literal.
+fn define_condition_parser<'b, 'src: 'b>(
+  expression_parser: &mut YagRecursive<'b, 'src, Expr>,
+  condition_parser: &mut YagRecursive<'b, 'src, Expr>,
+  statement_parser: &mut YagRecursive<'b, 'src, Statement>,
+) {
+  condition_parser.define({
+    let atom = {
+      let statement_body_p = statement_parser
+        .clone()
+        .separated_by(punct_semicolon_p())
+        .collect::<Vec<_>>()
+        .then(punct_semicolon_p().or_not())
+        .nested_in(braces_content_p())
+        .map(|(body, semi)| StatementBody {
+          body,
+          trailing_semicolon: semi.is_some(),
+        });
+      let num_lit = num_lit_p().map(|lit| ExprKind::NumLit(lit));
+      let ident = ident_p().map(|ident| ExprKind::Ident(ident));
+      let bool_ = bool_p().map(|b| ExprKind::Bool(b));
+      let list = expression_parser
+        .clone()
+        .separated_by(punct_comma_p())
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .nested_in(brackets_content_p())
+        .map(ExprKind::List);
+      let block = statement_body_p.clone().map(ExprKind::Block);
+      let call = spanned_ident_p()
+        .then(
+          expression_parser
+            .clone()
+            .separated_by(punct_comma_p())
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .nested_in(parens_content_p()),
+        )
+        .map(|((target, target_span), args)| {
+          ExprKind::Call(ExprCall { target, target_span, args })
+        });
+      let macro_ = spanned_ident_p()
+        .then_ignore(punct_exclamation_p())
+        .then(
+          expression_parser
+            .clone()
+            .separated_by(punct_comma_p())
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .nested_in(parens_content_p()),
+        )
+        .map(|((target, target_span), args)| {
+          ExprKind::Macro(ExprMacro { target, target_span, args })
+        });
+      let if_else = kw_if_p()
+        .ignore_then(expression_parser.clone())
+        .then(statement_body_p.clone())
+        .then(kw_else_p().ignore_then(statement_body_p.clone()).or_not())
+        .map(|((condition, if_), else_)| {
+          ExprKind::IfElse(ExprIfElse { condition, if_, else_ })
+        });
+      let loop_ = punct_quote_p()
+        .ignore_then(spanned_ident_p())
+        .then_ignore(punct_colon_p())
+        .or_not()
+        .then_ignore(kw_loop_p())
+        .then(statement_body_p.clone())
+        .map(|(name, steps)| ExprKind::Loop(ExprLoop { name, steps }));
+      let times_kw = StrID::from("times");
+      let loop_times = punct_quote_p()
+        .ignore_then(spanned_ident_p())
+        .then_ignore(punct_colon_p())
+        .or_not()
+        .then_ignore(kw_loop_p())
+        .then(choice((ident_p(), num_lit_p())).map_with(|i, ex| (i, ex.span())))
+        .then_ignore(ident_p().filter(move |str_id| *str_id == times_kw))
+        .then(statement_body_p.clone())
+        .map(|((name, (times, times_span)), steps)| {
+          ExprKind::LoopTimes(ExprLoopTimes { name, times, times_span, steps })
+        });
+      let break_ = kw_break_p()
+        .ignore_then(punct_quote_p().ignore_then(spanned_ident_p()).or_not())
+        .then(expression_parser.clone().or_not())
+        .map(|(target, value)| ExprKind::Break(ExprBreak { target, value }));
+      let continue_ = kw_continue_p()
+        .ignore_then(punct_quote_p().ignore_then(spanned_ident_p()).or_not())
+        .map(|target| ExprKind::Continue(ExprContinue { target }));
+      let return_ = kw_return_p()
+        .ignore_then(expression_parser.clone().or_not())
+        .map(|value| ExprKind::Return(ExprReturn { value }));
+      // TODO: can we prevent the boxing of the inner expression which we then
+      // immediately unbox?
+      let paren_group_expr = expression_parser
+        .clone()
+        .nested_in(parens_content_p())
+        .map(|xpr| *xpr.kind);
+
+      let ident_using = choice((call, macro_, ident));
+      let loop_using = choice((loop_times, loop_));
+      choice((
+        num_lit,
+        ident_using,
+        bool_,
+        list,
+        if_else,
+        loop_using,
+        break_,
+        continue_,
+        return_,
+        block,
+        paren_group_expr,
+      ))
+      .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
+    };
+    assert_output_ty::<Expr>(&atom);
+
+    use chumsky::pratt::*;
+    let with_pratt = atom.pratt((
+      infix(left(2), punct_equal_p(), infix_maker!(BinOpKind::Assign)),
+      // 3: range operators
+      infix(left(4), short_circuit_or_p(), infix_maker!(BinOpKind::BoolOr)),
+      infix(left(5), short_circuit_and_p(), infix_maker!(BinOpKind::BoolAnd)),
+      infix(left(6), cmp_eq_p(), infix_maker!(BinOpKind::Eq)),
+      infix(left(6), cmp_ne_p(), infix_maker!(BinOpKind::Ne)),
+      infix(left(6), cmp_lt_p(), infix_maker!(BinOpKind::Lt)),
+      infix(left(6), cmp_gt_p(), infix_maker!(BinOpKind::Gt)),
+      infix(left(6), cmp_le_p(), infix_maker!(BinOpKind::Le)),
+      infix(left(6), cmp_ge_p(), infix_maker!(BinOpKind::Ge)),
+      infix(left(7), punct_pipe_p(), infix_maker!(BinOpKind::BitOr)),
+      infix(left(8), punct_caret_p(), infix_maker!(BinOpKind::BitXor)),
+      infix(left(9), punct_ampersand_p(), infix_maker!(BinOpKind::BitAnd)),
+      infix(left(10), shl_p(), infix_maker!(BinOpKind::ShiftLeft)),
+      infix(left(10), shr_p(), infix_maker!(BinOpKind::ShiftRight)),
+      infix(left(11), punct_plus_p(), infix_maker!(BinOpKind::Add)),
+      infix(left(11), punct_minus_p(), infix_maker!(BinOpKind::Sub)),
+      infix(left(12), punct_asterisk_p(), infix_maker!(BinOpKind::Mul)),
+      infix(left(12), punct_slash_p(), infix_maker!(BinOpKind::Div)),
+      infix(left(12), punct_percent_p(), infix_maker!(BinOpKind::Mod)),
+      prefix(13, punct_minus_p(), prefix_maker!(UnOpKind::Neg)),
+      prefix(13, punct_exclamation_p(), prefix_maker!(UnOpKind::Not)),
+      prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
+      prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
+      // 14: question-mark-operator
+      // 15: fn-call and index
+      infix(left(16), punct_period_p(), infix_maker!(BinOpKind::Dot)),
+      // 17: method calls
+      // 18: path
+    ));
+
+    with_pratt
+  });
+}
+
 fn define_statement_parser<'b, 'src: 'b>(
-  expression_parser: &mut Recursive<
-    Indirect<'src, 'b, YagParserInput<'src>, Expr, YagParserExtra<'src>>,
-  >,
-  statement_parser: &mut Recursive<
-    Indirect<'src, 'b, YagParserInput<'src>, Statement, YagParserExtra<'src>>,
-  >,
+  expression_parser: &mut YagRecursive<'b, 'src, Expr>,
+  _condition_parser: &mut YagRecursive<'b, 'src, Expr>,
+  statement_parser: &mut YagRecursive<'b, 'src, Statement>,
 ) {
   statement_parser.define({
     let attributes = punct_hash_p()
@@ -595,13 +737,30 @@ fn define_statement_parser<'b, 'src: 'b>(
   });
 }
 
-pub fn expr_p_and_statement_p<'src>()
--> (impl YagParser<'src, Expr>, impl YagParser<'src, Statement>) {
+pub fn expr_p_and_statement_p<'src>() -> (
+  impl YagParser<'src, Expr>,
+  impl YagParser<'src, Expr>,
+  impl YagParser<'src, Statement>,
+) {
   let mut expression_parser = Recursive::declare();
+  let mut condition_parser = Recursive::declare();
   let mut statement_parser = Recursive::declare();
-  define_expression_parser(&mut expression_parser, &mut statement_parser);
-  define_statement_parser(&mut expression_parser, &mut statement_parser);
-  (expression_parser, statement_parser)
+  define_expression_parser(
+    &mut expression_parser,
+    &mut condition_parser,
+    &mut statement_parser,
+  );
+  define_condition_parser(
+    &mut expression_parser,
+    &mut condition_parser,
+    &mut statement_parser,
+  );
+  define_statement_parser(
+    &mut expression_parser,
+    &mut condition_parser,
+    &mut statement_parser,
+  );
+  (expression_parser, condition_parser, statement_parser)
 }
 
 pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {

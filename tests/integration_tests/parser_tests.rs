@@ -423,7 +423,17 @@ fn test_expr_p_loop_times_empty() {
 fn test_expr_p_if_empty() {
   assert_eq!(
     do_parse!(expr_p(), "if condition {}"),
-    Expr { span: span32(0, 0), kind: Box::new(ExprKind::ExprKindError) }
+    Expr {
+      span: span32(0, 15),
+      kind: Box::new(ExprKind::IfElse(ExprIfElse {
+        condition: Expr {
+          span: span32(3, 12),
+          kind: Box::new(ExprKind::Ident(str_id("condition")))
+        },
+        if_: StatementBody { body: vec![], trailing_semicolon: false },
+        else_: None,
+      }))
+    }
   );
 }
 
@@ -431,7 +441,17 @@ fn test_expr_p_if_empty() {
 fn test_expr_p_if_else_empty() {
   assert_eq!(
     do_parse!(expr_p(), "if condition {} else {}"),
-    Expr { span: span32(0, 0), kind: Box::new(ExprKind::ExprKindError) }
+    Expr {
+      span: span32(0, 23),
+      kind: Box::new(ExprKind::IfElse(ExprIfElse {
+        condition: Expr {
+          span: span32(3, 12),
+          kind: Box::new(ExprKind::Ident(str_id("condition")))
+        },
+        if_: StatementBody { body: vec![], trailing_semicolon: false },
+        else_: Some(StatementBody { body: vec![], trailing_semicolon: false }),
+      }))
+    }
   );
 }
 
