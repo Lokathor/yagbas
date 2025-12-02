@@ -309,6 +309,18 @@ pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
     }
   }
 }
+pub fn spanned_ident_p<'src>() -> impl YagParser<'src, (StrID, Span32)> {
+  select! {
+    Lone(Ident) = ex => {
+      let state: &SimpleState<YagParserState> = ex.state();
+      let source: &str = state.source;
+      let span: Span32 = ex.span();
+      let range: Range<usize> = span.start.try_into().unwrap()..span.end.try_into().unwrap();
+      let str_id = StrID::from(&source[range]);
+      (str_id, ex.span())
+    }
+  }
+}
 pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
   select! {
     Lone(NumLit) = ex => {
@@ -402,10 +414,8 @@ fn define_expression_parser<'b, 'src: 'b>(
         .collect::<Vec<_>>()
         .nested_in(brackets_content_p())
         .map(ExprKind::List);
-      // TODO: we need to somehow track when a body has a trailing semicolon.
       let block = statement_body_p.clone().map(ExprKind::Block);
-      let call = ident_p()
-        .map_with(|i, ex| (i, ex.span()))
+      let call = spanned_ident_p()
         .then(
           expression_parser
             .clone()
@@ -417,8 +427,7 @@ fn define_expression_parser<'b, 'src: 'b>(
         .map(|((target, target_span), args)| {
           ExprKind::Call(ExprCall { target, target_span, args })
         });
-      let macro_ = ident_p()
-        .map_with(|i, ex| (i, ex.span()))
+      let macro_ = spanned_ident_p()
         .then_ignore(punct_exclamation_p())
         .then(
           expression_parser
@@ -431,8 +440,7 @@ fn define_expression_parser<'b, 'src: 'b>(
         .map(|((target, target_span), args)| {
           ExprKind::Macro(ExprMacro { target, target_span, args })
         });
-      let struct_lit = ident_p()
-        .map_with(|i, ex| (i, ex.span()))
+      let struct_lit = spanned_ident_p()
         .then(
           expression_parser
             .clone()
@@ -447,12 +455,18 @@ fn define_expression_parser<'b, 'src: 'b>(
       let if_else = kw_if_p()
         .ignore_then(expression_parser.clone())
         .then(statement_body_p.clone())
+        /*
         .then(kw_else_p().ignore_then(statement_body_p.clone()).or_not())
         .map(|((condition, if_), else_)| {
           ExprKind::IfElse(ExprIfElse { condition, if_, else_ })
         });
+        */
+        .map(|(condition, if_)| {
+          ExprKind::IfElse(ExprIfElse { condition, if_, else_: None })
+        });
+
       let loop_ = punct_quote_p()
-        .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
+        .ignore_then(spanned_ident_p())
         .then_ignore(punct_colon_p())
         .or_not()
         .then_ignore(kw_loop_p())
@@ -460,7 +474,7 @@ fn define_expression_parser<'b, 'src: 'b>(
         .map(|(name, steps)| ExprKind::Loop(ExprLoop { name, steps }));
       let times_kw = StrID::from("times");
       let loop_times = punct_quote_p()
-        .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
+        .ignore_then(spanned_ident_p())
         .then_ignore(punct_colon_p())
         .or_not()
         .then_ignore(kw_loop_p())
@@ -471,19 +485,11 @@ fn define_expression_parser<'b, 'src: 'b>(
           ExprKind::LoopTimes(ExprLoopTimes { name, times, times_span, steps })
         });
       let break_ = kw_break_p()
-        .ignore_then(
-          punct_quote_p()
-            .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
-            .or_not(),
-        )
+        .ignore_then(punct_quote_p().ignore_then(spanned_ident_p()).or_not())
         .then(expression_parser.clone().or_not())
         .map(|(target, value)| ExprKind::Break(ExprBreak { target, value }));
       let continue_ = kw_continue_p()
-        .ignore_then(
-          punct_quote_p()
-            .ignore_then(ident_p().map_with(|i, ex| (i, ex.span())))
-            .or_not(),
-        )
+        .ignore_then(punct_quote_p().ignore_then(spanned_ident_p()).or_not())
         .map(|target| ExprKind::Continue(ExprContinue { target }));
       let return_ = kw_return_p()
         .ignore_then(expression_parser.clone().or_not())
@@ -502,12 +508,12 @@ fn define_expression_parser<'b, 'src: 'b>(
         ident_using,
         bool_,
         list,
-        block,
         if_else,
         loop_using,
         break_,
         continue_,
         return_,
+        block,
         paren_group_expr,
       ))
       .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
@@ -605,7 +611,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
   let bitbag_p = {
     let field_def_p = attributes
       .clone()
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
       .then(expr_p().map_with(|bit, ex| (bit, ex.span())))
       .map_with(|(((attributes, (name, name_span)), (bit, bit_span))), ex| {
@@ -621,7 +627,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
     attributes
       .clone()
       .then_ignore(kw_bitbag_p())
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then(
         field_def_p
           .separated_by(punct_comma_p())
@@ -641,7 +647,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
   let struct_ = {
     let field_def_p = attributes
       .clone()
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
       .then(ident_p().map_with(|bit, ex| (bit, ex.span())))
       .map_with(|(((attributes, (name, name_span)), (ty, ty_span))), ex| {
@@ -657,7 +663,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
     attributes
       .clone()
       .then_ignore(kw_struct_p())
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then(
         field_def_p
           .separated_by(punct_comma_p())
@@ -678,9 +684,9 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
     attributes
       .clone()
       .then_ignore(kw_const_p())
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then_ignore(punct_equal_p())
       .then(expr_p())
       .then_ignore(punct_semicolon_p())
@@ -702,9 +708,9 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .clone()
       .then_ignore(kw_static_p())
       .then(memory_kind_p())
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then_ignore(punct_equal_p())
       .then(expr_p())
       .then_ignore(punct_semicolon_p())
@@ -733,7 +739,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
   let function = {
     let function_arg_p = attributes
       .clone()
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
       .then(ident_p().map_with(|bit, ex| (bit, ex.span())))
       .map_with(|(((attributes, (name, name_span)), (ty, ty_span))), ex| {
@@ -749,7 +755,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
     attributes
       .clone()
       .then_ignore(kw_fn_p())
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then(
         function_arg_p
           .separated_by(punct_comma_p())
@@ -758,7 +764,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
           .nested_in(parens_content_p()),
       )
       .then_ignore(punct_minus_p().then_ignore(punct_greater_than_p()))
-      .then(ident_p().map_with(|i, ex| (i, ex.span())))
+      .then(spanned_ident_p())
       .then(
         statement_p()
           .separated_by(punct_semicolon_p())
