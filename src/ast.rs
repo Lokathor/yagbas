@@ -25,6 +25,17 @@ pub enum AstItemKind {
   Function(AstFunction),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeName {
+  pub span: Span32,
+  pub kind: TypeNameKind,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TypeNameKind {
+  Ident(StrID),
+  Array(Box<TypeName>, Expr),
+}
+
 /// Declares a type with field names assigned to bit positions.
 ///
 /// ```yag
@@ -68,8 +79,7 @@ pub struct AstStructFieldDef {
   pub attributes: Vec<Expr>,
   pub name: StrID,
   pub name_span: Span32,
-  pub ty: StrID,
-  pub ty_span: Span32,
+  pub ty: TypeName,
 }
 
 /// Gives a name to a constant expression.
@@ -79,8 +89,7 @@ pub struct AstStructFieldDef {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstConst {
-  pub ty: StrID,
-  pub ty_span: Span32,
+  pub ty: TypeName,
   pub expr: Expr,
 }
 
@@ -96,8 +105,7 @@ pub struct AstConst {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AstStatic {
   pub memory_kind: MemoryKind,
-  pub ty: StrID,
-  pub ty_span: Span32,
+  pub ty: TypeName,
   pub expr: Expr,
 }
 
@@ -131,8 +139,7 @@ pub struct AstFunctionArg {
   pub attributes: Vec<Expr>,
   pub name: StrID,
   pub name_span: Span32,
-  pub ty: StrID,
-  pub ty_span: Span32,
+  pub ty: TypeName,
 }
 
 /// One single line of code in a body of code.
@@ -162,10 +169,10 @@ pub enum StatementKind {
   StatementKindError,
 
   /// looks like `let varname: vartype`
-  Let(StrID, Option<StrID>),
+  Let(StrID, Option<TypeName>),
 
   /// looks like `let varname: vartype = expr;`
-  LetAssign(StrID, Option<StrID>, Expr),
+  LetAssign(StrID, Option<TypeName>, Expr),
 
   /// Any expression on its own can be a statement.
   ExprStmt(Expr),

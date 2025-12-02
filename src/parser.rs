@@ -698,7 +698,7 @@ fn define_statement_parser<'b, 'src: 'b>(
     let kind = {
       let let_ = kw_let_p()
         .ignore_then(ident_p())
-        .then(punct_colon_p().ignore_then(ident_p()).or_not())
+        .then(punct_colon_p().ignore_then(type_name_p()).or_not())
         .then(punct_equal_p().ignore_then(expression_parser.clone()).or_not())
         .map(|((varname, opt_ty), opt_init)| match opt_init {
           Some(init) => StatementKind::LetAssign(varname, opt_ty, init),
@@ -791,16 +791,9 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .clone()
       .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
-      .then(ident_p().map_with(|bit, ex| (bit, ex.span())))
-      .map_with(|(((attributes, (name, name_span)), (ty, ty_span))), ex| {
-        AstStructFieldDef {
-          span: ex.span(),
-          attributes,
-          name,
-          name_span,
-          ty,
-          ty_span,
-        }
+      .then(type_name_p())
+      .map_with(|(((attributes, (name, name_span)), ty)), ex| {
+        AstStructFieldDef { span: ex.span(), attributes, name, name_span, ty }
       });
     attributes
       .clone()
@@ -828,22 +821,18 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .then_ignore(kw_const_p())
       .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
-      .then(spanned_ident_p())
+      .then(type_name_p())
       .then_ignore(punct_equal_p())
       .then(expr_p())
       .then_ignore(punct_semicolon_p())
-      .map_with(
-        |(((attributes, (name, name_span)), (ty, ty_span)), expr), ex| {
-          AstItem {
-            file_id: ex.state().file_id,
-            attributes,
-            name,
-            name_span,
-            span: ex.span(),
-            kind: AstItemKind::Const(AstConst { ty, ty_span, expr }),
-          }
-        },
-      )
+      .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
+        file_id: ex.state().file_id,
+        attributes,
+        name,
+        name_span,
+        span: ex.span(),
+        kind: AstItemKind::Const(AstConst { ty, expr }),
+      })
   };
   let static_ = {
     attributes
@@ -852,48 +841,33 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .then(memory_kind_p())
       .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
-      .then(spanned_ident_p())
+      .then(type_name_p())
       .then_ignore(punct_equal_p())
       .then(expr_p())
       .then_ignore(punct_semicolon_p())
       .map_with(
-        |(
-          (((attributes, memory_kind), (name, name_span)), (ty, ty_span)),
-          expr,
-        ),
-         ex| {
+        |((((attributes, memory_kind), (name, name_span)), ty), expr), ex| {
           AstItem {
             file_id: ex.state().file_id,
             attributes,
             name,
             name_span,
             span: ex.span(),
-            kind: AstItemKind::Static(AstStatic {
-              memory_kind,
-              ty,
-              ty_span,
-              expr,
-            }),
+            kind: AstItemKind::Static(AstStatic { memory_kind, ty, expr }),
           }
         },
       )
   };
   let function = {
-    let function_arg_p = attributes
-      .clone()
-      .then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(ident_p().map_with(|bit, ex| (bit, ex.span())))
-      .map_with(|(((attributes, (name, name_span)), (ty, ty_span))), ex| {
-        AstFunctionArg {
-          span: ex.span(),
-          attributes,
-          name,
-          name_span,
-          ty,
-          ty_span,
-        }
-      });
+    let function_arg_p =
+      attributes
+        .clone()
+        .then(spanned_ident_p())
+        .then_ignore(punct_colon_p())
+        .then(type_name_p())
+        .map_with(|(((attributes, (name, name_span)), ty)), ex| {
+          AstFunctionArg { span: ex.span(), attributes, name, name_span, ty }
+        });
     attributes
       .clone()
       .then_ignore(kw_fn_p())
@@ -941,4 +915,17 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
   };
 
   choice((bitbag_p, struct_, const_, static_, function))
+}
+
+pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
+  recursive(|type_name_parser| {
+    let ident_kind = ident_p().map(|i| TypeNameKind::Ident(i));
+    let array_kind = type_name_parser
+      .then_ignore(punct_semicolon_p())
+      .then(expr_p())
+      .nested_in(brackets_content_p())
+      .map(|(elem, count)| TypeNameKind::Array(Box::new(elem), count));
+    let kind = choice((ident_kind, array_kind));
+    kind.map_with(|kind, ex| TypeName { kind, span: ex.span() })
+  })
 }
