@@ -353,7 +353,11 @@ pub fn items_of<'src>(
   };
   let mut simple_state = SimpleState(yag_state);
 
+  dbg!("ready to make the parser");
+
   let item_parser = item_p().repeated().collect::<Vec<_>>();
+
+  dbg!("ready to call the parser");
 
   let (opt_out, errors) = item_parser
     .parse_with_state(

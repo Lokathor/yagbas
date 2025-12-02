@@ -914,7 +914,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       )
   };
 
-  choice((bitbag_p, struct_, const_, static_, function))
+  choice((bitbag_p, struct_, const_, static_, function)).boxed()
 }
 
 pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
