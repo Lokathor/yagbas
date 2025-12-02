@@ -1,9 +1,20 @@
+use crate::Span32;
 use chumsky::span::SimpleSpan;
 use logos::{Lexer, Logos};
-use crate::Span32;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, logos::Logos)]
-#[logos(skip r#"[[ \t\r\n]]"#)] // ignore space and tab between tokens
+#[derive(
+  Debug,
+  Clone,
+  Copy,
+  Default,
+  PartialEq,
+  Eq,
+  PartialOrd,
+  Ord,
+  Hash,
+  logos::Logos,
+)]
+#[logos(skip r#"[[ \t\r\n]]"#)] // ignore whitespace between tokens
 pub enum Token {
   /* TOKEN TREE MARKERS */
   #[regex(r"\[")]
@@ -31,8 +42,8 @@ pub enum Token {
   #[regex(r"//[^\r\n]*")]
   LineComment,
 
-  #[regex(r"bitstruct")]
-  KwBitStruct,
+  #[regex(r"bitbag")]
+  KwBitbag,
   #[regex(r"break")]
   KwBreak,
   #[regex(r"const")]
@@ -41,8 +52,6 @@ pub enum Token {
   KwContinue,
   #[regex(r"else")]
   KwElse,
-  #[regex(r"false")]
-  KwFalse,
   #[regex(r"fn")]
   KwFn,
   #[regex(r"if")]
@@ -53,21 +62,25 @@ pub enum Token {
   KwLoop,
   #[regex(r"mmio")]
   KwMmio,
-  #[regex(r"mut")]
-  KwMut,
+  #[regex(r"ram")]
+  KwRam,
   #[regex(r"return")]
   KwReturn,
+  #[regex(r"rom")]
+  KwRom,
   #[regex(r"static")]
   KwStatic,
   #[regex(r"struct")]
   KwStruct,
-  #[regex(r"true")]
-  KwTrue,
 
   #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*")]
   Ident,
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)")]
   NumLit,
+  #[regex(r"false")]
+  KwFalse,
+  #[regex(r"true")]
+  KwTrue,
 
   #[regex(r"~")]
   Tilde,
@@ -119,6 +132,7 @@ pub enum Token {
   Slash,
 
   /* OTHER */
+  #[default]
   TokenError,
 }
 impl Token {
@@ -156,6 +170,7 @@ fn lex(source: &str) -> Vec<Token> {
 
 #[test]
 fn test_token_size() {
+  // note(lokathor): any change in size might be justified (and so we would update this test), but we should still take note of it happening.
   assert_eq!(core::mem::size_of::<Token>(), 1);
 }
 
@@ -183,4 +198,5 @@ fn test_lexing() {
   assert_eq!(lex("%"), &[Percent]);
   assert_eq!(lex("%F"), &[NumLit]);
   assert_eq!(lex("% F"), &[Percent, Ident]);
+  assert_eq!(lex("."), &[Period]);
 }
