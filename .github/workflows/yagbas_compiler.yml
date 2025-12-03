@@ -19,4 +19,4 @@ jobs:
         toolchain: stable
         rustflags: ""
     - name: yagbas tests
-      run: cargo test
+      run: cargo test -q

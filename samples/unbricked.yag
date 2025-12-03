@@ -2,23 +2,23 @@
 adaptation of https://gbdev.io/gb-asm-tutorial/part2/getting-started.html
 */
 
-const BRICK_LEFT = 5;
-const BRICK_RIGHT = 6;
-const BLANK_TILE = 8;
-const DIGIT_OFFSET = $1A;
-const PADDLE_INDEX = 0;
-const BALL_INDEX = 1;
+const BRICK_LEFT: u8 = 5;
+const BRICK_RIGHT: u8 = 6;
+const BLANK_TILE: u8 = 8;
+const DIGIT_OFFSET: u8 = $1A;
+const PADDLE_INDEX: u8 = 0;
+const BALL_INDEX: u8 = 1;
 
 #[location($9870)]
-static mmio SCORE_TENS: u8;
+static mmio SCORE_TENS: u8 = 0;
 #[location($9871)]
-static mmio SCORE_ONES: u8;
+static mmio SCORE_ONES: u8 = 0;
 
-static mut BallMomentumX = 1;
-static mut BallMomentumY = -1;
-static mut CurKeys = KeysPressed {};
-static mut NewLeys = KeysPressed {};
-static mut Score = 0;
+static ram BallMomentumX: i8 = 1;
+static ram BallMomentumY: i8 = -1;
+static ram CurKeys: KeysPressed = KeysPressed {};
+static ram NewLeys: KeysPressed = KeysPressed {};
+static ram Score: u8 = 0;
 
 fn main() {
   *NR52 = AudioMain {};

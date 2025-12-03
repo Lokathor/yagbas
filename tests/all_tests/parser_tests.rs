@@ -564,16 +564,20 @@ fn test_item_p_struct() {
             span: span32(14, 22),
             name: str_id("zero"),
             name_span: span32(14, 18),
-            ty: str_id("u8"),
-            ty_span: span32(20, 22)
+            ty: TypeName {
+              span: span32(20, 22),
+              kind: TypeNameKind::Ident(str_id("u8"))
+            }
           },
           AstStructFieldDef {
             attributes: vec![],
             span: span32(24, 31),
             name: str_id("one"),
             name_span: span32(24, 27),
-            ty: str_id("i8"),
-            ty_span: span32(29, 31),
+            ty: TypeName {
+              span: span32(29, 31),
+              kind: TypeNameKind::Ident(str_id("i8"))
+            },
           },
         ]
       })
@@ -592,8 +596,10 @@ fn test_item_p_const() {
       name: str_id("ONE"),
       name_span: span32(6, 9),
       kind: AstItemKind::Const(AstConst {
-        ty: str_id("u8"),
-        ty_span: span32(11, 13),
+        ty: TypeName {
+          span: span32(11, 13),
+          kind: TypeNameKind::Ident(str_id("u8"))
+        },
         expr: Expr {
           span: span32(16, 17),
           kind: Box::new(ExprKind::NumLit(str_id("1")))
@@ -615,8 +621,10 @@ fn test_item_p_static() {
       name_span: span32(11, 15),
       kind: AstItemKind::Static(AstStatic {
         memory_kind: MemoryKind::Rom,
-        ty: str_id("i8"),
-        ty_span: span32(17, 19),
+        ty: TypeName {
+          span: span32(17, 19),
+          kind: TypeNameKind::Ident(str_id("i8"))
+        },
         expr: Expr {
           span: span32(22, 23),
           kind: Box::new(ExprKind::NumLit(str_id("3")))
