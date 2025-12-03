@@ -6,6 +6,7 @@ use clap::{Args, Parser, Subcommand};
 use rayon::prelude::*;
 use std::{
   collections::HashMap,
+  ffi::OsStr,
   path::PathBuf,
   process::{ExitCode, exit},
 };
@@ -33,7 +34,7 @@ pub enum Commands {
   Build(BuildArgs),
 }
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, Default)]
 pub struct BuildArgs {
   /// Show the parsed tokens.
   #[arg(long)]
@@ -106,4 +107,19 @@ fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<AstItem> {
 
     items
   }
+}
+
+//#[test]
+#[allow(dead_code)]
+fn test_parse_all_example_files() -> ExitCode {
+  let build_args = BuildArgs::default();
+  let loader = load_parse(&build_args);
+  for f in std::fs::read_dir("./samples").unwrap() {
+    let dir_entry = f.unwrap();
+    let path_buf = dir_entry.path();
+    if path_buf.extension().map(|s| s == "yag").unwrap_or_default() {
+      loader(&path_buf);
+    }
+  }
+  if print_any_errors() { ExitCode::FAILURE } else { ExitCode::SUCCESS }
 }
