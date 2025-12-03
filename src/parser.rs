@@ -72,20 +72,20 @@ use crate::TokenTree::*;
 /// Lets you `select_ref!` the content out of some `Braces`
 pub fn braces_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>> {
   select_ref! {
-    TokenTree::Braces(b) = ex => make_yag_parser_input(b),
+    TokenTree::Braces(b) => make_yag_parser_input(b),
   }
 }
 /// Lets you `select_ref!` the content out of some `Brackets`
 pub fn brackets_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>>
 {
   select_ref! {
-    TokenTree::Brackets(b) = ex => make_yag_parser_input(b),
+    TokenTree::Brackets(b) => make_yag_parser_input(b),
   }
 }
 /// Lets you `select_ref!` the content out of some `Parens`
 pub fn parens_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>> {
   select_ref! {
-    TokenTree::Parens(b) = ex => make_yag_parser_input(b),
+    TokenTree::Parens(b) => make_yag_parser_input(b),
   }
 }
 
@@ -919,13 +919,24 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
 
 pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
   recursive(|type_name_parser| {
-    let ident_kind = ident_p().map(|i| TypeNameKind::Ident(i));
-    let array_kind = type_name_parser
+    let ident = ident_p().map(|i| TypeNameKind::Ident(i));
+    let num_lit = type_name_parser
+      .clone()
       .then_ignore(punct_semicolon_p())
-      .then(expr_p())
+      .then(num_lit_p().map_with(|n, ex| (n, ex.span())))
       .nested_in(brackets_content_p())
-      .map(|(elem, count)| TypeNameKind::Array(Box::new(elem), count));
-    let kind = choice((ident_kind, array_kind));
+      .map(|(elem, (count, count_span))| {
+        TypeNameKind::ArrayNumLit(Box::new(elem), count, count_span)
+      });
+    let const_name = type_name_parser
+      .clone()
+      .then_ignore(punct_semicolon_p())
+      .then(ident_p().map_with(|n, ex| (n, ex.span())))
+      .nested_in(brackets_content_p())
+      .map(|(elem, (count, count_span))| {
+        TypeNameKind::ArrayConstName(Box::new(elem), count, count_span)
+      });
+    let kind = choice((ident, num_lit, const_name));
     kind.map_with(|kind, ex| TypeName { kind, span: ex.span() })
   })
 }

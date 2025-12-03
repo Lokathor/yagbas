@@ -56,12 +56,10 @@ pub fn main() -> ExitCode {
 
 #[allow(unused)]
 pub fn do_build(build_args: BuildArgs) -> ExitCode {
-  dbg!("ready to activate rayon");
   // load + parse multi-threaded with rayon.
   let load_parse_data: Vec<_> =
     build_args.files.par_iter().map(load_parse(&build_args)).collect();
 
-  dbg!("ready to print any errors");
   if print_any_errors() { ExitCode::FAILURE } else { ExitCode::SUCCESS }
 }
 
@@ -71,7 +69,6 @@ pub fn do_build(build_args: BuildArgs) -> ExitCode {
 fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<AstItem> {
   move |path_buf: &PathBuf| {
     let load_result = FileData::load(path_buf);
-    dbg!("loaded the file");
     let file_data = match load_result {
       Err(io_error) => {
         log_error(YagError::IO(path_buf.clone(), format!("{io_error}")));
@@ -84,7 +81,6 @@ fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<AstItem> {
     if build_args.show_tokens {
       println!("{p} TOKENS: {tokens:?}", p = path_buf.display());
     }
-    dbg!("tokens generated");
 
     let (trees, tree_errors) = trees_of(&tokens);
     if build_args.show_trees {
@@ -95,7 +91,6 @@ fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<AstItem> {
         .into_iter()
         .map(|e| YagError::TokenTreeParseError(file_data.id(), e.into_owned())),
     );
-    dbg!("trees generated");
 
     let yag_state =
       YagParserState { file_id: file_data.id(), source: file_data.content() };
@@ -108,7 +103,6 @@ fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<AstItem> {
         .into_iter()
         .map(|e| YagError::ItemParseError(file_data.id(), e.into_owned())),
     );
-    dbg!("items generated");
 
     items
   }
