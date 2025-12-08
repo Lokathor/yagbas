@@ -134,14 +134,14 @@ pub fn kw_loop_p<'src>() -> impl YagParser<'src, ()> {
     Lone(KwLoop) => ()
   }
 }
-pub fn kw_mmio_p<'src>() -> impl YagParser<'src, MemoryKind> {
+pub fn kw_mmio_p<'src>() -> impl YagParser<'src, ()> {
   select! {
-    Lone(KwMmio) => MemoryKind::MemoryMappedIO
+    Lone(KwMmio) => ()
   }
 }
-pub fn kw_ram_p<'src>() -> impl YagParser<'src, MemoryKind> {
+pub fn kw_ram_p<'src>() -> impl YagParser<'src, ()> {
   select! {
-    Lone(KwRam) => MemoryKind::Ram
+    Lone(KwRam) => ()
   }
 }
 pub fn kw_return_p<'src>() -> impl YagParser<'src, ()> {
@@ -149,9 +149,9 @@ pub fn kw_return_p<'src>() -> impl YagParser<'src, ()> {
     Lone(KwReturn) => ()
   }
 }
-pub fn kw_rom_p<'src>() -> impl YagParser<'src, MemoryKind> {
+pub fn kw_rom_p<'src>() -> impl YagParser<'src, ()> {
   select! {
-    Lone(KwRom) => MemoryKind::Rom
+    Lone(KwRom) => (),
   }
 }
 pub fn kw_static_p<'src>() -> impl YagParser<'src, ()> {
@@ -329,12 +329,6 @@ pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
     Lone(KwTrue) => true,
     Lone(KwFalse) => false,
   }
-}
-
-pub fn memory_kind_p<'src>() -> impl YagParser<'src, MemoryKind> {
-  choice((kw_ram_p(), kw_rom_p(), kw_mmio_p()))
-    .labelled("memory_kind")
-    .as_context()
 }
 
 pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
@@ -746,13 +740,18 @@ pub fn recursive_parser_group_p<'src>() -> (
   (expression_parser, condition_parser, statement_parser)
 }
 
+pub fn attributes_p<'src>() -> impl YagParser<'src, Vec<Expr>> {
+  punct_hash_p()
+    .ignore_then(expr_p().nested_in(brackets_content_p()))
+    .labelled("attribute")
+    .as_context()
+    .repeated()
+    .collect::<Vec<_>>()
+}
+
 pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
-  let one_attribute =
-    punct_hash_p().ignore_then(expr_p().nested_in(brackets_content_p()));
-  let attributes = one_attribute.repeated().collect::<Vec<_>>();
   let bitbag_p = {
-    let field_def_p = attributes
-      .clone()
+    let field_def_p = attributes_p()
       .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
       .then(expr_p().map_with(|bit, ex| (bit, ex.span())))
@@ -766,8 +765,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
           bit_span,
         }
       });
-    attributes
-      .clone()
+    attributes_p()
       .then_ignore(kw_bitbag_p())
       .then(spanned_ident_p())
       .then(
@@ -787,16 +785,14 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       })
   };
   let struct_ = {
-    let field_def_p = attributes
-      .clone()
+    let field_def_p = attributes_p()
       .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
       .then(type_name_p())
       .map_with(|(((attributes, (name, name_span)), ty)), ex| {
         AstStructFieldDef { span: ex.span(), attributes, name, name_span, ty }
       });
-    attributes
-      .clone()
+    attributes_p()
       .then_ignore(kw_struct_p())
       .then(spanned_ident_p())
       .then(
@@ -816,8 +812,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       })
   };
   let const_ = {
-    attributes
-      .clone()
+    attributes_p()
       .then_ignore(kw_const_p())
       .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
@@ -835,41 +830,76 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       })
   };
   let static_ = {
-    attributes
-      .clone()
+    let rom_kind = attributes_p()
       .then_ignore(kw_static_p())
-      .then(memory_kind_p())
+      .then_ignore(kw_rom_p())
       .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
       .then(type_name_p())
       .then_ignore(punct_equal_p())
       .then(expr_p())
       .then_ignore(punct_semicolon_p())
-      .map_with(
-        |((((attributes, memory_kind), (name, name_span)), ty), expr), ex| {
-          AstItem {
-            file_id: ex.state().file_id,
-            attributes,
-            name,
-            name_span,
-            span: ex.span(),
-            kind: AstItemKind::Static(AstStatic { memory_kind, ty, expr }),
-          }
-        },
-      )
+      .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
+        file_id: ex.state().file_id,
+        attributes,
+        name,
+        name_span,
+        span: ex.span(),
+        kind: AstItemKind::Static(AstStatic {
+          ty,
+          kind: AstStaticKind::Rom(expr),
+        }),
+      });
+    let ram_kind = attributes_p()
+      .then_ignore(kw_static_p())
+      .then_ignore(kw_ram_p())
+      .then(spanned_ident_p())
+      .then_ignore(punct_colon_p())
+      .then(type_name_p())
+      .then_ignore(punct_equal_p())
+      .then(expr_p())
+      .then_ignore(punct_semicolon_p())
+      .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
+        file_id: ex.state().file_id,
+        attributes,
+        name,
+        name_span,
+        span: ex.span(),
+        kind: AstItemKind::Static(AstStatic {
+          ty,
+          kind: AstStaticKind::Ram(expr),
+        }),
+      });
+    let mmio_kind = attributes_p()
+      .then_ignore(kw_static_p())
+      .then_ignore(kw_mmio_p())
+      .then(spanned_ident_p())
+      .then_ignore(punct_colon_p())
+      .then(type_name_p())
+      .then_ignore(punct_semicolon_p())
+      .map_with(|((attributes, (name, name_span)), ty), ex| AstItem {
+        file_id: ex.state().file_id,
+        attributes,
+        name,
+        name_span,
+        span: ex.span(),
+        kind: AstItemKind::Static(AstStatic {
+          ty,
+          kind: AstStaticKind::MemoryMappedIO,
+        }),
+      });
+    choice((rom_kind, ram_kind, mmio_kind))
   };
   let function = {
     let function_arg_p =
-      attributes
-        .clone()
+      attributes_p()
         .then(spanned_ident_p())
         .then_ignore(punct_colon_p())
         .then(type_name_p())
         .map_with(|(((attributes, (name, name_span)), ty)), ex| {
           AstFunctionArg { span: ex.span(), attributes, name, name_span, ty }
         });
-    attributes
-      .clone()
+    attributes_p()
       .then_ignore(kw_fn_p())
       .then(spanned_ident_p())
       .then(

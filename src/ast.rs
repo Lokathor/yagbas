@@ -94,26 +94,25 @@ pub struct AstConst {
   pub expr: Expr,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AstStatic {
+  pub ty: TypeName,
+  pub kind: AstStaticKind,
+}
+
 /// Static data within the program.
 ///
 /// ```yag
 /// static memory_kind NAME_HERE: Ty = InitializationExpression;
 /// ```
 ///
-/// * `static rom` is immutable data, such as tile or tilemap data.
-/// * `static ram` is plain mutable data, such as a current position.
-/// * `static mmio` is volatile mutable data, for memory-mapped IO.
+/// * `static rom` is immutable data, such as tile or tilemap data, with an expression encoded into the rom.
+/// * `static ram` is plain mutable data, such as a current position. It has an expression that is used to initialize the ram before `main` begins.
+/// * `static mmio` is volatile mutable data, for memory-mapped IO. It does not have an initialization expression.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AstStatic {
-  pub memory_kind: MemoryKind,
-  pub ty: TypeName,
-  pub expr: Expr,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MemoryKind {
-  Rom,
-  Ram,
+pub enum AstStaticKind {
+  Rom(Expr),
+  Ram(Expr),
   MemoryMappedIO,
 }
 
