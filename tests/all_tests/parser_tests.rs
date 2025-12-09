@@ -620,15 +620,14 @@ fn test_item_p_static() {
       name: str_id("DATA"),
       name_span: span32(11, 15),
       kind: AstItemKind::Static(AstStatic {
-        memory_kind: MemoryKind::Rom,
         ty: TypeName {
           span: span32(17, 19),
           kind: TypeNameKind::Ident(str_id("i8"))
         },
-        expr: Expr {
+        kind: AstStaticKind::Rom(Expr {
           span: span32(22, 23),
           kind: Box::new(ExprKind::NumLit(str_id("3")))
-        }
+        }),
       }),
     }
   )
