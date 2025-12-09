@@ -1,8 +1,8 @@
 
-const TILEMAP_WIDTH = 32;
-const TILEMAP_HEIGHT = 32;
-const SCREEN_WIDTH_TILES = 20;
-const SCREEN_HEIGHT_TILES = 18;
+const TILEMAP_WIDTH: u8 = 32;
+const TILEMAP_HEIGHT: u8 = 32;
+const SCREEN_WIDTH_TILES: u8 = 20;
+const SCREEN_HEIGHT_TILES: u8 = 18;
 
 #[location($FE00)]
 static mmio OAM_RAM: [Obj; 40];

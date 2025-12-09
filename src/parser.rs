@@ -184,11 +184,15 @@ pub fn punct_comma_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Comma) => ()
   }
+  .labelled("`,`")
+  .as_context()
 }
 pub fn punct_colon_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Colon) => ()
   }
+  .labelled("`:`")
+  .as_context()
 }
 pub fn punct_greater_than_p<'src>() -> impl YagParser<'src, ()> {
   select! {
@@ -308,6 +312,8 @@ pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
       str_id
     }
   }
+  .labelled("identifier")
+  .as_context()
 }
 pub fn spanned_ident_p<'src>() -> impl YagParser<'src, (StrID, Span32)> {
   ident_p().map_with(|i, ex| (i, ex.span()))
@@ -950,7 +956,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
 pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
   recursive(|type_name_parser| {
     let ident = ident_p().map(|i| TypeNameKind::Ident(i));
-    let num_lit = type_name_parser
+    let array_num_lit = type_name_parser
       .clone()
       .then_ignore(punct_semicolon_p())
       .then(num_lit_p().map_with(|n, ex| (n, ex.span())))
@@ -958,7 +964,7 @@ pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
       .map(|(elem, (count, count_span))| {
         TypeNameKind::ArrayNumLit(Box::new(elem), count, count_span)
       });
-    let const_name = type_name_parser
+    let array_const_name = type_name_parser
       .clone()
       .then_ignore(punct_semicolon_p())
       .then(ident_p().map_with(|n, ex| (n, ex.span())))
@@ -966,7 +972,9 @@ pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
       .map(|(elem, (count, count_span))| {
         TypeNameKind::ArrayConstName(Box::new(elem), count, count_span)
       });
-    let kind = choice((ident, num_lit, const_name));
+    let kind = choice((ident, array_num_lit, array_const_name));
     kind.map_with(|kind, ex| TypeName { kind, span: ex.span() })
   })
+  .labelled("type_name")
+  .as_context()
 }

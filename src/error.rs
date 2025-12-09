@@ -43,7 +43,7 @@ pub fn print_any_errors() -> bool {
           .with_config(config)
           .with_label(Label::new(a_span.clone()))
           .with_message(format!(
-            "found {f:?} expected {ex:?}",
+            "found {f:?}, but expected one of {ex:?}",
             f = rich.found(),
             ex = rich.expected().collect::<Vec<_>>(),
           ))
