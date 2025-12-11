@@ -74,6 +74,8 @@ pub fn braces_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>> {
   select_ref! {
     TokenTree::Braces(b) => make_yag_parser_input(b),
   }
+  .labelled("braces")
+  .as_context()
 }
 /// Lets you `select_ref!` the content out of some `Brackets`
 pub fn brackets_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>>
@@ -81,12 +83,16 @@ pub fn brackets_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>>
   select_ref! {
     TokenTree::Brackets(b) => make_yag_parser_input(b),
   }
+  .labelled("brackets")
+  .as_context()
 }
 /// Lets you `select_ref!` the content out of some `Parens`
 pub fn parens_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>> {
   select_ref! {
     TokenTree::Parens(b) => make_yag_parser_input(b),
   }
+  .labelled("parens")
+  .as_context()
 }
 
 pub fn kw_bitbag_p<'src>() -> impl YagParser<'src, ()> {
@@ -128,51 +134,71 @@ pub fn kw_fn_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwFn) => ()
   }
+  .labelled("`fn`")
+  .as_context()
 }
 pub fn kw_if_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwIf) => ()
   }
+  .labelled("`if`")
+  .as_context()
 }
 pub fn kw_let_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwLet) => ()
   }
+  .labelled("`let`")
+  .as_context()
 }
 pub fn kw_loop_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwLoop) => ()
   }
+  .labelled("`loop`")
+  .as_context()
 }
 pub fn kw_mmio_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwMmio) => ()
   }
+  .labelled("`mmio`")
+  .as_context()
 }
 pub fn kw_ram_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwRam) => ()
   }
+  .labelled("`ram`")
+  .as_context()
 }
 pub fn kw_return_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwReturn) => ()
   }
+  .labelled("`return`")
+  .as_context()
 }
 pub fn kw_rom_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwRom) => (),
   }
+  .labelled("`rom`")
+  .as_context()
 }
 pub fn kw_static_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwStatic) => ()
   }
+  .labelled("`static`")
+  .as_context()
 }
 pub fn kw_struct_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwStruct) => ()
   }
+  .labelled("`struct`")
+  .as_context()
 }
 
 pub fn punct_asterisk_p<'src>() -> impl YagParser<'src, ()> {
@@ -214,75 +240,104 @@ pub fn punct_greater_than_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(GreaterThan) => ()
   }
+  .labelled("`>`")
+  .as_context()
 }
 pub fn punct_equal_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Equal) => ()
   }
+  .labelled("`=`")
+  .as_context()
 }
 pub fn punct_exclamation_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Exclamation) => ()
   }
+  .labelled("`!`")
+  .as_context()
 }
 pub fn punct_hash_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Hash) => ()
   }
+  .labelled("`#`")
+  .as_context()
 }
 pub fn punct_less_than_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(LessThan) => ()
   }
+  .labelled("`<`")
+  .as_context()
 }
 pub fn punct_minus_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Minus) => ()
   }
+  .labelled("`-`")
+  .as_context()
 }
 pub fn punct_percent_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Percent) => ()
   }
+  .labelled("`%`")
+  .as_context()
 }
 pub fn punct_period_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Period) => ()
   }
+  .labelled("`.`")
+  .as_context()
 }
 pub fn punct_pipe_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Pipe) => ()
   }
+  .labelled("`|`")
+  .as_context()
 }
 pub fn punct_plus_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Plus) => ()
   }
+  .labelled("`+`")
+  .as_context()
 }
 pub fn punct_quote_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Quote) => ()
   }
+  .labelled("`'`")
+  .as_context()
 }
 pub fn punct_semicolon_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Semicolon) => ()
   }
+  .labelled("`;`")
+  .as_context()
 }
 pub fn punct_slash_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Slash) => ()
   }
+  .labelled("`/`")
+  .as_context()
 }
 
 /// `==`
 pub fn cmp_eq_p<'src>() -> impl YagParser<'src, ()> {
-  punct_equal_p().ignore_then(punct_equal_p())
+  punct_equal_p().ignore_then(punct_equal_p()).labelled("`==`").as_context()
 }
 /// `!=`
 pub fn cmp_ne_p<'src>() -> impl YagParser<'src, ()> {
-  punct_exclamation_p().ignore_then(punct_equal_p())
+  punct_exclamation_p()
+    .ignore_then(punct_equal_p())
+    .labelled("`!=`")
+    .as_context()
 }
 /// `>`
 pub fn cmp_gt_p<'src>() -> impl YagParser<'src, ()> {
@@ -294,27 +349,39 @@ pub fn cmp_lt_p<'src>() -> impl YagParser<'src, ()> {
 }
 /// `>=`
 pub fn cmp_ge_p<'src>() -> impl YagParser<'src, ()> {
-  punct_greater_than_p().ignore_then(punct_equal_p())
+  punct_greater_than_p()
+    .ignore_then(punct_equal_p())
+    .labelled("`>=`")
+    .as_context()
 }
 /// `<=`
 pub fn cmp_le_p<'src>() -> impl YagParser<'src, ()> {
-  punct_less_than_p().ignore_then(punct_equal_p())
+  punct_less_than_p().ignore_then(punct_equal_p()).labelled("`<=`").as_context()
 }
 /// `&&`
 pub fn short_circuit_and_p<'src>() -> impl YagParser<'src, ()> {
-  punct_ampersand_p().ignore_then(punct_ampersand_p())
+  punct_ampersand_p()
+    .ignore_then(punct_ampersand_p())
+    .labelled("`&&`")
+    .as_context()
 }
 /// `||`
 pub fn short_circuit_or_p<'src>() -> impl YagParser<'src, ()> {
-  punct_pipe_p().ignore_then(punct_pipe_p())
+  punct_pipe_p().ignore_then(punct_pipe_p()).labelled("`||`").as_context()
 }
 /// `>>`
 pub fn shr_p<'src>() -> impl YagParser<'src, ()> {
-  punct_greater_than_p().ignore_then(punct_greater_than_p())
+  punct_greater_than_p()
+    .ignore_then(punct_greater_than_p())
+    .labelled("`>>`")
+    .as_context()
 }
 /// `<<`
 pub fn shl_p<'src>() -> impl YagParser<'src, ()> {
-  punct_less_than_p().ignore_then(punct_less_than_p())
+  punct_less_than_p()
+    .ignore_then(punct_less_than_p())
+    .labelled("`<<`")
+    .as_context()
 }
 
 pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
@@ -328,7 +395,7 @@ pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
       str_id
     }
   }
-  .labelled("identifier2")
+  .labelled("identifier")
   .as_context()
 }
 pub fn spanned_ident_p<'src>() -> impl YagParser<'src, (StrID, Span32)> {
@@ -345,19 +412,23 @@ pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
       str_id
     }
   }
+  .labelled("number")
+  .as_context()
 }
 pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
   select! {
     Lone(KwTrue) => true,
     Lone(KwFalse) => false,
   }
+  .labelled("boolean")
+  .as_context()
 }
 
 pub fn expr_p<'src>() -> impl YagParser<'src, Expr> {
-  recursive_parser_group_p().0
+  recursive_parser_group_p().0.labelled("expression").as_context()
 }
 pub fn statement_p<'src>() -> impl YagParser<'src, Statement> {
-  recursive_parser_group_p().2
+  recursive_parser_group_p().2.labelled("statement").as_context()
 }
 
 macro_rules! infix_maker {
@@ -771,43 +842,46 @@ pub fn attributes_p<'src>() -> impl YagParser<'src, Vec<Expr>> {
     .collect::<Vec<_>>()
 }
 
-pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
-  let bitbag_p = {
-    let field_def_p = attributes_p()
-      .then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(expr_p().map_with(|bit, ex| (bit, ex.span())))
-      .map_with(|(((attributes, (name, name_span)), (bit, bit_span))), ex| {
-        AstBitbagFieldDef {
-          span: ex.span(),
-          attributes,
-          name,
-          name_span,
-          bit,
-          bit_span,
-        }
-      });
-    attributes_p()
-      .then_ignore(kw_bitbag_p())
-      .then(spanned_ident_p())
-      .then(
-        field_def_p
-          .separated_by(punct_comma_p())
-          .allow_trailing()
-          .collect::<Vec<_>>()
-          .nested_in(braces_content_p()),
-      )
-      .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
-        file_id: ex.state().file_id,
+pub fn bitbag_p<'src>() -> impl YagParser<'src, AstItem> {
+  let field_def_p = attributes_p()
+    .then(spanned_ident_p())
+    .then_ignore(punct_colon_p())
+    .then(expr_p().map_with(|bit, ex| (bit, ex.span())))
+    .map_with(|(((attributes, (name, name_span)), (bit, bit_span))), ex| {
+      AstBitbagFieldDef {
+        span: ex.span(),
         attributes,
         name,
         name_span,
-        span: ex.span(),
-        kind: AstItemKind::Bitbag(AstBitbag { fields }),
-      })
-  };
-  let struct_ = {
-    let field_def_p = attributes_p()
+        bit,
+        bit_span,
+      }
+    });
+  attributes_p()
+    .then_ignore(kw_bitbag_p())
+    .then(spanned_ident_p())
+    .then(
+      field_def_p
+        .separated_by(punct_comma_p())
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .nested_in(braces_content_p()),
+    )
+    .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
+      file_id: ex.state().file_id,
+      attributes,
+      name,
+      name_span,
+      span: ex.span(),
+      kind: AstItemKind::Bitbag(AstBitbag { fields }),
+    })
+    .labelled("bitbag_definition")
+    .as_context()
+}
+
+pub fn struct_p<'src>() -> impl YagParser<'src, AstItem> {
+  let field_def_p =
+    attributes_p()
       .then(spanned_ident_p())
       .then_ignore(punct_colon_p())
       .then(type_name_p())
@@ -816,159 +890,172 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       })
       .labelled("struct_field")
       .as_context();
-    attributes_p()
-      .then_ignore(kw_struct_p())
-      .then(spanned_ident_p())
-      .then(
-        field_def_p
-          .separated_by(punct_comma_p())
-          .allow_trailing()
-          .collect::<Vec<_>>()
-          .nested_in(braces_content_p()),
-      )
-      .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
-        file_id: ex.state().file_id,
-        attributes,
-        name,
-        name_span,
-        span: ex.span(),
-        kind: AstItemKind::Struct(AstStruct { fields }),
-      })
-  };
-  let const_ = {
-    attributes_p()
-      .then_ignore(kw_const_p())
-      .then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .then_ignore(punct_equal_p())
-      .then(expr_p())
-      .then_ignore(punct_semicolon_p())
-      .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
-        file_id: ex.state().file_id,
-        attributes,
-        name,
-        name_span,
-        span: ex.span(),
-        kind: AstItemKind::Const(AstConst { ty, expr }),
-      })
-  };
-  let static_ = {
-    let rom_kind = attributes_p()
-      .then_ignore(kw_static_p())
-      .then_ignore(kw_rom_p())
-      .then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .then_ignore(punct_equal_p())
-      .then(expr_p())
-      .then_ignore(punct_semicolon_p())
-      .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
-        file_id: ex.state().file_id,
-        attributes,
-        name,
-        name_span,
-        span: ex.span(),
-        kind: AstItemKind::Static(AstStatic {
-          ty,
-          kind: AstStaticKind::Rom(expr),
-        }),
-      });
-    let ram_kind = attributes_p()
-      .then_ignore(kw_static_p())
-      .then_ignore(kw_ram_p())
-      .then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .then_ignore(punct_equal_p())
-      .then(expr_p())
-      .then_ignore(punct_semicolon_p())
-      .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
-        file_id: ex.state().file_id,
-        attributes,
-        name,
-        name_span,
-        span: ex.span(),
-        kind: AstItemKind::Static(AstStatic {
-          ty,
-          kind: AstStaticKind::Ram(expr),
-        }),
-      });
-    let mmio_kind = attributes_p()
-      .then_ignore(kw_static_p())
-      .then_ignore(kw_mmio_p())
-      .then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .then_ignore(punct_semicolon_p())
-      .map_with(|((attributes, (name, name_span)), ty), ex| AstItem {
-        file_id: ex.state().file_id,
-        attributes,
-        name,
-        name_span,
-        span: ex.span(),
-        kind: AstItemKind::Static(AstStatic {
-          ty,
-          kind: AstStaticKind::MemoryMappedIO,
-        }),
-      });
-    choice((rom_kind, ram_kind, mmio_kind))
-  };
-  let function = {
-    let function_arg_p =
-      attributes_p()
-        .then(spanned_ident_p())
-        .then_ignore(punct_colon_p())
-        .then(type_name_p())
-        .map_with(|(((attributes, (name, name_span)), ty)), ex| {
-          AstFunctionArg { span: ex.span(), attributes, name, name_span, ty }
-        });
-    attributes_p()
-      .then_ignore(kw_fn_p())
-      .then(spanned_ident_p())
-      .then(
-        function_arg_p
-          .separated_by(punct_comma_p())
-          .allow_trailing()
-          .collect::<Vec<_>>()
-          .nested_in(parens_content_p()),
-      )
-      .then(
-        punct_minus_p()
-          .then_ignore(punct_greater_than_p())
-          .ignore_then(spanned_ident_p())
-          .or_not(),
-      )
-      .then(
-        statement_p()
-          .separated_by(punct_semicolon_p())
-          .collect::<Vec<_>>()
-          .then(punct_semicolon_p().or_not())
-          .nested_in(braces_content_p())
-          .map(|(body, trailing)| StatementBody {
-            body,
-            trailing_semicolon: trailing.is_some(),
-          }),
-      )
-      .map_with(
-        |((((attributes, (name, name_span)), args), return_info), body), ex| {
-          AstItem {
-            file_id: ex.state().file_id,
-            attributes,
-            name,
-            name_span,
-            span: ex.span(),
-            kind: AstItemKind::Function(AstFunction {
-              args,
-              return_info,
-              body,
-            }),
-          }
-        },
-      )
-  };
+  attributes_p()
+    .then_ignore(kw_struct_p())
+    .then(spanned_ident_p())
+    .then(
+      field_def_p
+        .separated_by(punct_comma_p())
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .nested_in(braces_content_p()),
+    )
+    .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
+      file_id: ex.state().file_id,
+      attributes,
+      name,
+      name_span,
+      span: ex.span(),
+      kind: AstItemKind::Struct(AstStruct { fields }),
+    })
+    .labelled("struct_definition")
+    .as_context()
+}
 
-  choice((bitbag_p, struct_, const_, static_, function)).boxed()
+pub fn const_p<'src>() -> impl YagParser<'src, AstItem> {
+  attributes_p()
+    .then_ignore(kw_const_p())
+    .then(spanned_ident_p())
+    .then_ignore(punct_colon_p())
+    .then(type_name_p())
+    .then_ignore(punct_equal_p())
+    .then(expr_p())
+    .then_ignore(punct_semicolon_p())
+    .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
+      file_id: ex.state().file_id,
+      attributes,
+      name,
+      name_span,
+      span: ex.span(),
+      kind: AstItemKind::Const(AstConst { ty, expr }),
+    })
+    .labelled("const_definition")
+    .as_context()
+}
+
+pub fn static_p<'src>() -> impl YagParser<'src, AstItem> {
+  let rom_kind = attributes_p()
+    .then_ignore(kw_static_p())
+    .then_ignore(kw_rom_p())
+    .then(spanned_ident_p())
+    .then_ignore(punct_colon_p())
+    .then(type_name_p())
+    .then_ignore(punct_equal_p())
+    .then(expr_p())
+    .then_ignore(punct_semicolon_p())
+    .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
+      file_id: ex.state().file_id,
+      attributes,
+      name,
+      name_span,
+      span: ex.span(),
+      kind: AstItemKind::Static(AstStatic {
+        ty,
+        kind: AstStaticKind::Rom(expr),
+      }),
+    });
+  let ram_kind = attributes_p()
+    .then_ignore(kw_static_p())
+    .then_ignore(kw_ram_p())
+    .then(spanned_ident_p())
+    .then_ignore(punct_colon_p())
+    .then(type_name_p())
+    .then_ignore(punct_equal_p())
+    .then(expr_p())
+    .then_ignore(punct_semicolon_p())
+    .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
+      file_id: ex.state().file_id,
+      attributes,
+      name,
+      name_span,
+      span: ex.span(),
+      kind: AstItemKind::Static(AstStatic {
+        ty,
+        kind: AstStaticKind::Ram(expr),
+      }),
+    });
+  let mmio_kind = attributes_p()
+    .then_ignore(kw_static_p())
+    .then_ignore(kw_mmio_p())
+    .then(spanned_ident_p())
+    .then_ignore(punct_colon_p())
+    .then(type_name_p())
+    .then_ignore(punct_semicolon_p())
+    .map_with(|((attributes, (name, name_span)), ty), ex| AstItem {
+      file_id: ex.state().file_id,
+      attributes,
+      name,
+      name_span,
+      span: ex.span(),
+      kind: AstItemKind::Static(AstStatic {
+        ty,
+        kind: AstStaticKind::MemoryMappedIO,
+      }),
+    });
+  choice((rom_kind, ram_kind, mmio_kind))
+    .labelled("static_definition")
+    .as_context()
+}
+
+pub fn function_p<'src>() -> impl YagParser<'src, AstItem> {
+  let function_arg_p = attributes_p()
+    .then(spanned_ident_p())
+    .then_ignore(punct_colon_p())
+    .then(type_name_p())
+    .map_with(|(((attributes, (name, name_span)), ty)), ex| AstFunctionArg {
+      span: ex.span(),
+      attributes,
+      name,
+      name_span,
+      ty,
+    });
+  attributes_p()
+    .then_ignore(kw_fn_p())
+    .then(spanned_ident_p())
+    .then(
+      function_arg_p
+        .separated_by(punct_comma_p())
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .nested_in(parens_content_p()),
+    )
+    .then(
+      punct_minus_p()
+        .then_ignore(punct_greater_than_p())
+        .ignore_then(spanned_ident_p())
+        .or_not(),
+    )
+    .then(
+      statement_p()
+        .separated_by(punct_semicolon_p())
+        .collect::<Vec<_>>()
+        .then(punct_semicolon_p().or_not())
+        .nested_in(braces_content_p())
+        .map(|(body, trailing)| StatementBody {
+          body,
+          trailing_semicolon: trailing.is_some(),
+        }),
+    )
+    .map_with(
+      |((((attributes, (name, name_span)), args), return_info), body), ex| {
+        AstItem {
+          file_id: ex.state().file_id,
+          attributes,
+          name,
+          name_span,
+          span: ex.span(),
+          kind: AstItemKind::Function(AstFunction { args, return_info, body }),
+        }
+      },
+    )
+    .labelled("function_definition")
+    .as_context()
+}
+
+pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
+  choice((bitbag_p(), struct_p(), const_p(), static_p(), function_p()))
+    .labelled("item_definition")
+    .as_context()
 }
 
 pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
