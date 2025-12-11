@@ -39,12 +39,17 @@ pub fn print_any_errors() -> bool {
       YagError::ItemParseError(file_id, rich) => {
         let a_span =
           (*file_id, (rich.span().start as usize)..(rich.span().end as usize));
+        let x = &file_id.get_data().content()[a_span.1.clone()];
+        let found = if let Some(tt) = rich.found() {
+          format!("{tt:?}")
+        } else {
+          String::from("End Of Input")
+        };
         Report::build(ReportKind::Error, a_span.clone())
           .with_config(config)
-          .with_label(Label::new(a_span.clone()))
+          .with_label(Label::new(a_span.clone()).with_message("here"))
           .with_message(format!(
-            "found {f:?}, but expected one of {ex:?}",
-            f = rich.found(),
+            "found {found:?}, but expected one of {ex:?}; {x:?}",
             ex = rich.expected().collect::<Vec<_>>(),
           ))
           .finish()

@@ -93,26 +93,36 @@ pub fn kw_bitbag_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwBitbag) => ()
   }
+  .labelled("`bitbag`")
+  .as_context()
 }
 pub fn kw_break_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwBreak) => ()
   }
+  .labelled("`break`")
+  .as_context()
 }
 pub fn kw_const_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwConst) => ()
   }
+  .labelled("`const`")
+  .as_context()
 }
 pub fn kw_continue_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwContinue) => ()
   }
+  .labelled("`continue`")
+  .as_context()
 }
 pub fn kw_else_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(KwElse) => ()
   }
+  .labelled("`else`")
+  .as_context()
 }
 pub fn kw_fn_p<'src>() -> impl YagParser<'src, ()> {
   select! {
@@ -169,16 +179,22 @@ pub fn punct_asterisk_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Asterisk) => ()
   }
+  .labelled("`*`")
+  .as_context()
 }
 pub fn punct_ampersand_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Ampersand) => ()
   }
+  .labelled("`&`")
+  .as_context()
 }
 pub fn punct_caret_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Caret) => ()
   }
+  .labelled("`^`")
+  .as_context()
 }
 pub fn punct_comma_p<'src>() -> impl YagParser<'src, ()> {
   select! {
@@ -312,7 +328,7 @@ pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
       str_id
     }
   }
-  .labelled("identifier")
+  .labelled("identifier2")
   .as_context()
 }
 pub fn spanned_ident_p<'src>() -> impl YagParser<'src, (StrID, Span32)> {
@@ -797,7 +813,9 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .then(type_name_p())
       .map_with(|(((attributes, (name, name_span)), ty)), ex| {
         AstStructFieldDef { span: ex.span(), attributes, name, name_span, ty }
-      });
+      })
+      .labelled("struct_field")
+      .as_context();
     attributes_p()
       .then_ignore(kw_struct_p())
       .then(spanned_ident_p())
