@@ -39,22 +39,26 @@ pub fn print_any_errors() -> bool {
       YagError::ItemParseError(file_id, rich) => {
         let a_span =
           (*file_id, (rich.span().start as usize)..(rich.span().end as usize));
-        let x = &file_id.get_data().content()[a_span.1.clone()];
+        let mut report = Report::build(ReportKind::Error, a_span.clone());
+        report = report.with_config(config);
         let found = if let Some(tt) = rich.found() {
           format!("{tt:?}")
         } else {
           String::from("End Of Input")
         };
-        Report::build(ReportKind::Error, a_span.clone())
-          .with_config(config)
-          .with_label(Label::new(a_span.clone()).with_message("here"))
-          .with_message(format!(
-            "found {found:?}, but expected one of {ex:?}; {x:?}",
-            ex = rich.expected().collect::<Vec<_>>(),
-          ))
-          .finish()
-          .eprint(&mut cache)
-          .unwrap();
+        report = report.with_message(format!(
+          "found {found:?}, but expected one of {ex:?}",
+          ex = rich.expected().collect::<Vec<_>>(),
+        ));
+        report =
+          report.with_label(Label::new(a_span).with_message(format!("here")));
+        for (pat, span) in rich.contexts() {
+          let b_span = (*file_id, (span.start as usize)..(span.end as usize));
+          report = report
+            .with_label(Label::new(b_span).with_message(format!("{pat:?}")))
+        }
+        //
+        report.finish().eprint(&mut cache).unwrap();
       }
     }
   }
