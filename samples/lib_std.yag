@@ -14,7 +14,7 @@ struct Obj {
   attrs: ObjAttrs,
 }
 
-bitstruct ObjAttrs {
+bitbag ObjAttrs {
   cgb_palette: 0-2,
   cgb_tile_bank: 3,
   dmg_pal_1: 4,
@@ -26,7 +26,7 @@ bitstruct ObjAttrs {
 #[location($FF00)]
 static mmio P1: u8;
 
-bitstruct KeysPressed {
+bitbag KeysPressed {
   a: 0,
   b: 1,
   select: 2,
