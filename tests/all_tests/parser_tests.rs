@@ -1,6 +1,7 @@
 use chumsky::extra::State;
 use chumsky::inspector::SimpleState;
-use chumsky::prelude::*;
+use chumsky::{prelude::*, span};
+use rayon::vec;
 use str_id::StrID;
 use yagbas::*;
 
@@ -647,6 +648,48 @@ fn test_item_p_function() {
         args: vec![],
         return_info: None,
         body: StatementBody { body: vec![], trailing_semicolon: false }
+      }),
+    }
+  )
+}
+
+#[test]
+fn test_static_mmio_p() {
+  assert_eq!(
+    do_parse!(
+      static_p(),
+      "#[location($FE00)]
+    static mmio OAM_RAM: [Obj; 40];"
+    ),
+    AstItem {
+      attributes: vec![Expr {
+        span: span32(2, 17),
+        kind: Box::new(ExprKind::Call(ExprCall {
+          target: str_id("location"),
+          target_span: span32(2, 10),
+          args: vec![Expr {
+            span: span32(11, 16),
+            kind: Box::new(ExprKind::NumLit(str_id("$FE00")))
+          }]
+        }))
+      }],
+      file_id: fake_file_id(1),
+      span: span32(0, 54),
+      name: str_id("OAM_RAM"),
+      name_span: span32(35, 42),
+      kind: AstItemKind::Static(AstStatic {
+        ty: TypeName {
+          span: span32(44, 53),
+          kind: TypeNameKind::ArrayNumLit(
+            Box::new(TypeName {
+              span: span32(45, 48),
+              kind: TypeNameKind::Ident(str_id("Obj"))
+            }),
+            str_id("40"),
+            span32(50, 52),
+          )
+        },
+        kind: AstStaticKind::MemoryMappedIO,
       }),
     }
   )
