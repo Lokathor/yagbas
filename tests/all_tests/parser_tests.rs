@@ -651,3 +651,69 @@ fn test_item_p_function() {
     }
   )
 }
+
+#[test]
+fn test_struct_p() {
+  assert_eq!(
+    do_parse!(
+      struct_p(),
+      "struct Obj {
+        y: u8,
+        x: u8,
+        tile_id: u8,
+        attrs: ObjAttrs,
+      }"
+    ),
+    AstItem {
+      span: span32(0, 96),
+      attributes: vec![],
+      file_id: fake_file_id(1),
+      name: str_id("Obj"),
+      name_span: span32(7, 10),
+      kind: AstItemKind::Struct(AstStruct {
+        fields: vec![
+          AstStructFieldDef {
+            span: span32(21, 26),
+            attributes: vec![],
+            name: str_id("y"),
+            name_span: span32(21, 22),
+            ty: TypeName {
+              span: span32(24, 26),
+              kind: TypeNameKind::Ident(str_id("u8"))
+            }
+          },
+          AstStructFieldDef {
+            span: span32(36, 41),
+            attributes: vec![],
+            name: str_id("x"),
+            name_span: span32(36, 37),
+            ty: TypeName {
+              span: span32(39, 41),
+              kind: TypeNameKind::Ident(str_id("u8"))
+            }
+          },
+          AstStructFieldDef {
+            span: span32(51, 62),
+            attributes: vec![],
+            name: str_id("tile_id"),
+            name_span: span32(51, 58),
+            ty: TypeName {
+              span: span32(60, 62),
+              kind: TypeNameKind::Ident(str_id("u8"))
+            }
+          },
+          AstStructFieldDef {
+            span: span32(72, 87),
+            attributes: vec![],
+            name: str_id("attrs"),
+            name_span: span32(72, 77),
+            ty: TypeName {
+              span: span32(79, 87),
+              kind: TypeNameKind::Ident(str_id("ObjAttrs"))
+            }
+          }
+        ]
+      }),
+    }
+  )
+}
