@@ -1,0 +1,12 @@
+#![cart(gbc_compatible)]
+
+fn main() {
+  let x = *KEY1;
+  if !x.7 {
+    // switch to double speed
+    *P1 = P1F_GET_NONE;
+    *IE = 0;
+    *KEY1 = 1;
+    stop!();
+  }
+}
