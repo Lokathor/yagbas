@@ -42,12 +42,21 @@ pub fn print_any_errors() -> bool {
         let mut report = Report::build(ReportKind::Error, a_span.clone());
         report = report.with_config(config);
         let found = if let Some(tt) = rich.found() {
-          format!("{tt:?}")
+          match tt {
+            TokenTree::Lone(token) => format!(
+              "{}",
+              SourcedTokens(file_id.get_data().content(), *rich.span(), *token)
+            ),
+            TokenTree::Parens(_) => String::from("Parenthesis Group"),
+            TokenTree::Brackets(_) => String::from("Bracket Group"),
+            TokenTree::Braces(_) => String::from("Braces Group"),
+            TokenTree::TreeError => String::from("TokenTreeError"),
+          }
         } else {
           String::from("End Of Input")
         };
         report = report.with_message(format!(
-          "found {found:?}, but expected one of {ex:?}",
+          "found {found}, but expected one of {ex:?}",
           ex = rich.expected().collect::<Vec<_>>(),
         ));
         report =

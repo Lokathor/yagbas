@@ -200,3 +200,74 @@ fn test_lexing() {
   assert_eq!(lex("% F"), &[Percent, Ident]);
   assert_eq!(lex("."), &[Period]);
 }
+
+#[derive(Debug)]
+pub struct SourcedTokens<'src>(pub &'src str, pub Span32, pub Token);
+
+impl<'src> core::fmt::Display for SourcedTokens<'src> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self.2 {
+      Token::Ident => {
+        let range = (self.1.start as usize)..(self.1.end as usize);
+        write!(f, "Identifier \"{}\"", &self.0[range])
+      }
+      Token::NumLit => {
+        let range = (self.1.start as usize)..(self.1.end as usize);
+        write!(f, "Number \"{}\"", &self.0[range])
+      }
+      Token::OpBracket => write!(f, "["),
+      Token::ClBracket => write!(f, "]"),
+      Token::OpBrace => write!(f, "{{"),
+      Token::ClBrace => write!(f, "}}"),
+      Token::OpParen => write!(f, "("),
+      Token::ClParen => write!(f, ")"),
+      Token::OpBlockComment => write!(f, "/*"),
+      Token::ClBlockComment => write!(f, "*/"),
+      Token::DocComment => write!(f, "///"),
+      Token::InteriorComment => write!(f, "//!"),
+      Token::LineComment => write!(f, "//"),
+      Token::KwBitbag => write!(f, "`bitbag`"),
+      Token::KwBreak => write!(f, "`break`"),
+      Token::KwConst => write!(f, "`const`"),
+      Token::KwContinue => write!(f, "`continue`"),
+      Token::KwElse => write!(f, "`else`"),
+      Token::KwFn => write!(f, "`fn`"),
+      Token::KwIf => write!(f, "`if`"),
+      Token::KwLet => write!(f, "`let`"),
+      Token::KwLoop => write!(f, "`loop`"),
+      Token::KwMmio => write!(f, "`mmio`"),
+      Token::KwRam => write!(f, "`ram`"),
+      Token::KwReturn => write!(f, "`return`"),
+      Token::KwRom => write!(f, "`rom`"),
+      Token::KwStatic => write!(f, "`static`"),
+      Token::KwStruct => write!(f, "`struct`"),
+      Token::KwFalse => write!(f, "`false`"),
+      Token::KwTrue => write!(f, "`true`"),
+      Token::Tilde => write!(f, "`~`"),
+      Token::Backtick => write!(f, "backtick"),
+      Token::Exclamation => write!(f, "!"),
+      Token::AtSign => write!(f, "@"),
+      Token::Hash => write!(f, "#"),
+      Token::Dollar => write!(f, "$"),
+      Token::Percent => write!(f, "%"),
+      Token::Caret => write!(f, "^"),
+      Token::Ampersand => write!(f, "&"),
+      Token::Asterisk => write!(f, "*"),
+      Token::Minus => write!(f, "-"),
+      Token::Plus => write!(f, "+"),
+      Token::Equal => write!(f, "="),
+      Token::Pipe => write!(f, "|"),
+      Token::Backslash => write!(f, "\\"),
+      Token::Colon => write!(f, ":"),
+      Token::Semicolon => write!(f, ";"),
+      Token::Quote => write!(f, "'"),
+      Token::LessThan => write!(f, "<"),
+      Token::Comma => write!(f, ","),
+      Token::GreaterThan => write!(f, ">"),
+      Token::Period => write!(f, "."),
+      Token::Question => write!(f, "?"),
+      Token::Slash => write!(f, "/"),
+      Token::TokenError => write!(f, "TokenError"),
+    }
+  }
+}
