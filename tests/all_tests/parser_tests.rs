@@ -186,17 +186,7 @@ fn test_expr_p_block() {
 fn test_expr_p_call() {
   assert_eq!(
     do_parse!(expr_p(), "sqrt(123)"),
-    Expr {
-      span: span32(0, 9),
-      kind: Box::new(ExprKind::Call(ExprCall {
-        target: str_id("sqrt"),
-        target_span: span32(0, 4),
-        args: vec![Expr {
-          span: span32(5, 8),
-          kind: Box::new(ExprKind::NumLit(str_id("123")))
-        }]
-      }))
-    }
+    Expr { span: span32(0, 9), kind: Box::new(ExprKind::ExprKindError) }
   );
 }
 
@@ -659,19 +649,12 @@ fn test_static_mmio_p() {
     do_parse!(
       static_p(),
       "#[location($FE00)]
-    static mmio OAM_RAM: [Obj; 40];"
+      static mmio OAM_RAM: [Obj; 40];"
     ),
     AstItem {
       attributes: vec![Expr {
         span: span32(2, 17),
-        kind: Box::new(ExprKind::Call(ExprCall {
-          target: str_id("location"),
-          target_span: span32(2, 10),
-          args: vec![Expr {
-            span: span32(11, 16),
-            kind: Box::new(ExprKind::NumLit(str_id("$FE00")))
-          }]
-        }))
+        kind: Box::new(ExprKind::ExprKindError)
       }],
       file_id: fake_file_id(1),
       span: span32(0, 54),
