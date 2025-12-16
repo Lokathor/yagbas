@@ -566,6 +566,12 @@ fn define_expression_parser<'b, 'src: 'b>(
     };
     assert_output_ty::<Expr>(&atom);
 
+    let call_op = expression_parser
+      .clone()
+      .separated_by(punct_comma_p())
+      .allow_trailing()
+      .nested_in(parens_content_p());
+
     use chumsky::pratt::*;
     let with_pratt = atom.pratt((
       infix(left(2), punct_equal_p(), infix_maker!(BinOpKind::Assign)),
@@ -593,7 +599,14 @@ fn define_expression_parser<'b, 'src: 'b>(
       prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
       prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
       // 14: question-mark-operator
-      // 15: fn-call and index
+      postfix(15, call_op, |lhs, rhs, extras| Expr {
+        span: extras.span(),
+        kind: Box::new(ExprKind::BinOp(ExprBinOp {
+          lhs,
+          rhs,
+          kind: BinOpKind::Call,
+        })),
+      }),
       infix(left(16), punct_period_p(), infix_maker!(BinOpKind::Dot)),
       // 17: method calls
       // 18: path
@@ -744,7 +757,14 @@ fn define_condition_parser<'b, 'src: 'b>(
       prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
       prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
       // 14: question-mark-operator
-      infix(left(15), call_op, infix_maker!(BinOpKind::Call)),
+      postfix(15, call_op, |lhs, rhs, extras| Expr {
+        span: extras.span(),
+        kind: Box::new(ExprKind::BinOp(ExprBinOp {
+          lhs,
+          rhs,
+          kind: BinOpKind::Call,
+        })),
+      }),
       infix(left(16), punct_period_p(), infix_maker!(BinOpKind::Dot)),
       // 17: method calls
       // 18: path
