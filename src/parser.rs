@@ -570,7 +570,13 @@ fn define_expression_parser<'b, 'src: 'b>(
       .clone()
       .separated_by(punct_comma_p())
       .allow_trailing()
-      .nested_in(parens_content_p());
+      .collect::<Vec<_>>()
+      .nested_in(parens_content_p())
+      .map_with(|args, ex| Expr {
+        span: ex.span(),
+        kind: Box::new(ExprKind::List(args)),
+      });
+    assert_output_ty::<Expr>(&call_op);
 
     use chumsky::pratt::*;
     let with_pratt = atom.pratt((
@@ -728,7 +734,13 @@ fn define_condition_parser<'b, 'src: 'b>(
       .clone()
       .separated_by(punct_comma_p())
       .allow_trailing()
-      .nested_in(parens_content_p());
+      .collect::<Vec<_>>()
+      .nested_in(parens_content_p())
+      .map_with(|args, ex| Expr {
+        span: ex.span(),
+        kind: Box::new(ExprKind::List(args)),
+      });
+    assert_output_ty::<Expr>(&call_op);
 
     use chumsky::pratt::*;
     let with_pratt = atom.pratt((
