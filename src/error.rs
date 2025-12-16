@@ -59,12 +59,12 @@ pub fn print_any_errors() -> bool {
           "found {found}, but expected one of {ex:?}",
           ex = rich.expected().collect::<Vec<_>>(),
         ));
-        report =
-          report.with_label(Label::new(a_span).with_message(format!("here")));
-        for (pat, span) in rich.contexts() {
+        if let Some((pat, span)) = rich.contexts().next() {
           let b_span = (*file_id, (span.start as usize)..(span.end as usize));
-          report = report
-            .with_label(Label::new(b_span).with_message(format!("{pat:?}")))
+          report = report.with_label(
+            Label::new(b_span)
+              .with_message(format!("while parsing for {pat:?}")),
+          );
         }
         //
         report.finish().eprint(&mut cache).unwrap();
