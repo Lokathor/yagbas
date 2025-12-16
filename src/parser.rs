@@ -479,18 +479,6 @@ fn define_expression_parser<'b, 'src: 'b>(
         .nested_in(brackets_content_p())
         .map(ExprKind::List);
       let block = statement_body_p.clone().map(ExprKind::Block);
-      let call = spanned_ident_p()
-        .then(
-          expression_parser
-            .clone()
-            .separated_by(punct_comma_p())
-            .allow_trailing()
-            .collect::<Vec<_>>()
-            .nested_in(parens_content_p()),
-        )
-        .map(|((target, target_span), args)| {
-          ExprKind::Call(ExprCall { target, target_span, args })
-        });
       let macro_ = spanned_ident_p()
         .then_ignore(punct_exclamation_p())
         .then(
@@ -559,7 +547,7 @@ fn define_expression_parser<'b, 'src: 'b>(
         .nested_in(parens_content_p())
         .map(|xpr| *xpr.kind);
 
-      let ident_using = choice((call, macro_, struct_lit, ident));
+      let ident_using = choice((macro_, struct_lit, ident));
       let loop_using = choice((loop_times, loop_));
       choice((
         num_lit,
@@ -577,6 +565,18 @@ fn define_expression_parser<'b, 'src: 'b>(
       .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
     };
     assert_output_ty::<Expr>(&atom);
+
+    let call_op = expression_parser
+      .clone()
+      .separated_by(punct_comma_p())
+      .allow_trailing()
+      .collect::<Vec<_>>()
+      .nested_in(parens_content_p())
+      .map_with(|args, ex| Expr {
+        span: ex.span(),
+        kind: Box::new(ExprKind::List(args)),
+      });
+    assert_output_ty::<Expr>(&call_op);
 
     use chumsky::pratt::*;
     let with_pratt = atom.pratt((
@@ -605,7 +605,14 @@ fn define_expression_parser<'b, 'src: 'b>(
       prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
       prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
       // 14: question-mark-operator
-      // 15: fn-call and index
+      postfix(15, call_op, |lhs, rhs, extras| Expr {
+        span: extras.span(),
+        kind: Box::new(ExprKind::BinOp(ExprBinOp {
+          lhs,
+          rhs,
+          kind: BinOpKind::Call,
+        })),
+      }),
       infix(left(16), punct_period_p(), infix_maker!(BinOpKind::Dot)),
       // 17: method calls
       // 18: path
@@ -648,18 +655,6 @@ fn define_condition_parser<'b, 'src: 'b>(
         .nested_in(brackets_content_p())
         .map(ExprKind::List);
       let block = statement_body_p.clone().map(ExprKind::Block);
-      let call = spanned_ident_p()
-        .then(
-          expression_parser
-            .clone()
-            .separated_by(punct_comma_p())
-            .allow_trailing()
-            .collect::<Vec<_>>()
-            .nested_in(parens_content_p()),
-        )
-        .map(|((target, target_span), args)| {
-          ExprKind::Call(ExprCall { target, target_span, args })
-        });
       let macro_ = spanned_ident_p()
         .then_ignore(punct_exclamation_p())
         .then(
@@ -716,7 +711,7 @@ fn define_condition_parser<'b, 'src: 'b>(
         .nested_in(parens_content_p())
         .map(|xpr| *xpr.kind);
 
-      let ident_using = choice((call, macro_, ident));
+      let ident_using = choice((macro_, ident));
       let loop_using = choice((loop_times, loop_));
       choice((
         num_lit,
@@ -734,6 +729,18 @@ fn define_condition_parser<'b, 'src: 'b>(
       .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
     };
     assert_output_ty::<Expr>(&atom);
+
+    let call_op = expression_parser
+      .clone()
+      .separated_by(punct_comma_p())
+      .allow_trailing()
+      .collect::<Vec<_>>()
+      .nested_in(parens_content_p())
+      .map_with(|args, ex| Expr {
+        span: ex.span(),
+        kind: Box::new(ExprKind::List(args)),
+      });
+    assert_output_ty::<Expr>(&call_op);
 
     use chumsky::pratt::*;
     let with_pratt = atom.pratt((
@@ -762,7 +769,14 @@ fn define_condition_parser<'b, 'src: 'b>(
       prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
       prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
       // 14: question-mark-operator
-      // 15: fn-call and index
+      postfix(15, call_op, |lhs, rhs, extras| Expr {
+        span: extras.span(),
+        kind: Box::new(ExprKind::BinOp(ExprBinOp {
+          lhs,
+          rhs,
+          kind: BinOpKind::Call,
+        })),
+      }),
       infix(left(16), punct_period_p(), infix_maker!(BinOpKind::Dot)),
       // 17: method calls
       // 18: path

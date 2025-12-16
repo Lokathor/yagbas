@@ -188,13 +188,19 @@ fn test_expr_p_call() {
     do_parse!(expr_p(), "sqrt(123)"),
     Expr {
       span: span32(0, 9),
-      kind: Box::new(ExprKind::Call(ExprCall {
-        target: str_id("sqrt"),
-        target_span: span32(0, 4),
-        args: vec![Expr {
-          span: span32(5, 8),
-          kind: Box::new(ExprKind::NumLit(str_id("123")))
-        }]
+      kind: Box::new(ExprKind::BinOp(ExprBinOp {
+        lhs: Expr {
+          span: span32(0, 4),
+          kind: Box::new(ExprKind::Ident(str_id("sqrt")))
+        },
+        rhs: Expr {
+          span: span32(4, 9),
+          kind: Box::new(ExprKind::List(vec![Expr {
+            span: span32(5, 8),
+            kind: Box::new(ExprKind::NumLit(str_id("123")))
+          }]))
+        },
+        kind: BinOpKind::Call
       }))
     }
   );
@@ -659,34 +665,40 @@ fn test_static_mmio_p() {
     do_parse!(
       static_p(),
       "#[location($FE00)]
-    static mmio OAM_RAM: [Obj; 40];"
+      static mmio OAM_RAM: [Obj; 40];"
     ),
     AstItem {
       attributes: vec![Expr {
         span: span32(2, 17),
-        kind: Box::new(ExprKind::Call(ExprCall {
-          target: str_id("location"),
-          target_span: span32(2, 10),
-          args: vec![Expr {
-            span: span32(11, 16),
-            kind: Box::new(ExprKind::NumLit(str_id("$FE00")))
-          }]
+        kind: Box::new(ExprKind::BinOp(ExprBinOp {
+          lhs: Expr {
+            span: span32(2, 10),
+            kind: Box::new(ExprKind::Ident(str_id("location")))
+          },
+          rhs: Expr {
+            span: span32(10, 17),
+            kind: Box::new(ExprKind::List(vec![Expr {
+              span: span32(11, 16),
+              kind: Box::new(ExprKind::NumLit(str_id("$FE00")))
+            }]))
+          },
+          kind: BinOpKind::Call
         }))
       }],
       file_id: fake_file_id(1),
-      span: span32(0, 54),
+      span: span32(0, 56),
       name: str_id("OAM_RAM"),
-      name_span: span32(35, 42),
+      name_span: span32(37, 44),
       kind: AstItemKind::Static(AstStatic {
         ty: TypeName {
-          span: span32(44, 53),
+          span: span32(46, 55),
           kind: TypeNameKind::ArrayNumLit(
             Box::new(TypeName {
-              span: span32(45, 48),
+              span: span32(47, 50),
               kind: TypeNameKind::Ident(str_id("Obj"))
             }),
             str_id("40"),
-            span32(50, 52),
+            span32(52, 54),
           )
         },
         kind: AstStaticKind::MemoryMappedIO,

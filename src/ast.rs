@@ -203,7 +203,6 @@ pub enum ExprKind {
   /// braces around a series of statements.
   Block(StatementBody),
 
-  Call(ExprCall),
   Macro(ExprMacro),
   StructLit(ExprStructLit),
 
@@ -258,6 +257,7 @@ pub struct ExprBinOp {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinOpKind {
   Assign,
+  Call,
   Add,
   Sub,
   Mul,
@@ -278,13 +278,6 @@ pub enum BinOpKind {
   Le,
   Gt,
   Ge,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ExprCall {
-  pub target: StrID,
-  pub target_span: Span32,
-  pub args: Vec<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
