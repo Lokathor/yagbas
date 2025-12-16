@@ -326,7 +326,7 @@ pub struct ExprStructLit {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct StatementBody {
   pub body: Vec<Statement>,
-  pub trailing_semicolon: bool,
+  pub last_expr: Option<Expr>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]

@@ -118,7 +118,7 @@ fn test_expr_p_block_empty() {
       span: span32(0, 2),
       kind: Box::new(ExprKind::Block(StatementBody {
         body: vec![],
-        trailing_semicolon: false
+        last_expr: None
       }))
     }
   );
@@ -127,29 +127,12 @@ fn test_expr_p_block_empty() {
 #[test]
 fn test_expr_p_block() {
   assert_eq!(
-    do_parse!(expr_p(), "{ true; false }"),
+    do_parse!(expr_p(), "{ a = true; false }"),
     Expr {
       span: span32(0, 15),
       kind: Box::new(ExprKind::Block(StatementBody {
-        body: vec![
-          Statement {
-            attribues: None,
-            span: span32(2, 6),
-            kind: Box::new(StatementKind::ExprStmt(Expr {
-              span: span32(2, 6),
-              kind: Box::new(ExprKind::Bool(true))
-            }))
-          },
-          Statement {
-            attribues: None,
-            span: span32(8, 13),
-            kind: Box::new(StatementKind::ExprStmt(Expr {
-              span: span32(8, 13),
-              kind: Box::new(ExprKind::Bool(false))
-            }))
-          }
-        ],
-        trailing_semicolon: false
+        body: vec![],
+        last_expr: None
       }))
     }
   );
@@ -158,25 +141,8 @@ fn test_expr_p_block() {
     Expr {
       span: span32(0, 16),
       kind: Box::new(ExprKind::Block(StatementBody {
-        body: vec![
-          Statement {
-            attribues: None,
-            span: span32(2, 6),
-            kind: Box::new(StatementKind::ExprStmt(Expr {
-              span: span32(2, 6),
-              kind: Box::new(ExprKind::Bool(true))
-            }))
-          },
-          Statement {
-            attribues: None,
-            span: span32(8, 13),
-            kind: Box::new(StatementKind::ExprStmt(Expr {
-              span: span32(8, 13),
-              kind: Box::new(ExprKind::Bool(false))
-            }))
-          }
-        ],
-        trailing_semicolon: true
+        body: vec![],
+        last_expr: None
       }))
     }
   );
@@ -369,7 +335,7 @@ fn test_expr_p_loop_empty() {
       span: span32(0, 7),
       kind: Box::new(ExprKind::Loop(ExprLoop {
         name: None,
-        steps: StatementBody { body: vec![], trailing_semicolon: false }
+        steps: StatementBody { body: vec![], last_expr: None }
       }))
     }
   );
@@ -384,15 +350,11 @@ fn test_expr_p_loop() {
       kind: Box::new(ExprKind::Loop(ExprLoop {
         name: None,
         steps: StatementBody {
-          body: vec![Statement {
-            attribues: None,
+          body: vec![],
+          last_expr: Some(Expr {
             span: span32(7, 8),
-            kind: Box::new(StatementKind::ExprStmt(Expr {
-              span: span32(7, 8),
-              kind: Box::new(ExprKind::NumLit(str_id("1")))
-            }))
-          }],
-          trailing_semicolon: false
+            kind: Box::new(ExprKind::NumLit(str_id("1")))
+          })
         }
       }))
     }
@@ -409,7 +371,7 @@ fn test_expr_p_loop_times_empty() {
         name: None,
         times: str_id("3"),
         times_span: span32(5, 6),
-        steps: StatementBody { body: vec![], trailing_semicolon: false }
+        steps: StatementBody { body: vec![], last_expr: None }
       }))
     }
   );
@@ -421,7 +383,7 @@ fn test_expr_p_loop_times_empty() {
         name: None,
         times: str_id("count"),
         times_span: span32(5, 10),
-        steps: StatementBody { body: vec![], trailing_semicolon: false }
+        steps: StatementBody { body: vec![], last_expr: None }
       }))
     }
   );
@@ -438,7 +400,7 @@ fn test_expr_p_if_empty() {
           span: span32(3, 12),
           kind: Box::new(ExprKind::Ident(str_id("condition")))
         },
-        if_: StatementBody { body: vec![], trailing_semicolon: false },
+        if_: StatementBody { body: vec![], last_expr: None },
         else_: None,
       }))
     }
@@ -456,8 +418,8 @@ fn test_expr_p_if_else_empty() {
           span: span32(3, 12),
           kind: Box::new(ExprKind::Ident(str_id("condition")))
         },
-        if_: StatementBody { body: vec![], trailing_semicolon: false },
-        else_: Some(StatementBody { body: vec![], trailing_semicolon: false }),
+        if_: StatementBody { body: vec![], last_expr: None },
+        else_: Some(StatementBody { body: vec![], last_expr: None }),
       }))
     }
   );
@@ -653,7 +615,7 @@ fn test_item_p_function() {
       kind: AstItemKind::Function(AstFunction {
         args: vec![],
         return_info: None,
-        body: StatementBody { body: vec![], trailing_semicolon: false }
+        body: StatementBody { body: vec![], last_expr: None }
       }),
     }
   )

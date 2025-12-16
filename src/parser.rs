@@ -469,12 +469,11 @@ fn define_expression_parser<'b, 'src: 'b>(
         .clone()
         .separated_by(punct_semicolon_p())
         .collect::<Vec<_>>()
-        .then(punct_semicolon_p().or_not())
+        .then(expression_parser.clone().or_not())
         .nested_in(braces_content_p())
-        .map(|(body, semi)| StatementBody {
-          body,
-          trailing_semicolon: semi.is_some(),
-        });
+        .map(|(body, last_expr)| StatementBody { body, last_expr })
+        .labelled("statement_body")
+        .as_context();
       let num_lit = num_lit_p().map(|lit| ExprKind::NumLit(lit));
       let ident = ident_p().map(|ident| ExprKind::Ident(ident));
       let bool_ = bool_p().map(|b| ExprKind::Bool(b));
@@ -593,7 +592,6 @@ fn define_expression_parser<'b, 'src: 'b>(
 
     use chumsky::pratt::*;
     let with_pratt = atom.pratt((
-      infix(left(2), punct_equal_p(), infix_maker!(BinOpKind::Assign)),
       // 3: range operators
       infix(left(4), short_circuit_or_p(), infix_maker!(BinOpKind::BoolOr)),
       infix(left(5), short_circuit_and_p(), infix_maker!(BinOpKind::BoolAnd)),
@@ -654,9 +652,76 @@ fn define_statement_parser<'b, 'src: 'b>(
           Some(init) => StatementKind::LetAssign(varname, opt_ty, init),
           None => StatementKind::Let(varname, opt_ty),
         });
-      let xpr = expression_parser.clone().map(|x| StatementKind::ExprStmt(x));
+      let assign = expression_parser
+        .clone()
+        .then_ignore(punct_equal_p())
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::Assign(l, r));
+      let add_assign = expression_parser
+        .clone()
+        .then_ignore(punct_plus_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::AddAssign(l, r));
+      let sub_assign = expression_parser
+        .clone()
+        .then_ignore(punct_minus_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::SubAssign(l, r));
+      let mul_assign = expression_parser
+        .clone()
+        .then_ignore(punct_asterisk_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::MulAssign(l, r));
+      let div_assign = expression_parser
+        .clone()
+        .then_ignore(punct_slash_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::DivAssign(l, r));
+      let mod_assign = expression_parser
+        .clone()
+        .then_ignore(punct_percent_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::ModAssign(l, r));
+      let shl_assign = expression_parser
+        .clone()
+        .then_ignore(shl_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::ShiftLeftAssign(l, r));
+      let shr_assign = expression_parser
+        .clone()
+        .then_ignore(shr_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::ShiftRightAssign(l, r));
+      let bitand_assign = expression_parser
+        .clone()
+        .then_ignore(punct_ampersand_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::BitAndAssign(l, r));
+      let bitor_assign = expression_parser
+        .clone()
+        .then_ignore(punct_pipe_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::BitOrAssign(l, r));
+      let bitxor_assign = expression_parser
+        .clone()
+        .then_ignore(punct_caret_p().then(punct_equal_p()))
+        .then(expression_parser.clone())
+        .map(|(l, r)| StatementKind::BitXorAssign(l, r));
 
-      choice((let_, xpr))
+      choice((
+        let_,
+        assign,
+        add_assign,
+        sub_assign,
+        mul_assign,
+        div_assign,
+        mod_assign,
+        shl_assign,
+        shr_assign,
+        bitand_assign,
+        bitor_assign,
+        bitxor_assign,
+      ))
     };
     attributes.then(kind).map_with(|(the_attributes, kind), ex| Statement {
       span: ex.span(),
@@ -894,12 +959,9 @@ pub fn function_p<'src>() -> impl YagParser<'src, AstItem> {
       statement_p()
         .separated_by(punct_semicolon_p())
         .collect::<Vec<_>>()
-        .then(punct_semicolon_p().or_not())
+        .then(expr_p().or_not())
         .nested_in(braces_content_p())
-        .map(|(body, trailing)| StatementBody {
-          body,
-          trailing_semicolon: trailing.is_some(),
-        }),
+        .map(|(body, last_expr)| StatementBody { body, last_expr }),
     )
     .map_with(
       |((((attributes, (name, name_span)), args), return_info), body), ex| {
