@@ -564,6 +564,8 @@ fn define_expression_parser<'b, 'src: 'b>(
         paren_group_expr,
       ))
       .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
+      .labelled("expression_atom")
+      .as_context()
     };
     assert_output_ty::<Expr>(&atom);
 
