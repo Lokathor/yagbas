@@ -168,14 +168,44 @@ pub enum StatementKind {
   #[default]
   StatementKindError,
 
-  /// looks like `let varname: vartype`
+  /// `let varname: vartype`
   Let(StrID, Option<TypeName>),
 
-  /// looks like `let varname: vartype = expr;`
+  /// `let varname: vartype = expr;`
   LetAssign(StrID, Option<TypeName>, Expr),
 
-  /// Any expression on its own can be a statement.
-  ExprStmt(Expr),
+  /// `lhs = rhs`
+  Assign(Expr, Expr),
+
+  /// `lhs += rhs`
+  AddAssign(Expr, Expr),
+
+  /// `lhs -= rhs`
+  SubAssign(Expr, Expr),
+
+  /// `lhs *= rhs`
+  MulAssign(Expr, Expr),
+
+  /// `lhs /= rhs`
+  DivAssign(Expr, Expr),
+
+  /// `lhs %= rhs`
+  ModAssign(Expr, Expr),
+
+  /// `lhs <<= rhs`
+  ShiftLeftAssign(Expr, Expr),
+
+  /// `lhs >>= rhs`
+  ShiftRightAssign(Expr, Expr),
+
+  /// `lhs &= rhs`
+  BitAndAssign(Expr, Expr),
+
+  /// `lhs |= rhs`
+  BitOrAssign(Expr, Expr),
+
+  /// `lhs ^= rhs`
+  BitXorAssign(Expr, Expr),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -256,7 +286,6 @@ pub struct ExprBinOp {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinOpKind {
-  Assign,
   Call,
   Add,
   Sub,
