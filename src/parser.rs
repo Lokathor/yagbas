@@ -16,6 +16,7 @@ pub struct YagParserState {
 }
 
 pub type YagParserInput<'src> = MappedInput<
+  'src,
   TokenTree,
   Span32,
   &'src [(TokenTree, Span32)],

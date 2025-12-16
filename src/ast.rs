@@ -348,7 +348,7 @@ pub fn items_of<'src>(
 
   let item_parser = item_p().repeated().collect::<Vec<_>>();
 
-  let (opt_out, errors) = item_parser
+  let (opt_out, errors): (Option<Vec<AstItem>>, Vec<_>) = item_parser
     .parse_with_state(
       Input::map(trees, eoi, |(tk, span)| (tk, span)),
       &mut simple_state,
