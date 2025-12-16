@@ -734,3 +734,21 @@ fn test_struct_p() {
     }
   )
 }
+
+#[test]
+fn test_statement_p_assign() {
+  assert_eq!(
+    do_parse!(statement_p(), "a = true"),
+    Statement {
+      attribues: None,
+      span: span32(0, 8),
+      kind: Box::new(StatementKind::Assign(
+        Expr {
+          span: span32(0, 1),
+          kind: Box::new(ExprKind::Ident(str_id("a")))
+        },
+        Expr { span: span32(4, 8), kind: Box::new(ExprKind::Bool(true)) }
+      ))
+    }
+  );
+}
