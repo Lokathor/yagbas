@@ -14,7 +14,7 @@ struct Obj {
   attrs: ObjAttrs,
 }
 
-bitstruct ObjAttrs {
+bitbag ObjAttrs {
   cgb_palette: 0-2,
   cgb_tile_bank: 3,
   dmg_pal_1: 4,
