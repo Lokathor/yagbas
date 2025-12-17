@@ -821,7 +821,7 @@ fn define_statement_parser<'b, 'src: 'b>(
     };
     attributes.then(kind).map_with(|(the_attributes, kind), ex| Statement {
       span: ex.span(),
-      attribues: if the_attributes.is_empty() {
+      attributes: if the_attributes.is_empty() {
         None
       } else {
         Some(Box::new(the_attributes))
@@ -1035,6 +1035,16 @@ pub fn function_p<'src>() -> impl YagParser<'src, AstItem> {
       name_span,
       ty,
     });
+  let statement_recovery = attributes_p()
+    .or_not()
+    .then_ignore(none_of(Lone(Semicolon)).repeated())
+    .then_ignore(just(Lone(Semicolon)))
+    .map_with(|attributes, ex| Statement {
+      attributes: attributes.map(|a| Box::new(a)),
+      kind: Box::new(StatementKind::StatementKindError),
+      span: ex.span(),
+    });
+
   attributes_p()
     .then_ignore(kw_fn_p())
     .then(spanned_ident_p())
@@ -1053,6 +1063,7 @@ pub fn function_p<'src>() -> impl YagParser<'src, AstItem> {
     )
     .then(
       statement_p()
+        .recover_with(via_parser(statement_recovery))
         .repeated()
         .collect::<Vec<_>>()
         .then(expr_p().or_not())
@@ -1105,4 +1116,43 @@ pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
   })
   .labelled("type_name")
   .as_context()
+}
+
+pub fn items_of<'src>(
+  trees: &'src [(TokenTree, Span32)], yag_state: YagParserState,
+) -> (Vec<AstItem>, Vec<Rich<'src, TokenTree, Span32>>) {
+  let eoi: Span32 = match trees.last() {
+    Some(s) => s.1,
+    None => return (Vec::new(), Vec::new()),
+  };
+  let mut simple_state = SimpleState(yag_state);
+
+  let item_keywords =
+    [Lone(KwBitbag), Lone(KwStruct), Lone(KwConst), Lone(KwStatic), Lone(KwFn)];
+  let recovery = attributes_p()
+    .then(
+      one_of(item_keywords.clone())
+        .then(none_of(item_keywords.clone()).repeated())
+        .ignored(),
+    )
+    .map_with(|(attributes, ()), ex| AstItem {
+      file_id: ex.state().file_id,
+      attributes,
+      name: StrID::default(),
+      name_span: ex.span(),
+      span: ex.span(),
+      kind: AstItemKind::ItemKindError,
+    });
+
+  let items_parser =
+    item_p().recover_with(via_parser(recovery)).repeated().collect::<Vec<_>>();
+
+  let (opt_out, errors): (Option<Vec<AstItem>>, Vec<_>) = items_parser
+    .parse_with_state(
+      Input::map(trees, eoi, |(tk, span)| (tk, span)),
+      &mut simple_state,
+    )
+    .into_output_errors();
+
+  (opt_out.unwrap_or_default(), errors)
 }
