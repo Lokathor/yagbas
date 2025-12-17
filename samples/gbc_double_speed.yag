@@ -1,5 +1,5 @@
-#![cart(gbc_compatible)]
 
+#[cart(gbc_compatible)]
 fn main() {
   let x = *KEY1;
   if !x.7 {

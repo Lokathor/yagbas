@@ -216,6 +216,13 @@ pub fn punct_ampersand_p<'src>() -> impl YagParser<'src, ()> {
   .labelled("`&`")
   .as_context()
 }
+pub fn punct_backtick_p<'src>() -> impl YagParser<'src, ()> {
+  select! {
+    Lone(Backtick) => ()
+  }
+  .labelled("backtick")
+  .as_context()
+}
 pub fn punct_caret_p<'src>() -> impl YagParser<'src, ()> {
   select! {
     Lone(Caret) => ()
@@ -416,6 +423,20 @@ pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
   .labelled("number")
   .as_context()
 }
+pub fn str_lit_p<'src>() -> impl YagParser<'src, StrID> {
+  select! {
+    Lone(StrLit) = ex => {
+      let state: &SimpleState<YagParserState> = ex.state();
+      let source: &str = state.source;
+      let span: Span32 = ex.span();
+      let range: Range<usize> = span.start.try_into().unwrap()..span.end.try_into().unwrap();
+      let str_id = StrID::from(&source[range]);
+      str_id
+    }
+  }
+  .labelled("str")
+  .as_context()
+}
 pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
   select! {
     Lone(KwTrue) => true,
@@ -476,6 +497,7 @@ fn define_expression_parser<'b, 'src: 'b>(
         .labelled("statement_body")
         .as_context();
       let num_lit = num_lit_p().map(|lit| ExprKind::NumLit(lit));
+      let str_lit = str_lit_p().map(|lit| ExprKind::StrLit(lit));
       let ident = ident_p().map(|ident| ExprKind::Ident(ident));
       let bool_ = bool_p().map(|b| ExprKind::Bool(b));
       let list = expression_parser
@@ -570,6 +592,7 @@ fn define_expression_parser<'b, 'src: 'b>(
       let loop_using = choice((loop_times, loop_));
       choice((
         num_lit,
+        str_lit,
         ident_using,
         bool_,
         list,
@@ -599,6 +622,9 @@ fn define_expression_parser<'b, 'src: 'b>(
       });
     assert_output_ty::<Expr>(&call_op);
 
+    let index_op = expression_parser.clone().nested_in(brackets_content_p());
+    assert_output_ty::<Expr>(&index_op);
+
     use chumsky::pratt::*;
     let with_pratt = atom.pratt((
       // 3: range operators
@@ -624,6 +650,7 @@ fn define_expression_parser<'b, 'src: 'b>(
       prefix(13, punct_exclamation_p(), prefix_maker!(UnOpKind::Not)),
       prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
       prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
+      prefix(13, punct_backtick_p(), prefix_maker!(UnOpKind::Backtick)),
       // 14: question-mark-operator
       postfix(15, call_op, |lhs, rhs, extras| Expr {
         span: extras.span(),
@@ -631,6 +658,14 @@ fn define_expression_parser<'b, 'src: 'b>(
           lhs,
           rhs,
           kind: BinOpKind::Call,
+        })),
+      }),
+      postfix(15, index_op, |lhs, rhs, extras| Expr {
+        span: extras.span(),
+        kind: Box::new(ExprKind::BinOp(ExprBinOp {
+          lhs,
+          rhs,
+          kind: BinOpKind::Index,
         })),
       }),
       infix(left(16), punct_period_p(), infix_maker!(BinOpKind::Dot)),
@@ -716,6 +751,7 @@ fn define_statement_parser<'b, 'src: 'b>(
         .then_ignore(punct_caret_p().then(punct_equal_p()))
         .then(expression_parser.clone())
         .map(|(l, r)| StatementKind::BitXorAssign(l, r));
+      let expr_stmt = expression_parser.clone().map(StatementKind::ExprStmt);
 
       choice((
         let_,
@@ -730,6 +766,7 @@ fn define_statement_parser<'b, 'src: 'b>(
         bitand_assign,
         bitor_assign,
         bitxor_assign,
+        expr_stmt,
       ))
     };
     attributes.then(kind).map_with(|(the_attributes, kind), ex| Statement {

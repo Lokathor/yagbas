@@ -206,6 +206,8 @@ pub enum StatementKind {
 
   /// `lhs ^= rhs`
   BitXorAssign(Expr, Expr),
+
+  ExprStmt(Expr),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
@@ -220,6 +222,7 @@ pub enum ExprKind {
   ExprKindError,
 
   NumLit(StrID),
+  StrLit(StrID),
   Ident(StrID),
   Bool(bool),
 
@@ -275,6 +278,8 @@ pub enum UnOpKind {
   Ref,
   /// `!x`
   Not,
+  /// ``` `x  ```
+  Backtick,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
