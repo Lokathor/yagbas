@@ -133,7 +133,7 @@ fn test_expr_p_block() {
       kind: Box::new(ExprKind::Block(StatementBody {
         body: vec![Statement {
           span: span32(2, 10),
-          attribues: None,
+          attributes: None,
           kind: Box::new(StatementKind::Assign(
             Expr {
               span: span32(2, 3),
@@ -157,7 +157,7 @@ fn test_expr_p_block() {
         body: vec![
           Statement {
             span: span32(2, 10),
-            attribues: None,
+            attributes: None,
             kind: Box::new(StatementKind::Assign(
               Expr {
                 span: span32(2, 3),
@@ -171,7 +171,7 @@ fn test_expr_p_block() {
           },
           Statement {
             span: span32(12, 21),
-            attribues: None,
+            attributes: None,
             kind: Box::new(StatementKind::Assign(
               Expr {
                 span: span32(12, 13),
@@ -800,7 +800,7 @@ fn test_statement_p_assign() {
   assert_eq!(
     do_parse!(statement_p(), "a = true"),
     Statement {
-      attribues: None,
+      attributes: None,
       span: span32(0, 8),
       kind: Box::new(StatementKind::Assign(
         Expr {

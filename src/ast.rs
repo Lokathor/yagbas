@@ -151,7 +151,7 @@ pub struct Statement {
   pub span: Span32,
   /// most statements have 0 attributes, and there are many statemnts in a
   /// program, so we Option this.
-  pub attribues: Option<Box<Vec<Expr>>>,
+  pub attributes: Option<Box<Vec<Expr>>>,
   pub kind: Box<StatementKind>,
 }
 
@@ -372,25 +372,4 @@ pub struct ExprContinue {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ExprReturn {
   pub value: Option<Expr>,
-}
-
-pub fn items_of<'src>(
-  trees: &'src [(TokenTree, Span32)], yag_state: YagParserState,
-) -> (Vec<AstItem>, Vec<Rich<'src, TokenTree, Span32>>) {
-  let eoi: Span32 = match trees.last() {
-    Some(s) => s.1,
-    None => return (Vec::new(), Vec::new()),
-  };
-  let mut simple_state = SimpleState(yag_state);
-
-  let item_parser = item_p().repeated().collect::<Vec<_>>();
-
-  let (opt_out, errors): (Option<Vec<AstItem>>, Vec<_>) = item_parser
-    .parse_with_state(
-      Input::map(trees, eoi, |(tk, span)| (tk, span)),
-      &mut simple_state,
-    )
-    .into_output_errors();
-
-  (opt_out.unwrap_or_default(), errors)
 }
