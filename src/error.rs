@@ -65,6 +65,10 @@ pub fn print_any_errors() -> bool {
             Label::new(b_span)
               .with_message(format!("while parsing for {pat:?}")),
           );
+        } else {
+          report = report.with_label(
+            Label::new(a_span.clone()).with_message(format!("here")),
+          )
         }
         //
         report.finish().eprint(&mut cache).unwrap();
