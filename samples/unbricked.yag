@@ -129,7 +129,7 @@ fn do_paddle_adjustments() {
 fn get_tile_by_pixel(x: u8, y: u8) -> u16 {
   let tile_x = x / 8;
   let tile_y = y / 8;
-  return $9800 + (tile_y*32) + tile_x
+  return $9800 + (tile_y*32) + tile_x;
 }
 
 /*
