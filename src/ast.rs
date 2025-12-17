@@ -320,7 +320,14 @@ pub struct ExprMacro {
 pub struct ExprStructLit {
   pub ty: StrID,
   pub ty_span: Span32,
-  pub args: Vec<Expr>,
+  pub args: Vec<StructLitFieldInitKind>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum StructLitFieldInitKind {
+  StructLitFieldSetKindError,
+  Assign(StrID, Span32, Expr),
+  Activated(StrID, Span32),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]

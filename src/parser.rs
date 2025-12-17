@@ -501,12 +501,20 @@ fn define_expression_parser<'b, 'src: 'b>(
         });
       let struct_lit = spanned_ident_p()
         .then(
-          expression_parser
-            .clone()
-            .separated_by(punct_comma_p())
-            .allow_trailing()
-            .collect::<Vec<_>>()
-            .nested_in(braces_content_p()),
+          choice((
+            spanned_ident_p()
+              .then_ignore(punct_equal_p())
+              .then(expression_parser.clone())
+              .map(|((f, f_span), xpr)| {
+                StructLitFieldInitKind::Assign(f, f_span, xpr)
+              }),
+            spanned_ident_p()
+              .map(|(f, f_span)| StructLitFieldInitKind::Activated(f, f_span)),
+          ))
+          .separated_by(punct_comma_p())
+          .allow_trailing()
+          .collect::<Vec<_>>()
+          .nested_in(braces_content_p()),
         )
         .map(|((ty, ty_span), args)| {
           ExprKind::StructLit(ExprStructLit { ty, ty_span, args })

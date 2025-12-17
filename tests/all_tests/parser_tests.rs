@@ -256,10 +256,10 @@ fn test_expr_p_struct_lit() {
       kind: Box::new(ExprKind::StructLit(ExprStructLit {
         ty: str_id("LcdCtrl"),
         ty_span: span32(0, 7),
-        args: vec![Expr {
-          span: span32(10, 17),
-          kind: Box::new(ExprKind::Ident(str_id("enabled")))
-        }]
+        args: vec![StructLitFieldInitKind::Activated(
+          str_id("enabled"),
+          span32(10, 17)
+        )]
       }))
     }
   );
@@ -270,10 +270,28 @@ fn test_expr_p_struct_lit() {
       kind: Box::new(ExprKind::StructLit(ExprStructLit {
         ty: str_id("LcdCtrl"),
         ty_span: span32(0, 7),
-        args: vec![Expr {
-          span: span32(10, 17),
-          kind: Box::new(ExprKind::Ident(str_id("enabled")))
-        }]
+        args: vec![StructLitFieldInitKind::Activated(
+          str_id("enabled"),
+          span32(10, 17)
+        )]
+      }))
+    }
+  );
+  assert_eq!(
+    do_parse!(expr_p(), "Palette { i0 = 1 }"),
+    Expr {
+      span: span32(0, 18),
+      kind: Box::new(ExprKind::StructLit(ExprStructLit {
+        ty: str_id("Palette"),
+        ty_span: span32(0, 7),
+        args: vec![StructLitFieldInitKind::Assign(
+          str_id("i0"),
+          span32(10, 12),
+          Expr {
+            span: span32(15, 16),
+            kind: Box::new(ExprKind::NumLit(str_id("1")))
+          }
+        )]
       }))
     }
   );
