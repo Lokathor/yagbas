@@ -26,6 +26,9 @@ pub type YagParserInput<'src> = MappedInput<
 pub type YagParserExtra<'src> =
   Full<Rich<'src, TokenTree, Span32>, SimpleState<YagParserState>, ()>;
 
+type YagRecursive<'b, 'src, T> =
+  Recursive<Indirect<'src, 'b, YagParserInput<'src>, T, YagParserExtra<'src>>>;
+
 fn mapper<'src>(
   (tt, span): &'src (TokenTree, Span32),
 ) -> (&'src TokenTree, &'src Span32) {
@@ -469,9 +472,6 @@ macro_rules! prefix_maker {
     }
   };
 }
-
-type YagRecursive<'b, 'src, T> =
-  Recursive<Indirect<'src, 'b, YagParserInput<'src>, T, YagParserExtra<'src>>>;
 
 fn define_expression_parser<'b, 'src: 'b>(
   expression_parser: &mut YagRecursive<'b, 'src, Expr>,
