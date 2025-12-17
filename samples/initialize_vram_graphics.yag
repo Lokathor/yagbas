@@ -1,5 +1,5 @@
 
-static GraphicTiles: Tile = {
+static rom GraphicTiles: Tile = [
   $00,7e,
   $00,81,
   $24,a5,
@@ -8,7 +8,7 @@ static GraphicTiles: Tile = {
   $24,81,
   $18,81,
   $00,7e,
-}
+];
 
 fn main() {
   disable_lcd();

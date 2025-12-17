@@ -7,7 +7,7 @@ https://github.com/tbsp/simple-gb-asm-examples/blob/master/src/background-fullsc
 #[hram]
 static ram VBlankDone: u8 = 0;
 
-static TileData: [Tile; _] = include_png_tiles!("starry-night-tiles.png");
+static rom TileData: [Tile; _] = include_png_tiles!("starry-night-tiles.png");
 
 #[irq_handler]
 fn vblank_vector() {

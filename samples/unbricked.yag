@@ -10,9 +10,9 @@ const PADDLE_INDEX: u8 = 0;
 const BALL_INDEX: u8 = 1;
 
 #[location($9870)]
-static mmio SCORE_TENS: u8 = 0;
+static mmio SCORE_TENS: u8;
 #[location($9871)]
-static mmio SCORE_ONES: u8 = 0;
+static mmio SCORE_ONES: u8;
 
 static ram BallMomentumX: i8 = 1;
 static ram BallMomentumY: i8 = -1;
