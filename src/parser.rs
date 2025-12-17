@@ -467,7 +467,8 @@ fn define_expression_parser<'b, 'src: 'b>(
     let atom = {
       let statement_body_p = statement_parser
         .clone()
-        .separated_by(punct_semicolon_p())
+        .then_ignore(punct_semicolon_p())
+        .repeated()
         .collect::<Vec<_>>()
         .then(expression_parser.clone().or_not())
         .nested_in(braces_content_p())
@@ -957,7 +958,8 @@ pub fn function_p<'src>() -> impl YagParser<'src, AstItem> {
     )
     .then(
       statement_p()
-        .separated_by(punct_semicolon_p())
+        .then_ignore(punct_semicolon_p())
+        .repeated()
         .collect::<Vec<_>>()
         .then(expr_p().or_not())
         .nested_in(braces_content_p())

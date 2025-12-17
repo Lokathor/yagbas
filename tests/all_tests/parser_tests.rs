@@ -129,20 +129,62 @@ fn test_expr_p_block() {
   assert_eq!(
     do_parse!(expr_p(), "{ a = true; false }"),
     Expr {
-      span: span32(0, 15),
+      span: span32(0, 19),
       kind: Box::new(ExprKind::Block(StatementBody {
-        body: vec![],
-        last_expr: None
+        body: vec![Statement {
+          span: span32(2, 10),
+          attribues: None,
+          kind: Box::new(StatementKind::Assign(
+            Expr {
+              span: span32(2, 3),
+              kind: Box::new(ExprKind::Ident(str_id("a")))
+            },
+            Expr { span: span32(6, 10), kind: Box::new(ExprKind::Bool(true)) }
+          ))
+        }],
+        last_expr: Some(Expr {
+          span: span32(12, 17),
+          kind: Box::new(ExprKind::Bool(false))
+        })
       }))
     }
   );
   assert_eq!(
-    do_parse!(expr_p(), "{ true; false; }"),
+    do_parse!(expr_p(), "{ a = true; b = false; }"),
     Expr {
-      span: span32(0, 16),
+      span: span32(0, 24),
       kind: Box::new(ExprKind::Block(StatementBody {
-        body: vec![],
-        last_expr: None
+        body: vec![
+          Statement {
+            span: span32(2, 10),
+            attribues: None,
+            kind: Box::new(StatementKind::Assign(
+              Expr {
+                span: span32(2, 3),
+                kind: Box::new(ExprKind::Ident(str_id("a")))
+              },
+              Expr {
+                span: span32(6, 10),
+                kind: Box::new(ExprKind::Bool(true))
+              }
+            ))
+          },
+          Statement {
+            span: span32(12, 21),
+            attribues: None,
+            kind: Box::new(StatementKind::Assign(
+              Expr {
+                span: span32(12, 13),
+                kind: Box::new(ExprKind::Ident(str_id("b")))
+              },
+              Expr {
+                span: span32(16, 21),
+                kind: Box::new(ExprKind::Bool(false))
+              }
+            ))
+          }
+        ],
+        last_expr: None,
       }))
     }
   );
