@@ -168,43 +168,43 @@ pub enum StatementKind {
   #[default]
   StatementKindError,
 
-  /// `let varname: vartype`
+  /// `let varname: vartype;`
   Let(StrID, Option<TypeName>),
 
   /// `let varname: vartype = expr;`
   LetAssign(StrID, Option<TypeName>, Expr),
 
-  /// `lhs = rhs`
+  /// `lhs = rhs;`
   Assign(Expr, Expr),
 
-  /// `lhs += rhs`
+  /// `lhs += rhs;`
   AddAssign(Expr, Expr),
 
-  /// `lhs -= rhs`
+  /// `lhs -= rhs;`
   SubAssign(Expr, Expr),
 
-  /// `lhs *= rhs`
+  /// `lhs *= rhs;`
   MulAssign(Expr, Expr),
 
-  /// `lhs /= rhs`
+  /// `lhs /= rhs;`
   DivAssign(Expr, Expr),
 
-  /// `lhs %= rhs`
+  /// `lhs %= rhs;`
   ModAssign(Expr, Expr),
 
-  /// `lhs <<= rhs`
+  /// `lhs <<= rhs;`
   ShiftLeftAssign(Expr, Expr),
 
-  /// `lhs >>= rhs`
+  /// `lhs >>= rhs;`
   ShiftRightAssign(Expr, Expr),
 
-  /// `lhs &= rhs`
+  /// `lhs &= rhs;`
   BitAndAssign(Expr, Expr),
 
-  /// `lhs |= rhs`
+  /// `lhs |= rhs;`
   BitOrAssign(Expr, Expr),
 
-  /// `lhs ^= rhs`
+  /// `lhs ^= rhs;`
   BitXorAssign(Expr, Expr),
 
   ExprStmt(Expr),
@@ -227,13 +227,9 @@ pub enum ExprKind {
   Bool(bool),
 
   /// `[ ... , ... , ... ]`
-  ///
-  /// square brackets around sub-expressions that forms a series of elements.
   List(Vec<Expr>),
 
   /// `{ ... ; ... ; ... }`
-  ///
-  /// braces around a series of statements.
   Block(StatementBody),
 
   Macro(ExprMacro),

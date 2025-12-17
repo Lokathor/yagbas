@@ -692,6 +692,7 @@ fn define_statement_parser<'b, 'src: 'b>(
         .ignore_then(ident_p())
         .then(punct_colon_p().ignore_then(type_name_p()).or_not())
         .then(punct_equal_p().ignore_then(expression_parser.clone()).or_not())
+        .then_ignore(punct_semicolon_p())
         .map(|((varname, opt_ty), opt_init)| match opt_init {
           Some(init) => StatementKind::LetAssign(varname, opt_ty, init),
           None => StatementKind::Let(varname, opt_ty),
@@ -700,58 +701,106 @@ fn define_statement_parser<'b, 'src: 'b>(
         .clone()
         .then_ignore(punct_equal_p())
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::Assign(l, r));
       let add_assign = expression_parser
         .clone()
         .then_ignore(punct_plus_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::AddAssign(l, r));
       let sub_assign = expression_parser
         .clone()
         .then_ignore(punct_minus_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::SubAssign(l, r));
       let mul_assign = expression_parser
         .clone()
         .then_ignore(punct_asterisk_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::MulAssign(l, r));
       let div_assign = expression_parser
         .clone()
         .then_ignore(punct_slash_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::DivAssign(l, r));
       let mod_assign = expression_parser
         .clone()
         .then_ignore(punct_percent_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::ModAssign(l, r));
       let shl_assign = expression_parser
         .clone()
         .then_ignore(shl_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::ShiftLeftAssign(l, r));
       let shr_assign = expression_parser
         .clone()
         .then_ignore(shr_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::ShiftRightAssign(l, r));
       let bitand_assign = expression_parser
         .clone()
         .then_ignore(punct_ampersand_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::BitAndAssign(l, r));
       let bitor_assign = expression_parser
         .clone()
         .then_ignore(punct_pipe_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::BitOrAssign(l, r));
       let bitxor_assign = expression_parser
         .clone()
         .then_ignore(punct_caret_p().then(punct_equal_p()))
         .then(expression_parser.clone())
+        .then_ignore(punct_semicolon_p())
         .map(|(l, r)| StatementKind::BitXorAssign(l, r));
-      let expr_stmt = expression_parser.clone().map(StatementKind::ExprStmt);
+      //
+
+      let statement_body_p = statement_parser
+        .clone()
+        .then_ignore(punct_semicolon_p())
+        .repeated()
+        .collect::<Vec<_>>()
+        .then(expression_parser.clone().or_not())
+        .nested_in(braces_content_p())
+        .map(|(body, last_expr)| StatementBody { body, last_expr })
+        .labelled("statement_body2")
+        .as_context();
+      let times_kw = StrID::from("times");
+      let loop_times = punct_quote_p()
+        .ignore_then(spanned_ident_p())
+        .then_ignore(punct_colon_p())
+        .or_not()
+        .then_ignore(kw_loop_p())
+        .then(choice((ident_p(), num_lit_p())).map_with(|i, ex| (i, ex.span())))
+        .then_ignore(ident_p().filter(move |str_id| *str_id == times_kw))
+        .then(statement_body_p.clone())
+        .map_with(|((name, (times, times_span)), steps), ex| {
+          StatementKind::ExprStmt(Expr {
+            span: ex.span(),
+            kind: Box::new(ExprKind::LoopTimes(ExprLoopTimes {
+              name,
+              times,
+              times_span,
+              steps,
+            })),
+          })
+        })
+        .labelled("loop_times_statement")
+        .as_context();
+      let expr_stmt = expression_parser
+        .clone()
+        .then_ignore(punct_semicolon_p())
+        .map(StatementKind::ExprStmt);
 
       choice((
         let_,
@@ -766,6 +815,7 @@ fn define_statement_parser<'b, 'src: 'b>(
         bitand_assign,
         bitor_assign,
         bitxor_assign,
+        loop_times,
         expr_stmt,
       ))
     };
@@ -1003,7 +1053,6 @@ pub fn function_p<'src>() -> impl YagParser<'src, AstItem> {
     )
     .then(
       statement_p()
-        .then_ignore(punct_semicolon_p())
         .repeated()
         .collect::<Vec<_>>()
         .then(expr_p().or_not())
