@@ -47,10 +47,10 @@ pub use token::*;
 pub mod token_tree;
 pub use token_tree::*;
 
-pub mod parser;
-pub use parser::*;
-
 pub mod ast;
 pub use ast::*;
+
+pub mod parser;
+pub use parser::*;
 
 pub type Span32 = SimpleSpan<u32>;
