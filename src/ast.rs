@@ -89,18 +89,16 @@ pub struct Statement {
   pub span: Span32,
   // Note(Lokathor): most statements have 0 attributes, and there are many
   // statemnts in a program, so we `Option<Box<_>>` these.
-  pub attributes: Option<Box<Vec<Expr>>>,
+  pub attributes: Option<Box<Vec<Attribute>>>,
   pub kind: Box<StatementKind>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum StatementKind {
   StatementKindError,
-  Let(StrID, Option<TypeName>),
-  LetInit(StrID, Option<TypeName>, Expr),
+  Let(StrID, Span32, Option<TypeName>, Option<Expr>),
   Assign(Expr, Expr),
   BinOpAssign(Expr, BinOpKind, Expr),
-  Expr(Expr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
