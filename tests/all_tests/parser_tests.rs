@@ -77,3 +77,35 @@ fn test_bin_op_assign_statements() {
     }",
   );
 }
+
+#[test]
+fn test_if_statements() {
+  assert_no_parse_errors(
+    "fn foo() {
+      if a {}
+      if a {} else {}
+      if a {};
+      if a {} else {};
+      if a {
+        let x = 1 + 2;
+        //4
+      }
+    }",
+  );
+}
+
+#[test]
+fn test_loop_statements() {
+  assert_no_parse_errors(
+    "fn foo() {
+      loop {}
+      loop {};
+      'named: loop {}
+      'named: loop {};
+      loop 3 times {}
+      loop 3 times {};
+      loop count times {}
+      loop count times {};
+    }",
+  );
+}

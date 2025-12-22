@@ -99,6 +99,8 @@ pub enum StatementKind {
   Let(StrID, Span32, Option<TypeName>, Option<Expr>),
   Assign(Expr, Expr),
   BinOpAssign(Expr, BinOpKind, Expr),
+  IfElse(IfElseInfo),
+  Loop(LoopInfo),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
