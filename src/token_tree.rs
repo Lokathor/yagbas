@@ -108,7 +108,7 @@ where
 
     // comments get stripped from the output.
     let comment = {
-      let lone = lone_comment_p();
+      let line_comment = line_comment_p();
       // Looks like `/* ... */`
       let block_comment = tokens
         .clone()
@@ -116,7 +116,7 @@ where
         .delimited_by(open_comment_p(), close_comment_p())
         .ignored();
 
-      lone.or(block_comment)
+      choice((line_comment, block_comment))
     };
 
     let x =
@@ -251,7 +251,7 @@ where
 }
 
 /// Parses any individual comment token, which is then discarded.
-fn lone_comment_p<'src, I>()
+fn line_comment_p<'src, I>()
 -> impl Parser<'src, I, (), Err<Rich<'src, Token, Span32>>> + Clone
 where
   I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
@@ -261,6 +261,6 @@ where
     Token::DocComment => (),
     Token::InteriorComment => (),
   }
-  .labelled("`//`")
+  .labelled("line_comment")
   .as_context()
 }

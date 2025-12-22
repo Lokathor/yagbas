@@ -31,6 +31,14 @@ fn test_empty_fn() {
   assert_no_parse_errors("fn foo() {}");
 }
 #[test]
+fn test_just_comment_fn() {
+  assert_no_parse_errors(
+    "fn foo() {
+      //
+    }",
+  );
+}
+#[test]
 fn test_let_statements() {
   assert_no_parse_errors(
     "fn foo() {
@@ -124,6 +132,18 @@ fn test_lib_std_memcpy() {
         dst += 1;
         src += 1;
       }
+    }",
+  );
+}
+#[test]
+fn test_setup_interrupts() {
+  assert_no_parse_errors(
+    "fn setup_vblank_and_stat_interrupts() {
+      *STAT = LcdStatus { lyc_eq_ly_irq };
+      *LYC = 96;
+      *IE = Interrupts { vblank, stat };
+      *IF = Interrupts {};
+      enable_interrupts!();
     }",
   );
 }
