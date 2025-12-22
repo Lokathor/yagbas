@@ -230,5 +230,5 @@ pub struct AstStruct {
 pub struct AstBitbag {
   pub name: StrID,
   pub name_span: StrID,
-  pub fields: Vec<(StrID, Span32, Expr)>,
+  pub fields: Vec<Option<(StrID, Span32, Expr)>>,
 }
