@@ -127,6 +127,7 @@ pub enum ExprKind {
   IfElse(IfElseInfo),
   Break(Option<(StrID, Span32)>, Option<Expr>),
   Continue(Option<(StrID, Span32)>),
+  Return(Option<Expr>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -165,8 +166,6 @@ pub enum UnOpKind {
   Ref,
   /// `!x`
   Not,
-  /// `return x`
-  Return,
   /// ``` `x  ```
   Backtick,
 }

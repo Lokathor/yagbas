@@ -148,6 +148,20 @@ fn test_setup_interrupts() {
   );
 }
 #[test]
+fn test_wait_for_vblank() {
+  assert_no_parse_errors(
+    "fn wait_vblank() {
+      *VBlankDone = 0;
+      loop {
+        halt!();
+        if *VBlankDone != 0 {
+          return
+        }
+      }
+    }",
+  );
+}
+#[test]
 fn test_lib_std_get_keys_pressed() {
   assert_no_parse_errors(
     "fn get_keys_pressed() -> KeysPressed {

@@ -473,6 +473,9 @@ fn define_expr_p<'b, 'src: 'b>(
       .ignore_then(punct_quote_p().ignore_then(spanned_ident_p()).or_not())
       .then(expr_p.clone().or_not())
       .map(|(target, value)| ExprKind::Break(target, value));
+    let return_kind = kw_return_p()
+      .ignore_then(expr_p.clone().or_not())
+      .map(|value| ExprKind::Return(value));
 
     let ident_choice = if include_struct_lit {
       choice((struct_lit_kind, macro_kind, ident_kind)).boxed()
@@ -490,6 +493,7 @@ fn define_expr_p<'b, 'src: 'b>(
       loop_kind,
       continue_kind,
       break_kind,
+      return_kind,
     ))
     .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
     .or(expr_p.clone().nested_in(parens_content_p()))
@@ -509,7 +513,6 @@ fn define_expr_p<'b, 'src: 'b>(
 
   use chumsky::pratt::*;
   let with_pratt = atom.pratt((
-    prefix(1, kw_return_p(), prefix_maker!(UnOpKind::Return)),
     // 2: assignments
     // 3: range operators
     infix(left(4), short_circuit_or_p(), infix_maker!(BinOpKind::BoolOr)),
