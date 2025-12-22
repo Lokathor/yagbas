@@ -88,7 +88,7 @@ fn test_if_statements() {
       if a {} else {};
       if a {
         let x = 1 + 2;
-        //4
+        4
       }
     }",
   );
@@ -106,6 +106,7 @@ fn test_loop_statements() {
       loop 3 times {};
       loop count times {}
       loop count times {};
+      loop if FOO { 4 } else { 3 } times {}
     }",
   );
 }

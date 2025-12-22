@@ -117,6 +117,10 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
   });
 
   statement_p.define({
+    let let_recovery = kw_let_p()
+      .ignore_then(none_of([Lone(Token::Semicolon)]).repeated())
+      .ignore_then(punct_semicolon_p())
+      .to(StatementKind::StatementKindError);
     let let_kind = kw_let_p()
       .ignore_then(spanned_ident_p())
       .then(punct_colon_p().ignore_then(type_name_p()).or_not())
@@ -124,37 +128,47 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .then_ignore(punct_semicolon_p().repeated().at_least(1))
       .map(|(((name, name_span), opt_ty), opt_init)| {
         StatementKind::Let(name, name_span, opt_ty, opt_init)
-      });
+      })
+      .recover_with(via_parser(let_recovery))
+      .labelled("let_statement")
+      .as_context();
     let assign_kind = expr_p
       .clone()
       .then_ignore(punct_equal_p())
       .then(expr_p.clone())
       .then_ignore(punct_semicolon_p().repeated().at_least(1))
-      .map(|(lhs, rhs)| StatementKind::Assign(lhs, rhs));
+      .map(|(lhs, rhs)| StatementKind::Assign(lhs, rhs))
+      .labelled("assignment_statement")
+      .as_context();
     let bin_op_kind = expr_p
       .clone()
       .then(bin_op_assign_p())
       .then(expr_p.clone())
       .then_ignore(punct_semicolon_p().repeated().at_least(1))
-      .map(|((lhs, bin), rhs)| StatementKind::BinOpAssign(lhs, bin, rhs));
+      .map(|((lhs, bin), rhs)| StatementKind::BinOpAssign(lhs, bin, rhs))
+      .labelled("bin_op_assign_statement")
+      .as_context();
     let if_else_kind = if_else_info_p
       .clone()
       .map(StatementKind::IfElse)
-      .then_ignore(punct_semicolon_p().repeated());
+      .then_ignore(punct_semicolon_p().repeated())
+      .labelled("if_statement")
+      .as_context();
     let loop_kind = loop_info_p
       .clone()
       .map(StatementKind::Loop)
-      .then_ignore(punct_semicolon_p().repeated());
-    let statement_recovery = via_parser(
-      any().repeated().at_least(1).to(StatementKind::StatementKindError),
-    );
-
+      .then_ignore(punct_semicolon_p().repeated())
+      .labelled("loop_statement")
+      .as_context();
     attributes_p
       .clone()
-      .then(
-        choice((let_kind, assign_kind, bin_op_kind, if_else_kind, loop_kind))
-          .recover_with(statement_recovery),
-      )
+      .then(choice((
+        let_kind,
+        assign_kind,
+        bin_op_kind,
+        if_else_kind,
+        loop_kind,
+      )))
       .map_with(|(attributes, kind), ex| Statement {
         attributes: if attributes.is_empty() {
           None
