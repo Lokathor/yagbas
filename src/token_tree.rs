@@ -75,37 +75,6 @@ where
   I: BorrowInput<'src, Token = Token, Span = Span32> + ValueInput<'src>,
 {
   recursive(|tokens| {
-    // Looks like `{ ... }`
-    let braces = tokens
-      .clone()
-      .repeated()
-      .collect::<Vec<_>>()
-      .delimited_by(open_brace_p(), close_brace_p())
-      .map_with(|out, ex| (TokenTree::Braces(Box::new(out)), ex.span()));
-
-    // Looks like `[ ... ]`
-    let brackets = tokens
-      .clone()
-      .repeated()
-      .collect::<Vec<_>>()
-      .delimited_by(open_bracket_p(), close_bracket_p())
-      .map_with(|out, ex| (TokenTree::Brackets(Box::new(out)), ex.span()));
-
-    // Looks like `( ... )`
-    let parens = tokens
-      .clone()
-      .repeated()
-      .collect::<Vec<_>>()
-      .delimited_by(open_paren_p(), close_paren_p())
-      .map_with(|out, ex| (TokenTree::Parens(Box::new(out)), ex.span()));
-
-    // Looks like something that does *NOT* open or close one of the other
-    // types.
-    let lone =
-      non_tree_token_p().map_with(|out, ex| (TokenTree::Lone(out), ex.span()));
-
-    assert_output::<(TokenTree, Span32), _, _, _>(&lone);
-
     // comments get stripped from the output.
     let comment = {
       let line_comment = line_comment_p();
@@ -119,8 +88,42 @@ where
       choice((line_comment, block_comment))
     };
 
-    let x =
-      choice((brackets, braces, parens, lone)).padded_by(comment.repeated());
+    // Looks like `{ ... }`
+    let braces = tokens
+      .clone()
+      .repeated()
+      .collect::<Vec<_>>()
+      .then_ignore(comment.clone().repeated())
+      .delimited_by(open_brace_p(), close_brace_p())
+      .map_with(|out, ex| (TokenTree::Braces(Box::new(out)), ex.span()));
+
+    // Looks like `[ ... ]`
+    let brackets = tokens
+      .clone()
+      .repeated()
+      .collect::<Vec<_>>()
+      .then_ignore(comment.clone().repeated())
+      .delimited_by(open_bracket_p(), close_bracket_p())
+      .map_with(|out, ex| (TokenTree::Brackets(Box::new(out)), ex.span()));
+
+    // Looks like `( ... )`
+    let parens = tokens
+      .clone()
+      .repeated()
+      .collect::<Vec<_>>()
+      .then_ignore(comment.clone().repeated())
+      .delimited_by(open_paren_p(), close_paren_p())
+      .map_with(|out, ex| (TokenTree::Parens(Box::new(out)), ex.span()));
+
+    // Looks like something that does *NOT* open or close one of the other
+    // types.
+    let lone =
+      non_tree_token_p().map_with(|out, ex| (TokenTree::Lone(out), ex.span()));
+
+    assert_output::<(TokenTree, Span32), _, _, _>(&lone);
+
+    let x = choice((brackets, braces, parens, lone))
+      .padded_by(comment.clone().repeated());
 
     x
   })
