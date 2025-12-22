@@ -222,8 +222,8 @@ pub enum StaticKind {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AstStruct {
   pub name: StrID,
-  pub name_span: StrID,
-  pub fields: Vec<(StrID, Span32, TypeName)>,
+  pub name_span: Span32,
+  pub fields: Vec<Option<(StrID, Span32, TypeName)>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
