@@ -273,6 +273,34 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
         attributes,
         kind: AstItemKind::Bitbag(AstBitbag { name, name_span, fields }),
       })
+      .labelled("bitbag")
+      .as_context()
+  };
+  let ast_struct_p = {
+    let one_field = spanned_ident_p()
+      .then_ignore(punct_colon_p())
+      .then(type_name_p())
+      .map(|((name, name_span), ty)| Some((name, name_span, ty)))
+      .labelled("struct_field_definition")
+      .as_context();
+    let fields = one_field
+      .separated_by(punct_comma_p())
+      .allow_trailing()
+      .collect::<Vec<_>>()
+      .nested_in(braces_content_p());
+    attributes_p
+      .clone()
+      .then_ignore(kw_struct_p())
+      .then(spanned_ident_p())
+      .then(fields)
+      .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
+        file_id: ex.state().file_id,
+        span: ex.span(),
+        attributes,
+        kind: AstItemKind::Struct(AstStruct { name, name_span, fields }),
+      })
+      .labelled("struct")
+      .as_context()
   };
   let ast_const_p = {
     attributes_p
@@ -290,11 +318,70 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
         attributes,
         kind: AstItemKind::Const(AstConst { name, name_span, ty, expr }),
       })
+      .labelled("const")
+      .as_context()
+  };
+  let ast_static_p = {
+    let rom_kind = kw_rom_p()
+      .ignore_then(spanned_ident_p())
+      .then_ignore(punct_colon_p())
+      .then(type_name_p())
+      .then_ignore(punct_equal_p())
+      .then(expr_p.clone())
+      .then_ignore(punct_semicolon_p())
+      .map(|(((name, name_span), ty), x)| AstStatic {
+        name,
+        name_span,
+        ty,
+        kind: StaticKind::Rom(x),
+      });
+    let ram_kind = kw_ram_p()
+      .ignore_then(spanned_ident_p())
+      .then_ignore(punct_colon_p())
+      .then(type_name_p())
+      .then_ignore(punct_equal_p())
+      .then(expr_p.clone())
+      .then_ignore(punct_semicolon_p())
+      .map(|(((name, name_span), ty), x)| AstStatic {
+        name,
+        name_span,
+        ty,
+        kind: StaticKind::Ram(x),
+      });
+    let mmio_kind = kw_mmio_p()
+      .ignore_then(spanned_ident_p())
+      .then_ignore(punct_colon_p())
+      .then(type_name_p())
+      .then_ignore(punct_semicolon_p())
+      .map(|((name, name_span), ty)| AstStatic {
+        name,
+        name_span,
+        ty,
+        kind: StaticKind::MMIO,
+      });
+    attributes_p
+      .clone()
+      .then_ignore(kw_static_p())
+      .then(choice((rom_kind, ram_kind, mmio_kind)))
+      .map_with(|(attributes, static_), ex| AstItem {
+        attributes,
+        file_id: ex.state().file_id,
+        span: ex.span(),
+        kind: AstItemKind::Static(static_),
+      })
+      .labelled("static")
+      .as_context()
   };
 
-  choice((ast_function_p, ast_bitbag_p, ast_const_p))
-    .labelled("item")
-    .as_context()
+  choice((
+    ast_function_p,
+    ast_bitbag_p,
+    ast_struct_p,
+    ast_const_p,
+    ast_static_p,
+  ))
+  .labelled("item")
+  .as_context()
 }
 
 fn define_expr_p<'b, 'src: 'b>(
@@ -355,6 +442,10 @@ fn define_expr_p<'b, 'src: 'b>(
     let continue_kind = kw_continue_p()
       .ignore_then(punct_quote_p().ignore_then(spanned_ident_p()).or_not())
       .map(ExprKind::Continue);
+    let break_kind = kw_break_p()
+      .ignore_then(punct_quote_p().ignore_then(spanned_ident_p()).or_not())
+      .then(expr_p.clone().or_not())
+      .map(|(target, value)| ExprKind::Break(target, value));
 
     let ident_choice = if include_struct_lit {
       choice((struct_lit_kind, macro_kind, ident_kind)).boxed()
@@ -371,6 +462,7 @@ fn define_expr_p<'b, 'src: 'b>(
       if_else_kind,
       loop_kind,
       continue_kind,
+      break_kind,
     ))
     .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
     .or(expr_p.clone().nested_in(parens_content_p()))
@@ -390,39 +482,53 @@ fn define_expr_p<'b, 'src: 'b>(
 
   use chumsky::pratt::*;
   let with_pratt = atom.pratt((
+    prefix(1, kw_return_p(), prefix_maker!(UnOpKind::Return)),
+    // 2: assignments
     // 3: range operators
     infix(left(4), short_circuit_or_p(), infix_maker!(BinOpKind::BoolOr)),
     infix(left(5), short_circuit_and_p(), infix_maker!(BinOpKind::BoolAnd)),
-    infix(left(6), cmp_eq_p(), infix_maker!(BinOpKind::Eq)),
-    infix(left(6), cmp_ne_p(), infix_maker!(BinOpKind::Ne)),
-    infix(left(6), cmp_lt_p(), infix_maker!(BinOpKind::Lt)),
-    infix(left(6), cmp_gt_p(), infix_maker!(BinOpKind::Gt)),
-    infix(left(6), cmp_le_p(), infix_maker!(BinOpKind::Le)),
-    infix(left(6), cmp_ge_p(), infix_maker!(BinOpKind::Ge)),
+    (
+      infix(left(6), cmp_eq_p(), infix_maker!(BinOpKind::Eq)),
+      infix(left(6), cmp_ne_p(), infix_maker!(BinOpKind::Ne)),
+      infix(left(6), cmp_lt_p(), infix_maker!(BinOpKind::Lt)),
+      infix(left(6), cmp_gt_p(), infix_maker!(BinOpKind::Gt)),
+      infix(left(6), cmp_le_p(), infix_maker!(BinOpKind::Le)),
+      infix(left(6), cmp_ge_p(), infix_maker!(BinOpKind::Ge)),
+    ),
     infix(left(7), punct_pipe_p(), infix_maker!(BinOpKind::BitOr)),
     infix(left(8), punct_caret_p(), infix_maker!(BinOpKind::BitXor)),
     infix(left(9), punct_ampersand_p(), infix_maker!(BinOpKind::BitAnd)),
-    infix(left(10), shl_p(), infix_maker!(BinOpKind::ShiftLeft)),
-    infix(left(10), shr_p(), infix_maker!(BinOpKind::ShiftRight)),
-    infix(left(11), punct_plus_p(), infix_maker!(BinOpKind::Add)),
-    infix(left(11), punct_minus_p(), infix_maker!(BinOpKind::Sub)),
-    infix(left(12), punct_asterisk_p(), infix_maker!(BinOpKind::Mul)),
-    infix(left(12), punct_slash_p(), infix_maker!(BinOpKind::Div)),
-    infix(left(12), punct_percent_p(), infix_maker!(BinOpKind::Mod)),
-    prefix(13, punct_minus_p(), prefix_maker!(UnOpKind::Neg)),
-    prefix(13, punct_exclamation_p(), prefix_maker!(UnOpKind::Not)),
-    prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
-    prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
-    prefix(13, punct_backtick_p(), prefix_maker!(UnOpKind::Backtick)),
+    (
+      infix(left(10), shl_p(), infix_maker!(BinOpKind::ShiftLeft)),
+      infix(left(10), shr_p(), infix_maker!(BinOpKind::ShiftRight)),
+    ),
+    (
+      infix(left(11), punct_plus_p(), infix_maker!(BinOpKind::Add)),
+      infix(left(11), punct_minus_p(), infix_maker!(BinOpKind::Sub)),
+    ),
+    (
+      infix(left(12), punct_asterisk_p(), infix_maker!(BinOpKind::Mul)),
+      infix(left(12), punct_slash_p(), infix_maker!(BinOpKind::Div)),
+      infix(left(12), punct_percent_p(), infix_maker!(BinOpKind::Mod)),
+    ),
+    (
+      prefix(13, punct_minus_p(), prefix_maker!(UnOpKind::Neg)),
+      prefix(13, punct_exclamation_p(), prefix_maker!(UnOpKind::Not)),
+      prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
+      prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
+      prefix(13, punct_backtick_p(), prefix_maker!(UnOpKind::Backtick)),
+    ),
     // 14: question-mark-operator
-    postfix(15, call_op, |lhs, rhs, extras| Expr {
-      span: extras.span(),
-      kind: Box::new(ExprKind::BinOp(lhs, BinOpKind::Call, rhs)),
-    }),
-    postfix(15, index_op, |lhs, rhs, extras| Expr {
-      span: extras.span(),
-      kind: Box::new(ExprKind::BinOp(lhs, BinOpKind::Index, rhs)),
-    }),
+    (
+      postfix(15, call_op, |lhs, rhs, extras| Expr {
+        span: extras.span(),
+        kind: Box::new(ExprKind::BinOp(lhs, BinOpKind::Call, rhs)),
+      }),
+      postfix(15, index_op, |lhs, rhs, extras| Expr {
+        span: extras.span(),
+        kind: Box::new(ExprKind::BinOp(lhs, BinOpKind::Index, rhs)),
+      }),
+    ),
     infix(left(16), punct_period_p(), infix_maker!(BinOpKind::Dot)),
     // 17: method calls
     // 18: path
