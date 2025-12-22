@@ -155,6 +155,12 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .then_ignore(punct_semicolon_p().repeated())
       .labelled("loop_statement")
       .as_context();
+    let other_expr_kind = expr_p
+      .clone()
+      .map(StatementKind::OtherExpr)
+      .then_ignore(punct_semicolon_p().repeated().at_least(1))
+      .labelled("expr_statement")
+      .as_context();
     let statement_recovery = via_parser(
       none_of([Lone(Token::Semicolon)])
         .repeated()
@@ -164,8 +170,15 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
     attributes_p
       .clone()
       .then(
-        choice((let_kind, assign_kind, bin_op_kind, if_else_kind, loop_kind))
-          .recover_with(statement_recovery),
+        choice((
+          let_kind,
+          assign_kind,
+          bin_op_kind,
+          if_else_kind,
+          loop_kind,
+          other_expr_kind,
+        ))
+        .recover_with(statement_recovery),
       )
       .map_with(|(attributes, kind), ex| Statement {
         attributes: if attributes.is_empty() {
@@ -211,7 +224,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       ))
       .labelled("function_argument")
       .as_context();
-    let fn_args_p = fn_arg_p
+    let fn_args_group_p = fn_arg_p
       .separated_by(punct_comma_p())
       .allow_trailing()
       .collect::<Vec<_>>()
@@ -228,7 +241,7 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .clone()
       .then_ignore(kw_fn_p())
       .then(spanned_ident_p())
-      .then(fn_args_p)
+      .then(fn_args_group_p)
       .then(return_ty_p)
       .then(statement_body_p.clone())
       .map_with(

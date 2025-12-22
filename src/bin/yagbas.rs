@@ -109,7 +109,7 @@ fn load_parse(build_args: &BuildArgs) -> impl Fn(&PathBuf) -> Vec<AstItem> {
   }
 }
 
-//#[test]
+#[test]
 #[allow(dead_code)]
 fn test_parse_all_example_files() -> ExitCode {
   let build_args = BuildArgs::default();

@@ -101,6 +101,7 @@ pub enum StatementKind {
   BinOpAssign(Expr, BinOpKind, Expr),
   IfElse(IfElseInfo),
   Loop(LoopInfo),
+  OtherExpr(Expr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
