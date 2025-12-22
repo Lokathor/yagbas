@@ -250,8 +250,32 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .labelled("function")
       .as_context()
   };
+  let ast_bitbag_p = {
+    let one_field = spanned_ident_p()
+      .then_ignore(punct_colon_p())
+      .then(expr_p.clone())
+      .map(|((name, name_span), x)| Some((name, name_span, x)))
+      .labelled("bitbag_field_definition")
+      .as_context();
+    let fields = one_field
+      .separated_by(punct_comma_p())
+      .allow_trailing()
+      .collect::<Vec<_>>()
+      .nested_in(braces_content_p());
+    attributes_p
+      .clone()
+      .then_ignore(kw_bitbag_p())
+      .then(spanned_ident_p())
+      .then(fields)
+      .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
+        file_id: ex.state().file_id,
+        span: ex.span(),
+        attributes,
+        kind: AstItemKind::Bitbag(AstBitbag { name, name_span, fields }),
+      })
+  };
 
-  choice((ast_function_p,)).labelled("item").as_context()
+  choice((ast_function_p, ast_bitbag_p)).labelled("item").as_context()
 }
 
 fn define_expr_p<'b, 'src: 'b>(

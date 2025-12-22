@@ -115,3 +115,21 @@ fn test_loop_statements() {
     }",
   );
 }
+
+#[test]
+fn test_empty_bitbag() {
+  assert_no_parse_errors("bitbag Foo{}");
+}
+#[test]
+fn test_basic_bitbag() {
+  assert_no_parse_errors(
+    "bitbag ObjAttrs {
+      cgb_palette: 0-2,
+      cgb_tile_bank: 3,
+      dmg_pal_1: 4,
+      x_flip: 5,
+      y_flip: 6,
+      bg_win_priority: 7,
+    }",
+  );
+}

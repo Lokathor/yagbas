@@ -229,6 +229,6 @@ pub struct AstStruct {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AstBitbag {
   pub name: StrID,
-  pub name_span: StrID,
+  pub name_span: Span32,
   pub fields: Vec<Option<(StrID, Span32, Expr)>>,
 }
