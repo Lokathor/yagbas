@@ -133,3 +133,8 @@ fn test_basic_bitbag() {
     }",
   );
 }
+
+#[test]
+fn test_basic_const() {
+  assert_no_parse_errors("const TILEMAP_WIDTH: u8 = 32;");
+}

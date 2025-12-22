@@ -274,8 +274,27 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
         kind: AstItemKind::Bitbag(AstBitbag { name, name_span, fields }),
       })
   };
+  let ast_const_p = {
+    attributes_p
+      .clone()
+      .then_ignore(kw_const_p())
+      .then(spanned_ident_p())
+      .then_ignore(punct_colon_p())
+      .then(type_name_p())
+      .then_ignore(punct_equal_p())
+      .then(expr_p.clone())
+      .then_ignore(punct_semicolon_p())
+      .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
+        file_id: ex.state().file_id,
+        span: ex.span(),
+        attributes,
+        kind: AstItemKind::Const(AstConst { name, name_span, ty, expr }),
+      })
+  };
 
-  choice((ast_function_p, ast_bitbag_p)).labelled("item").as_context()
+  choice((ast_function_p, ast_bitbag_p, ast_const_p))
+    .labelled("item")
+    .as_context()
 }
 
 fn define_expr_p<'b, 'src: 'b>(
