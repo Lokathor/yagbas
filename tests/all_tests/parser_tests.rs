@@ -115,10 +115,48 @@ fn test_loop_statements() {
     }",
   );
 }
+#[test]
+fn test_lib_std_memcpy() {
+  assert_no_parse_errors(
+    "fn memcpy(dst: ptr, src: ptr, count: u16) {
+      loop count times {
+        *dst = *src;
+        dst += 1;
+        src += 1;
+      }
+    }",
+  );
+}
+#[test]
+fn test_lib_std_get_keys_pressed() {
+  assert_no_parse_errors(
+    "fn get_keys_pressed() -> KeysPressed {
+      // set for button reading, then read twice to ensure
+      // the correct data comes in.
+      *P1 = 0b1101_1111;
+      let buttons_released = *P1;
+      let buttons_released = *P1;
+      // switch to reading directions, now we read 8 times
+      // to allow the register signals to fully update.
+      *P1 = 0b1110_1111;
+      let dpad_released;
+      loop 8 times {
+        dpad_released = *P1;
+      }
+      // release the input reading, which saves some power.
+      *P1 = 0b1111_1111;
+      buttons_released |= $F0;
+      dpad_released |= $F0;
+      let all_released = swap!(dpad_released) | buttons_released;
+      let all_pressed = all_released ^ -1;
+      return KeysPressed(all_pressed)
+    }",
+  );
+}
 
 #[test]
 fn test_empty_bitbag() {
-  assert_no_parse_errors("bitbag Foo{}");
+  assert_no_parse_errors("bitbag Foo {}");
 }
 #[test]
 fn test_basic_bitbag() {
@@ -135,6 +173,44 @@ fn test_basic_bitbag() {
 }
 
 #[test]
+fn test_empty_struct() {
+  assert_no_parse_errors("struct Foo {}");
+}
+#[test]
+fn test_basic_struct() {
+  assert_no_parse_errors(
+    "struct Obj {
+      y: u8,
+      x: u8,
+      tile_id: u8,
+      attrs: ObjAttrs,
+    }",
+  );
+}
+
+#[test]
 fn test_basic_const() {
   assert_no_parse_errors("const TILEMAP_WIDTH: u8 = 32;");
+}
+
+#[test]
+fn test_basic_static_rom() {
+  assert_no_parse_errors(
+    "static rom TileData: [Tile; _] = include_png_tiles!(\"starry-night-tiles.png\");",
+  );
+}
+#[test]
+fn test_basic_static_ram() {
+  assert_no_parse_errors("static ram BallMomentumX: i8 = 1;");
+}
+#[test]
+fn test_basic_static_mmio() {
+  assert_no_parse_errors("static mmio LY: u8;");
+}
+#[test]
+fn test_static_with_attribute() {
+  assert_no_parse_errors(
+    "#[location($FF44)]
+    static mmio LY: u8;",
+  );
 }
