@@ -50,6 +50,11 @@ fn test_let_statements() {
   assert_no_parse_errors(
     "fn foo() {
       let x: u8 = 1;
+      let x = if condition {
+        3
+      } else {
+        4
+      };
     }",
   );
 }

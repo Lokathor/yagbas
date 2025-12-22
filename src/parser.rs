@@ -117,10 +117,6 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
   });
 
   statement_p.define({
-    let let_recovery = kw_let_p()
-      .ignore_then(none_of([Lone(Token::Semicolon)]).repeated())
-      .ignore_then(punct_semicolon_p())
-      .to(StatementKind::StatementKindError);
     let let_kind = kw_let_p()
       .ignore_then(spanned_ident_p())
       .then(punct_colon_p().ignore_then(type_name_p()).or_not())
@@ -129,7 +125,6 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .map(|(((name, name_span), opt_ty), opt_init)| {
         StatementKind::Let(name, name_span, opt_ty, opt_init)
       })
-      .recover_with(via_parser(let_recovery))
       .labelled("let_statement")
       .as_context();
     let assign_kind = expr_p
@@ -160,15 +155,18 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .then_ignore(punct_semicolon_p().repeated())
       .labelled("loop_statement")
       .as_context();
+    let statement_recovery = via_parser(
+      none_of([Lone(Token::Semicolon)])
+        .repeated()
+        .then(punct_semicolon_p())
+        .to(StatementKind::StatementKindError),
+    );
     attributes_p
       .clone()
-      .then(choice((
-        let_kind,
-        assign_kind,
-        bin_op_kind,
-        if_else_kind,
-        loop_kind,
-      )))
+      .then(
+        choice((let_kind, assign_kind, bin_op_kind, if_else_kind, loop_kind))
+          .recover_with(statement_recovery),
+      )
       .map_with(|(attributes, kind), ex| Statement {
         attributes: if attributes.is_empty() {
           None
