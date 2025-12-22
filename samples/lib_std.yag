@@ -56,14 +56,14 @@ fn get_keys_pressed() -> KeysPressed {
   dpad_released |= $F0;
   let all_released = swap!(dpad_released) | buttons_released;
   let all_pressed = all_released ^ -1;
-  return KeysPressed(all_pressed);
+  return KeysPressed(all_pressed)
 }
 
 // https://gbdev.io/pandocs/Interrupts.html#ff0f--if-interrupt-flag
 #[location($FF0F)]
 static mmio IF: Interrupts;
 
-bitstruct Interrupts {
+bitbag Interrupts {
   vblank: 0,
   lcd_stat: 1,
   timer: 2,
@@ -74,7 +74,7 @@ bitstruct Interrupts {
 #[location($FF26)]
 static mmio NR52: AudioMain;
 
-bitstruct AudioMain {
+bitbag AudioMain {
   ch1_active: 0,
   ch2_active: 1,
   ch3_active: 2,
@@ -85,7 +85,7 @@ bitstruct AudioMain {
 #[location($FF40)]
 static mmio LCDC: LcdCtrl;
 
-bitstruct LcdCtrl {
+bitbag LcdCtrl {
   bg_win_enabled: 0,
   objects_enabled: 1,
   object16: 2,
@@ -99,7 +99,7 @@ bitstruct LcdCtrl {
 #[location($FF41)]
 static mmio STAT: LcdStatus;
 
-bitstruct LcdStatus {
+bitbag LcdStatus {
   ppu_mode: 0-1,
   lyc_eq_ly_currently: 2,
   mode_0_irq: 3,
@@ -120,7 +120,7 @@ static mmio LY: u8;
 #[location($FF45)]
 static mmio LYC: u8;
 
-const VBLANK_START = 144
+const VBLANK_START: u8 = 144;
 
 // https://gbdev.io/pandocs/OAM_DMA_Transfer.html
 #[location($FF46)]
@@ -130,16 +130,19 @@ static mmio DMA: u8;
 #[location($FF47)]
 static mmio BGP: Palette;
 
-bitstruct Palette {
+bitbag Palette {
   i0: 0-1,
   i1: 2-3,
   i2: 4-5,
   i3: 6-7,
 }
 
-const STANDARD_PALETTE = Palette {
-  i0: 0, i1: 1, i2: 2, i3: 3,
-}
+const STANDARD_PALETTE: Palette = Palette {
+  i0 = 0,
+  i1 = 1,
+  i2 = 2,
+  i3 = 3,
+};
 
 // https://gbdev.io/pandocs/Interrupts.html#ffff--ie-interrupt-enable
 #[location($FFFF)]

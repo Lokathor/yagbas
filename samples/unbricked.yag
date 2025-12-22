@@ -10,9 +10,9 @@ const PADDLE_INDEX: u8 = 0;
 const BALL_INDEX: u8 = 1;
 
 #[location($9870)]
-static mmio SCORE_TENS: u8 = 0;
+static mmio SCORE_TENS: u8;
 #[location($9871)]
-static mmio SCORE_ONES: u8 = 0;
+static mmio SCORE_ONES: u8;
 
 static ram BallMomentumX: i8 = 1;
 static ram BallMomentumY: i8 = -1;
@@ -26,8 +26,8 @@ fn main() {
     if *LY == VBLANK_START {
       *LCDC = LcdCtrl {};
       break
-    }
-  }
+    };
+  };
   memcpy($9000, Tiles, size_of!(Tiles));
   memcpy($9800, Tilemap, size_of!(Tilemap));
   memcpy($8000, Paddle, size_of!(Paddle));
@@ -53,13 +53,13 @@ fn main() {
     'wait_for_vblank: loop {
       if *LY == VBLANK_START {
         break
-      }
-    }
+      };
+    };
     update_input();
     do_paddle_adjustments();
     do_ball_bounces();
     do_ball_momentum();
-  }
+  };
 }
 
 fn do_ball_momentum() {
@@ -75,7 +75,7 @@ fn do_ball_bounces() {
   if is_wall_tile(tile_addr) {
     check_and_handle_brick(tile_addr);
     *BallMomentumY = 1;
-  }
+  };
   
   // bounce on right
   let x = OAM_RAM[BALL_INDEX].x-(8-1);
@@ -84,7 +84,7 @@ fn do_ball_bounces() {
   if is_wall_tile(tile_addr) {
     check_and_handle_brick(tile_addr);
     *BallMomentumX = -1;
-  }
+  };
   
   // bounce on left
   let x = OAM_RAM[BALL_INDEX].x-(8+1);
@@ -93,7 +93,7 @@ fn do_ball_bounces() {
   if is_wall_tile(tile_addr) {
     check_and_handle_brick(tile_addr);
     *BallMomentumX = 1;
-  }
+  };
   
   // bounce on bottom
   let x = OAM_RAM[BALL_INDEX].x-8;
@@ -102,7 +102,7 @@ fn do_ball_bounces() {
   if is_wall_tile(tile_addr) {
     check_and_handle_brick(tile_addr);
     *BallMomentumY = -1;
-  }
+  };
   
   // bounce on paddle
   let paddle_y = OAM_RAM[PADDLE_INDEX].y;
@@ -112,17 +112,19 @@ fn do_ball_bounces() {
     let ball_x = OAM_RAM[BALL_INDEX].x;
     if paddle_x + 16 >= ball_x && paddle_x - 8 < ball_x {
       *wBallMomentumY = -1;
-    }
-  }
+    };
+  };
 }
 
+/*
 fn do_paddle_adjustments() {
   if CurKeys.left && OAM_RAM[PADDLE_INDEX].x != 15 {
     OAM_RAM[PADDLE_INDEX].x -= 1;
   } else if CurKeys.right && OAM_RAM[PADDLE_INDEX].x != 105 {
     OAM_RAM[PADDLE_INDEX].x += 1;
-  }
+  };
 }
+*/
 
 fn get_tile_by_pixel(x: u8, y: u8) -> u16 {
   let tile_x = x / 8;
@@ -130,6 +132,7 @@ fn get_tile_by_pixel(x: u8, y: u8) -> u16 {
   return $9800 + (tile_y*32) + tile_x
 }
 
+/*
 fn is_wall_tile(tile: u8) -> bool {
   if tile == 0 {
     return true
@@ -154,6 +157,7 @@ fn is_wall_tile(tile: u8) -> bool {
   }
   return false
 }
+*/
 
 fn increase_score_packed_bcd() {
   let score = *Score;
@@ -172,6 +176,7 @@ fn update_scoreboard() {
   *SCORE_ONES = low_nibble!(s) + DIGIT_OFFSET;
 }
 
+/*
 fn check_and_handle_brick(tile_addr: ptr) {
   if *tile_addr == BRICK_LEFT {
     *tile_addr = BLANK_TILE;
@@ -183,8 +188,9 @@ fn check_and_handle_brick(tile_addr: ptr) {
     tile_addr += 1;
     *tile_addr = BLANK_TILE;
     increase_score_packed_bcd();
-  }
+  };
 }
+*/
 
 fn update_input() {
   let pressed = get_keys_pressed();
@@ -192,7 +198,7 @@ fn update_input() {
   *CurKeys = pressed;
 }
 
-static Tiles: [Tile; _] = {
+static rom Tiles: [Tile; _] = [
   `33333333,
 	`33333333,
 	`33333333,
@@ -481,9 +487,9 @@ static Tiles: [Tile; _] = {
   `33330003,
   `33000033,
   `33333333,
-}
+];
 
-static Tilemap: [[u8; 32]; 18] = {
+static rom Tilemap: [[u8; 32]; 18] = [
   $00,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$02,$03,$03,$03,$03,$03,$03, 0,0,0,0,0,0,0,0,0,0,0,0,
   $04,$05,$06,$05,$06,$05,$06,$05,$06,$05,$06,$05,$06,$07,$03,$03,$03,$03,$03,$03, 0,0,0,0,0,0,0,0,0,0,0,0,
   $04,$08,$05,$06,$05,$06,$05,$06,$05,$06,$05,$06,$08,$07,$03,$03,$03,$03,$03,$03, 0,0,0,0,0,0,0,0,0,0,0,0,
@@ -502,9 +508,9 @@ static Tilemap: [[u8; 32]; 18] = {
   $04,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$07,$03,$12,$13,$14,$15,$03, 0,0,0,0,0,0,0,0,0,0,0,0,
   $04,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$08,$07,$03,$16,$17,$18,$19,$03, 0,0,0,0,0,0,0,0,0,0,0,0,
   $04,$09,$09,$09,$09,$09,$09,$09,$09,$09,$09,$09,$09,$07,$03,$03,$03,$03,$03,$03, 0,0,0,0,0,0,0,0,0,0,0,0,
-}
+];
 
-static Paddle: Tile = {
+static rom Paddle: Tile = [
 	`33333333,
 	`32222223,
 	`33333333,
@@ -513,9 +519,9 @@ static Paddle: Tile = {
 	`00000000,
 	`00000000,
 	`00000000,
-}
+];
 
-static Ball: Tile = {
+static rom Ball: Tile = [
 	`00330000,
 	`03223000,
 	`32222300,
@@ -524,4 +530,4 @@ static Ball: Tile = {
 	`00330000,
 	`00000000,
 	`00000000,
-}
+];

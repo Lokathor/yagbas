@@ -7,7 +7,7 @@ https://github.com/tbsp/simple-gb-asm-examples/blob/master/src/background-fullsc
 #[hram]
 static ram VBlankDone: u8 = 0;
 
-static TileData: [Tile; _] = include_png_tiles!("starry-night-tiles.png");
+static rom TileData: [Tile; _] = include_png_tiles!("starry-night-tiles.png");
 
 #[irq_handler]
 fn vblank_vector() {
@@ -32,7 +32,7 @@ fn main() {
     if *LY == VBLANK_START {
       break
     }
-  }
+  };
   *LCDC = LcdCtrl {};
   // copy just 240 tiles
   memcpy($8000, TileData, size_of!(TileData.0)*240);
@@ -49,16 +49,16 @@ fn main() {
       *tile_addr = id;
       tile_addr += 1;
       id += 1;
-    }
+    };
     tile_addr += tiles_per_row_advance;
     y -= 1;
     if y == 7 {
       id = 0;
-    }
+    };
     if y == 0 {
       break
-    }
-  }
+    };
+  };
   
   [BGP] = STANDARD_PALETTE;
   [SCX] = 0;

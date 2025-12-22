@@ -77,6 +77,8 @@ pub enum Token {
   Ident,
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)")]
   NumLit,
+  #[regex(r#""[^"]*""#)]
+  StrLit,
   #[regex(r"false")]
   KwFalse,
   #[regex(r"true")]
@@ -214,6 +216,10 @@ impl<'src> core::fmt::Display for SourcedTokens<'src> {
       Token::NumLit => {
         let range = (self.1.start as usize)..(self.1.end as usize);
         write!(f, "Number \"{}\"", &self.0[range])
+      }
+      Token::StrLit => {
+        let range = (self.1.start as usize)..(self.1.end as usize);
+        write!(f, "Str {}", &self.0[range])
       }
       Token::OpBracket => write!(f, "["),
       Token::ClBracket => write!(f, "]"),
