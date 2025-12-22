@@ -62,6 +62,8 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .then(expr_p.clone().or_not())
       .nested_in(braces_content_p())
       .map(|(statements, tail_expr)| AstSatementBody { statements, tail_expr })
+      .labelled("statement_body")
+      .as_context()
   });
 
   if_else_info_p.define({
@@ -74,6 +76,8 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
         if_body,
         else_body,
       })
+      .labelled("if_else")
+      .as_context()
   });
 
   loop_info_p.define({
@@ -92,6 +96,8 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .then(times)
       .then(statement_body_p.clone())
       .map(|((name, times), steps)| LoopInfo { name, steps, times })
+      .labelled("loop")
+      .as_context()
   });
 
   attributes_p.define({
@@ -193,21 +199,29 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .as_context()
   });
 
-  expr_p.define(define_expr_p(
-    expr_p.clone(),
-    if_else_info_p.clone(),
-    loop_info_p.clone(),
-    statement_body_p.clone(),
-    true,
-  ));
+  expr_p.define(
+    define_expr_p(
+      expr_p.clone(),
+      if_else_info_p.clone(),
+      loop_info_p.clone(),
+      statement_body_p.clone(),
+      true,
+    )
+    .labelled("expression")
+    .as_context(),
+  );
 
-  condition_p.define(define_expr_p(
-    expr_p.clone(),
-    if_else_info_p.clone(),
-    loop_info_p.clone(),
-    statement_body_p.clone(),
-    false,
-  ));
+  condition_p.define(
+    define_expr_p(
+      expr_p.clone(),
+      if_else_info_p.clone(),
+      loop_info_p.clone(),
+      statement_body_p.clone(),
+      false,
+    )
+    .labelled("condition")
+    .as_context(),
+  );
 
   let ast_function_p = {
     let fn_arg_p = spanned_ident_p()
