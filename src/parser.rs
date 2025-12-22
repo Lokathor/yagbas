@@ -202,16 +202,28 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .then(type_name_p())
       .map(|((name, name_span), ty)| {
         AstFunctionArgKind::NameTy(name, name_span, ty)
-      });
+      })
+      .recover_with(via_parser(
+        none_of([Lone(Token::Comma)])
+          .repeated()
+          .at_least(1)
+          .to(AstFunctionArgKind::AstFunctionArgKindError),
+      ))
+      .labelled("function_argument")
+      .as_context();
     let fn_args_p = fn_arg_p
       .separated_by(punct_comma_p())
       .allow_trailing()
       .collect::<Vec<_>>()
-      .nested_in(parens_content_p());
+      .nested_in(parens_content_p())
+      .labelled("function_argument_group")
+      .as_context();
     let return_ty_p = punct_minus_p()
       .ignore_then(punct_greater_than_p())
       .ignore_then(type_name_p())
-      .or_not();
+      .or_not()
+      .labelled("return_type")
+      .as_context();
     attributes_p
       .clone()
       .then_ignore(kw_fn_p())
