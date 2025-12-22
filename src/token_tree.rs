@@ -135,7 +135,7 @@ where
   select! {
     Token::OpBrace => (),
   }
-  .labelled("open_brace")
+  .labelled("`{`")
   .as_context()
 }
 
@@ -148,7 +148,7 @@ where
   select! {
     Token::ClBrace => (),
   }
-  .labelled("close_brace")
+  .labelled("`}`")
   .as_context()
 }
 
@@ -161,7 +161,7 @@ where
   select! {
     Token::OpBracket => (),
   }
-  .labelled("open_bracket")
+  .labelled("`[`")
   .as_context()
 }
 
@@ -174,7 +174,7 @@ where
   select! {
     Token::ClBracket => (),
   }
-  .labelled("close_bracket")
+  .labelled("`]`")
   .as_context()
 }
 
@@ -187,7 +187,7 @@ where
   select! {
     Token::OpParen => (),
   }
-  .labelled("open_paren")
+  .labelled("`(`")
   .as_context()
 }
 
@@ -200,7 +200,7 @@ where
   select! {
     Token::ClParen => (),
   }
-  .labelled("close_paren")
+  .labelled("`)`")
   .as_context()
 }
 
@@ -213,7 +213,7 @@ where
   select! {
     Token::OpBlockComment => (),
   }
-  .labelled("open_comment")
+  .labelled("`/*`")
   .as_context()
 }
 
@@ -226,7 +226,7 @@ where
   select! {
     Token::ClBlockComment => (),
   }
-  .labelled("close_comment")
+  .labelled("`*/`")
   .as_context()
 }
 
@@ -261,6 +261,6 @@ where
     Token::DocComment => (),
     Token::InteriorComment => (),
   }
-  .labelled("single_comment")
+  .labelled("`//`")
   .as_context()
 }

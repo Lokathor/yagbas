@@ -25,11 +25,7 @@ macro_rules! prefix_maker {
 pub fn items_of<'src>(
   trees: &'src [(TokenTree, Span32)], yag_state: YagParserState,
 ) -> (Vec<AstItem>, Vec<Rich<'src, TokenTree, Span32>>) {
-  let eoi: Span32 = match trees.last() {
-    Some(s) => s.1,
-    None => return (Vec::new(), Vec::new()),
-  };
-  let recovery =
+  let bad_item_recovery =
     via_parser(any().repeated().at_least(1).map_with(|_, ex| AstItem {
       attributes: Vec::new(),
       file_id: yag_state.file_id,
@@ -37,14 +33,12 @@ pub fn items_of<'src>(
       kind: AstItemKind::AstItemKindError,
     }));
 
-  let parser = item_p().recover_with(recovery).repeated().collect::<Vec<_>>();
+  let parser =
+    item_p().recover_with(bad_item_recovery).repeated().collect::<Vec<_>>();
   let mut state = SimpleState(yag_state);
 
   let (opt_out, errors): (Option<Vec<AstItem>>, Vec<_>) = parser
-    .parse_with_state(
-      Input::map(trees, eoi, |(tk, span)| (tk, span)),
-      &mut state,
-    )
+    .parse_with_state(make_yag_parser_input(trees), &mut state)
     .into_output_errors();
 
   (opt_out.unwrap_or_default(), errors)
@@ -54,6 +48,15 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
   let mut attributes_p = Recursive::declare();
   let mut statement_p = Recursive::declare();
   let mut expr_p = Recursive::declare();
+  let mut condition_p = Recursive::declare();
+
+  let statement_body = statement_p
+    .clone()
+    .repeated()
+    .collect::<Vec<_>>()
+    .then(expr_p.clone().or_not())
+    .nested_in(braces_content_p())
+    .map(|(statements, tail_expr)| AstSatementBody { statements, tail_expr });
 
   attributes_p.define({
     let assign_kind = spanned_ident_p()
@@ -96,18 +99,17 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       .clone()
       .then(bin_op_assign_p())
       .then(expr_p.clone())
+      .then_ignore(punct_semicolon_p())
       .map(|((lhs, bin), rhs)| StatementKind::BinOpAssign(lhs, bin, rhs));
+    let statement_recovery = via_parser(
+      any().repeated().at_least(1).to(StatementKind::StatementKindError),
+    );
 
     attributes_p
       .clone()
       .then(
-        choice((let_kind, assign_kind, bin_op_kind)).recover_with(via_parser(
-          punct_semicolon_p()
-            .not()
-            .repeated()
-            .then(punct_semicolon_p())
-            .to(StatementKind::StatementKindError),
-        )),
+        choice((let_kind, assign_kind, bin_op_kind))
+          .recover_with(statement_recovery),
       )
       .map_with(|(attributes, kind), ex| Statement {
         attributes: if attributes.is_empty() {
@@ -120,7 +122,129 @@ pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
       })
   });
 
-  chumsky::prelude::todo()
+  expr_p.define(define_expr_p(
+    expr_p.clone(),
+    condition_p.clone(),
+    attributes_p.clone(),
+    statement_p.clone(),
+    true,
+  ));
+
+  condition_p.define(define_expr_p(
+    expr_p.clone(),
+    condition_p.clone(),
+    attributes_p.clone(),
+    statement_p.clone(),
+    false,
+  ));
+
+  let ast_function_p = {
+    let fn_arg_p = spanned_ident_p()
+      .then_ignore(punct_colon_p())
+      .then(type_name_p())
+      .map(|((name, name_span), ty)| {
+        AstFunctionArgKind::NameTy(name, name_span, ty)
+      });
+    let fn_args_p = fn_arg_p
+      .separated_by(punct_comma_p())
+      .allow_trailing()
+      .collect::<Vec<_>>()
+      .nested_in(parens_content_p());
+    let return_ty_p = punct_minus_p()
+      .ignore_then(punct_greater_than_p())
+      .ignore_then(type_name_p())
+      .or_not();
+    attributes_p
+      .clone()
+      .then_ignore(kw_fn_p())
+      .then(spanned_ident_p())
+      .then(fn_args_p)
+      .then(return_ty_p)
+      .then(statement_body.clone())
+      .map_with(
+        |((((attributes, (name, name_span)), args), return_ty), body), ex| {
+          AstItem {
+            file_id: ex.state().file_id,
+            span: ex.span(),
+            attributes,
+            kind: AstItemKind::Function(AstFunction {
+              name,
+              name_span,
+              args,
+              return_ty,
+              body,
+            }),
+          }
+        },
+      )
+      .labelled("function")
+      .as_context()
+  };
+
+  choice((ast_function_p,)).labelled("item").as_context()
+}
+
+fn define_expr_p<'b, 'src: 'b>(
+  expr_p: YagRecursive<'b, 'src, Expr>,
+  condition_p: YagRecursive<'b, 'src, Expr>,
+  attribute_p: YagRecursive<'b, 'src, Vec<Attribute>>,
+  statement_p: YagRecursive<'b, 'src, Statement>, include_struct_lit: bool,
+) -> impl Parser<'src, YagParserInput<'src>, Expr, YagParserExtra<'src>> + Clone + 'b
+{
+  let expr_atom = {
+    let num_lit_kind = num_lit_p().map(ExprKind::NumLit);
+    let str_lit_kind = str_lit_p().map(ExprKind::StrLit);
+    let ident_kind = ident_p().map(ExprKind::Ident);
+    let bool_kind = bool_p().map(ExprKind::Bool);
+    let struct_lit_kind = if include_struct_lit {
+      let struct_field_init_kind_p = {
+        let set_init_kind = spanned_ident_p()
+          .map(|(name, name_span)| StructFieldInitKind::Set(name, name_span));
+        let assign_kind = spanned_ident_p()
+          .then_ignore(punct_equal_p())
+          .then(expr_p.clone())
+          .map(|((name, name_span), x)| {
+            StructFieldInitKind::Assign(name, name_span, x)
+          });
+        choice((assign_kind, set_init_kind))
+          .labelled("struct_field_initializer")
+          .as_context()
+      };
+      let fields = struct_field_init_kind_p
+        .separated_by(punct_comma_p())
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .nested_in(braces_content_p());
+      spanned_ident_p()
+        .then(fields)
+        .map(|((name, name_span), inits)| {
+          ExprKind::StructLit(name, name_span, inits)
+        })
+        .boxed()
+    } else {
+      // Note(Lokathor): this is a nonsense parser that will never match any input
+      just(Lone(Token::OpBrace)).to(ExprKind::ExprKindError).boxed()
+    };
+    let comma_separated_exprs = expr_p
+      .clone()
+      .separated_by(punct_comma_p())
+      .allow_trailing()
+      .collect::<Vec<_>>();
+    let macro_kind = ident_p()
+      .then_ignore(punct_exclamation_p())
+      .then(comma_separated_exprs.clone().nested_in(parens_content_p()))
+      .map(|(i, expressions)| ExprKind::Macro(i, expressions));
+    let list_kind = comma_separated_exprs
+      .clone()
+      .nested_in(brackets_content_p())
+      .map(ExprKind::List);
+
+    let ident_choice = choice((macro_kind, struct_lit_kind, ident_kind));
+    choice((ident_choice, num_lit_kind, str_lit_kind, bool_kind, list_kind))
+      .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
+  };
+
+  expr_atom
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -587,5 +711,18 @@ pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
 }
 
 pub fn bin_op_assign_p<'src>() -> impl YagParser<'src, BinOpKind> {
-  chumsky::prelude::todo()
+  choice((
+    punct_plus_p().ignore_then(punct_equal_p()).to(BinOpKind::Add),
+    punct_minus_p().ignore_then(punct_equal_p()).to(BinOpKind::Sub),
+    punct_asterisk_p().ignore_then(punct_equal_p()).to(BinOpKind::Mul),
+    punct_slash_p().ignore_then(punct_equal_p()).to(BinOpKind::Div),
+    punct_percent_p().ignore_then(punct_equal_p()).to(BinOpKind::Mod),
+    shl_p().ignore_then(punct_equal_p()).to(BinOpKind::ShiftLeft),
+    shr_p().ignore_then(punct_equal_p()).to(BinOpKind::ShiftRight),
+    punct_ampersand_p().ignore_then(punct_equal_p()).to(BinOpKind::BitAnd),
+    punct_pipe_p().ignore_then(punct_equal_p()).to(BinOpKind::BitOr),
+    punct_caret_p().ignore_then(punct_equal_p()).to(BinOpKind::BitXor),
+  ))
+  .labelled("bin_op_assign")
+  .as_context()
 }
