@@ -1,0 +1,15 @@
+
+static ram JoypadState: u8 = 0;
+static ram JoypadPressed: u8 = 0;
+
+#[irq_fn(vblank)]
+fn vblank_irq_handler() {}
+
+fn main() {
+  *IE = Interrupts {vblank};
+  enable_interrupts!();
+  loop {
+    halt!();
+    *BGP = Palette(get_keys_pressed());
+  }
+}
