@@ -92,7 +92,7 @@ bitbag LcdCtrl {
   bg_tilemap_1: 3,
   bg_win_tiles_signed: 4,
   window_enabled: 5,
-  win_tilemap_1: 4,
+  win_tilemap_1: 6,
   lcd_enabled: 7,
 }
 

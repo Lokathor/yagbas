@@ -1,0 +1,34 @@
+/*
+based on OAMDMA Example for the Nintendo Game Boy
+; by Dave VanEe 2022
+*/
+
+fn main() {
+  *NR52 = AudioMain {};
+  'wait_for_vblank: loop {
+    if *LY == VBLANK_START {
+      break
+    }
+  }
+  *LCDC = LcdCtrl {};
+  
+  // todo: copy oam_dma to hram
+  // todo: copy tile to vram
+  // todo: set up palette
+  // todo: copy oam rom to shadow oam
+  // todo: dma from shadow oam to real oam
+  // todo: turn on screen
+}
+
+fn oam_dma(page: u8) {
+  *DMA = page;
+  loop page times {
+    volatile!();
+  }
+}
+
+// todo: static ram shadow oam declaration (page aligned)
+
+// todo: static rom oam config declatation
+
+// todo: one tile
