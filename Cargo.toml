@@ -3,7 +3,7 @@ name = "yagbas"
 description = "Yagbas is a programming language that builds programs for the Game Boy."
 repository = "https://github.com/Lokathor/yagbas"
 homepage = "https://lokathor.github.io/yagbas/"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "Zlib OR Apache-2.0 OR MIT"
 
