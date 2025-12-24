@@ -53,4 +53,7 @@ pub use ast::*;
 pub mod parser;
 pub use parser::*;
 
+pub mod ir0;
+pub use ir0::*;
+
 pub type Span32 = SimpleSpan<u32>;
