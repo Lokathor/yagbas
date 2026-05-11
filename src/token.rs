@@ -84,6 +84,19 @@ pub enum Token {
   #[regex(r"true")]
   KwTrue,
 
+  #[regex(r"==")]
+  CmpEq,
+  #[regex(r"!=")]
+  CmpNe,
+  #[regex(r">=")]
+  CmpGe,
+  #[regex(r"<=")]
+  CmpLt,
+  #[regex(r"->")]
+  RightArrow,
+  #[regex(r"::")]
+  Path,
+
   #[regex(r"~")]
   Tilde,
   #[regex(r"`")]
@@ -249,6 +262,12 @@ impl<'src> core::fmt::Display for SourcedTokens<'src> {
       Token::KwStruct => write!(f, "`struct`"),
       Token::KwFalse => write!(f, "`false`"),
       Token::KwTrue => write!(f, "`true`"),
+      Token::CmpEq => write!(f, "=="),
+      Token::CmpNe => write!(f, "!="),
+      Token::CmpGe => write!(f, ">="),
+      Token::CmpLt => write!(f, "<="),
+      Token::RightArrow => write!(f, "->"),
+      Token::Path => write!(f, "::"),
       Token::Tilde => write!(f, "`~`"),
       Token::Backtick => write!(f, "backtick"),
       Token::Exclamation => write!(f, "!"),
