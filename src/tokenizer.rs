@@ -30,7 +30,7 @@ pub enum Token {
   #[regex(r"\*/")]
   ClCommentBlock,
 
-  /* Stuff Where You Slice The Src To Check What It Was */
+  /* Stuff Where You Slice The Source To Check What It Was */
   #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*")]
   Ident,
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)")]
