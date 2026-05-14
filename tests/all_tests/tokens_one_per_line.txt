@@ -1,3 +1,6 @@
+//! fill this file with as many example tokens as desired
+//! each line should contain *exactly one* token.
+_
 bitbag
 DisplayCtrl
 {
@@ -11,6 +14,11 @@ DisplayCtrl
 //! inner docs
 0
 "abc"
+r"def"
+r#"hij"#
+r##"klm"##
+"no\"p"
+r#"qr\"s"#
 .
 &&
 >=
@@ -19,3 +27,5 @@ DisplayCtrl
 <=
 !
 #
+::
+->
