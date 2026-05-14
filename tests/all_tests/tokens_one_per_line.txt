@@ -10,3 +10,12 @@ DisplayCtrl
 /// documentation
 //! inner docs
 0
+"abc"
+.
+&&
+>=
+==
+!=
+<=
+!
+#
