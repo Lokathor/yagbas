@@ -1,17 +1,14 @@
-#[derive(
-  Debug,
-  Clone,
-  Copy,
-  Default,
-  PartialEq,
-  Eq,
-  PartialOrd,
-  Ord,
-  Hash,
-  logos::Logos,
-)]
+use logos::Logos;
+
+#[derive(Debug, Clone, Copy)]
+pub struct Token {
+  pub kind: TokenKind,
+  pub span: (usize, usize),
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Logos)]
 #[logos(skip r#"[[:space:]]"#)] // ignore whitespace between tokens
-pub enum Token {
+pub enum TokenKind {
   /* Token Tree Markers */
   #[regex(r"\[")]
   OpBracket,
@@ -150,11 +147,18 @@ pub enum Token {
   #[regex(r"/")]
   Slash,
 
+  /// This is for when the file contains something, but the lexer doesn't know
+  /// what to call it.
+  LexerConfused,
+
+  /// Virtual token used for when looking "out of bounds" of the token stream.
+  ///
+  /// This avoids the parser internals from needing `Option<TokenKind>`.
   #[default]
-  UnknownToken,
+  EndOfFile,
 }
 
-fn raw_string(lex: &mut logos::Lexer<Token>) -> Option<()> {
+fn raw_string(lex: &mut logos::Lexer<TokenKind>) -> Option<()> {
   let pre = lex.slice().as_bytes();
   // Enforced by the regex.
   debug_assert!(pre.len() >= 2);
@@ -194,13 +198,9 @@ fn raw_string(lex: &mut logos::Lexer<Token>) -> Option<()> {
   None
 }
 
-pub fn tokenize(
-  source: &str,
-) -> impl Iterator<Item = (Token, core::ops::Range<usize>)> + Clone + '_ {
-  <Token as logos::Logos>::lexer(source).spanned().map(
-    |(res, span)| match res {
-      Ok(token) => (token, span),
-      Err(()) => (Token::UnknownToken, span),
-    },
-  )
+pub fn tokenize(source: &str) -> impl Iterator<Item = Token> + Clone + '_ {
+  TokenKind::lexer(source).spanned().map(|(res, range)| Token {
+    kind: res.unwrap_or(TokenKind::LexerConfused),
+    span: (range.start, range.end),
+  })
 }

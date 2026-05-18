@@ -19,4 +19,5 @@
 
 //! Yagbas is a compiler for a language of the same name.
 
+pub mod parser;
 pub mod tokenizer;
