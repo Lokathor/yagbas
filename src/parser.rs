@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crate::tokenizer::Token;
 
 #[derive(Debug, Clone)]
@@ -23,4 +25,24 @@ pub enum SyntaxTreeKind {
 pub enum TreeElement {
   Token(Token),
   Tree(SyntaxTree),
+}
+
+#[derive(Debug, Clone)]
+enum ParserEvent {
+  Open { kind: SyntaxTreeKind },
+  Close,
+  ADvance,
+}
+
+#[derive(Debug, Clone)]
+struct OpenMark {
+  index: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct Parser {
+  tokens: Vec<Token>,
+  position: usize,
+  fuel: Cell<u32>,
+  events: Vec<ParserEvent>,
 }

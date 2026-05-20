@@ -13,13 +13,11 @@ use ariadne::{Cache, sources};
 use bimap::BiHashMap;
 use chumsky::span::SimpleSpan;
 
-static NEXT_FILE_ID: AtomicUsize = AtomicUsize::new(1);
-
 // Note(Lokathor): The FnvBuildHasher reportedly has better performance on
 // smaller values (about 64s bytes or less), but worse performance on larger
-// values. Because of this we'll use Fnv hashing on just the FileID side of the
-// bimap. This is a private implementation detail, so we can change it later if
-// the situation changes.
+// values. Because of this we'll use Fnv hashing on *just* the FileID side of
+// the bimap. This is a private implementation detail, so we can change it later
+// if the situation changes.
 static FILE_INFO_CACHE: OnceLock<
   RwLock<BiHashMap<FileID, &'static FileData, fnv::FnvBuildHasher>>,
 > = OnceLock::new();
@@ -37,6 +35,8 @@ impl core::fmt::Display for FileID {
 impl FileID {
   #[inline]
   fn try_new() -> Option<Self> {
+    static NEXT_FILE_ID: AtomicUsize = AtomicUsize::new(1);
+
     NonZeroUsize::new(NEXT_FILE_ID.fetch_add(1, Ordering::Relaxed)).map(Self)
   }
 

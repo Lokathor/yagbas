@@ -3,10 +3,10 @@ use logos::Logos;
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
   pub kind: TokenKind,
-  pub span: (usize, usize),
+  pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Logos)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Logos)]
 #[logos(skip r#"[[:space:]]"#)] // ignore whitespace between tokens
 pub enum TokenKind {
   /* Token Tree Markers */
@@ -79,25 +79,6 @@ pub enum TokenKind {
   #[regex(r"true")]
   KwTrue,
 
-  #[regex(r"==")]
-  CmpEq,
-  #[regex(r"!=")]
-  CmpNe,
-  #[regex(r">=")]
-  CmpGe,
-  #[regex(r"<=")]
-  CmpLt,
-
-  #[regex(r"&&")]
-  BoolAnd,
-  #[regex(r"\|\|")]
-  BoolOr,
-
-  #[regex(r"->")]
-  RightArrow,
-  #[regex(r"::")]
-  Path,
-
   #[regex(r"~")]
   Tilde,
   #[regex(r"`")]
@@ -154,8 +135,18 @@ pub enum TokenKind {
   /// Virtual token used for when looking "out of bounds" of the token stream.
   ///
   /// This avoids the parser internals from needing `Option<TokenKind>`.
-  #[default]
   EndOfFile,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Span {
+  pub start: usize,
+  pub end: usize,
+}
+impl Span {
+  pub fn as_range(self) -> core::ops::Range<usize> {
+    self.start..self.end
+  }
 }
 
 fn raw_string(lex: &mut logos::Lexer<TokenKind>) -> Option<()> {
@@ -201,6 +192,6 @@ fn raw_string(lex: &mut logos::Lexer<TokenKind>) -> Option<()> {
 pub fn tokenize(source: &str) -> impl Iterator<Item = Token> + Clone + '_ {
   TokenKind::lexer(source).spanned().map(|(res, range)| Token {
     kind: res.unwrap_or(TokenKind::LexerConfused),
-    span: (range.start, range.end),
+    span: Span { start: range.start, end: range.end },
   })
 }
