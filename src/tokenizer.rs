@@ -1,4 +1,5 @@
 use logos::Logos;
+use logos::Lexer;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -34,7 +35,7 @@ pub enum TokenKind {
   LitNum,
   #[regex(r#""((\\")|[^"\\])*""#)]
   LitStr,
-  #[regex(r#"r#*\""#, raw_string)]
+  #[regex(r#"r#*\""#, end_raw_string)]
   LitRawStr,
   #[regex(r"///[^\r\n]*", allow_greedy = true)]
   CommentDoc,
@@ -149,13 +150,14 @@ impl Span {
   }
 }
 
-fn raw_string(lex: &mut logos::Lexer<TokenKind>) -> Option<()> {
+fn end_raw_string(lex: &mut Lexer<TokenKind>) -> Option<()> {
   let pre = lex.slice().as_bytes();
   // Enforced by the regex.
   debug_assert!(pre.len() >= 2);
-  debug_assert!(pre[0] == b'r' && pre[pre.len() - 1] == b'"');
+  debug_assert!(pre[0] == b'r');
+  debug_assert!(pre[pre.len() - 1] == b'"');
   debug_assert!(pre[1..pre.len() - 1].iter().all(|&b| b == b'#'));
-  let hashes = pre.len().checked_sub(2).unwrap();
+  let hashes = pre.len() - 2;
   let rest_str = lex.remainder();
   // Handle the 0-hash case here since it can be done more efficiently (and
   // doing so simplifies the loop below).
@@ -168,13 +170,15 @@ fn raw_string(lex: &mut logos::Lexer<TokenKind>) -> Option<()> {
     }
   }
   let rest = rest_str.as_bytes();
-  // Look for `"###` for the right number of hashes;
+  // Look for `"` then for the right number of `#`
   // Turns into Some((close_quote_idx, 0)) when we see a `"`, and then counts up for each hash.
-  let mut seen_hashes = None::<(usize, usize)>;
+  let mut seen_hashes: Option<(usize,usize)> = None;
   for (i, &byte) in rest.iter().enumerate() {
     if byte == b'"' {
+      // begin the counter.
       seen_hashes = Some((i, 0));
     } else if let Some(&mut (_end, ref mut n)) = seen_hashes.as_mut() {
+      // bump the counter.
       if byte == b'#' {
         *n += 1;
         if *n == hashes {
@@ -182,6 +186,7 @@ fn raw_string(lex: &mut logos::Lexer<TokenKind>) -> Option<()> {
           return Some(());
         }
       } else {
+        // when it's not a `#` we reset the counter.
         seen_hashes = None;
       }
     }
