@@ -1,5 +1,5 @@
-use logos::Logos;
 use logos::Lexer;
+use logos::Logos;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
@@ -8,7 +8,8 @@ pub struct Token {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Logos)]
-#[logos(skip r#"[[:space:]]"#)] // ignore whitespace between tokens
+#[logos(skip r#"[[:space:]]"#)]
+#[logos(error = TokenizerError)]
 pub enum TokenKind {
   /* Token Tree Markers */
   #[regex(r"\[")]
@@ -33,9 +34,9 @@ pub enum TokenKind {
   Ident,
   #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)")]
   LitNum,
-  #[regex(r#""((\\")|[^"\\])*""#)]
+  #[regex(r#"""#, end_lit_string)]
   LitStr,
-  #[regex(r#"r#*\""#, end_raw_string)]
+  #[regex(r#"r#*\""#, end_lit_raw_string)]
   LitRawStr,
   #[regex(r"///[^\r\n]*", allow_greedy = true)]
   CommentDoc,
@@ -129,14 +130,61 @@ pub enum TokenKind {
   #[regex(r"/")]
   Slash,
 
-  /// This is for when the file contains something, but the lexer doesn't know
-  /// what to call it.
-  LexerConfused,
+  LexerUnknown,
+  LitStrNoCloseQuote,
 
-  /// Virtual token used for when looking "out of bounds" of the token stream.
-  ///
-  /// This avoids the parser internals from needing `Option<TokenKind>`.
   EndOfFile,
+}
+
+/// This type should never be deliberately used outside of the `tokenizer`
+/// module, but must be public because it appears in an interface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TokenizerError {
+  #[default]
+  LexerUnknown,
+  LitStrNoCloseQuote,
+}
+
+fn end_lit_string(lex: &mut Lexer<TokenKind>) -> Result<(), TokenizerError> {
+  let prefix = lex.slice();
+  // check assumptions from the regex.
+  debug_assert!(prefix.len() == 1);
+  debug_assert!(prefix == "\"");
+  loop {
+    // find a `"` in the remainder.
+    let remainder = lex.remainder();
+    match remainder.find("\"") {
+      Some(position) => {
+        // we found a `"`, advance the lexer.
+        lex.bump(position + 1);
+        // count how many `\` are on the end of the slice'd portion. when the
+        // number of backslashes is odd then the last one escapes the current
+        // double quote we've found, and we must continue the loop.
+        let end_slash_count = lex
+          .slice()
+          .as_bytes()
+          .iter()
+          .rev()
+          .skip(1)
+          .take_while(|b| **b == b'\\')
+          .count();
+        if end_slash_count % 2 != 0 {
+          continue;
+        } else {
+          return Ok(());
+        }
+      }
+      None => {
+        // when no `"` remain the litstr is unclosed, which is an error.
+        lex.bump(remainder.len());
+        return Err(TokenizerError::LitStrNoCloseQuote);
+      }
+    }
+  }
+}
+
+fn end_lit_raw_string(_lex: &mut Lexer<TokenKind>) -> Option<()> {
+  todo!()
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -150,53 +198,44 @@ impl Span {
   }
 }
 
-fn end_raw_string(lex: &mut Lexer<TokenKind>) -> Option<()> {
-  let pre = lex.slice().as_bytes();
-  // Enforced by the regex.
-  debug_assert!(pre.len() >= 2);
-  debug_assert!(pre[0] == b'r');
-  debug_assert!(pre[pre.len() - 1] == b'"');
-  debug_assert!(pre[1..pre.len() - 1].iter().all(|&b| b == b'#'));
-  let hashes = pre.len() - 2;
-  let rest_str = lex.remainder();
-  // Handle the 0-hash case here since it can be done more efficiently (and
-  // doing so simplifies the loop below).
-  if hashes == 0 {
-    if let Some(idx) = rest_str.find('"') {
-      lex.bump(idx + 1);
-      return Some(());
-    } else {
-      return None;
-    }
-  }
-  let rest = rest_str.as_bytes();
-  // Look for `"` then for the right number of `#`
-  // Turns into Some((close_quote_idx, 0)) when we see a `"`, and then counts up for each hash.
-  let mut seen_hashes: Option<(usize,usize)> = None;
-  for (i, &byte) in rest.iter().enumerate() {
-    if byte == b'"' {
-      // begin the counter.
-      seen_hashes = Some((i, 0));
-    } else if let Some(&mut (_end, ref mut n)) = seen_hashes.as_mut() {
-      // bump the counter.
-      if byte == b'#' {
-        *n += 1;
-        if *n == hashes {
-          lex.bump(i + 1);
-          return Some(());
-        }
-      } else {
-        // when it's not a `#` we reset the counter.
-        seen_hashes = None;
-      }
-    }
-  }
-  None
-}
-
 pub fn tokenize(source: &str) -> impl Iterator<Item = Token> + Clone + '_ {
   TokenKind::lexer(source).spanned().map(|(res, range)| Token {
-    kind: res.unwrap_or(TokenKind::LexerConfused),
+    kind: match res {
+      Ok(kind) => kind,
+      Err(TokenizerError::LexerUnknown) => TokenKind::LexerUnknown,
+      Err(TokenizerError::LitStrNoCloseQuote) => TokenKind::LitStrNoCloseQuote,
+    },
     span: Span { start: range.start, end: range.end },
   })
+}
+
+#[test]
+fn test_tokenize() {
+  let mut v: Vec<Token> = tokenize("").collect();
+  assert!(v.is_empty());
+
+  let x = "\"abc\"";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitStr);
+  assert_eq!(v[0].span.as_range(), 0..x.len());
+
+  let x = "\"a\\\"bc\"";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitStr);
+  assert_eq!(v[0].span.as_range(), 0..x.len());
+
+  let x = "\"a\\bc\"";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitStr);
+  assert_eq!(v[0].span.as_range(), 0..x.len());
+
+  let x = "\"";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitStrNoCloseQuote);
+  assert_eq!(v[0].span.as_range(), 0..x.len());
+
+  let x = "\"\\\"";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitStrNoCloseQuote);
+  assert_eq!(v[0].span.as_range(), 0..x.len());
 }
