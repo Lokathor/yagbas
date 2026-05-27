@@ -153,7 +153,7 @@ fn end_lit_string(lex: &mut Lexer<TokenKind>) -> Result<(), TokenizerError> {
   loop {
     // find a `"` in the remainder.
     let remainder = lex.remainder();
-    match remainder.find("\"") {
+    match remainder.find('"') {
       Some(position) => {
         // we found a `"`, advance the lexer.
         lex.bump(position + 1);
