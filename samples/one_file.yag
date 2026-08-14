@@ -1,0 +1,82 @@
+
+#[no_std]
+fn main() {
+  *NR52 = AudioMain {};
+  'wait_for_vblank: loop {
+    if *LY == VBLANK_START {
+      break
+    }
+  }
+  *LCDC = LcdCtrl {};
+  
+  memcpy($9000, OneTile, size_of!(OneTile));
+  
+  *LCDC = LcdCtrl { lcd_enabled, bg_win_enabled };
+  *BGP = STANDARD_PALETTE;
+}
+
+static rom OneTile: Tile = [
+  $ab,$cd,
+  $ef,$01,
+  $23,$45,
+  $67,$89,
+  $ab,$cd,
+  $ef,$01,
+  $23,$45,
+  $67,$89,
+];
+
+#[location($FF26)]
+static mmio NR52: AudioMain;
+
+bitbag AudioMain {
+  ch1_active: 0,
+  ch2_active: 1,
+  ch3_active: 2,
+  ch4_active: 3,
+  audio_enabled: 7,
+}
+
+#[location($FF40)]
+static mmio LCDC: LcdCtrl;
+
+bitbag LcdCtrl {
+  bg_win_enabled: 0,
+  objects_enabled: 1,
+  object16: 2,
+  bg_tilemap_1: 3,
+  bg_win_tiles_signed: 4,
+  window_enabled: 5,
+  win_tilemap_1: 6,
+  lcd_enabled: 7,
+}
+
+#[location($FF44)]
+static mmio LY: u8;
+
+const VBLANK_START: u8 = 144;
+
+#[location($FF47)]
+static mmio BGP: Palette;
+
+bitbag Palette {
+  i0: 0-1,
+  i1: 2-3,
+  i2: 4-5,
+  i3: 6-7,
+}
+
+const STANDARD_PALETTE: Palette = Palette {
+  i0 = 0,
+  i1 = 1,
+  i2 = 2,
+  i3 = 3,
+};
+
+fn memcpy(dst: ptr, src: ptr, count: u16) {
+  loop count times {
+    *dst = *src;
+    dst += 1;
+    src += 1;
+  }
+}
