@@ -1,10 +1,11 @@
+use core::range::Range;
 use logos::Lexer;
 use logos::Logos;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
   pub kind: TokenKind,
-  pub span: Span,
+  pub span: Range<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Logos)]
@@ -29,23 +30,7 @@ pub enum TokenKind {
   #[regex(r"\*/")]
   ClCommentBlock,
 
-  /* Stuff Where You Slice The Source To Check What It Was */
-  #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*")]
-  Ident,
-  #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)")]
-  LitNum,
-  #[regex(r#"""#, end_lit_string)]
-  LitStr,
-  #[regex(r#"r#*\""#, end_lit_raw_string)]
-  LitRawStr,
-  #[regex(r"///[^\r\n]*", allow_greedy = true)]
-  CommentDoc,
-  #[regex(r"//![^\r\n]*", allow_greedy = true)]
-  CommentInnerDoc,
-  #[regex(r"//[^\r\n]*", allow_greedy = true)]
-  CommentLine,
-
-  /* Stuff That's Always One Thing */
+  /* Keywords */
   #[regex(r"bitbag")]
   KwBitbag,
   #[regex(r"break")]
@@ -81,6 +66,7 @@ pub enum TokenKind {
   #[regex(r"true")]
   KwTrue,
 
+  /* Punctuation */
   #[regex(r"~")]
   Tilde,
   #[regex(r"`")]
@@ -130,8 +116,25 @@ pub enum TokenKind {
   #[regex(r"/")]
   Slash,
 
+  /* Stuff Where You Slice The Source To Check What It Was */
+  #[regex(r"[_a-zA-Z][_a-zA-Z0-9]*")]
+  Ident,
+  #[regex(r"((\$|%)[[:word:]]+|[[:digit:]][[:word:]]*)")]
+  LitNum,
+  #[regex(r#"""#, end_lit_string)]
+  LitStr,
+  #[regex(r#"r#*\""#, end_lit_raw_string)]
+  LitRawStr,
+  #[regex(r"///[^\r\n]*", allow_greedy = true)]
+  CommentDoc,
+  #[regex(r"//![^\r\n]*", allow_greedy = true)]
+  CommentInnerDoc,
+  #[regex(r"//[^\r\n]*", allow_greedy = true)]
+  CommentLine,
+
   LexerUnknown,
   LitStrNoCloseQuote,
+  LitRawStrNoCloseQuote,
 
   EndOfFile,
 }
@@ -143,6 +146,7 @@ pub enum TokenizerError {
   #[default]
   LexerUnknown,
   LitStrNoCloseQuote,
+  LitRawStrNoCloseQuote,
 }
 
 fn end_lit_string(lex: &mut Lexer<TokenKind>) -> Result<(), TokenizerError> {
@@ -183,59 +187,124 @@ fn end_lit_string(lex: &mut Lexer<TokenKind>) -> Result<(), TokenizerError> {
   }
 }
 
-fn end_lit_raw_string(_lex: &mut Lexer<TokenKind>) -> Option<()> {
-  todo!()
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Span {
-  pub start: usize,
-  pub end: usize,
-}
-impl Span {
-  pub fn as_range(self) -> core::ops::Range<usize> {
-    self.start..self.end
+// similar to `end_lit_string`, but looking for matching hashes after the
+// closing double quote.
+fn end_lit_raw_string(
+  lex: &mut Lexer<TokenKind>,
+) -> Result<(), TokenizerError> {
+  let prefix = lex.slice();
+  debug_assert!(prefix.len() >= 2);
+  let hashes = &prefix[..prefix.len() - 1][1..];
+  debug_assert!(hashes.chars().all(|h| h == '#'));
+  let hash_len = hashes.len();
+  loop {
+    let remainder = lex.remainder();
+    match remainder.find('"') {
+      Some(position) => {
+        lex.bump(position + 1);
+        let trailing_hashes =
+          lex.remainder().as_bytes().iter().take_while(|h| **h == b'#').count();
+        if trailing_hashes != hash_len {
+          continue;
+        } else {
+          lex.bump(hash_len);
+          return Ok(());
+        }
+      }
+      None => {
+        lex.bump(remainder.len());
+        return Err(TokenizerError::LitRawStrNoCloseQuote);
+      }
+    }
   }
 }
 
 pub fn tokenize(source: &str) -> impl Iterator<Item = Token> + Clone + '_ {
-  TokenKind::lexer(source).spanned().map(|(res, range)| Token {
-    kind: match res {
+  TokenKind::lexer(source).spanned().map(|(res_kind, op_range)| Token {
+    kind: match res_kind {
       Ok(kind) => kind,
       Err(TokenizerError::LexerUnknown) => TokenKind::LexerUnknown,
       Err(TokenizerError::LitStrNoCloseQuote) => TokenKind::LitStrNoCloseQuote,
+      Err(TokenizerError::LitRawStrNoCloseQuote) => {
+        TokenKind::LitRawStrNoCloseQuote
+      }
     },
-    span: Span { start: range.start, end: range.end },
+    span: op_range.into(),
   })
 }
 
 #[test]
-fn test_tokenize() {
+fn test_tokenize_empty_input() {
   let mut v: Vec<Token> = tokenize("").collect();
   assert!(v.is_empty());
+}
+
+#[test]
+fn test_tokenize_lit_str() {
+  let mut v: Vec<Token>;
+
+  let x = "\"\"";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitStr);
+  assert_eq!(v[0].span.iter().count(), x.len());
 
   let x = "\"abc\"";
   v = tokenize(x).collect();
   assert_eq!(v[0].kind, TokenKind::LitStr);
-  assert_eq!(v[0].span.as_range(), 0..x.len());
+  assert_eq!(v[0].span.iter().count(), x.len());
 
   let x = "\"a\\\"bc\"";
   v = tokenize(x).collect();
   assert_eq!(v[0].kind, TokenKind::LitStr);
-  assert_eq!(v[0].span.as_range(), 0..x.len());
+  assert_eq!(v[0].span.iter().count(), x.len());
 
   let x = "\"a\\bc\"";
   v = tokenize(x).collect();
   assert_eq!(v[0].kind, TokenKind::LitStr);
-  assert_eq!(v[0].span.as_range(), 0..x.len());
+  assert_eq!(v[0].span.iter().count(), x.len());
 
   let x = "\"";
   v = tokenize(x).collect();
   assert_eq!(v[0].kind, TokenKind::LitStrNoCloseQuote);
-  assert_eq!(v[0].span.as_range(), 0..x.len());
+  assert_eq!(v[0].span.iter().count(), x.len());
 
   let x = "\"\\\"";
   v = tokenize(x).collect();
   assert_eq!(v[0].kind, TokenKind::LitStrNoCloseQuote);
-  assert_eq!(v[0].span.as_range(), 0..x.len());
+  assert_eq!(v[0].span.iter().count(), x.len());
+}
+
+#[test]
+fn test_tokenize_lit_raw_str() {
+  let mut v: Vec<Token>;
+
+  let x = "r\"\"";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitRawStr);
+  assert_eq!(v[0].span.iter().count(), x.len());
+
+  let x = "r#\"\"#";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitRawStr);
+  assert_eq!(v[0].span.iter().count(), x.len());
+
+  let x = "r##\"abc\"##";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitRawStr);
+  assert_eq!(v[0].span.iter().count(), x.len());
+
+  let x = "r###\"ab\"##c\"###";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitRawStr);
+  assert_eq!(v[0].span.iter().count(), x.len());
+
+  let x = "r###\"ab";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitRawStrNoCloseQuote);
+  assert_eq!(v[0].span.iter().count(), x.len());
+
+  let x = "r##\"abc\"#";
+  v = tokenize(x).collect();
+  assert_eq!(v[0].kind, TokenKind::LitRawStrNoCloseQuote);
+  assert_eq!(v[0].span.iter().count(), x.len());
 }
