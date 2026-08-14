@@ -10,7 +10,7 @@ pub struct SyntaxTree {
 
 #[derive(Debug, Clone, Copy)]
 pub enum SyntaxTreeKind {
-  TokenTreeError,
+  SyntaxTreeKindError,
   Module,
   Bitbag,
   Structure,
