@@ -2,12 +2,14 @@ use core::range::Range;
 use logos::Lexer;
 use logos::Logos;
 
+/// One token of source code.
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
   pub kind: TokenKind,
   pub span: Range<usize>,
 }
 
+/// The different kinds of source token.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Logos)]
 #[logos(skip r#"[[:space:]]"#)]
 #[logos(error = TokenizerError)]
@@ -219,6 +221,7 @@ fn end_lit_raw_string(
   }
 }
 
+/// Convert source code string slice into an iterator of tokens.
 pub fn tokenize(source: &str) -> impl Iterator<Item = Token> + Clone + '_ {
   TokenKind::lexer(source).spanned().map(|(res_kind, op_range)| Token {
     kind: match res_kind {
