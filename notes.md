@@ -7,4 +7,5 @@
 ## general notes
 
 * laptop: 12.59 to 0.23
-* phone: 
+* phone: 42.58 to 1.50
+
