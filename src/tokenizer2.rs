@@ -43,15 +43,14 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
           _ => (Star, r(start, start + 1)),
         },
 
-        // TODO: string literal handling
-
-        // TODO: number literals
-
-        // TODO: keywords and idents
-        b'0'..=b'9' => todo!("num lit"),
+        b'"' => todo!("literal string"),
+        b'0'..=b'9' => todo!("rust-style literal number"),
+        b'%' => todo!("possible binary literal number"),
+        b'$' => todo!("possible hex literal number"),
+        b'r' => todo!("possible raw string literal"),
         b'A'..=b'Z' | b'a'..=b'z' => todo!("ident or something"),
 
-        // catch all for other punctuation
+        // punctuation mark general case
         b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
           let t = core::mem::transmute::<u8, TokenKind>;
           // Safety: all bytes in the pattern are variants within the TokenKind enum.
