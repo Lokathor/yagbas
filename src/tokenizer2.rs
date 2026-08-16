@@ -86,6 +86,7 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
           _ => (Star, r(start, start + 1)),
         },
 
+        // todo: also support raw strings eventually.
         b'"' => {
           let mut backslash_count = 0;
           let end = loop {
@@ -112,7 +113,6 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
           };
           (LitStr, r(start, end))
         }
-        b'r' => todo!("raw string literal, or goto ident"),
 
         b'$' => match bytes.peek() {
           Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
@@ -407,4 +407,10 @@ fn test_tokenize_keyword_and_ident() {
   let t = v[0];
   assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##" red "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 3, "Bad Span: `{t:?}`");
 }
