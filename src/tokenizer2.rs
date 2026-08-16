@@ -25,8 +25,9 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
 
         // catch all for other punctuation
         b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
+          let t = core::mem::transmute::<u8, TokenKind>;
           // Safety: all bytes in the pattern are variants within the TokenKind enum.
-          (unsafe { core::mem::transmute(byte) }, r(start, start + 1))
+          (unsafe { t(byte) }, r(start, start + 1))
         }
 
         // all other bytes are out of range
