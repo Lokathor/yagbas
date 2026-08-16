@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::cell::Cell;
 
 use crate::tokenizer::{Token, TokenKind};
