@@ -6,6 +6,7 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![deny(unreachable_patterns)]
+#![allow(unused_labels)]
 
 //! Yagbas is a compiler for a language of the same name.
 
