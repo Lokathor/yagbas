@@ -6,6 +6,11 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
   const fn r(start: usize, end: usize) -> Range<usize> {
     Range { start, end }
   }
+  fn handle_literal_num(
+    bytes: &mut impl Iterator<Item = (usize, u8)>,
+  ) -> (TokenKind, Range<usize>) {
+    todo!()
+  }
   let mut bytes = s.as_bytes().iter().copied().enumerate().peekable();
   let s_len = s.len();
   core::iter::from_fn(move || {
@@ -71,10 +76,25 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
           (LitStr, r(start, end))
         }
 
-        b'0'..=b'9' => todo!("rust-style literal number"),
-        b'%' => todo!("possible binary literal number"),
-        b'$' => todo!("possible hex literal number"),
+        // literal numbers
+        b'$' => match bytes.peek() {
+          Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
+            handle_literal_num(&mut bytes)
+          }
+          Some(_) | None => (Star, r(start, start + 1)),
+        },
+        b'%' => match bytes.peek() {
+          Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
+            handle_literal_num(&mut bytes)
+          }
+          Some(_) | None => (Percent, r(start, start + 1)),
+        },
+        b'0'..=b'9' => handle_literal_num(&mut bytes),
+
+        // keywords, and idents
+        b'f' => todo!("possible `false` or `fn`"),
         b'r' => todo!("possible raw string literal"),
+        b't' => todo!("possible `true`"),
         b'A'..=b'Z' | b'a'..=b'z' => todo!("ident or something"),
 
         // punctuation mark general case
@@ -137,19 +157,21 @@ pub enum TokenKind {
   ClBrace = b'}',
   Tilde = b'~',
   //
-  KwFn,
-  KwStruct,
   KwBitbag,
-  KwConst,
-  KwStatic,
-  KwIf,
-  KwElse,
-  KwLoop,
   KwBreak,
+  KwConst,
   KwContinue,
-  KwReturn,
+  KwElse,
+  KwFalse,
+  KwFn,
+  KwIf,
   KwLet,
+  KwLoop,
   KwMut,
+  KwReturn,
+  KwStruct,
+  KwStatic,
+  KwTrue,
   //
   CommentOpBlock,
   CommentClBlock,
@@ -159,8 +181,6 @@ pub enum TokenKind {
   LitNum,
   LitStr,
   LitRawStr,
-  LitBoolTrue,
-  LitBoolFalse,
 }
 
 #[test]
