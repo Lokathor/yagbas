@@ -222,7 +222,7 @@ fn test_tokenize_lit_str() {
   assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 5, "Bad Len: `{t:?}`");
 
-  v = tokenize(r##" "a\\\"bc" "##).collect();
+  v = tokenize(r##" "a\"bc" "##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
@@ -232,5 +232,23 @@ fn test_tokenize_lit_str() {
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 7, "Bad Len: `{t:?}`");
+}
+
+#[test]
+fn test_tokenize_lit_str_no_close() {
+  use TokenKind::*;
+  let mut v: Vec<Token>;
+
+  v = tokenize(r##" " "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, ErrLitStrUnclosed, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 7, "Bad Len: `{t:?}`");
+
+  v = tokenize(r##" "\" "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, ErrLitStrUnclosed, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 7, "Bad Len: `{t:?}`");
 }
