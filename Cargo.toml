@@ -22,7 +22,7 @@ lto = true
 #derive_more = { version = "2.0.1", features = ["display"] }
 #fnv = "1.0.7"
 #internal_iterator_rec = "0.1.1"
-logos = { version = "0.16.1", features = ["forbid_unsafe"] }
+#logos = { version = "0.16.1", features = ["forbid_unsafe"] }
 #rayon = { version = "1.11.0", optional = true }
 #str_id = "0.1.1"
 

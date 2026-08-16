@@ -90,7 +90,7 @@ impl Parser {
     self
       .tokens
       .get(self.pos + lookahead)
-      .map_or(TokenKind::EndOfFile, |tk| tk.kind)
+      .map_or(TokenKind::ErrEndOfFile, |tk| tk.kind)
   }
   fn at(&self, kind: TokenKind) -> bool {
     self.nth(0) == kind
