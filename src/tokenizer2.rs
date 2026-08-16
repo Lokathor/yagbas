@@ -1,13 +1,27 @@
+use core::iter::*;
 use core::range::Range;
+use core::slice::Iter;
 
 #[inline]
 pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
   use TokenKind::*;
+  #[inline(always)]
   const fn r(start: usize, end: usize) -> Range<usize> {
     Range { start, end }
   }
   fn handle_literal_num(
-    bytes: &mut impl Iterator<Item = (usize, u8)>,
+    start: usize, bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+  ) -> (TokenKind, Range<usize>) {
+    let mut end = start;
+    while let Some((x, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
+      bytes.next()
+    {
+      end = x;
+    }
+    (LitNum, r(start, end + 1))
+  }
+  fn handle_keyword_or_ident(
+    _start: usize, _bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
   ) -> (TokenKind, Range<usize>) {
     todo!()
   }
@@ -17,10 +31,8 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
     loop {
       let (start, byte) = bytes.next()?;
       let (kind, span) = match byte {
-        // whitespace is skipped over
         b' ' | b'\t' | b'\r' | b'\n' => continue,
 
-        // handle comment markers with highest priority
         b'/' => match bytes.peek() {
           Some((_, b'*')) => {
             let _ = bytes.next();
@@ -48,7 +60,6 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
           _ => (Star, r(start, start + 1)),
         },
 
-        // literal strings are complicated by escape characters
         b'"' => {
           let mut backslash_count = 0;
           let end = loop {
@@ -75,36 +86,30 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
           };
           (LitStr, r(start, end))
         }
+        b'r' => todo!("raw string literal, or goto ident"),
 
-        // literal numbers
         b'$' => match bytes.peek() {
           Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
-            handle_literal_num(&mut bytes)
+            handle_literal_num(start, &mut bytes)
           }
           Some(_) | None => (Star, r(start, start + 1)),
         },
         b'%' => match bytes.peek() {
           Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
-            handle_literal_num(&mut bytes)
+            handle_literal_num(start, &mut bytes)
           }
           Some(_) | None => (Percent, r(start, start + 1)),
         },
-        b'0'..=b'9' => handle_literal_num(&mut bytes),
+        b'0'..=b'9' => handle_literal_num(start, &mut bytes),
 
-        // keywords, and idents
-        b'f' => todo!("possible `false` or `fn`"),
-        b'r' => todo!("possible raw string literal"),
-        b't' => todo!("possible `true`"),
-        b'A'..=b'Z' | b'a'..=b'z' => todo!("ident or something"),
+        b'A'..=b'Z' | b'a'..=b'z' => handle_keyword_or_ident(start, &mut bytes),
 
-        // punctuation mark general case
         b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
           let t = core::mem::transmute::<u8, TokenKind>;
           // Safety: all bytes in the pattern are variants within the TokenKind enum.
           (unsafe { t(byte) }, r(start, start + 1))
         }
 
-        // all other bytes are out of range
         ..=0x1F | 0x7F.. => (ErrUnknown, r(start, start + 1)),
       };
       return Some(Token { kind, span });
@@ -123,6 +128,7 @@ pub struct Token {
 pub enum TokenKind {
   ErrUnknown,
   ErrLitStrUnclosed,
+  ErrLitRawStrUnclosed,
   //
   Bang = b'!',
   DoubleQuote = b'"',
