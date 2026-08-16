@@ -217,9 +217,9 @@ fn do_block(p: &mut Parser) {
   p.expect(TokenKind::OpBrace);
   while !p.at(TokenKind::ClBrace) && p.has_more() {
     match p.nth(0) {
-      TokenKind::KwLet => do_stmt_let(p),
-      TokenKind::KwReturn => do_stmt_return(p),
-      _ => do_stmt_expr(p),
+      TokenKind::KwLet => todo!(),
+      TokenKind::KwReturn => todo!(),
+      _ => todo!(),
     }
   }
 
