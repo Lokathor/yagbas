@@ -1,64 +1,127 @@
+use TokenKind::*;
 use core::iter::*;
 use core::range::Range;
 use core::slice::Iter;
 
+#[inline(always)]
+const fn r(start: usize, end: usize) -> Range<usize> {
+  Range { start, end }
+}
+
+fn handle_literal_str(
+  whole_len: usize, start: usize,
+  bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+) -> (TokenKind, Range<usize>) {
+  let mut backslash_count = 0;
+  let end = loop {
+    match bytes.next() {
+      None => {
+        return (ErrLitStrUnclosed, r(start, whole_len));
+      }
+      Some((_, b'\\')) => {
+        backslash_count += 1;
+      }
+      Some((end, b'"')) => {
+        if backslash_count % 2 != 0 {
+          backslash_count = 0;
+          continue;
+        } else {
+          break end + 1;
+        }
+      }
+      _ => backslash_count = 0,
+    }
+  };
+  (LitStr, r(start, end))
+}
+fn handle_literal_raw_value(
+  whole_len: usize, start: usize,
+  bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+) -> (TokenKind, Range<usize>) {
+  let mut end = start;
+  let mut hash_count = 0;
+  while let Some((_, b'#')) = bytes.peek() {
+    hash_count += 1;
+    end = bytes.next().unwrap().0;
+  }
+  match bytes.next() {
+    Some((_, b'"')) => (),
+    _ => return (ErrBadRawValue, r(start, end + 1)),
+  }
+  'find_double_quote: loop {
+    match bytes.next() {
+      None => return (ErrLitRawStrUnclosed, r(start, whole_len)),
+      Some((x, b'"')) => {
+        end = x;
+        for _ in 0..hash_count {
+          match bytes.next() {
+            None => return (ErrLitRawStrUnclosed, r(start, whole_len)),
+            Some((x, b'#')) => end = x,
+            Some((_, _)) => continue 'find_double_quote,
+          }
+        }
+        break 'find_double_quote;
+      }
+      Some(_) => (),
+    }
+  }
+  (LitRawStr, r(start, end + 1))
+}
+
+fn handle_literal_num(
+  start: usize, bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+) -> (TokenKind, Range<usize>) {
+  let mut end = start;
+  while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
+    bytes.peek()
+  {
+    end = bytes.next().unwrap().0;
+  }
+  (LitNum, r(start, end + 1))
+}
+
+fn handle_keyword_or_ident(
+  src: &str, start: usize,
+  bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+) -> (TokenKind, Range<usize>) {
+  let mut end = start;
+  while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
+    bytes.peek()
+  {
+    end = bytes.next().unwrap().0;
+  }
+  end += 1;
+  let captured = &src[start..end];
+  let kind = match captured {
+    "bitbag" => KwBitbag,
+    "break" => KwBreak,
+    "const" => KwConst,
+    "continue" => KwContinue,
+    "else" => KwElse,
+    "false" => KwFalse,
+    "fn" => KwFn,
+    "if" => KwIf,
+    "let" => KwLet,
+    "loop" => KwLoop,
+    "mut" => KwMut,
+    "return" => KwReturn,
+    "struct" => KwStruct,
+    "static" => KwStatic,
+    "true" => KwTrue,
+    _ => Ident,
+  };
+  (kind, r(start, end))
+}
+
 #[inline]
 pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
-  use TokenKind::*;
-  #[inline(always)]
-  const fn r(start: usize, end: usize) -> Range<usize> {
-    Range { start, end }
-  }
-  fn handle_literal_num(
-    start: usize, bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
-  ) -> (TokenKind, Range<usize>) {
-    let mut end = start;
-    while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
-      bytes.peek()
-    {
-      end = bytes.next().unwrap().0;
-    }
-    (LitNum, r(start, end + 1))
-  }
-  fn handle_keyword_or_ident(
-    src: &str, start: usize,
-    bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
-  ) -> (TokenKind, Range<usize>) {
-    let mut end = start;
-    while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
-      bytes.peek()
-    {
-      end = bytes.next().unwrap().0;
-    }
-    end += 1;
-    let captured = &src[start..end];
-    let kind = match captured {
-      "bitbag" => KwBitbag,
-      "break" => KwBreak,
-      "const" => KwConst,
-      "continue" => KwContinue,
-      "else" => KwElse,
-      "false" => KwFalse,
-      "fn" => KwFn,
-      "if" => KwIf,
-      "let" => KwLet,
-      "loop" => KwLoop,
-      "mut" => KwMut,
-      "return" => KwReturn,
-      "struct" => KwStruct,
-      "static" => KwStatic,
-      "true" => KwTrue,
-      _ => Ident,
-    };
-    (kind, r(start, end))
-  }
   let mut bytes = src.as_bytes().iter().copied().enumerate().peekable();
   core::iter::from_fn(move || {
     loop {
       let (start, byte) = bytes.next()?;
       let (kind, span) = match byte {
         b' ' | b'\t' | b'\r' | b'\n' => continue,
-
+        // comments
         b'/' => match bytes.peek() {
           Some((_, b'*')) => {
             let _ = bytes.next();
@@ -85,35 +148,12 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
           }
           _ => (Star, r(start, start + 1)),
         },
-
-        // todo: also support raw strings eventually.
-        b'"' => {
-          let mut backslash_count = 0;
-          let end = loop {
-            match bytes.next() {
-              None => {
-                return Some(Token {
-                  kind: ErrLitStrUnclosed,
-                  span: r(start, src.len()),
-                });
-              }
-              Some((_, b'\\')) => {
-                backslash_count += 1;
-              }
-              Some((end, b'"')) => {
-                if backslash_count % 2 != 0 {
-                  backslash_count = 0;
-                  continue;
-                } else {
-                  break end + 1;
-                }
-              }
-              _ => backslash_count = 0,
-            }
-          };
-          (LitStr, r(start, end))
+        // string literals
+        b'"' => handle_literal_str(src.len(), start, &mut bytes),
+        b'r' if bytes.peek().map(|b| b.1 == b'#').unwrap_or(false) => {
+          handle_literal_raw_value(src.len(), start, &mut bytes)
         }
-
+        // number literals
         b'$' => match bytes.peek() {
           Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
             handle_literal_num(start, &mut bytes)
@@ -127,17 +167,16 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
           _ => (Percent, r(start, start + 1)),
         },
         b'0'..=b'9' => handle_literal_num(start, &mut bytes),
-
+        // keywords, idents, and punctuation
         b'A'..=b'Z' | b'a'..=b'z' | b'_' => {
           handle_keyword_or_ident(src, start, &mut bytes)
         }
-
         b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
           let t = core::mem::transmute::<u8, TokenKind>;
           // Safety: all bytes in the pattern are variants within the TokenKind enum.
           (unsafe { t(byte) }, r(start, start + 1))
         }
-
+        // otherwise it's out of range
         ..=0x1F | 0x7F.. => (ErrUnknown, r(start, start + 1)),
       };
       return Some(Token { kind, span });
@@ -157,6 +196,7 @@ pub enum TokenKind {
   ErrUnknown,
   ErrLitStrUnclosed,
   ErrLitRawStrUnclosed,
+  ErrBadRawValue,
   //
   Bang = b'!',
   DoubleQuote = b'"',
@@ -311,6 +351,45 @@ fn test_tokenize_lit_str() {
   let t = v[0];
   assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 7, "Bad Span: `{t:?}`");
+}
+
+#[test]
+fn test_tokenize_lit_raw_str() {
+  use TokenKind::*;
+  let mut v: Vec<Token>;
+
+  v = tokenize(r##" r"" "##).collect();
+  assert_eq!(v.len(), 2, "Bad Output Len: {v:?}");
+
+  v = tokenize(r##" r# "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, ErrBadRawValue, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##" r#""# "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitRawStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
+
+  v = tokenize(r#######" r###""# "#######).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, ErrLitRawStrUnclosed, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 8, "Bad Span: `{t:?}`");
+
+  v = tokenize(r#######" r###""### "#######).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitRawStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 9, "Bad Span: `{t:?}`");
+
+  v = tokenize(r#######" r###"abc" "### "#######).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitRawStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 14, "Bad Span: `{t:?}`");
 }
 
 #[test]
