@@ -43,7 +43,10 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
           _ => (Star, r(start, start + 1)),
         },
 
-        b'"' => todo!("literal string"),
+        b'"' => {
+          todo!("literal string processing")
+        }
+
         b'0'..=b'9' => todo!("rust-style literal number"),
         b'%' => todo!("possible binary literal number"),
         b'$' => todo!("possible hex literal number"),
@@ -75,6 +78,7 @@ pub struct Token {
 #[repr(u8)]
 pub enum TokenKind {
   ErrUnknown,
+  ErrLitStrUnclosed,
   //
   Bang = b'!',
   DoubleQuote = b'"',
@@ -199,4 +203,34 @@ fn test_comment_line() {
   let t = v[0];
   assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 19, "Bad Len: `{t:?}`");
+}
+
+#[test]
+fn test_tokenize_lit_str() {
+  use TokenKind::*;
+  let mut v: Vec<Token>;
+
+  v = tokenize(r##" "" "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Len: `{t:?}`");
+
+  v = tokenize(r##" "abc" "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 5, "Bad Len: `{t:?}`");
+
+  v = tokenize(r##" "a\\\"bc" "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 7, "Bad Len: `{t:?}`");
+
+  v = tokenize(r##" "a\\bc" "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 7, "Bad Len: `{t:?}`");
 }
