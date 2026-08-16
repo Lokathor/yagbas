@@ -6,20 +6,31 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
   const fn r(start: usize, end: usize) -> Range<usize> {
     Range { start, end }
   }
-  let mut bytes = s.as_bytes().iter().copied().enumerate();
+  let mut bytes = s.as_bytes().iter().copied().enumerate().peekable();
   core::iter::from_fn(move || {
     loop {
       let (start, byte) = bytes.next()?;
       let (kind, span) = match byte {
+        // whitespace is skipped over
         b' ' | b'\t' | b'\r' | b'\n' => continue,
-        ..=0x1F | 0xFF => (ErrUnknown, r(start, start + 1)),
-        // TODO: % and $ handling if theyre a number prefix
+        // TODO: string literal handling
+
+        // TODO: comments
+
+        // TODO: number literals
+
+        // TODO: keywords and idents
+        b'0'..=b'9' => todo!("num lit"),
+        b'A'..=b'Z' | b'a'..=b'z' => todo!("ident or something"),
+
+        // catch all for other punctuation
         b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
           // Safety: all bytes in the pattern are variants within the TokenKind enum.
           (unsafe { core::mem::transmute(byte) }, r(start, start + 1))
         }
-        // TODO: keyword, ident, and literal handling
-        _ => todo!("{byte:02X?}"),
+
+        // all other bytes are out of range
+        ..=0x1F | 0x7F.. => (ErrUnknown, r(start, start + 1)),
       };
       return Some(Token { kind, span });
     }
