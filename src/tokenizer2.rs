@@ -7,15 +7,43 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
     Range { start, end }
   }
   let mut bytes = s.as_bytes().iter().copied().enumerate().peekable();
+  let s_len = s.len();
   core::iter::from_fn(move || {
     loop {
       let (start, byte) = bytes.next()?;
       let (kind, span) = match byte {
         // whitespace is skipped over
         b' ' | b'\t' | b'\r' | b'\n' => continue,
-        // TODO: string literal handling
 
-        // TODO: comments
+        // handle comment markers with highest priority
+        b'/' => match bytes.peek() {
+          Some((_, b'*')) => {
+            let _ = bytes.next();
+            (CommentOpBlock, r(start, start + 2))
+          }
+          Some((_, b'/')) => {
+            let end = loop {
+              match bytes.peek() {
+                Some((x, b'\r')) | Some((x, b'\n')) => break *x,
+                None => break s_len,
+                _ => {
+                  let _ = bytes.next();
+                }
+              }
+            };
+            (CommentLine, r(start, end))
+          }
+          _ => (Slash, r(start, start + 1)),
+        },
+        b'*' => match bytes.peek() {
+          Some((_, b'/')) => {
+            let _ = bytes.next();
+            (CommentClBlock, r(start, start + 2))
+          }
+          _ => (Star, r(start, start + 1)),
+        },
+
+        // TODO: string literal handling
 
         // TODO: number literals
 
@@ -96,6 +124,10 @@ pub enum TokenKind {
   KwLet,
   KwMut,
   //
+  CommentOpBlock,
+  CommentClBlock,
+  CommentLine,
+  //
   Ident,
   LitNum,
   LitStr,
@@ -119,7 +151,53 @@ fn test_tokenize_single_chars() {
     v = tokenize(s).collect();
     assert_eq!(v.len(), 1);
     let t = v[0];
-    assert_eq!(t.kind, k, "Single Kind: `{s}`");
-    assert_eq!(t.span.iter().count(), 1, "Single Len: `{s}`");
+    assert_eq!(t.kind, k, "Bad Kind: `{s}`");
+    assert_eq!(t.span.iter().count(), 1, "Bad Len: `{s}`");
   }
+}
+
+#[test]
+fn test_comment_block_op_and_cl() {
+  use TokenKind::*;
+  let mut v: Vec<Token>;
+
+  v = tokenize("/*").collect();
+  assert_eq!(v.len(), 1);
+  let t = v[0];
+  assert_eq!(t.kind, CommentOpBlock, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Len: `{t:?}`");
+
+  v = tokenize("*/").collect();
+  assert_eq!(v.len(), 1);
+  let t = v[0];
+  assert_eq!(t.kind, CommentClBlock, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Len: `{t:?}`");
+}
+
+#[test]
+fn test_comment_line() {
+  use TokenKind::*;
+  let mut v: Vec<Token>;
+
+  v = tokenize("//").collect();
+  assert_eq!(v.len(), 1);
+  let t = v[0];
+  assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Len: `{t:?}`");
+
+  v = tokenize("// big comment line").collect();
+  assert_eq!(v.len(), 1);
+  let t = v[0];
+  assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 19, "Bad Len: `{t:?}`");
+
+  v = tokenize(
+    "// big comment line
+  !",
+  )
+  .collect();
+  assert_eq!(v.len(), 2);
+  let t = v[0];
+  assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 19, "Bad Len: `{t:?}`");
 }
