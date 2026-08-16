@@ -3,7 +3,7 @@ use core::range::Range;
 use core::slice::Iter;
 
 #[inline]
-pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
+pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
   use TokenKind::*;
   #[inline(always)]
   const fn r(start: usize, end: usize) -> Range<usize> {
@@ -21,12 +21,38 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
     (LitNum, r(start, end + 1))
   }
   fn handle_keyword_or_ident(
-    _start: usize, _bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+    src: &str, start: usize,
+    bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
   ) -> (TokenKind, Range<usize>) {
-    todo!()
+    let mut end = start;
+    while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
+      bytes.peek()
+    {
+      end = bytes.next().unwrap().0;
+    }
+    end += 1;
+    let captured = &src[start..end];
+    let kind = match captured {
+      "bitbag" => KwBitbag,
+      "break" => KwBreak,
+      "const" => KwConst,
+      "continue" => KwContinue,
+      "else" => KwElse,
+      "false" => KwFalse,
+      "fn" => KwFn,
+      "if" => KwIf,
+      "let" => KwLet,
+      "loop" => KwLoop,
+      "mut" => KwMut,
+      "return" => KwReturn,
+      "struct" => KwStruct,
+      "static" => KwStatic,
+      "true" => KwTrue,
+      _ => Ident,
+    };
+    (kind, r(start, end))
   }
-  let mut bytes = s.as_bytes().iter().copied().enumerate().peekable();
-  let s_len = s.len();
+  let mut bytes = src.as_bytes().iter().copied().enumerate().peekable();
   core::iter::from_fn(move || {
     loop {
       let (start, byte) = bytes.next()?;
@@ -42,7 +68,7 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
             let end = loop {
               match bytes.peek() {
                 Some((x, b'\r')) | Some((x, b'\n')) => break *x,
-                None => break s_len,
+                None => break src.len(),
                 _ => {
                   let _ = bytes.next();
                 }
@@ -67,7 +93,7 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
               None => {
                 return Some(Token {
                   kind: ErrLitStrUnclosed,
-                  span: r(start, s_len),
+                  span: r(start, src.len()),
                 });
               }
               Some((_, b'\\')) => {
@@ -103,7 +129,7 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
         b'0'..=b'9' => handle_literal_num(start, &mut bytes),
 
         b'A'..=b'Z' | b'a'..=b'z' | b'_' => {
-          handle_keyword_or_ident(start, &mut bytes)
+          handle_keyword_or_ident(src, start, &mut bytes)
         }
 
         b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
@@ -350,5 +376,35 @@ fn test_tokenize_lit_num() {
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
+}
+
+#[test]
+fn test_tokenize_keyword_and_ident() {
+  use TokenKind::*;
+  let mut v: Vec<Token>;
+
+  v = tokenize(r##"fn"##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, KwFn, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##"static "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, KwStatic, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 6, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##" foo "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 3, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##" foo_ "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
 }
