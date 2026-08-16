@@ -13,10 +13,10 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
     start: usize, bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
   ) -> (TokenKind, Range<usize>) {
     let mut end = start;
-    while let Some((x, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
-      bytes.next()
+    while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
+      bytes.peek()
     {
-      end = x;
+      end = bytes.next().unwrap().0;
     }
     (LitNum, r(start, end + 1))
   }
@@ -92,17 +92,19 @@ pub fn tokenize(s: &str) -> impl Iterator<Item = Token> + '_ {
           Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
             handle_literal_num(start, &mut bytes)
           }
-          Some(_) | None => (Star, r(start, start + 1)),
+          _ => (Dollar, r(start, start + 1)),
         },
         b'%' => match bytes.peek() {
           Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
             handle_literal_num(start, &mut bytes)
           }
-          Some(_) | None => (Percent, r(start, start + 1)),
+          _ => (Percent, r(start, start + 1)),
         },
         b'0'..=b'9' => handle_literal_num(start, &mut bytes),
 
-        b'A'..=b'Z' | b'a'..=b'z' => handle_keyword_or_ident(start, &mut bytes),
+        b'A'..=b'Z' | b'a'..=b'z' | b'_' => {
+          handle_keyword_or_ident(start, &mut bytes)
+        }
 
         b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
           let t = core::mem::transmute::<u8, TokenKind>;
@@ -301,4 +303,52 @@ fn test_tokenize_lit_str_no_close() {
   let t = v[0];
   assert_eq!(t.kind, ErrLitStrUnclosed, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
+}
+
+#[test]
+fn test_tokenize_lit_num() {
+  use TokenKind::*;
+  let mut v: Vec<Token>;
+
+  v = tokenize(r##"1"##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 1, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##"1 "##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 1, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##"$"##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, Dollar, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 1, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##"%"##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, Percent, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 1, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##"$F"##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##"%1"##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
+
+  v = tokenize(r##"1_u8"##).collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
 }
