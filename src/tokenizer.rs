@@ -3,14 +3,15 @@ use core::iter::*;
 use core::range::Range;
 use core::slice::Iter;
 
+type TokenInternalIter<'a> = Peekable<Enumerate<Copied<Iter<'a, u8>>>>;
+
 #[inline(always)]
 const fn r(start: usize, end: usize) -> Range<usize> {
   Range { start, end }
 }
 
 fn handle_literal_str(
-  whole_len: usize, start: usize,
-  bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+  whole_len: usize, start: usize, bytes: &mut TokenInternalIter<'_>,
 ) -> (TokenKind, Range<usize>) {
   let mut backslash_count = 0;
   let end = loop {
@@ -35,8 +36,7 @@ fn handle_literal_str(
   (LitStr, r(start, end))
 }
 fn handle_literal_raw_value(
-  whole_len: usize, start: usize,
-  bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+  whole_len: usize, start: usize, bytes: &mut TokenInternalIter<'_>,
 ) -> (TokenKind, Range<usize>) {
   let mut end = start;
   let mut hash_count = 0;
@@ -69,7 +69,7 @@ fn handle_literal_raw_value(
 }
 
 fn handle_literal_num(
-  start: usize, bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+  start: usize, bytes: &mut TokenInternalIter<'_>,
 ) -> (TokenKind, Range<usize>) {
   let mut end = start;
   while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
@@ -81,8 +81,7 @@ fn handle_literal_num(
 }
 
 fn handle_keyword_or_ident(
-  src: &str, start: usize,
-  bytes: &mut Peekable<Enumerate<Copied<Iter<'_, u8>>>>,
+  src: &str, start: usize, bytes: &mut TokenInternalIter<'_>,
 ) -> (TokenKind, Range<usize>) {
   let mut end = start;
   while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
@@ -114,7 +113,7 @@ fn handle_keyword_or_ident(
 }
 
 #[inline]
-pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
+pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + Clone + '_ {
   let mut bytes = src.as_bytes().iter().copied().enumerate().peekable();
   core::iter::from_fn(move || {
     loop {
@@ -312,6 +311,12 @@ fn test_comment_line() {
   let t = v[0];
   assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 19, "Bad Span: `{t:?}`");
+
+  v = tokenize("// */").collect();
+  assert_eq!(v.len(), 1);
+  let t = v[0];
+  assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
 
   v = tokenize(
     "// big comment line
