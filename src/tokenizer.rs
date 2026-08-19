@@ -38,6 +38,7 @@ fn handle_literal_str(
 fn handle_literal_raw_value(
   whole_len: usize, start: usize, bytes: &mut TokenInternalIter<'_>,
 ) -> (TokenKind, Range<usize>) {
+  debug_assert_eq!(bytes.peek().unwrap().1, b'#');
   let mut end = start;
   let mut hash_count = 0;
   while let Some((_, b'#')) = bytes.peek() {
@@ -48,21 +49,28 @@ fn handle_literal_raw_value(
     Some((_, b'"')) => (),
     _ => return (ErrBadRawValue, r(start, end + 1)),
   }
+  debug_assert!(hash_count > 0);
   'find_double_quote: loop {
     match bytes.next() {
       None => return (ErrLitRawStrUnclosed, r(start, whole_len)),
       Some((x, b'"')) => {
         end = x;
-        for _ in 0..hash_count {
-          match bytes.next() {
+        let mut remaining = hash_count;
+        'count_hashes: while remaining > 0 {
+          match bytes.peek() {
             None => return (ErrLitRawStrUnclosed, r(start, whole_len)),
-            Some((x, b'#')) => end = x,
-            Some((_, _)) => continue 'find_double_quote,
+            Some((_x, b'#')) => {
+              end = bytes.next().unwrap().0;
+            }
+            Some((_, _y)) => {
+              continue 'find_double_quote;
+            }
           }
+          remaining -= 1;
         }
         break 'find_double_quote;
       }
-      Some(_) => (),
+      Some((_i, _b)) => {}
     }
   }
   (LitRawStr, r(start, end + 1))
@@ -112,19 +120,41 @@ fn handle_keyword_or_ident(
   (kind, r(start, end))
 }
 
-fn handle_byte_gather(
-  target: u8, start: usize, bytes: &mut TokenInternalIter<'_>,
-) -> Range<usize> {
-  let mut end = start;
+fn handle_block_comment(
+  start: usize, bytes: &mut TokenInternalIter<'_>,
+) -> (TokenKind, Range<usize>) {
+  let mut depth = 1;
+  let (mut end, b) = bytes.next().unwrap();
+  debug_assert_eq!(b, b'*');
   loop {
-    match bytes.peek() {
-      Some((_, b)) if *b == target => {
-        end = bytes.next().unwrap().0;
+    debug_assert!(depth > 0);
+    match bytes.next() {
+      None => return (ErrBlockCommentUnclosed, r(start, end + 1)),
+      Some((x, b'/')) => {
+        end = x;
+        // possible nested block
+        if let Some((_, b'*')) = bytes.peek() {
+          end = bytes.next().unwrap().0;
+          depth += 1;
+        }
       }
-      _ => break,
+      Some((x, b'*')) => {
+        end = x;
+        // possible end block
+        if let Some((_, b'/')) = bytes.peek() {
+          end = bytes.next().unwrap().0;
+          depth -= 1;
+          if depth == 0 {
+            break;
+          }
+        }
+      }
+      Some((x, _)) => {
+        end = x;
+      }
     }
   }
-  r(start, end + 1)
+  (Comment, r(start, end + 1))
 }
 
 // TODO: make this a concrete type.
@@ -137,21 +167,20 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + Clone + '_ {
       let (kind, span) = match byte {
         // whitespace
         b' ' | b'\t' | b'\r' | b'\n' => {
-          let kind = {
-            let t = core::mem::transmute::<u8, TokenKind>;
-            // Safety: all bytes in the pattern are variants within the TokenKind enum.
-            unsafe { t(byte) }
-          };
-          let range = handle_byte_gather(byte, start, &mut bytes);
-          (kind, range)
+          let mut end = start;
+          loop {
+            match bytes.peek() {
+              Some((_, b' ' | b'\t' | b'\r' | b'\n')) => {
+                end = bytes.next().unwrap().0;
+              }
+              _ => break,
+            }
+          }
+          (Whitespace, r(start, end + 1))
         }
         // comments
-        // TODO: make 'comment' just one token, while still allowing nested block comments.
         b'/' => match bytes.peek() {
-          Some((_, b'*')) => {
-            let _ = bytes.next();
-            (CommentOpBlock, r(start, start + 2))
-          }
+          Some((_, b'*')) => handle_block_comment(start, &mut bytes),
           Some((_, b'/')) => {
             let end = loop {
               match bytes.peek() {
@@ -162,17 +191,11 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + Clone + '_ {
                 }
               }
             };
-            (CommentLine, r(start, end))
+            (Comment, r(start, end))
           }
           _ => (Slash, r(start, start + 1)),
         },
-        b'*' => match bytes.peek() {
-          Some((_, b'/')) => {
-            let _ = bytes.next();
-            (CommentClBlock, r(start, start + 2))
-          }
-          _ => (Star, r(start, start + 1)),
-        },
+        // TODO: */ when not in a comment block is an error!
         // string literals
         b'"' => handle_literal_str(src.len(), start, &mut bytes),
         b'r' if bytes.peek().map(|b| b.1 == b'#').unwrap_or(false) => {
@@ -219,15 +242,14 @@ pub struct Token {
 #[repr(u8)]
 pub enum TokenKind {
   ErrUnknown,
+  ErrBlockCommentUnclosed,
   ErrLitStrUnclosed,
   ErrLitRawStrUnclosed,
   ErrBadRawValue,
   ErrEndOfFile,
   //
-  WsSpace = b' ',
-  WsTab = b'\t',
-  WsNewline = b'\n',
-  WsCarriageReturn = b'\r',
+  Whitespace,
+  Comment,
   //
   Bang = b'!',
   DoubleQuote = b'"',
@@ -278,10 +300,6 @@ pub enum TokenKind {
   KwStatic,
   KwTrue,
   //
-  CommentOpBlock,
-  CommentClBlock,
-  CommentLine,
-  //
   Ident,
   LitNum,
   LitStr,
@@ -309,20 +327,20 @@ fn test_tokenize_single_chars() {
 }
 
 #[test]
-fn test_comment_block_op_and_cl() {
+fn test_comment_block() {
   use TokenKind::*;
   let mut v: Vec<Token>;
+
+  v = tokenize("/**/").collect();
+  assert_eq!(v.len(), 1);
+  let t = v[0];
+  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
 
   v = tokenize("/*").collect();
   assert_eq!(v.len(), 1);
   let t = v[0];
-  assert_eq!(t.kind, CommentOpBlock, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
-
-  v = tokenize("*/").collect();
-  assert_eq!(v.len(), 1);
-  let t = v[0];
-  assert_eq!(t.kind, CommentClBlock, "Bad Kind: `{t:?}`");
+  assert_eq!(t.kind, ErrBlockCommentUnclosed, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
 }
 
@@ -334,19 +352,19 @@ fn test_comment_line() {
   v = tokenize("//").collect();
   assert_eq!(v.len(), 1);
   let t = v[0];
-  assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
+  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
 
   v = tokenize("// big comment line").collect();
   assert_eq!(v.len(), 1);
   let t = v[0];
-  assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
+  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 19, "Bad Span: `{t:?}`");
 
   v = tokenize("// */").collect();
   assert_eq!(v.len(), 1);
   let t = v[0];
-  assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
+  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
 
   v = tokenize(
@@ -354,9 +372,9 @@ fn test_comment_line() {
   !",
   )
   .collect();
-  assert_eq!(v.len(), 2);
+  assert_eq!(v.len(), 3); // comment whitespace bang
   let t = v[0];
-  assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
+  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 19, "Bad Span: `{t:?}`");
 }
 
@@ -365,25 +383,25 @@ fn test_tokenize_lit_str() {
   use TokenKind::*;
   let mut v: Vec<Token>;
 
-  v = tokenize(r##" "" "##).collect();
+  v = tokenize(r##""""##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
 
-  v = tokenize(r##" "abc" "##).collect();
+  v = tokenize(r##""abc""##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
 
-  v = tokenize(r##" "a\"bc" "##).collect();
+  v = tokenize(r##""a\"bc""##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 7, "Bad Span: `{t:?}`");
 
-  v = tokenize(r##" "a\\bc" "##).collect();
+  v = tokenize(r##""a\\bc""##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
@@ -395,38 +413,38 @@ fn test_tokenize_lit_raw_str() {
   use TokenKind::*;
   let mut v: Vec<Token>;
 
-  v = tokenize(r##" r"" "##).collect();
+  v = tokenize(r##"r"""##).collect();
   assert_eq!(v.len(), 2, "Bad Output Len: {v:?}");
 
-  v = tokenize(r##" r# "##).collect();
+  v = tokenize(r##"r#"##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, ErrBadRawValue, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
 
-  v = tokenize(r##" r#""# "##).collect();
+  v = tokenize(r##"r#""#"##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitRawStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
 
-  v = tokenize(r#######" r###""# "#######).collect();
+  v = tokenize(r#######"r###""#"#######).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, ErrLitRawStrUnclosed, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span.iter().count(), 8, "Bad Span: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 7, "Bad Span: `{t:?}`");
 
-  v = tokenize(r#######" r###""### "#######).collect();
+  v = tokenize(r#######"r###""###"#######).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitRawStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 9, "Bad Span: `{t:?}`");
 
-  v = tokenize(r#######" r###"abc" "### "#######).collect();
+  v = tokenize(r#######"r###"abc""###"#######).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitRawStr, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span.iter().count(), 14, "Bad Span: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 13, "Bad Span: `{t:?}`");
 }
 
 #[test]
@@ -434,17 +452,17 @@ fn test_tokenize_lit_str_no_close() {
   use TokenKind::*;
   let mut v: Vec<Token>;
 
-  v = tokenize(r##" " "##).collect();
+  v = tokenize(r##"""##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, ErrLitStrUnclosed, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 1, "Bad Span: `{t:?}`");
 
-  v = tokenize(r##" " \" "##).collect();
+  v = tokenize(r##"" \""##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, ErrLitStrUnclosed, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
 }
 
 #[test]
@@ -453,12 +471,6 @@ fn test_tokenize_lit_num() {
   let mut v: Vec<Token>;
 
   v = tokenize(r##"1"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span.iter().count(), 1, "Bad Span: `{t:?}`");
-
-  v = tokenize(r##"1 "##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
@@ -506,27 +518,27 @@ fn test_tokenize_keyword_and_ident() {
   assert_eq!(t.kind, KwFn, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
 
-  v = tokenize(r##"static "##).collect();
+  v = tokenize(r##"static"##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, KwStatic, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 6, "Bad Span: `{t:?}`");
 
-  v = tokenize(r##" foo "##).collect();
+  v = tokenize(r##"foo"##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 3, "Bad Span: `{t:?}`");
 
-  v = tokenize(r##" foo_ "##).collect();
+  v = tokenize(r##"foo_"##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
 
-  v = tokenize(r##" red "##).collect();
+  v = tokenize(r##"regal"##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
   assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span.iter().count(), 3, "Bad Span: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
 }
