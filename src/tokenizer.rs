@@ -195,7 +195,13 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + Clone + '_ {
           }
           _ => (Slash, r(start, start + 1)),
         },
-        // TODO: */ when not in a comment block is an error!
+        b'*' => match bytes.peek() {
+          Some((_, b'/')) => {
+            let end = bytes.next().unwrap().0;
+            (ErrBlockCommentExtraClose, r(start, end + 1))
+          }
+          _ => (Star, r(start, start + 1)),
+        },
         // string literals
         b'"' => handle_literal_str(src.len(), start, &mut bytes),
         b'r' if bytes.peek().map(|b| b.1 == b'#').unwrap_or(false) => {
@@ -243,6 +249,7 @@ pub struct Token {
 pub enum TokenKind {
   ErrUnknown,
   ErrBlockCommentUnclosed,
+  ErrBlockCommentExtraClose,
   ErrLitStrUnclosed,
   ErrLitRawStrUnclosed,
   ErrBadRawValue,
@@ -337,10 +344,22 @@ fn test_comment_block() {
   assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
 
+  v = tokenize("/*/**/*/").collect();
+  assert_eq!(v.len(), 1);
+  let t = v[0];
+  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 8, "Bad Span: `{t:?}`");
+
   v = tokenize("/*").collect();
   assert_eq!(v.len(), 1);
   let t = v[0];
   assert_eq!(t.kind, ErrBlockCommentUnclosed, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
+
+  v = tokenize("*/").collect();
+  assert_eq!(v.len(), 1);
+  let t = v[0];
+  assert_eq!(t.kind, ErrBlockCommentExtraClose, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
 }
 
