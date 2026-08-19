@@ -112,6 +112,22 @@ fn handle_keyword_or_ident(
   (kind, r(start, end))
 }
 
+fn handle_byte_gather(
+  target: u8, start: usize, bytes: &mut TokenInternalIter<'_>,
+) -> Range<usize> {
+  let mut end = start;
+  loop {
+    match bytes.peek() {
+      Some((_, b)) if *b == target => {
+        end = bytes.next().unwrap().0;
+      }
+      _ => break,
+    }
+  }
+  r(start, end + 1)
+}
+
+// TODO: make this a concrete type.
 #[inline]
 pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + Clone + '_ {
   let mut bytes = src.as_bytes().iter().copied().enumerate().peekable();
@@ -119,8 +135,18 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + Clone + '_ {
     loop {
       let (start, byte) = bytes.next()?;
       let (kind, span) = match byte {
-        b' ' | b'\t' | b'\r' | b'\n' => continue,
+        // whitespace
+        b' ' | b'\t' | b'\r' | b'\n' => {
+          let kind = {
+            let t = core::mem::transmute::<u8, TokenKind>;
+            // Safety: all bytes in the pattern are variants within the TokenKind enum.
+            unsafe { t(byte) }
+          };
+          let range = handle_byte_gather(byte, start, &mut bytes);
+          (kind, range)
+        }
         // comments
+        // TODO: make 'comment' just one token, while still allowing nested block comments.
         b'/' => match bytes.peek() {
           Some((_, b'*')) => {
             let _ = bytes.next();
@@ -197,6 +223,11 @@ pub enum TokenKind {
   ErrLitRawStrUnclosed,
   ErrBadRawValue,
   ErrEndOfFile,
+  //
+  WsSpace = b' ',
+  WsTab = b'\t',
+  WsNewline = b'\n',
+  WsCarriageReturn = b'\r',
   //
   Bang = b'!',
   DoubleQuote = b'"',
