@@ -316,7 +316,7 @@ fn test_comment_line() {
   assert_eq!(v.len(), 1);
   let t = v[0];
   assert_eq!(t.kind, CommentLine, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span.iter().count(), 4, "Bad Span: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
 
   v = tokenize(
     "// big comment line

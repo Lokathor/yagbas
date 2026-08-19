@@ -13,7 +13,7 @@ pub struct Cst {
 
 /// Concrete Syntax Tree Kinds
 ///
-/// There's one kind per "thing that can hold more things".
+/// There's one per kind of "thing that can hold more things".
 #[derive(Debug, Clone, Copy)]
 pub enum CstKind {
   CstKindError,
@@ -47,6 +47,10 @@ enum ParseEvent {
 struct OpenMarker {
   index: usize,
 }
+#[derive(Debug, Clone, Copy)]
+struct CloseMarker {
+  index: usize,
+}
 
 #[derive(Debug, Clone)]
 pub struct Parser {
@@ -65,9 +69,15 @@ impl Parser {
     mark
   }
   /// Close a given marker, and set it to the given kind.
-  fn close(&mut self, m: OpenMarker, kind: CstKind) {
+  fn close(&mut self, m: OpenMarker, kind: CstKind) -> CloseMarker {
     self.events[m.index] = ParseEvent::Open(kind);
     self.events.push(ParseEvent::Close);
+    CloseMarker { index: m.index }
+  }
+  fn open_before(&mut self, m: CloseMarker) -> OpenMarker {
+    let mark = OpenMarker { index: m.index };
+    self.events.insert(m.index, ParseEvent::Open(CstKind::CstKindError));
+    mark
   }
   fn advance(&mut self) {
     assert!(!self.eof());
@@ -140,90 +150,4 @@ impl Parser {
     assert!(tokens.next().is_none());
     stack.pop().unwrap()
   }
-}
-
-fn do_module(p: &mut Parser) {
-  let m = p.open();
-
-  while p.has_more() {
-    if p.at(TokenKind::KwFn) {
-      do_function(p);
-    } else {
-      p.advance_with_error("Expected keyword `fn`.");
-    }
-  }
-
-  p.close(m, CstKind::Module);
-}
-
-fn do_function(p: &mut Parser) {
-  debug_assert!(p.at(TokenKind::KwFn));
-  let m = p.open();
-
-  p.expect(TokenKind::KwFn);
-  p.expect(TokenKind::Ident);
-  if p.at(TokenKind::OpParen) {
-    do_param_list(p);
-  }
-  if p.eat(TokenKind::Minus) && p.eat(TokenKind::GreaterThan) {
-    do_type_expr(p);
-  }
-  if p.at(TokenKind::OpBrace) {
-    do_block(p);
-  }
-
-  p.close(m, CstKind::Function);
-}
-
-fn do_param_list(p: &mut Parser) {
-  debug_assert!(p.at(TokenKind::OpParen));
-  let m = p.open();
-
-  p.expect(TokenKind::OpParen);
-  while !p.at(TokenKind::ClParen) && p.has_more() {
-    if p.at(TokenKind::Ident) {
-      do_param(p);
-    } else {
-      break;
-    }
-  }
-  p.expect(TokenKind::ClParen);
-
-  p.close(m, CstKind::ParamList);
-}
-
-fn do_param(p: &mut Parser) {
-  debug_assert!(p.at(TokenKind::Ident));
-  let m = p.open();
-
-  p.expect(TokenKind::Ident);
-  p.expect(TokenKind::Colon);
-  do_type_expr(p);
-  if !p.at(TokenKind::ClParen) {
-    p.expect(TokenKind::Comma);
-  }
-
-  p.close(m, CstKind::Param);
-}
-
-fn do_type_expr(p: &mut Parser) {
-  let m = p.open();
-  p.expect(TokenKind::Ident);
-  p.close(m, CstKind::TypeExpr);
-}
-
-fn do_block(p: &mut Parser) {
-  debug_assert!(p.at(TokenKind::OpBrace));
-  let m = p.open();
-
-  p.expect(TokenKind::OpBrace);
-  while !p.at(TokenKind::ClBrace) && p.has_more() {
-    match p.nth(0) {
-      TokenKind::KwLet => todo!(),
-      TokenKind::KwReturn => todo!(),
-      _ => todo!(),
-    }
-  }
-
-  p.close(m, CstKind::Block);
 }
