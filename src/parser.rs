@@ -11,25 +11,39 @@ pub struct Cst {
   pub elements: Vec<CstElem>,
 }
 
-/// Concrete Syntax Tree Kinds
-///
-/// There's one per kind of "thing that can hold more things".
 #[derive(Debug, Clone, Copy)]
 pub enum CstKind {
   CstKindError,
-  Module,
-  Bitbag,
-  Structure,
-  Static,
-  Constant,
-  Function,
-  ParamList,
-  Param,
-  TypeExpr,
-  Block,
+  //
+  ValExpr,
+  LiteralInt,
+  LiteralFraction,
+  Ident,
+  Add,
+  Sub,
+  Mul,
+  Div,
+  Rem,
+  Neg,
+  BitAnd,
+  BitOr,
+  BitXor,
+  Not,
+  ShiftLeft,
+  ShiftRight,
+  FieldAccess,
+  Index,
+  FnCall,
+  Reference,
+  Dereference,
+  Range,
+  RangeFrom,
+  RangeFull,
+  RangeInclusive,
+  RangeTo,
+  RangeToInclusive,
 }
 
-/// Concrete Syntax Tree Element, a single token or an entire sub-tree.
 #[derive(Debug, Clone)]
 pub enum CstElem {
   Token(Token),
@@ -60,15 +74,11 @@ pub struct Parser {
   events: Vec<ParseEvent>,
 }
 impl Parser {
-  /// Open up a new sub-tree and get the marker that will close it later.
-  ///
-  /// the sub-tree will be an error until it's closed.
   fn open(&mut self) -> OpenMarker {
     let mark = OpenMarker { index: self.events.len() };
     self.events.push(ParseEvent::Open(CstKind::CstKindError));
     mark
   }
-  /// Close a given marker, and set it to the given kind.
   fn close(&mut self, m: OpenMarker, kind: CstKind) -> CloseMarker {
     self.events[m.index] = ParseEvent::Open(kind);
     self.events.push(ParseEvent::Close);
