@@ -73,7 +73,7 @@ fn handle_literal_raw_value(
       Some((_i, _b)) => {}
     }
   }
-  (LitRawStr, r(start, end + 1))
+  (LitStr, r(start, end + 1))
 }
 
 fn handle_literal_num(
@@ -310,7 +310,6 @@ pub enum TokenKind {
   Ident,
   LitNum,
   LitStr,
-  LitRawStr,
 }
 
 #[test]
@@ -444,7 +443,7 @@ fn test_tokenize_lit_raw_str() {
   v = tokenize(r##"r#""#"##).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
-  assert_eq!(t.kind, LitRawStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
 
   v = tokenize(r#######"r###""#"#######).collect();
@@ -456,13 +455,13 @@ fn test_tokenize_lit_raw_str() {
   v = tokenize(r#######"r###""###"#######).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
-  assert_eq!(t.kind, LitRawStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 9, "Bad Span: `{t:?}`");
 
   v = tokenize(r#######"r###"abc""###"#######).collect();
   assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
   let t = v[0];
-  assert_eq!(t.kind, LitRawStr, "Bad Kind: `{t:?}`");
+  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 13, "Bad Span: `{t:?}`");
 }
 
