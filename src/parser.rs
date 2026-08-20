@@ -95,6 +95,7 @@ mod parser_core {
       self.events.push(ParseEvent::Advance);
       self.pos += 1;
     }
+
     pub fn has_more(&self) -> bool {
       debug_assert!(self.pos <= self.tokens.len());
       self.pos < self.tokens.len()
@@ -105,11 +106,10 @@ mod parser_core {
     }
 
     pub fn build_tree(self) -> Cst {
-      let mut tokens = self.tokens.into_iter();
-      let mut events = self.events;
+      let mut tokens = self.tokens.iter().copied();
       let mut stack = Vec::new();
 
-      for event in events {
+      for event in self.events {
         match event {
           ParseEvent::Open(kind) => {
             stack.push(Cst { kind, elements: Vec::new() })
@@ -125,6 +125,7 @@ mod parser_core {
         }
       }
 
+      debug_assert_eq!(stack.len(), 1);
       debug_assert!(tokens.next().is_none());
       stack.pop().unwrap()
     }
