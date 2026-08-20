@@ -3,239 +3,246 @@ use core::iter::*;
 use core::range::Range;
 use core::slice::Iter;
 
-type TokenInternalIter<'a> = Peekable<Enumerate<Copied<Iter<'a, u8>>>>;
-
 #[inline(always)]
 const fn r(start: usize, end: usize) -> Range<usize> {
   Range { start, end }
 }
 
-fn handle_literal_str(
-  whole_len: usize, start: usize, bytes: &mut TokenInternalIter<'_>,
-) -> (TokenKind, Range<usize>) {
-  let mut backslash_count = 0;
-  let end = loop {
-    match bytes.next() {
-      None => {
-        return (ErrLitStrUnclosed, r(start, whole_len));
-      }
-      Some((_, b'\\')) => {
-        backslash_count += 1;
-      }
-      Some((end, b'"')) => {
-        if backslash_count % 2 != 0 {
-          backslash_count = 0;
-          continue;
-        } else {
-          break end + 1;
-        }
-      }
-      _ => backslash_count = 0,
-    }
-  };
-  (LitStr, r(start, end))
-}
-fn handle_literal_raw_value(
-  whole_len: usize, start: usize, bytes: &mut TokenInternalIter<'_>,
-) -> (TokenKind, Range<usize>) {
-  debug_assert_eq!(bytes.peek().unwrap().1, b'#');
-  let mut end = start;
-  let mut hash_count = 0;
-  while let Some((_, b'#')) = bytes.peek() {
-    hash_count += 1;
-    end = bytes.next().unwrap().0;
-  }
-  match bytes.next() {
-    Some((_, b'"')) => (),
-    _ => return (ErrBadRawValue, r(start, end + 1)),
-  }
-  debug_assert!(hash_count > 0);
-  'find_double_quote: loop {
-    match bytes.next() {
-      None => return (ErrLitRawStrUnclosed, r(start, whole_len)),
-      Some((x, b'"')) => {
-        end = x;
-        let mut remaining = hash_count;
-        'count_hashes: while remaining > 0 {
-          match bytes.peek() {
-            None => return (ErrLitRawStrUnclosed, r(start, whole_len)),
-            Some((_x, b'#')) => {
-              end = bytes.next().unwrap().0;
-            }
-            Some((_, _y)) => {
-              continue 'find_double_quote;
-            }
-          }
-          remaining -= 1;
-        }
-        break 'find_double_quote;
-      }
-      Some((_i, _b)) => {}
-    }
-  }
-  (LitStr, r(start, end + 1))
-}
+type TokenIterInternal<'a> = Peekable<Enumerate<Copied<Iter<'a, u8>>>>;
 
-fn handle_literal_num(
-  start: usize, bytes: &mut TokenInternalIter<'_>,
-) -> (TokenKind, Range<usize>) {
-  let mut end = start;
-  while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
-    bytes.peek()
-  {
-    end = bytes.next().unwrap().0;
-  }
-  (LitNum, r(start, end + 1))
+#[derive(Debug, Clone)]
+pub struct TokenIter<'a> {
+  src: &'a str,
+  bytes: TokenIterInternal<'a>,
 }
-
-fn handle_keyword_or_ident(
-  src: &str, start: usize, bytes: &mut TokenInternalIter<'_>,
-) -> (TokenKind, Range<usize>) {
-  let mut end = start;
-  while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
-    bytes.peek()
-  {
-    end = bytes.next().unwrap().0;
+impl<'a> TokenIter<'a> {
+  pub fn new(src: &'a str) -> Self {
+    Self { src, bytes: src.as_bytes().iter().copied().enumerate().peekable() }
   }
-  end += 1;
-  let captured = &src[start..end];
-  let kind = match captured {
-    "bitbag" => KwBitbag,
-    "break" => KwBreak,
-    "const" => KwConst,
-    "continue" => KwContinue,
-    "else" => KwElse,
-    "false" => KwFalse,
-    "fn" => KwFn,
-    "if" => KwIf,
-    "let" => KwLet,
-    "loop" => KwLoop,
-    "mut" => KwMut,
-    "return" => KwReturn,
-    "struct" => KwStruct,
-    "static" => KwStatic,
-    "true" => KwTrue,
-    _ => Ident,
-  };
-  (kind, r(start, end))
-}
 
-fn handle_block_comment(
-  start: usize, bytes: &mut TokenInternalIter<'_>,
-) -> (TokenKind, Range<usize>) {
-  let mut depth = 1;
-  let (mut end, b) = bytes.next().unwrap();
-  debug_assert_eq!(b, b'*');
-  loop {
-    debug_assert!(depth > 0);
-    match bytes.next() {
-      None => return (ErrBlockCommentUnclosed, r(start, end + 1)),
-      Some((x, b'/')) => {
-        end = x;
-        // possible nested block
-        if let Some((_, b'*')) = bytes.peek() {
-          end = bytes.next().unwrap().0;
-          depth += 1;
-        }
-      }
-      Some((x, b'*')) => {
-        end = x;
-        // possible end block
-        if let Some((_, b'/')) = bytes.peek() {
-          end = bytes.next().unwrap().0;
-          depth -= 1;
-          if depth == 0 {
-            break;
-          }
-        }
-      }
-      Some((x, _)) => {
-        end = x;
-      }
-    }
-  }
-  (Comment, r(start, end + 1))
-}
-
-// TODO: make this a concrete type.
-#[inline]
-pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + Clone + '_ {
-  let mut bytes = src.as_bytes().iter().copied().enumerate().peekable();
-  core::iter::from_fn(move || {
+  fn handle_block_comment(
+    &mut self, start: usize,
+  ) -> (TokenKind, Range<usize>) {
+    let mut depth = 1;
+    let (mut end, b) = self.bytes.next().unwrap();
+    debug_assert_eq!(b, b'*');
     loop {
-      let (start, byte) = bytes.next()?;
-      let (kind, span) = match byte {
-        // whitespace
-        b' ' | b'\t' | b'\r' | b'\n' => {
-          let mut end = start;
-          loop {
-            match bytes.peek() {
-              Some((_, b' ' | b'\t' | b'\r' | b'\n')) => {
-                end = bytes.next().unwrap().0;
-              }
-              _ => break,
+      debug_assert!(depth > 0);
+      match self.bytes.next() {
+        None => return (ErrBlockCommentUnclosed, r(start, end + 1)),
+        Some((x, b'/')) => {
+          end = x;
+          // possible nested block
+          if let Some((_, b'*')) = self.bytes.peek() {
+            end = self.bytes.next().unwrap().0;
+            depth += 1;
+          }
+        }
+        Some((x, b'*')) => {
+          end = x;
+          // possible end block
+          if let Some((_, b'/')) = self.bytes.peek() {
+            end = self.bytes.next().unwrap().0;
+            depth -= 1;
+            if depth == 0 {
+              break;
             }
           }
-          (Whitespace, r(start, end + 1))
         }
-        // comments
-        b'/' => match bytes.peek() {
-          Some((_, b'*')) => handle_block_comment(start, &mut bytes),
-          Some((_, b'/')) => {
-            let end = loop {
-              match bytes.peek() {
-                Some((x, b'\r')) | Some((x, b'\n')) => break *x,
-                None => break src.len(),
-                _ => {
-                  let _ = bytes.next();
-                }
-              }
-            };
-            (Comment, r(start, end))
-          }
-          _ => (Slash, r(start, start + 1)),
-        },
-        b'*' => match bytes.peek() {
-          Some((_, b'/')) => {
-            let end = bytes.next().unwrap().0;
-            (ErrBlockCommentExtraClose, r(start, end + 1))
-          }
-          _ => (Star, r(start, start + 1)),
-        },
-        // string literals
-        b'"' => handle_literal_str(src.len(), start, &mut bytes),
-        b'r' if bytes.peek().map(|b| b.1 == b'#').unwrap_or(false) => {
-          handle_literal_raw_value(src.len(), start, &mut bytes)
+        Some((x, _)) => {
+          end = x;
         }
-        // number literals
-        b'$' => match bytes.peek() {
-          Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
-            handle_literal_num(start, &mut bytes)
-          }
-          _ => (Dollar, r(start, start + 1)),
-        },
-        b'%' => match bytes.peek() {
-          Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
-            handle_literal_num(start, &mut bytes)
-          }
-          _ => (Percent, r(start, start + 1)),
-        },
-        b'0'..=b'9' => handle_literal_num(start, &mut bytes),
-        // keywords, idents, and punctuation
-        b'A'..=b'Z' | b'a'..=b'z' | b'_' => {
-          handle_keyword_or_ident(src, start, &mut bytes)
-        }
-        b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
-          let t = core::mem::transmute::<u8, TokenKind>;
-          // Safety: all bytes in the pattern are variants within the TokenKind enum.
-          (unsafe { t(byte) }, r(start, start + 1))
-        }
-        // otherwise it's out of range
-        ..=0x1F | 0x7F.. => (ErrUnknown, r(start, start + 1)),
-      };
-      return Some(Token { kind, span });
+      }
     }
-  })
+    (Comment, r(start, end + 1))
+  }
+
+  fn handle_literal_str(&mut self, start: usize) -> (TokenKind, Range<usize>) {
+    let mut backslash_count = 0;
+    let end = loop {
+      match self.bytes.next() {
+        None => {
+          return (ErrLitStrUnclosed, r(start, self.src.len()));
+        }
+        Some((_, b'\\')) => {
+          backslash_count += 1;
+        }
+        Some((end, b'"')) => {
+          if backslash_count % 2 != 0 {
+            backslash_count = 0;
+            continue;
+          } else {
+            break end + 1;
+          }
+        }
+        _ => backslash_count = 0,
+      }
+    };
+    (LitStr, r(start, end))
+  }
+
+  fn handle_literal_raw_value(
+    &mut self, start: usize,
+  ) -> (TokenKind, Range<usize>) {
+    debug_assert_eq!(self.bytes.peek().unwrap().1, b'#');
+    let mut end = start;
+    let mut hash_count = 0;
+    while let Some((_, b'#')) = self.bytes.peek() {
+      hash_count += 1;
+      end = self.bytes.next().unwrap().0;
+    }
+    match self.bytes.next() {
+      Some((_, b'"')) => (),
+      _ => return (ErrBadRawValue, r(start, end + 1)),
+    }
+    debug_assert!(hash_count > 0);
+    'find_double_quote: loop {
+      match self.bytes.next() {
+        None => return (ErrLitRawStrUnclosed, r(start, self.src.len())),
+        Some((x, b'"')) => {
+          end = x;
+          let mut remaining = hash_count;
+          'count_hashes: while remaining > 0 {
+            match self.bytes.peek() {
+              None => return (ErrLitRawStrUnclosed, r(start, self.src.len())),
+              Some((_x, b'#')) => {
+                end = self.bytes.next().unwrap().0;
+              }
+              Some((_, _y)) => {
+                continue 'find_double_quote;
+              }
+            }
+            remaining -= 1;
+          }
+          break 'find_double_quote;
+        }
+        Some((_i, _b)) => {}
+      }
+    }
+    (LitStr, r(start, end + 1))
+  }
+
+  fn handle_literal_num(&mut self, start: usize) -> (TokenKind, Range<usize>) {
+    let mut end = start;
+    while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
+      self.bytes.peek()
+    {
+      end = self.bytes.next().unwrap().0;
+    }
+    (LitNum, r(start, end + 1))
+  }
+
+  fn handle_keyword_or_ident(
+    &mut self, start: usize,
+  ) -> (TokenKind, Range<usize>) {
+    let mut end = start;
+    while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
+      self.bytes.peek()
+    {
+      end = self.bytes.next().unwrap().0;
+    }
+    end += 1;
+    let captured = &self.src[start..end];
+    let kind = match captured {
+      "bitbag" => KwBitbag,
+      "break" => KwBreak,
+      "const" => KwConst,
+      "continue" => KwContinue,
+      "else" => KwElse,
+      "false" => KwFalse,
+      "fn" => KwFn,
+      "for" => KwFor,
+      "if" => KwIf,
+      "impl" => KwImpl,
+      "let" => KwLet,
+      "loop" => KwLoop,
+      "mut" => KwMut,
+      "return" => KwReturn,
+      "struct" => KwStruct,
+      "static" => KwStatic,
+      "true" => KwTrue,
+      "use" => KwUse,
+      _ => Ident,
+    };
+    (kind, r(start, end))
+  }
+}
+impl<'a> Iterator for TokenIter<'a> {
+  type Item = Token;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    let (start, byte) = self.bytes.next()?;
+    let (kind, span) = match byte {
+      // whitespace
+      b' ' | b'\t' | b'\r' | b'\n' => {
+        let mut end = start;
+        'label: while let Some((_, b' ' | b'\t' | b'\r' | b'\n')) =
+          self.bytes.peek()
+        {
+          end = self.bytes.next().unwrap().0;
+        }
+        (Whitespace, r(start, end + 1))
+      }
+      // comments
+      b'/' => match self.bytes.peek() {
+        Some((_, b'*')) => self.handle_block_comment(start),
+        Some((_, b'/')) => {
+          let end = loop {
+            match self.bytes.peek() {
+              Some((x, b'\r')) | Some((x, b'\n')) => break *x,
+              None => break self.src.len(),
+              _ => {
+                let _ = self.bytes.next();
+              }
+            }
+          };
+          (Comment, r(start, end))
+        }
+        _ => (Slash, r(start, start + 1)),
+      },
+      b'*' => match self.bytes.peek() {
+        Some((_, b'/')) => {
+          let end = self.bytes.next().unwrap().0;
+          (ErrBlockCommentExtraClose, r(start, end + 1))
+        }
+        _ => (Star, r(start, start + 1)),
+      },
+      // string literals
+      b'"' => self.handle_literal_str(start),
+      b'r' if self.bytes.peek().map(|b| b.1 == b'#').unwrap_or(false) => {
+        self.handle_literal_raw_value(start)
+      }
+      // number literals
+      b'$' => match self.bytes.peek() {
+        Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
+          self.handle_literal_num(start)
+        }
+        _ => (Dollar, r(start, start + 1)),
+      },
+      b'%' => match self.bytes.peek() {
+        Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
+          self.handle_literal_num(start)
+        }
+        _ => (Percent, r(start, start + 1)),
+      },
+      b'0'..=b'9' => self.handle_literal_num(start),
+      // keywords, idents, and punctuation
+      b'A'..=b'Z' | b'a'..=b'z' | b'_' => self.handle_keyword_or_ident(start),
+      b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
+        let t = core::mem::transmute::<u8, TokenKind>;
+        // Safety: all bytes in the pattern are variants within the TokenKind enum.
+        (unsafe { t(byte) }, r(start, start + 1))
+      }
+      // otherwise it's out of range
+      ..=0x1F | 0x7F.. => (ErrUnknown, r(start, start + 1)),
+    };
+    Some(Token { kind, span })
+  }
+}
+
+#[inline]
+pub fn tokenize(src: &str) -> TokenIter<'_> {
+  TokenIter::new(src)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -255,8 +262,24 @@ pub enum TokenKind {
   ErrBadRawValue,
   ErrEndOfFile,
   //
-  Whitespace,
-  Comment,
+  KwBitbag,
+  KwBreak,
+  KwConst,
+  KwContinue,
+  KwElse,
+  KwFalse,
+  KwFn,
+  KwFor,
+  KwIf,
+  KwImpl,
+  KwLet,
+  KwLoop,
+  KwMut,
+  KwReturn,
+  KwStruct,
+  KwStatic,
+  KwTrue,
+  KwUse,
   //
   Bang = b'!',
   DoubleQuote = b'"',
@@ -291,21 +314,8 @@ pub enum TokenKind {
   ClBrace = b'}',
   Tilde = b'~',
   //
-  KwBitbag,
-  KwBreak,
-  KwConst,
-  KwContinue,
-  KwElse,
-  KwFalse,
-  KwFn,
-  KwIf,
-  KwLet,
-  KwLoop,
-  KwMut,
-  KwReturn,
-  KwStruct,
-  KwStatic,
-  KwTrue,
+  Whitespace,
+  Comment,
   //
   Ident,
   LitNum,
