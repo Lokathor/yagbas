@@ -105,9 +105,14 @@ mod parser_core {
         == kind
     }
 
-    pub fn build_tree(self) -> Cst {
+    pub fn build_tree(mut self) -> Cst {
       let mut tokens = self.tokens.iter().copied();
       let mut stack = Vec::new();
+
+      // remove the last close event so that we can pop the stack's final value
+      // and return it at the end of the method.
+      let last_event = self.events.pop();
+      debug_assert!(matches!(last_event, Some(ParseEvent::Close)));
 
       for event in self.events {
         match event {
