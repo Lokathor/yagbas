@@ -1,53 +1,11 @@
 #![allow(unused)]
 
-use crate::tokenizer::{Token, TokenKind};
+use crate::r;
+use crate::tokenizer::TokenKind::*;
+use crate::tokenizer::{Token, TokenKind, tokenize};
+use CstKind::*;
 
-/// Concrete Syntax Tree
-#[derive(Debug, Clone)]
-pub struct Cst {
-  pub kind: CstKind,
-  pub elements: Vec<CstElem>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum CstKind {
-  CstKindError,
-  //
-  ValExpr,
-  LiteralInt,
-  LiteralFraction,
-  Ident,
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Rem,
-  Neg,
-  BitAnd,
-  BitOr,
-  BitXor,
-  Not,
-  ShiftLeft,
-  ShiftRight,
-  FieldAccess,
-  Index,
-  FnCall,
-  Reference,
-  Dereference,
-  Range,
-  RangeFrom,
-  RangeFull,
-  RangeInclusive,
-  RangeTo,
-  RangeToInclusive,
-}
-
-#[derive(Debug, Clone)]
-pub enum CstElem {
-  Token(Token),
-  Tree(Cst),
-}
-
+use parser_core::*;
 mod parser_core {
   use super::*;
   use core::cell::Cell;
@@ -75,6 +33,9 @@ mod parser_core {
     events: Vec<ParseEvent>,
   }
   impl Parser {
+    pub fn new(tokens: Vec<Token>) -> Self {
+      Self { tokens, pos: 0, events: Vec::new() }
+    }
     pub fn open(&mut self) -> OpenMark {
       let mark = OpenMark { index: self.events.len() };
       self.events.push(ParseEvent::Open(CstKind::CstKindError));
@@ -100,9 +61,15 @@ mod parser_core {
       debug_assert!(self.pos <= self.tokens.len());
       self.pos < self.tokens.len()
     }
+    pub fn peek(&self) -> TokenKind {
+      if let Some(tk) = self.tokens.get(self.pos) {
+        tk.kind
+      } else {
+        TokenKind::ErrEndOfFile
+      }
+    }
     pub fn at(&self, kind: TokenKind) -> bool {
-      self.tokens.get(self.pos).map_or(TokenKind::ErrEndOfFile, |tk| tk.kind)
-        == kind
+      self.peek() == kind
     }
 
     pub fn build_tree(mut self) -> Cst {
@@ -135,4 +102,128 @@ mod parser_core {
       stack.pop().unwrap()
     }
   }
+}
+
+/// Concrete Syntax Tree
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cst {
+  pub kind: CstKind,
+  pub elements: Vec<CstElem>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CstKind {
+  CstKindError,
+  //
+  ValExpr,
+  LiteralNumber,
+  LiteralBool,
+  Identifier,
+  ParenGroup,
+  Add,
+  Sub,
+  Mul,
+  Div,
+  Rem,
+  Neg,
+  BitAnd,
+  BitOr,
+  BitXor,
+  Not,
+  ShiftLeft,
+  ShiftRight,
+  FieldAccess,
+  Index,
+  FnCall,
+  Reference,
+  Dereference,
+  Range,
+  RangeFrom,
+  RangeFull,
+  RangeInclusive,
+  RangeTo,
+  RangeToInclusive,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CstElem {
+  Token(Token),
+  Tree(Cst),
+}
+
+fn expr_p(p: &mut Parser) {
+  expr_atom_p(p);
+}
+
+fn expr_atom_p(p: &mut Parser) {
+  debug_assert_ne!(p.peek(), Whitespace);
+  let m = p.open();
+  let kind = match p.peek() {
+    LitNum => {
+      p.advance();
+      LiteralNumber
+    }
+    KwTrue | KwFalse => {
+      p.advance();
+      LiteralBool
+    }
+    Ident => {
+      p.advance();
+      Identifier
+    }
+    OpParen => {
+      p.advance();
+      if p.at(Whitespace) {
+        p.advance();
+        debug_assert_ne!(p.peek(), Whitespace);
+      }
+      expr_p(p);
+      if p.at(Whitespace) {
+        p.advance();
+        debug_assert_ne!(p.peek(), Whitespace);
+      }
+      p.advance(); // TODO: assert ClParen
+      ParenGroup
+    }
+    _ => todo!(),
+  };
+  p.close(m, kind);
+}
+
+#[test]
+fn test_expr_atom() {
+  let s = "1";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, LiteralNumber);
+  assert_eq!(cst.elements.len(), 1);
+
+  let s = "true";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, LiteralBool);
+  assert_eq!(cst.elements.len(), 1);
+
+  let s = "x";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, Identifier);
+  assert_eq!(cst.elements.len(), 1);
+
+  let s = "(1)";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, ParenGroup);
+  assert_eq!(cst.elements.len(), 3);
+
+  let s = "( true )";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, ParenGroup);
+  assert_eq!(cst.elements.len(), 5);
 }

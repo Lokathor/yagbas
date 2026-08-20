@@ -10,5 +10,12 @@
 
 //! Yagbas is a compiler for a language of the same name.
 
+use core::range::Range;
+
 pub mod parser;
 pub mod tokenizer;
+
+#[inline(always)]
+const fn r(start: usize, end: usize) -> Range<usize> {
+  Range { start, end }
+}

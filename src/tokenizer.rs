@@ -1,12 +1,8 @@
+use crate::r;
 use TokenKind::*;
 use core::iter::*;
 use core::range::Range;
 use core::slice::Iter;
-
-#[inline(always)]
-const fn r(start: usize, end: usize) -> Range<usize> {
-  Range { start, end }
-}
 
 type TokenIterInternal<'a> = Peekable<Enumerate<Copied<Iter<'a, u8>>>>;
 
@@ -245,7 +241,7 @@ pub fn tokenize(src: &str) -> TokenIter<'_> {
   TokenIter::new(src)
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Token {
   pub kind: TokenKind,
   pub span: Range<usize>,
