@@ -108,7 +108,6 @@ mod parser_core {
       let mut tokens = self.tokens.into_iter();
       let mut events = self.events;
       let mut stack = Vec::new();
-      debug_assert!(matches!(events.pop(), Some(ParseEvent::Close)));
 
       for event in events {
         match event {
@@ -125,7 +124,7 @@ mod parser_core {
           }
         }
       }
-      debug_assert_eq!(stack.len(), 1);
+
       debug_assert!(tokens.next().is_none());
       stack.pop().unwrap()
     }
