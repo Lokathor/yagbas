@@ -120,29 +120,8 @@ pub enum CstKind {
   LiteralBool,
   Identifier,
   ParenGroup,
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Rem,
-  Neg,
-  BitAnd,
-  BitOr,
-  BitXor,
-  Not,
-  ShiftLeft,
-  ShiftRight,
-  FieldAccess,
-  Index,
+  BinaryOp,
   FnCall,
-  Reference,
-  Dereference,
-  Range,
-  RangeFrom,
-  RangeFull,
-  RangeInclusive,
-  RangeTo,
-  RangeToInclusive,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,11 +130,123 @@ pub enum CstElem {
   Tree(Cst),
 }
 
-fn expr_p(p: &mut Parser) {
-  expr_atom_p(p);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpKind {
+  OpError,
+  //
+  Path,
+  MethodCall,
+  FieldAccess,
+  FnCall,
+  Indexing,
+  Try,
+  Negate,
+  BitNot,
+  Dereference,
+  Reference,
+  As,
+  Mul,
+  Div,
+  Rem,
+  Add,
+  Sub,
+  ShiftLeft,
+  ShiftRight,
+  BitAnd,
+  BitXor,
+  BitOr,
+  CmpEq,
+  CmpNe,
+  CmpLt,
+  CmpGt,
+  CmpLe,
+  CmpGe,
+  ConditionAnd,
+  ConditionOr,
+  Range,
+  RangeInclusive,
+  Assign,
+  AddAssign,
+  SubAssign,
+  MulAssign,
+  DivAssign,
+  RemAssign,
+  BitAndAssign,
+  BitOrAssign,
+  BitXorAssign,
+  ShiftLeftAssign,
+  ShiftRightAssign,
+  Return,
+  Break,
 }
 
-fn expr_atom_p(p: &mut Parser) {
+const fn prefix_bind_power(op: OpKind)->Option<u8>{
+  todo!()
+}
+const fn postfix_bind_power(op: OpKind)->Option<u8>{
+  todo!()
+}
+const fn infix_bind_power(op: OpKind)->Option<u8>{
+  todo!()
+}
+
+fn expr_p(p: &mut Parser) {
+  expr_p_rec(p, ErrEndOfFile)
+}
+
+fn expr_p_rec(p: &mut Parser, left: TokenKind) {
+  let mut lhs = expr_atom_p(p);
+
+  // call: Expr ParenGroup
+  while p.at(OpParen) {
+    let m = p.open_before(lhs);
+    arg_list_p(p);
+    lhs = p.close(m, FnCall);
+  }
+
+  loop {
+    let right = p.peek();
+    if right_binds_tighter(left, right) {
+      let m = p.open_before(lhs);
+      p.advance();
+      expr_p_rec(p, right);
+      lhs = p.close(m, BinaryOp);
+    } else {
+      break;
+    }
+  }
+}
+
+fn right_binds_tighter(left: TokenKind, right: TokenKind) -> bool {
+  fn tightness(kind: TokenKind) -> Option<usize> {
+    [
+      // Precedence table:
+      [Dot].as_slice(),
+      &[Plus, Minus],
+      &[Star, Slash],
+    ]
+    .iter()
+    .position(|level| level.contains(&kind))
+  }
+
+  let Some(right_tightness) = tightness(right) else { return false };
+  let Some(left_tightness) = tightness(left) else {
+    debug_assert!(left == ErrEndOfFile);
+    return true;
+  };
+
+  right_tightness > left_tightness
+}
+
+fn arg_list_p(p: &mut Parser) {
+  debug_assert!(p.at(OpParen));
+  // todo: proper arg parsing
+  p.advance();
+  p.advance();
+}
+
+fn expr_atom_p(p: &mut Parser) -> CloseMark {
   debug_assert_ne!(p.peek(), Whitespace);
   let m = p.open();
   let kind = match p.peek() {
@@ -172,6 +263,8 @@ fn expr_atom_p(p: &mut Parser) {
       Identifier
     }
     OpParen => {
+      // todo: parens can be empty, making a "unit" value
+      // todo: parens can have a comma list of expressions, making a tuple
       p.advance();
       if p.at(Whitespace) {
         p.advance();
@@ -187,7 +280,7 @@ fn expr_atom_p(p: &mut Parser) {
     }
     _ => todo!(),
   };
-  p.close(m, kind);
+  p.close(m, kind)
 }
 
 #[test]
@@ -226,4 +319,45 @@ fn test_expr_atom() {
   let cst = p.build_tree();
   assert_eq!(cst.kind, ParenGroup);
   assert_eq!(cst.elements.len(), 5);
+}
+
+#[test]
+fn test_expr_call() {
+  let s = "main()";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, FnCall);
+  assert_eq!(cst.elements.len(), 3);
+}
+
+#[test]
+fn test_expr_bin_op() {
+  let s = "2+3";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, BinaryOp);
+  assert_eq!(cst.elements.len(), 3);
+
+  let s = "2*3";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, BinaryOp);
+  assert_eq!(cst.elements.len(), 3);
+
+  let s = "2.3";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, BinaryOp);
+  assert_eq!(cst.elements.len(), 3);
+
+  let s = "x+y*3";
+  let mut p = Parser::new(tokenize(s).collect());
+  expr_p(&mut p);
+  let cst = p.build_tree();
+  assert_eq!(cst.kind, BinaryOp);
+  assert_eq!(cst.elements.len(), 3);
 }
