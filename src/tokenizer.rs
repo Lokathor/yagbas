@@ -140,6 +140,7 @@ impl<'a> TokenIter<'a> {
     end += 1;
     let captured = &self.src[start..end];
     let kind = match captured {
+      "as" => KwAs,
       "bitbag" => KwBitbag,
       "break" => KwBreak,
       "const" => KwConst,
@@ -152,6 +153,7 @@ impl<'a> TokenIter<'a> {
       "impl" => KwImpl,
       "let" => KwLet,
       "loop" => KwLoop,
+      "match" => KwMatch,
       "mut" => KwMut,
       "return" => KwReturn,
       "struct" => KwStruct,
@@ -194,12 +196,20 @@ impl<'a> Iterator for TokenIter<'a> {
           };
           (Comment, r(start, end))
         }
+        Some((_, b'=')) => {
+          let end = self.bytes.next().unwrap().0;
+          (SlashEqual, r(start, end + 1))
+        }
         _ => (Slash, r(start, start + 1)),
       },
       b'*' => match self.bytes.peek() {
         Some((_, b'/')) => {
           let end = self.bytes.next().unwrap().0;
           (ErrBlockCommentExtraClose, r(start, end + 1))
+        }
+        Some((_, b'=')) => {
+          let end = self.bytes.next().unwrap().0;
+          (StarEqual, r(start, end + 1))
         }
         _ => (Star, r(start, start + 1)),
       },
@@ -219,11 +229,57 @@ impl<'a> Iterator for TokenIter<'a> {
         Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
           self.handle_literal_num(start)
         }
+        Some((_, b'=')) => {
+          let end = self.bytes.next().unwrap().0;
+          (PercentEqual, r(start, end + 1))
+        }
         _ => (Percent, r(start, start + 1)),
       },
       b'0'..=b'9' => self.handle_literal_num(start),
-      // keywords, idents, and punctuation
+      // keywords, idents
       b'A'..=b'Z' | b'a'..=b'z' | b'_' => self.handle_keyword_or_ident(start),
+      // double punctuation
+      b':' if self.bytes.peek().map_or(0, |(_, b)| *b) == b':' => {
+        let _ = self.bytes.next();
+        (ColonColon, r(start, start + 2))
+      }
+      b'=' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
+        let _ = self.bytes.next();
+        (EqualEqual, r(start, start + 2))
+      }
+      b'!' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
+        let _ = self.bytes.next();
+        (BangEqual, r(start, start + 2))
+      }
+      b'+' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
+        let _ = self.bytes.next();
+        (PlusEqual, r(start, start + 2))
+      }
+      b'-' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
+        let _ = self.bytes.next();
+        (MinusEqual, r(start, start + 2))
+      }
+      b'&' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
+        let _ = self.bytes.next();
+        (AmpersandEqual, r(start, start + 2))
+      }
+      b'|' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
+        let _ = self.bytes.next();
+        (PipeEqual, r(start, start + 2))
+      }
+      b'^' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
+        let _ = self.bytes.next();
+        (CaretEqual, r(start, start + 2))
+      }
+      b'.' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'.' => {
+        let _ = self.bytes.next(); // consume second '.'
+        // possible '=' after the second '.'
+        match self.bytes.peek().map_or(0, |(_, b)| *b) {
+          b'=' => (DotDotEqual, r(start, start + 3)),
+          _ => (DotDot, r(start, start + 2)),
+        }
+      }
+      // fallback for all other punctuation cases
       b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
         let t = core::mem::transmute::<u8, TokenKind>;
         // Safety: all bytes in the pattern are variants within the TokenKind enum.
@@ -250,6 +306,7 @@ pub struct Token {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum TokenKind {
+  // error cases
   ErrUnknown,
   ErrBlockCommentUnclosed,
   ErrBlockCommentExtraClose,
@@ -257,7 +314,8 @@ pub enum TokenKind {
   ErrLitRawStrUnclosed,
   ErrBadRawValue,
   ErrEndOfFile,
-  //
+  // keywords
+  KwAs,
   KwBitbag,
   KwBreak,
   KwConst,
@@ -270,13 +328,14 @@ pub enum TokenKind {
   KwImpl,
   KwLet,
   KwLoop,
+  KwMatch,
   KwMut,
   KwReturn,
   KwStruct,
   KwStatic,
   KwTrue,
   KwUse,
-  //
+  // individual punctuation
   Bang = b'!',
   DoubleQuote = b'"',
   Hash = b'#',
@@ -309,10 +368,24 @@ pub enum TokenKind {
   Pipe = b'|',
   ClBrace = b'}',
   Tilde = b'~',
-  //
+  // merged punctuation (makes parsing much easier)
+  ColonColon,
+  EqualEqual,
+  BangEqual,
+  DotDot,
+  DotDotEqual,
+  PlusEqual,
+  MinusEqual,
+  StarEqual,
+  SlashEqual,
+  PercentEqual,
+  AmpersandEqual,
+  PipeEqual,
+  CaretEqual,
+  // varying non-code elements
   Whitespace,
   Comment,
-  //
+  // varying code elements
   Ident,
   LitNum,
   LitStr,
@@ -565,4 +638,16 @@ fn test_tokenize_keyword_and_ident() {
   let t = v[0];
   assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 5, "Bad Span: `{t:?}`");
+}
+
+#[test]
+fn test_merged_punctuation() {
+  use TokenKind::*;
+  let mut v: Vec<Token>;
+
+  v = tokenize("::").collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, ColonColon, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
 }
