@@ -1,1048 +1,450 @@
-use crate::Token::*;
-use crate::TokenTree::*;
-use crate::*;
-use chumsky::text::ascii::keyword;
-use chumsky::{input::MappedInput, prelude::*, recursive::Indirect};
+#![allow(unused)]
 
-#[allow(unused_macros)]
-macro_rules! infix_maker {
-  ($kind: path) => {
-    |lhs, _op, rhs, extras| Expr {
-      span: extras.span(),
-      kind: Box::new(ExprKind::BinOp(lhs, $kind, rhs)),
+use crate::r;
+use crate::tokenizer::TokenKind::*;
+use crate::tokenizer::{Token, TokenKind, tokenize};
+
+use parser_core::*;
+mod parser_core {
+  use super::*;
+
+  #[derive(Debug, Clone, Copy)]
+  enum ParseEvent {
+    Open(CstKind),
+    Close,
+    Advance,
+  }
+
+  #[derive(Debug, Clone, Copy)]
+  pub struct OpenMark {
+    index: usize,
+  }
+  #[derive(Debug, Clone, Copy)]
+  pub struct CloseMark {
+    index: usize,
+  }
+
+  #[derive(Debug, Clone)]
+  pub struct Parser {
+    tokens: Vec<Token>,
+    pos: usize,
+    events: Vec<ParseEvent>,
+  }
+  impl Parser {
+    pub fn new(tokens: Vec<Token>) -> Self {
+      Self { tokens, pos: 0, events: Vec::new() }
     }
-  };
-}
-#[allow(unused_macros)]
-macro_rules! prefix_maker {
-  ($kind: path) => {
-    |_op, inner, extras| Expr {
-      span: extras.span(),
-      kind: Box::new(ExprKind::UnOp(inner, $kind)),
+    pub fn open(&mut self) -> OpenMark {
+      let mark = OpenMark { index: self.events.len() };
+      self.events.push(ParseEvent::Open(CstKind::CstKindError));
+      mark
     }
-  };
-}
+    pub fn close(&mut self, m: OpenMark, kind: CstKind) -> CloseMark {
+      self.events[m.index] = ParseEvent::Open(kind);
+      self.events.push(ParseEvent::Close);
+      CloseMark { index: m.index }
+    }
+    pub fn open_before(&mut self, m: CloseMark) -> OpenMark {
+      let mark = OpenMark { index: m.index };
+      self.events.insert(m.index, ParseEvent::Open(CstKind::CstKindError));
+      mark
+    }
+    #[cfg_attr(debug_assertions, track_caller)]
+    pub fn advance(&mut self) {
+      debug_assert!(self.has_more());
+      self.events.push(ParseEvent::Advance);
+      self.pos += 1;
+    }
 
-pub fn items_of<'src>(
-  trees: &'src [(TokenTree, Span32)], yag_state: YagParserState,
-) -> (Vec<AstItem>, Vec<Rich<'src, TokenTree, Span32>>) {
-  let bad_item_recovery =
-    via_parser(any().repeated().at_least(1).map_with(|_, ex| AstItem {
-      attributes: Vec::new(),
-      file_id: yag_state.file_id,
-      span: ex.span(),
-      kind: AstItemKind::AstItemKindError,
-    }));
+    pub fn has_more(&self) -> bool {
+      debug_assert!(self.pos <= self.tokens.len());
+      self.pos < self.tokens.len()
+    }
+    pub fn peek(&self) -> TokenKind {
+      if let Some(tk) = self.tokens.get(self.pos) {
+        tk.kind
+      } else {
+        TokenKind::ErrEndOfFile
+      }
+    }
+    pub fn at(&self, kind: TokenKind) -> bool {
+      self.peek() == kind
+    }
 
-  let parser =
-    item_p().recover_with(bad_item_recovery).repeated().collect::<Vec<_>>();
-  let mut state = SimpleState(yag_state);
+    // TODO: error logging
 
-  let (opt_out, errors): (Option<Vec<AstItem>>, Vec<_>) = parser
-    .parse_with_state(make_yag_parser_input(trees), &mut state)
-    .into_output_errors();
+    pub fn build_tree(mut self) -> Cst {
+      let mut tokens = self.tokens.iter().copied();
+      let mut stack = Vec::new();
 
-  (opt_out.unwrap_or_default(), errors)
-}
+      // remove the last close event so that we can pop the stack's final value
+      // and return it at the end of the method.
+      let last_event = self.events.pop();
+      debug_assert!(matches!(last_event, Some(ParseEvent::Close)));
 
-pub fn item_p<'src>() -> impl YagParser<'src, AstItem> {
-  let mut attributes_p = Recursive::declare();
-  let mut statement_p = Recursive::declare();
-  let mut expr_p = Recursive::declare();
-  let mut condition_p = Recursive::declare();
-  let mut statement_body_p = Recursive::declare();
-  let mut if_else_info_p = Recursive::declare();
-  let mut loop_info_p = Recursive::declare();
-
-  statement_body_p.define({
-    statement_p
-      .clone()
-      .repeated()
-      .collect::<Vec<_>>()
-      .then(expr_p.clone().or_not())
-      .nested_in(braces_content_p())
-      .map(|(statements, tail_expr)| AstSatementBody { statements, tail_expr })
-      .labelled("statement_body")
-      .as_context()
-  });
-
-  if_else_info_p.define({
-    kw_if_p()
-      .ignore_then(condition_p.clone())
-      .then(statement_body_p.clone())
-      .then(kw_else_p().ignore_then(statement_body_p.clone()).or_not())
-      .map(|((condition, if_body), else_body)| IfElseInfo {
-        condition,
-        if_body,
-        else_body,
-      })
-      .labelled("if_else")
-      .as_context()
-  });
-
-  loop_info_p.define({
-    let times_kw = StrID::from("times");
-    let label = punct_quote_p()
-      .ignore_then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .or_not();
-    let times = expr_p
-      .clone()
-      .then_ignore(ident_p().filter(move |i| *i == times_kw))
-      .or_not();
-
-    label
-      .then_ignore(kw_loop_p())
-      .then(times)
-      .then(statement_body_p.clone())
-      .map(|((name, times), steps)| LoopInfo { name, steps, times })
-      .labelled("loop")
-      .as_context()
-  });
-
-  attributes_p.define({
-    let assign_kind = spanned_ident_p()
-      .then_ignore(punct_equal_p())
-      .then(expr_p.clone())
-      .map(|((name, name_span), x)| AttributeKind::Assign(name, name_span, x));
-    let expr_kind = expr_p.clone().map(|x| AttributeKind::Expr(x));
-    //
-    punct_hash_p()
-      .ignore_then(
-        choice((assign_kind, expr_kind))
-          .recover_with(via_parser(
-            any().repeated().to(AttributeKind::AttributeKindError),
-          ))
-          .nested_in(brackets_content_p())
-          .map_with(|kind, ex| Attribute { span: ex.span(), kind }),
-      )
-      .labelled("attribute")
-      .as_context()
-      .repeated()
-      .collect::<Vec<_>>()
-  });
-
-  statement_p.define({
-    let let_kind = kw_let_p()
-      .ignore_then(spanned_ident_p())
-      .then(punct_colon_p().ignore_then(type_name_p()).or_not())
-      .then(punct_equal_p().ignore_then(expr_p.clone()).or_not())
-      .then_ignore(punct_semicolon_p().repeated().at_least(1))
-      .map(|(((name, name_span), opt_ty), opt_init)| {
-        StatementKind::Let(name, name_span, opt_ty, opt_init)
-      })
-      .labelled("let_statement")
-      .as_context();
-    let assign_kind = expr_p
-      .clone()
-      .then_ignore(punct_equal_p())
-      .then(expr_p.clone())
-      .then_ignore(punct_semicolon_p().repeated().at_least(1))
-      .map(|(lhs, rhs)| StatementKind::Assign(lhs, rhs))
-      .labelled("assignment_statement")
-      .as_context();
-    let bin_op_kind = expr_p
-      .clone()
-      .then(bin_op_assign_p())
-      .then(expr_p.clone())
-      .then_ignore(punct_semicolon_p().repeated().at_least(1))
-      .map(|((lhs, bin), rhs)| StatementKind::BinOpAssign(lhs, bin, rhs))
-      .labelled("bin_op_assign_statement")
-      .as_context();
-    let if_else_kind = if_else_info_p
-      .clone()
-      .map(StatementKind::IfElse)
-      .then_ignore(punct_semicolon_p().repeated())
-      .labelled("if_statement")
-      .as_context();
-    let loop_kind = loop_info_p
-      .clone()
-      .map(StatementKind::Loop)
-      .then_ignore(punct_semicolon_p().repeated())
-      .labelled("loop_statement")
-      .as_context();
-    let other_expr_kind = expr_p
-      .clone()
-      .map(StatementKind::OtherExpr)
-      .then_ignore(punct_semicolon_p().repeated().at_least(1))
-      .labelled("expr_statement")
-      .as_context();
-    let statement_recovery = via_parser(
-      none_of([Lone(Token::Semicolon)])
-        .repeated()
-        .then(punct_semicolon_p())
-        .to(StatementKind::StatementKindError),
-    );
-    attributes_p
-      .clone()
-      .then(
-        choice((
-          let_kind,
-          assign_kind,
-          bin_op_kind,
-          if_else_kind,
-          loop_kind,
-          other_expr_kind,
-        ))
-        .recover_with(statement_recovery),
-      )
-      .map_with(|(attributes, kind), ex| Statement {
-        attributes: if attributes.is_empty() {
-          None
-        } else {
-          Some(Box::new(attributes))
-        },
-        kind: Box::new(kind),
-        span: ex.span(),
-      })
-      .labelled("statement")
-      .as_context()
-  });
-
-  expr_p.define(
-    define_expr_p(
-      expr_p.clone(),
-      if_else_info_p.clone(),
-      loop_info_p.clone(),
-      statement_body_p.clone(),
-      true,
-    )
-    .labelled("expression")
-    .as_context(),
-  );
-
-  condition_p.define(
-    define_expr_p(
-      expr_p.clone(),
-      if_else_info_p.clone(),
-      loop_info_p.clone(),
-      statement_body_p.clone(),
-      false,
-    )
-    .labelled("condition")
-    .as_context(),
-  );
-
-  let ast_function_p = {
-    let fn_arg_p = spanned_ident_p()
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .map(|((name, name_span), ty)| {
-        AstFunctionArgKind::NameTy(name, name_span, ty)
-      })
-      .recover_with(via_parser(
-        none_of([Lone(Token::Comma)])
-          .repeated()
-          .at_least(1)
-          .to(AstFunctionArgKind::AstFunctionArgKindError),
-      ))
-      .labelled("function_argument")
-      .as_context();
-    let fn_args_group_p = fn_arg_p
-      .separated_by(punct_comma_p())
-      .allow_trailing()
-      .collect::<Vec<_>>()
-      .nested_in(parens_content_p())
-      .labelled("function_argument_group")
-      .as_context();
-    let return_ty_p = punct_minus_p()
-      .ignore_then(punct_greater_than_p())
-      .ignore_then(type_name_p())
-      .or_not()
-      .labelled("return_type")
-      .as_context();
-    attributes_p
-      .clone()
-      .then_ignore(kw_fn_p())
-      .then(spanned_ident_p())
-      .then(fn_args_group_p)
-      .then(return_ty_p)
-      .then(statement_body_p.clone())
-      .map_with(
-        |((((attributes, (name, name_span)), args), return_ty), body), ex| {
-          AstItem {
-            file_id: ex.state().file_id,
-            span: ex.span(),
-            attributes,
-            kind: AstItemKind::Function(AstFunction {
-              name,
-              name_span,
-              args,
-              return_ty,
-              body,
-            }),
+      for event in self.events {
+        match event {
+          ParseEvent::Open(kind) => {
+            stack.push(Cst { kind, elements: Vec::new() })
           }
-        },
-      )
-      .labelled("function")
-      .as_context()
+          ParseEvent::Close => {
+            let tree = stack.pop().unwrap();
+            stack.last_mut().unwrap().elements.push(CstElem::Tree(tree));
+          }
+          ParseEvent::Advance => {
+            let token = tokens.next().unwrap();
+            stack.last_mut().unwrap().elements.push(CstElem::Token(token));
+          }
+        }
+      }
+
+      debug_assert_eq!(stack.len(), 1);
+      debug_assert!(tokens.next().is_none());
+      stack.pop().unwrap()
+    }
+  }
+}
+
+/// Concrete Syntax Tree
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cst {
+  pub kind: CstKind,
+  pub elements: Vec<CstElem>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CstKind {
+  CstKindError,
+  //
+  ValExpr,
+  ParenGroup,
+  Identifier,
+  LiteralNumber,
+  InfixOperator,
+  PrefixOperator,
+  PostfixOperator,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CstElem {
+  Token(Token),
+  Tree(Cst),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BindDirection {
+  Left,
+  Right,
+  Ambiguious,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperatorKind {
+  Path,
+  FieldAccess,
+  FnCall,
+  ArrayIndex,
+  Try,
+  Negative,
+  BitNot,
+  Dereference,
+  Reference,
+  As,
+  Mul,
+  Div,
+  Rem,
+  Add,
+  Sub,
+  ShiftLeft,
+  ShiftRight,
+  BitAnd,
+  BitXor,
+  BitOr,
+  CmpEq,
+  CmpNe,
+  CmpLt,
+  CmpGt,
+  CmpLe,
+  CmpGe,
+  ConditionalAnd,
+  ConditionalOr,
+  RangeExclusive,
+  RangeInclusive,
+  Assign,
+  AddAssign,
+  SubAssign,
+  MulAssign,
+  DivAssign,
+  RemAssign,
+  BitAndAssign,
+  BitOrAssign,
+  BitXorAssign,
+  ShiftLeftAssign,
+  ShiftRightAssign,
+  Return,
+  Break,
+}
+impl OperatorKind {
+  pub const fn binding(self) -> (u8, BindDirection) {
+    match self {
+      OperatorKind::Return | OperatorKind::Break => {
+        (2, BindDirection::Ambiguious)
+      }
+      OperatorKind::Assign
+      | OperatorKind::AddAssign
+      | OperatorKind::SubAssign
+      | OperatorKind::MulAssign
+      | OperatorKind::DivAssign
+      | OperatorKind::RemAssign
+      | OperatorKind::BitAndAssign
+      | OperatorKind::BitOrAssign
+      | OperatorKind::BitXorAssign
+      | OperatorKind::ShiftLeftAssign
+      | OperatorKind::ShiftRightAssign => (4, BindDirection::Right),
+      OperatorKind::RangeExclusive | OperatorKind::RangeInclusive => {
+        (6, BindDirection::Ambiguious)
+      }
+      OperatorKind::ConditionalOr => (8, BindDirection::Left),
+      OperatorKind::ConditionalAnd => (10, BindDirection::Left),
+      OperatorKind::CmpEq
+      | OperatorKind::CmpNe
+      | OperatorKind::CmpLt
+      | OperatorKind::CmpGt
+      | OperatorKind::CmpLe
+      | OperatorKind::CmpGe => (12, BindDirection::Ambiguious),
+      OperatorKind::BitOr => (14, BindDirection::Left),
+      OperatorKind::BitXor => (16, BindDirection::Left),
+      OperatorKind::BitAnd => (18, BindDirection::Left),
+      OperatorKind::ShiftLeft | OperatorKind::ShiftRight => {
+        (20, BindDirection::Left)
+      }
+      OperatorKind::Add | OperatorKind::Sub => (22, BindDirection::Left),
+      OperatorKind::Mul | OperatorKind::Div | OperatorKind::Rem => {
+        (24, BindDirection::Left)
+      }
+      OperatorKind::As => (26, BindDirection::Left),
+      OperatorKind::Negative
+      | OperatorKind::BitNot
+      | OperatorKind::Dereference
+      | OperatorKind::Reference => (28, BindDirection::Left),
+      OperatorKind::Try => (30, BindDirection::Left),
+      OperatorKind::FnCall | OperatorKind::ArrayIndex => {
+        (32, BindDirection::Left)
+      }
+      OperatorKind::FieldAccess => (34, BindDirection::Left),
+      OperatorKind::Path => (36, BindDirection::Left),
+    }
+  }
+}
+
+/// Tries to get a **prefix** operator, or `None` and no input was consumed.
+fn try_prefix_operator(p: &mut Parser) -> Option<OperatorKind> {
+  let k = match p.peek() {
+    Minus => OperatorKind::Negative,
+    Bang => OperatorKind::BitNot,
+    Star => OperatorKind::Dereference,
+    Ampersand => OperatorKind::Reference,
+    KwReturn => OperatorKind::Return,
+    KwBreak => OperatorKind::Break,
+    _ => return None,
   };
-  let ast_bitbag_p = {
-    let one_field = spanned_ident_p()
-      .then_ignore(punct_colon_p())
-      .then(expr_p.clone())
-      .map(|((name, name_span), x)| Some((name, name_span, x)))
-      .labelled("bitbag_field_definition")
-      .as_context();
-    let fields = one_field
-      .separated_by(punct_comma_p())
-      .allow_trailing()
-      .collect::<Vec<_>>()
-      .nested_in(braces_content_p());
-    attributes_p
-      .clone()
-      .then_ignore(kw_bitbag_p())
-      .then(spanned_ident_p())
-      .then(fields)
-      .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
-        file_id: ex.state().file_id,
-        span: ex.span(),
-        attributes,
-        kind: AstItemKind::Bitbag(AstBitbag { name, name_span, fields }),
-      })
-      .labelled("bitbag")
-      .as_context()
-  };
-  let ast_struct_p = {
-    let one_field = spanned_ident_p()
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .map(|((name, name_span), ty)| Some((name, name_span, ty)))
-      .labelled("struct_field_definition")
-      .as_context();
-    let fields = one_field
-      .separated_by(punct_comma_p())
-      .allow_trailing()
-      .collect::<Vec<_>>()
-      .nested_in(braces_content_p());
-    attributes_p
-      .clone()
-      .then_ignore(kw_struct_p())
-      .then(spanned_ident_p())
-      .then(fields)
-      .map_with(|((attributes, (name, name_span)), fields), ex| AstItem {
-        file_id: ex.state().file_id,
-        span: ex.span(),
-        attributes,
-        kind: AstItemKind::Struct(AstStruct { name, name_span, fields }),
-      })
-      .labelled("struct")
-      .as_context()
-  };
-  let ast_const_p = {
-    attributes_p
-      .clone()
-      .then_ignore(kw_const_p())
-      .then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .then_ignore(punct_equal_p())
-      .then(expr_p.clone())
-      .then_ignore(punct_semicolon_p())
-      .map_with(|(((attributes, (name, name_span)), ty), expr), ex| AstItem {
-        file_id: ex.state().file_id,
-        span: ex.span(),
-        attributes,
-        kind: AstItemKind::Const(AstConst { name, name_span, ty, expr }),
-      })
-      .labelled("const")
-      .as_context()
-  };
-  let ast_static_p = {
-    let rom_kind = kw_rom_p()
-      .ignore_then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .then_ignore(punct_equal_p())
-      .then(expr_p.clone())
-      .then_ignore(punct_semicolon_p())
-      .map(|(((name, name_span), ty), x)| AstStatic {
-        name,
-        name_span,
-        ty,
-        kind: StaticKind::Rom(x),
-      });
-    let ram_kind = kw_ram_p()
-      .ignore_then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .then_ignore(punct_equal_p())
-      .then(expr_p.clone())
-      .then_ignore(punct_semicolon_p())
-      .map(|(((name, name_span), ty), x)| AstStatic {
-        name,
-        name_span,
-        ty,
-        kind: StaticKind::Ram(x),
-      });
-    let mmio_kind = kw_mmio_p()
-      .ignore_then(spanned_ident_p())
-      .then_ignore(punct_colon_p())
-      .then(type_name_p())
-      .then_ignore(punct_semicolon_p())
-      .map(|((name, name_span), ty)| AstStatic {
-        name,
-        name_span,
-        ty,
-        kind: StaticKind::MMIO,
-      });
-    attributes_p
-      .clone()
-      .then_ignore(kw_static_p())
-      .then(choice((rom_kind, ram_kind, mmio_kind)))
-      .map_with(|(attributes, static_), ex| AstItem {
-        attributes,
-        file_id: ex.state().file_id,
-        span: ex.span(),
-        kind: AstItemKind::Static(static_),
-      })
-      .labelled("static")
-      .as_context()
-  };
-
-  choice((
-    ast_function_p,
-    ast_bitbag_p,
-    ast_struct_p,
-    ast_const_p,
-    ast_static_p,
-  ))
-  .labelled("item")
-  .as_context()
+  p.advance();
+  Some(k)
 }
-
-fn define_expr_p<'b, 'src: 'b>(
-  expr_p: YagRecursive<'b, 'src, Expr>,
-  if_else_info_p: YagRecursive<'b, 'src, IfElseInfo>,
-  loop_info_p: YagRecursive<'b, 'src, LoopInfo>,
-  statement_body_p: YagRecursive<'b, 'src, AstSatementBody>,
-  include_struct_lit: bool,
-) -> impl Parser<'src, YagParserInput<'src>, Expr, YagParserExtra<'src>> + Clone + 'b
-{
-  let atom = {
-    let num_lit_kind = num_lit_p().map(ExprKind::NumLit);
-    let str_lit_kind = str_lit_p().map(ExprKind::StrLit);
-    let ident_kind = ident_p().map(ExprKind::Ident);
-    let bool_kind = bool_p().map(ExprKind::Bool);
-    let struct_lit_kind = {
-      let struct_field_init_kind_p = {
-        let set_init_kind = spanned_ident_p()
-          .map(|(name, name_span)| StructFieldInitKind::Set(name, name_span));
-        let assign_kind = spanned_ident_p()
-          .then_ignore(punct_equal_p())
-          .then(expr_p.clone())
-          .map(|((name, name_span), x)| {
-            StructFieldInitKind::Assign(name, name_span, x)
-          });
-        choice((assign_kind, set_init_kind))
-          .labelled("struct_field_initializer")
-          .as_context()
-      };
-      let fields = struct_field_init_kind_p
-        .separated_by(punct_comma_p())
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .nested_in(braces_content_p());
-      spanned_ident_p()
-        .then(fields)
-        .map(|((name, name_span), inits)| {
-          ExprKind::StructLit(name, name_span, inits)
-        })
-        .boxed()
-    };
-    let comma_separated_exprs = expr_p
-      .clone()
-      .separated_by(punct_comma_p())
-      .allow_trailing()
-      .collect::<Vec<_>>();
-    let macro_kind = ident_p()
-      .then_ignore(punct_exclamation_p())
-      .then(comma_separated_exprs.clone().nested_in(parens_content_p()))
-      .map(|(i, expressions)| ExprKind::Macro(i, expressions));
-    let list_kind = comma_separated_exprs
-      .clone()
-      .nested_in(brackets_content_p())
-      .map(ExprKind::List);
-    let block_kind = statement_body_p.map(ExprKind::Block);
-    let if_else_kind = if_else_info_p.map(ExprKind::IfElse);
-    let loop_kind = loop_info_p.map(ExprKind::Loop);
-    let continue_kind = kw_continue_p()
-      .ignore_then(punct_quote_p().ignore_then(spanned_ident_p()).or_not())
-      .map(ExprKind::Continue);
-    let break_kind = kw_break_p()
-      .ignore_then(punct_quote_p().ignore_then(spanned_ident_p()).or_not())
-      .then(expr_p.clone().or_not())
-      .map(|(target, value)| ExprKind::Break(target, value));
-    let return_kind = kw_return_p()
-      .ignore_then(expr_p.clone().or_not())
-      .map(|value| ExprKind::Return(value));
-
-    let ident_choice = if include_struct_lit {
-      choice((struct_lit_kind, macro_kind, ident_kind)).boxed()
-    } else {
-      choice((macro_kind, ident_kind)).boxed()
-    };
-    choice((
-      ident_choice,
-      num_lit_kind,
-      str_lit_kind,
-      bool_kind,
-      list_kind,
-      block_kind,
-      if_else_kind,
-      loop_kind,
-      continue_kind,
-      break_kind,
-      return_kind,
-    ))
-    .map_with(|kind, ex| Expr { span: ex.span(), kind: Box::new(kind) })
-    .or(expr_p.clone().nested_in(parens_content_p()))
-  };
-
-  let call_op = expr_p
-    .clone()
-    .separated_by(punct_comma_p())
-    .allow_trailing()
-    .collect::<Vec<_>>()
-    .nested_in(parens_content_p())
-    .map_with(|args, ex| Expr {
-      span: ex.span(),
-      kind: Box::new(ExprKind::List(args)),
-    });
-  let index_op = expr_p.clone().nested_in(brackets_content_p());
-
-  use chumsky::pratt::*;
-  let with_pratt = atom.pratt((
-    // 2: assignments
-    // 3: range operators
-    infix(left(4), short_circuit_or_p(), infix_maker!(BinOpKind::BoolOr)),
-    infix(left(5), short_circuit_and_p(), infix_maker!(BinOpKind::BoolAnd)),
-    (
-      infix(left(6), cmp_eq_p(), infix_maker!(BinOpKind::Eq)),
-      infix(left(6), cmp_ne_p(), infix_maker!(BinOpKind::Ne)),
-      infix(left(6), cmp_lt_p(), infix_maker!(BinOpKind::Lt)),
-      infix(left(6), cmp_gt_p(), infix_maker!(BinOpKind::Gt)),
-      infix(left(6), cmp_le_p(), infix_maker!(BinOpKind::Le)),
-      infix(left(6), cmp_ge_p(), infix_maker!(BinOpKind::Ge)),
-    ),
-    infix(left(7), punct_pipe_p(), infix_maker!(BinOpKind::BitOr)),
-    infix(left(8), punct_caret_p(), infix_maker!(BinOpKind::BitXor)),
-    infix(left(9), punct_ampersand_p(), infix_maker!(BinOpKind::BitAnd)),
-    (
-      infix(left(10), shl_p(), infix_maker!(BinOpKind::ShiftLeft)),
-      infix(left(10), shr_p(), infix_maker!(BinOpKind::ShiftRight)),
-    ),
-    (
-      infix(left(11), punct_plus_p(), infix_maker!(BinOpKind::Add)),
-      infix(left(11), punct_minus_p(), infix_maker!(BinOpKind::Sub)),
-    ),
-    (
-      infix(left(12), punct_asterisk_p(), infix_maker!(BinOpKind::Mul)),
-      infix(left(12), punct_slash_p(), infix_maker!(BinOpKind::Div)),
-      infix(left(12), punct_percent_p(), infix_maker!(BinOpKind::Mod)),
-    ),
-    (
-      prefix(13, punct_minus_p(), prefix_maker!(UnOpKind::Neg)),
-      prefix(13, punct_exclamation_p(), prefix_maker!(UnOpKind::Not)),
-      prefix(13, punct_asterisk_p(), prefix_maker!(UnOpKind::Deref)),
-      prefix(13, punct_ampersand_p(), prefix_maker!(UnOpKind::Ref)),
-      prefix(13, punct_backtick_p(), prefix_maker!(UnOpKind::Backtick)),
-    ),
-    // 14: question-mark-operator
-    (
-      postfix(15, call_op, |lhs, rhs, extras| Expr {
-        span: extras.span(),
-        kind: Box::new(ExprKind::BinOp(lhs, BinOpKind::Call, rhs)),
-      }),
-      postfix(15, index_op, |lhs, rhs, extras| Expr {
-        span: extras.span(),
-        kind: Box::new(ExprKind::BinOp(lhs, BinOpKind::Index, rhs)),
-      }),
-    ),
-    infix(left(16), punct_period_p(), infix_maker!(BinOpKind::Dot)),
-    // 17: method calls
-    // 18: path
-  ));
-
-  with_pratt
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct YagParserState {
-  pub source: &'static str,
-  pub file_id: FileID,
-}
-
-pub type YagParserInput<'src> = MappedInput<
-  'src,
-  TokenTree,
-  Span32,
-  &'src [(TokenTree, Span32)],
-  fn(&'src (TokenTree, Span32)) -> (&'src TokenTree, &'src Span32),
->;
-
-pub type YagParserExtra<'src> =
-  Full<Rich<'src, TokenTree, Span32>, SimpleState<YagParserState>, ()>;
-
-pub type YagRecursive<'b, 'src, T> =
-  Recursive<Indirect<'src, 'b, YagParserInput<'src>, T, YagParserExtra<'src>>>;
-
-fn mapper<'src>(
-  (tt, span): &'src (TokenTree, Span32),
-) -> (&'src TokenTree, &'src Span32) {
-  (tt, span)
-}
-
-pub fn make_yag_parser_input<'src>(
-  s: &'src [(TokenTree, Span32)],
-) -> YagParserInput<'src> {
-  let eoi: Span32 = s.last().map(|(_tt, span)| *span).unwrap_or_default();
-  Input::map(s, eoi, mapper)
-}
-
-pub trait YagParser<'src, O>:
-  Parser<'src, YagParserInput<'src>, O, YagParserExtra<'src>> + Clone
-{
-}
-
-impl<'src, O, T> YagParser<'src, O> for T
-where
-  T: Parser<'src, YagParserInput<'src>, O, YagParserExtra<'src>>,
-  T: Clone,
-{
-}
-
-/// Lets us assert a particular expected output type for the parser.
-///
-/// This is necesary because rust doesn't allow a let binding to use "impl
-/// trait" as the type declaration.
-///
-/// No runtime effect.
-pub fn assert_output_ty<'src, T>(_: &impl YagParser<'src, T>) {}
-
 #[test]
-fn test_impl_return_readabilty() {
-  #[allow(dead_code)]
-  fn example_parser<'src>() -> impl YagParser<'src, ()> {
-    chumsky::prelude::todo()
-  }
+fn test_try_prefix_operator() {
+  let mut p = Parser::new(tokenize("-").collect());
+  assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Negative));
+  let mut p = Parser::new(tokenize("!").collect());
+  assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::BitNot));
+  let mut p = Parser::new(tokenize("*").collect());
+  assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Dereference));
+  let mut p = Parser::new(tokenize("return").collect());
+  assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Return));
+  let mut p = Parser::new(tokenize("break").collect());
+  assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Break));
 }
 
-pub fn braces_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>> {
-  select_ref! {
-    TokenTree::Braces(b) => make_yag_parser_input(b),
-  }
-  .labelled("Braces")
-  .as_context()
-}
-pub fn brackets_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>>
-{
-  select_ref! {
-    TokenTree::Brackets(b) => make_yag_parser_input(b),
-  }
-  .labelled("Brackets")
-  .as_context()
-}
-pub fn parens_content_p<'src>() -> impl YagParser<'src, YagParserInput<'src>> {
-  select_ref! {
-    TokenTree::Parens(b) => make_yag_parser_input(b),
-  }
-  .labelled("Parens")
-  .as_context()
-}
-
-pub fn kw_bitbag_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwBitbag) => ()
-  }
-  .labelled("`bitbag`")
-  .as_context()
-}
-pub fn kw_break_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwBreak) => ()
-  }
-  .labelled("`break`")
-  .as_context()
-}
-pub fn kw_const_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwConst) => ()
-  }
-  .labelled("`const`")
-  .as_context()
-}
-pub fn kw_continue_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwContinue) => ()
-  }
-  .labelled("`continue`")
-  .as_context()
-}
-pub fn kw_else_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwElse) => ()
-  }
-  .labelled("`else`")
-  .as_context()
-}
-pub fn kw_fn_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwFn) => ()
-  }
-  .labelled("`fn`")
-  .as_context()
-}
-pub fn kw_if_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwIf) => ()
-  }
-  .labelled("`if`")
-  .as_context()
-}
-pub fn kw_let_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwLet) => ()
-  }
-  .labelled("`let`")
-  .as_context()
-}
-pub fn kw_loop_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwLoop) => ()
-  }
-  .labelled("`loop`")
-  .as_context()
-}
-pub fn kw_mmio_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwMmio) => ()
-  }
-  .labelled("`mmio`")
-  .as_context()
-}
-pub fn kw_ram_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwRam) => ()
-  }
-  .labelled("`ram`")
-  .as_context()
-}
-pub fn kw_return_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwReturn) => ()
-  }
-  .labelled("`return`")
-  .as_context()
-}
-pub fn kw_rom_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwRom) => (),
-  }
-  .labelled("`rom`")
-  .as_context()
-}
-pub fn kw_static_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwStatic) => ()
-  }
-  .labelled("`static`")
-  .as_context()
-}
-pub fn kw_struct_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(KwStruct) => ()
-  }
-  .labelled("`struct`")
-  .as_context()
-}
-
-pub fn punct_asterisk_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Asterisk) => ()
-  }
-  .labelled("`*`")
-  .as_context()
-}
-pub fn punct_ampersand_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Ampersand) => ()
-  }
-  .labelled("`&`")
-  .as_context()
-}
-pub fn punct_backtick_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Backtick) => ()
-  }
-  .labelled("backtick")
-  .as_context()
-}
-pub fn punct_caret_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Caret) => ()
-  }
-  .labelled("`^`")
-  .as_context()
-}
-pub fn punct_comma_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Comma) => ()
-  }
-  .labelled("`,`")
-  .as_context()
-}
-pub fn punct_colon_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Colon) => ()
-  }
-  .labelled("`:`")
-  .as_context()
-}
-pub fn punct_greater_than_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(GreaterThan) => ()
-  }
-  .labelled("`>`")
-  .as_context()
-}
-pub fn punct_equal_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Equal) => ()
-  }
-  .labelled("`=`")
-  .as_context()
-}
-pub fn punct_exclamation_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Exclamation) => ()
-  }
-  .labelled("`!`")
-  .as_context()
-}
-pub fn punct_hash_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Hash) => ()
-  }
-  .labelled("`#`")
-  .as_context()
-}
-pub fn punct_less_than_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(LessThan) => ()
-  }
-  .labelled("`<`")
-  .as_context()
-}
-pub fn punct_minus_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Minus) => ()
-  }
-  .labelled("`-`")
-  .as_context()
-}
-pub fn punct_percent_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Percent) => ()
-  }
-  .labelled("`%`")
-  .as_context()
-}
-pub fn punct_period_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Period) => ()
-  }
-  .labelled("`.`")
-  .as_context()
-}
-pub fn punct_pipe_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Pipe) => ()
-  }
-  .labelled("`|`")
-  .as_context()
-}
-pub fn punct_plus_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Plus) => ()
-  }
-  .labelled("`+`")
-  .as_context()
-}
-pub fn punct_quote_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Quote) => ()
-  }
-  .labelled("`'`")
-  .as_context()
-}
-pub fn punct_semicolon_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Semicolon) => ()
-  }
-  .labelled("`;`")
-  .as_context()
-}
-pub fn punct_slash_p<'src>() -> impl YagParser<'src, ()> {
-  select! {
-    Lone(Slash) => ()
-  }
-  .labelled("`/`")
-  .as_context()
-}
-
-/// `==`
-pub fn cmp_eq_p<'src>() -> impl YagParser<'src, ()> {
-  punct_equal_p().ignore_then(punct_equal_p()).labelled("`==`").as_context()
-}
-/// `!=`
-pub fn cmp_ne_p<'src>() -> impl YagParser<'src, ()> {
-  punct_exclamation_p()
-    .ignore_then(punct_equal_p())
-    .labelled("`!=`")
-    .as_context()
-}
-/// `>`
-pub fn cmp_gt_p<'src>() -> impl YagParser<'src, ()> {
-  punct_greater_than_p()
-}
-/// `<`
-pub fn cmp_lt_p<'src>() -> impl YagParser<'src, ()> {
-  punct_less_than_p()
-}
-/// `>=`
-pub fn cmp_ge_p<'src>() -> impl YagParser<'src, ()> {
-  punct_greater_than_p()
-    .ignore_then(punct_equal_p())
-    .labelled("`>=`")
-    .as_context()
-}
-/// `<=`
-pub fn cmp_le_p<'src>() -> impl YagParser<'src, ()> {
-  punct_less_than_p().ignore_then(punct_equal_p()).labelled("`<=`").as_context()
-}
-/// `&&`
-pub fn short_circuit_and_p<'src>() -> impl YagParser<'src, ()> {
-  punct_ampersand_p()
-    .ignore_then(punct_ampersand_p())
-    .labelled("`&&`")
-    .as_context()
-}
-/// `||`
-pub fn short_circuit_or_p<'src>() -> impl YagParser<'src, ()> {
-  punct_pipe_p().ignore_then(punct_pipe_p()).labelled("`||`").as_context()
-}
-/// `>>`
-pub fn shr_p<'src>() -> impl YagParser<'src, ()> {
-  punct_greater_than_p()
-    .ignore_then(punct_greater_than_p())
-    .labelled("`>>`")
-    .as_context()
-}
-/// `<<`
-pub fn shl_p<'src>() -> impl YagParser<'src, ()> {
-  punct_less_than_p()
-    .ignore_then(punct_less_than_p())
-    .labelled("`<<`")
-    .as_context()
-}
-
-pub fn ident_p<'src>() -> impl YagParser<'src, StrID> {
-  select! {
-    Lone(Ident) = ex => {
-      let state: &SimpleState<YagParserState> = ex.state();
-      let source: &str = state.source;
-      let span: Span32 = ex.span();
-      let range: Range<usize> = span.start.try_into().unwrap()..span.end.try_into().unwrap();
-      let str_id = StrID::from(&source[range]);
-      str_id
+/// Tries to get an **infix** operator, or `None` and no input was consumed.
+fn try_infix_operator(p: &mut Parser) -> Option<OperatorKind> {
+  let k = match p.peek() {
+    ColonColon => OperatorKind::Path,
+    Dot => OperatorKind::FieldAccess,
+    Star => OperatorKind::Mul,
+    Slash => OperatorKind::Div,
+    Percent => OperatorKind::Rem,
+    Plus => OperatorKind::Add,
+    Minus => OperatorKind::Sub,
+    LessThan => {
+      p.advance();
+      return Some(match p.peek() {
+        LessThan => {
+          p.advance();
+          return Some(match p.peek() {
+            Equal => {
+              p.advance();
+              OperatorKind::ShiftLeftAssign
+            }
+            _ => OperatorKind::ShiftLeft,
+          });
+        }
+        Equal => {
+          p.advance();
+          OperatorKind::CmpLe
+        }
+        _ => OperatorKind::CmpLt,
+      });
     }
-  }
-  .labelled("identifier")
-  .as_context()
-}
-pub fn spanned_ident_p<'src>() -> impl YagParser<'src, (StrID, Span32)> {
-  ident_p().map_with(|i, ex| (i, ex.span()))
-}
-pub fn num_lit_p<'src>() -> impl YagParser<'src, StrID> {
-  select! {
-    Lone(NumLit) = ex => {
-      let state: &SimpleState<YagParserState> = ex.state();
-      let source: &str = state.source;
-      let span: Span32 = ex.span();
-      let range: Range<usize> = span.start.try_into().unwrap()..span.end.try_into().unwrap();
-      let str_id = StrID::from(&source[range]);
-      str_id
+    GreaterThan => {
+      p.advance();
+      return Some(match p.peek() {
+        GreaterThan => {
+          p.advance();
+          return Some(match p.peek() {
+            Equal => {
+              p.advance();
+              OperatorKind::ShiftRightAssign
+            }
+            _ => OperatorKind::ShiftRight,
+          });
+        }
+        Equal => {
+          p.advance();
+          OperatorKind::CmpGe
+        }
+        _ => OperatorKind::CmpGt,
+      });
     }
-  }
-  .labelled("number")
-  .as_context()
-}
-pub fn str_lit_p<'src>() -> impl YagParser<'src, StrID> {
-  select! {
-    Lone(StrLit) = ex => {
-      let state: &SimpleState<YagParserState> = ex.state();
-      let source: &str = state.source;
-      let span: Span32 = ex.span();
-      let range: Range<usize> = span.start.try_into().unwrap()..span.end.try_into().unwrap();
-      let str_id = StrID::from(&source[range]);
-      str_id
+    Ampersand => {
+      p.advance();
+      return Some(match p.peek() {
+        Ampersand => {
+          p.advance();
+          OperatorKind::ConditionalAnd
+        }
+        _ => OperatorKind::BitAnd,
+      });
     }
-  }
-  .labelled("str")
-  .as_context()
+    AmpersandEqual => OperatorKind::BitAndAssign,
+    Pipe => {
+      p.advance();
+      return Some(match p.peek() {
+        Pipe => {
+          p.advance();
+          OperatorKind::ConditionalOr
+        }
+        _ => OperatorKind::BitOr,
+      });
+    }
+    PipeEqual => OperatorKind::BitOrAssign,
+    Caret => OperatorKind::BitXor,
+    CaretEqual => OperatorKind::BitXorAssign,
+    Equal => OperatorKind::Assign,
+    EqualEqual => OperatorKind::CmpEq,
+    BangEqual => OperatorKind::CmpNe,
+    DotDot => OperatorKind::RangeExclusive,
+    DotDotEqual => OperatorKind::RangeInclusive,
+    PlusEqual => OperatorKind::AddAssign,
+    MinusEqual => OperatorKind::SubAssign,
+    StarEqual => OperatorKind::MulAssign,
+    SlashEqual => OperatorKind::DivAssign,
+    PercentEqual => OperatorKind::RemAssign,
+    AmpersandEqual => OperatorKind::BitAndAssign,
+    PipeEqual => OperatorKind::BitOrAssign,
+    CaretEqual => OperatorKind::BitXorAssign,
+    _ => return None,
+  };
+  p.advance();
+  Some(k)
 }
-pub fn bool_p<'src>() -> impl YagParser<'src, bool> {
-  select! {
-    Lone(KwTrue) => true,
-    Lone(KwFalse) => false,
-  }
-  .labelled("boolean")
-  .as_context()
+#[test]
+fn test_try_infix_operator() {
+  let mut p = Parser::new(tokenize("::").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Path));
+  let mut p = Parser::new(tokenize(".").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::FieldAccess));
+  let mut p = Parser::new(tokenize("*").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Mul));
+  let mut p = Parser::new(tokenize("/").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Div));
+  let mut p = Parser::new(tokenize("%").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Rem));
+  let mut p = Parser::new(tokenize("+").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Add));
+  let mut p = Parser::new(tokenize("-").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Sub));
+  let mut p = Parser::new(tokenize("<<").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ShiftLeft));
+  let mut p = Parser::new(tokenize(">>").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ShiftRight));
+  let mut p = Parser::new(tokenize("&").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitAnd));
+  let mut p = Parser::new(tokenize("^").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitXor));
+  let mut p = Parser::new(tokenize("|").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitOr));
+  let mut p = Parser::new(tokenize("==").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpEq));
+  let mut p = Parser::new(tokenize("!=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpNe));
+  let mut p = Parser::new(tokenize("<").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpLt));
+  let mut p = Parser::new(tokenize(">").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpGt));
+  let mut p = Parser::new(tokenize("<=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpLe));
+  let mut p = Parser::new(tokenize(">=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpGe));
+  let mut p = Parser::new(tokenize("&&").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ConditionalAnd));
+  let mut p = Parser::new(tokenize("||").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ConditionalOr));
+  let mut p = Parser::new(tokenize("..").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::RangeExclusive));
+  let mut p = Parser::new(tokenize("..=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::RangeInclusive));
+  let mut p = Parser::new(tokenize("=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Assign));
+  let mut p = Parser::new(tokenize("+=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::AddAssign));
+  let mut p = Parser::new(tokenize("-=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::SubAssign));
+  let mut p = Parser::new(tokenize("*=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::MulAssign));
+  let mut p = Parser::new(tokenize("/=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::DivAssign));
+  let mut p = Parser::new(tokenize("%=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::RemAssign));
+  let mut p = Parser::new(tokenize("&=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitAndAssign));
+  let mut p = Parser::new(tokenize("|=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitOrAssign));
+  let mut p = Parser::new(tokenize("^=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitXorAssign));
+  let mut p = Parser::new(tokenize("<<=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ShiftLeftAssign));
+  let mut p = Parser::new(tokenize(">>=").collect());
+  assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ShiftRightAssign));
 }
 
-pub fn type_name_p<'src>() -> impl YagParser<'src, TypeName> {
-  recursive(|type_name_kind| {
-    let ident_kind = ident_p().map(TypeNameKind::Ident);
-    let array_num_lit_kind = type_name_kind
-      .clone()
-      .then_ignore(punct_semicolon_p())
-      .then(num_lit_p())
-      .nested_in(brackets_content_p())
-      .map(|(kind, num)| TypeNameKind::ArrayNumLit(Box::new(kind), num));
-    let array_ident_kind = type_name_kind
-      .clone()
-      .then_ignore(punct_semicolon_p())
-      .then(ident_p())
-      .nested_in(brackets_content_p())
-      .map(|(kind, ident)| TypeNameKind::ArrayIdent(Box::new(kind), ident));
-    choice((ident_kind, array_num_lit_kind, array_ident_kind)).recover_with(
-      via_parser(
-        any()
-          .repeated()
-          .nested_in(brackets_content_p())
-          .to(TypeNameKind::TypeNameKindError),
-      ),
-    )
-  })
-  .map_with(|kind, ex| TypeName { span: ex.span(), kind })
-  .labelled("type_name")
-  .as_context()
+/// Tries to get a **postfix** operator, or `None` and no input was consumed.
+fn try_postfix_operator(p: &mut Parser) -> Option<OperatorKind> {
+  let k = match p.peek() {
+    OpParen => OperatorKind::FnCall,
+    OpBracket => OperatorKind::ArrayIndex,
+    Question => OperatorKind::Try,
+    KwAs => OperatorKind::As,
+    _ => return None,
+  };
+  p.advance();
+  Some(k)
 }
-
-pub fn bin_op_assign_p<'src>() -> impl YagParser<'src, BinOpKind> {
-  choice((
-    punct_plus_p().ignore_then(punct_equal_p()).to(BinOpKind::Add),
-    punct_minus_p().ignore_then(punct_equal_p()).to(BinOpKind::Sub),
-    punct_asterisk_p().ignore_then(punct_equal_p()).to(BinOpKind::Mul),
-    punct_slash_p().ignore_then(punct_equal_p()).to(BinOpKind::Div),
-    punct_percent_p().ignore_then(punct_equal_p()).to(BinOpKind::Mod),
-    shl_p().ignore_then(punct_equal_p()).to(BinOpKind::ShiftLeft),
-    shr_p().ignore_then(punct_equal_p()).to(BinOpKind::ShiftRight),
-    punct_ampersand_p().ignore_then(punct_equal_p()).to(BinOpKind::BitAnd),
-    punct_pipe_p().ignore_then(punct_equal_p()).to(BinOpKind::BitOr),
-    punct_caret_p().ignore_then(punct_equal_p()).to(BinOpKind::BitXor),
-  ))
-  .labelled("bin_op_assign")
-  .as_context()
+#[test]
+fn test_try_postfix_operator() {
+  let mut p = Parser::new(tokenize("(").collect());
+  assert_eq!(try_postfix_operator(&mut p), Some(OperatorKind::FnCall));
+  let mut p = Parser::new(tokenize("[").collect());
+  assert_eq!(try_postfix_operator(&mut p), Some(OperatorKind::ArrayIndex));
+  let mut p = Parser::new(tokenize("as").collect());
+  assert_eq!(try_postfix_operator(&mut p), Some(OperatorKind::As));
 }
