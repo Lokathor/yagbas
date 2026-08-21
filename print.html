@@ -16,8 +16,8 @@
         <link rel="icon" href="favicon-de23e50b.svg">
         <link rel="shortcut icon" href="favicon-8114d1fc.png">
         <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-2459343d.css">
-        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
         <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-951e13de.js";
+            window.path_to_searchindex_js = "searchindex-f36ece3a.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-747e99a4.js"></script>
+        <script src="toc-08a9b9b3.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -182,33 +182,10 @@
 <p>Yagbas is a programming language that builds programs for the Game Boy and other
 compatible devices. A lot of useful documentation for this device family can be
 found in the <a href="https://gbdev.io/pandocs/">Pan Docs</a>.</p>
-<p>Yagbas looks mostly like Rust, where possible.</p>
+<p>Yagbas looks mostly like Rust, where reasonable.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="language-reference"><a class="header" href="#language-reference">Language Reference</a></h1>
-<h2 id="modules"><a class="header" href="#modules">Modules</a></h2>
-<p>A yagbas source file is called a “module”.</p>
-<h2 id="tokens"><a class="header" href="#tokens">Tokens</a></h2>
-<p>Source code has to be tokenized first during compilation. This breaks it up into
-punctuation, keywords, identifiers, and so on.</p>
-<ul>
-<li><strong>Identifiers:</strong> These start with an ASCII letter or an underscore, and can
-then contain any number of ASCII letters, underscores, and digits. Identifiers
-can’t be any language keyword.</li>
-<li><strong>Numbers:</strong> Numbers can be in decimal, binary (with a leading <code>%</code>), or
-hexadecimal (with a leading <code>$</code>). Numbers can contain underscore characters
-for easier reading, this doesn’t affect the value.</li>
-<li><strong>Line Comments:</strong> Line comments start with <code>//</code> and go to the end of the line.</li>
-</ul>
-<h2 id="token-trees"><a class="header" href="#token-trees">Token Trees</a></h2>
-<p>Tokens are grouped into “trees” with pairs of opening and closing markers.</p>
-<ul>
-<li><strong>Parens:</strong> <code>(</code> and <code>)</code></li>
-<li><strong>Braces:</strong> <code>{</code> and <code>}</code></li>
-<li><strong>Brackets:</strong> <code>[</code> and <code>]</code></li>
-<li><strong>Block Comments:</strong> <code>/*</code> and <code>*/</code></li>
-</ul>
-<p>The opening and closing markers for each token tree group must match, or the
-source file cannot be processed.</p>
+<p>todo!</p>
 
                     </main>
 
@@ -242,11 +219,11 @@ source file cannot be processed.</p>
 
         <script src="elasticlunr-ef4e11c1.min.js"></script>
         <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-c2a407aa.js"></script>
+        <script src="searcher-09f2665d.js"></script>
 
         <script src="clipboard-1626706a.min.js"></script>
         <script src="highlight-abc7f01d.js"></script>
-        <script src="book-a0b12cfe.js"></script>
+        <script src="book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 
