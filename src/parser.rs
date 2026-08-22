@@ -137,6 +137,7 @@ pub struct Cst {
   pub elements: Vec<CstElem>,
 }
 impl Cst {
+  /// pretty-print the debug info of this Cst into a String.
   pub fn pretty_debug(&self) -> String {
     let mut buffer = String::new();
     self.pretty_debug_rec(0, &mut buffer);
