@@ -1,4 +1,7 @@
 #![allow(unused)]
+#![warn(missing_docs)]
+
+//! Module for all the parsing junk!
 
 use crate::r;
 use crate::tokenizer::TokenKind::*;
@@ -182,57 +185,105 @@ pub enum CstElem {
   Tree(Cst),
 }
 
+/// Operator binding direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BindDirection {
+  /// always binds left
   Left,
+  /// always binds right
   Right,
+  /// requires parentheses
   Ambiguious,
 }
 
+/// All the kinds of operator in Yagbas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperatorKind {
+  /// `x::y`
   Path,
-  FieldAccess,
+  /// `x.y`
+  Access,
+  /// `x()`
   FnCall,
+  /// `x[y]`
   ArrayIndex,
+  /// `x?`
   Try,
+  /// `-x`
   Negative,
+  /// `!x`
   BitNot,
+  /// `*x`
   Dereference,
+  /// `&x`
   Reference,
+  /// `x as y`
   As,
+  /// `x*y`
   Mul,
+  /// `x/y`
   Div,
+  /// `x%y`
   Rem,
+  /// `x+y`
   Add,
+  /// `x-y`
   Sub,
+  /// `x<<y`
   ShiftLeft,
+  /// `x>>y`
   ShiftRight,
+  /// `x&y`
   BitAnd,
+  /// `x^y`
   BitXor,
+  /// `x|y`
   BitOr,
+  /// `x==y`
   CmpEq,
+  /// `x!=y`
   CmpNe,
+  /// `x<y`
   CmpLt,
+  /// `x>y`
   CmpGt,
+  /// `x<=y`
   CmpLe,
+  /// `x>=y`
   CmpGe,
+  /// `x&&y`
   ConditionalAnd,
+  /// `x||y`
   ConditionalOr,
+  /// `x..y`, `x..`, `..y`, and `..`
   RangeExclusive,
+  /// `x..=y`, `x..=`, `..=y`, and `..=`
   RangeInclusive,
+  /// `x=y`
   Assign,
+  /// `x+=y`
   AddAssign,
+  /// `x-=y`
   SubAssign,
+  /// `x*=y`
   MulAssign,
+  /// `x/=y`
   DivAssign,
+  /// `x%=y`
   RemAssign,
+  /// `x&=y`
   BitAndAssign,
+  /// `x|=y`
   BitOrAssign,
+  /// `x^=y`
   BitXorAssign,
+  /// `x>>=y`
   ShiftLeftAssign,
+  /// `x<<=y`
   ShiftRightAssign,
+  /// `return x`
   Return,
+  /// `break x`
   Break,
 }
 impl OperatorKind {
@@ -282,7 +333,7 @@ impl OperatorKind {
       OperatorKind::FnCall | OperatorKind::ArrayIndex => {
         (32, BindDirection::Ambiguious)
       }
-      OperatorKind::FieldAccess => (34, BindDirection::Left),
+      OperatorKind::Access => (34, BindDirection::Left),
       OperatorKind::Path => (36, BindDirection::Left),
     }
   }
@@ -314,7 +365,7 @@ fn try_infix_operator(p: &mut Parser) -> Option<OperatorKind> {
   debug_assert_ne!(p.peek(), Comment);
   let k = match p.peek() {
     ColonColon => OperatorKind::Path,
-    Dot => OperatorKind::FieldAccess,
+    Dot => OperatorKind::Access,
     Star => OperatorKind::Mul,
     Slash => OperatorKind::Div,
     Percent => OperatorKind::Rem,
@@ -512,7 +563,7 @@ mod tests {
     assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Path));
     p.build_tree();
     let mut p = Parser::new(tokenize(".").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::FieldAccess));
+    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Access));
     p.build_tree();
     let mut p = Parser::new(tokenize("*").collect());
     assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Mul));

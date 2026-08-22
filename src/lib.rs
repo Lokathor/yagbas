@@ -15,6 +15,7 @@ use core::range::Range;
 pub mod parser;
 pub mod tokenizer;
 
+/// Shorthand to make a [Range]
 #[inline(always)]
 const fn r(start: usize, end: usize) -> Range<usize> {
   Range { start, end }
