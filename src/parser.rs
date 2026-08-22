@@ -477,14 +477,19 @@ mod tests {
   fn test_try_prefix_operator() {
     let mut p = Parser::new(tokenize("-").collect());
     assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Negative));
+    p.build_tree();
     let mut p = Parser::new(tokenize("!").collect());
     assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::BitNot));
+    p.build_tree();
     let mut p = Parser::new(tokenize("*").collect());
     assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Dereference));
+    p.build_tree();
     let mut p = Parser::new(tokenize("return").collect());
     assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Return));
+    p.build_tree();
     let mut p = Parser::new(tokenize("break").collect());
     assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Break));
+    p.build_tree();
   }
   #[test]
   fn test_try_infix_operator() {
