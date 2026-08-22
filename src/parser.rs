@@ -128,6 +128,9 @@ mod parser_core {
 }
 
 /// Concrete Syntax Tree
+///
+/// Use the `pretty_debug` method if you need to print debug info nicely.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cst {
   pub kind: CstKind,
@@ -165,6 +168,8 @@ impl Cst {
   }
 }
 
+/// I have no idea what the correct set of tags is here!
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CstKind {
   ErrNoTreeKindSet,
@@ -179,9 +184,12 @@ pub enum CstKind {
   PostfixOperator,
 }
 
+/// A single element within a [Cst].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CstElem {
+  #[allow(missing_docs)]
   Token(Token),
+  #[allow(missing_docs)]
   Tree(Cst),
 }
 
@@ -287,6 +295,7 @@ pub enum OperatorKind {
   Break,
 }
 impl OperatorKind {
+  /// Gives the bind strength and direction for this operator.
   pub const fn binding(self) -> (u8, BindDirection) {
     match self {
       OperatorKind::Return | OperatorKind::Break => {

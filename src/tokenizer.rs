@@ -333,8 +333,7 @@ pub enum TokenKind {
   /// A literal raw string was unclosed.
   ErrLitRawStrUnclosed,
   /// A raw specifier prefix was given but then it didn't turn into an allowed raw value.
-  ///
-  /// Currently, only raw strings are allowed. If the future this may be expanded.
+  /// * Currently, only raw strings are allowed.
   ErrBadRawValue,
   /// Dummy value for code to use when indexing tokens out of bounds.
   ErrEndOfFile,
