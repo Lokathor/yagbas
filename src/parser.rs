@@ -183,6 +183,8 @@ pub enum CstKind {
   InfixOperator,
   PrefixOperator,
   PostfixOperator,
+  //
+  Argument,
 }
 
 /// A single element within a [Cst].
@@ -518,12 +520,100 @@ fn try_val_atom(p: &mut Parser) -> Option<CloseMark> {
   })
 }
 
-/// Parse a value atom, or `None` for no input consumed.
+/// Parse a value expression, or `None` for no input consumed.
 fn try_val_expr(p: &mut Parser, min_bp: u8) -> Option<CloseMark> {
-  debug_assert_ne!(p.peek(), Whitespace);
-  debug_assert_ne!(p.peek(), Comment);
+  // prefix or atom
+  let mut lhs: CloseMark = if let Some((o, mark)) = try_prefix_operator(p) {
+    let st = o.binding().0;
+    let m = p.open_before(mark);
+    if try_val_expr(p, st).is_none() {
+      // allow return/break to have no operator
+      if !matches!(o, OperatorKind::Return | OperatorKind::Break) {
+        let opened = p.open();
+        p.close(opened, CstKind::ErrExpectedValueExpression);
+      }
+    }
+    p.close(m, CstKind::ValExpr)
+  } else {
+    try_val_atom(p)?
+  };
+  // infix/postfix
+  let mut prevstr: Option<u8> = None;
+  loop {
+    let Some((o, postfix)) = peek_operator_post(p) else { break };
+    let (strn, dir) = o.binding();
+    let (lhs_bp, rhs_bp) = match dir {
+      BindDirection::Left => (strn, strn + 1),
+      BindDirection::Right => (strn + 1, strn),
+      BindDirection::Ambiguious => (strn, strn + 1),
+    };
+    if lhs_bp < min_bp {
+      // caller's operator, don't consume
+      break;
+    }
+    if dir == BindDirection::Ambiguious && prevstr == Some(strn) {
+      // the op should have parens (you should parse anyway for resilience)
+    }
+    prevstr = Some(strn);
+    // now consume
+    let m = p.open_before(lhs);
+    let om = p.open();
+    p.advance();
+    let k =
+      if postfix { CstKind::PostfixOperator } else { CstKind::InfixOperator };
+    p.close(om, k);
+    match o {
+      OperatorKind::Try => {}
+      OperatorKind::As => {
+        // TODO: parse type here. needs its own parsing functions.
+      }
+      OperatorKind::ArrayIndex => {
+        try_val_expr(p, 0);
+        p.expect(ClBracket);
+      }
+      OperatorKind::RangeExclusive | OperatorKind::RangeInclusive => {
+        // rhs is optional
+        try_val_expr(p, rhs_bp);
+      }
+      OperatorKind::FnCall => {
+        fn try_arg(p: &mut Parser) -> Option<CloseMark> {
+          let ex = try_val_expr(p, 0)?;
+          let m = p.open_before(ex);
+          if !p.at(ClParen) {
+            p.expect(Comma);
+          }
+          // you need to add this CstKind
+          Some(p.close(m, CstKind::Argument))
+        }
+        while !p.at(ClParen) && p.has_more() {
+          if try_arg(p).is_none() {
+            p.advance_with_error("expected function argument");
+          }
+        }
+        p.expect(ClParen);
+      }
+      _ => {
+        if try_val_expr(p, rhs_bp).is_none() {
+          let e = p.open();
+          p.close(e, CstKind::ErrExpectedValueExpression);
+        }
+      }
+    }
+    lhs = p.close(m, CstKind::ValExpr);
+  }
+  Some(lhs)
+}
 
-  todo!("I give up, this doesn't make any sense");
+// Peek at the next tokens. If they are an operator, which one,
+// and is it postfix.
+fn peek_operator_post(p: &mut Parser) -> Option<(OperatorKind, bool)> {
+  if let Some(x) = try_prefix_operator(p) {
+    Some((x.0, false))
+  } else if let Some(x) = try_postfix_operator(p) {
+    Some((x.0, true))
+  } else {
+    None
+  }
 }
 
 mod tests {
