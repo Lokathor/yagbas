@@ -275,7 +275,10 @@ impl<'a> Iterator for TokenIter<'a> {
         let _ = self.bytes.next(); // consume second '.'
         // possible '=' after the second '.'
         match self.bytes.peek().map_or(0, |(_, b)| *b) {
-          b'=' => (DotDotEqual, r(start, start + 3)),
+          b'=' => {
+            let _ = self.bytes.next();
+            (DotDotEqual, r(start, start + 3))
+          }
           _ => (DotDot, r(start, start + 2)),
         }
       }
@@ -650,4 +653,10 @@ fn test_merged_punctuation() {
   let t = v[0];
   assert_eq!(t.kind, ColonColon, "Bad Kind: `{t:?}`");
   assert_eq!(t.span.iter().count(), 2, "Bad Span: `{t:?}`");
+
+  v = tokenize("..=").collect();
+  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
+  let t = v[0];
+  assert_eq!(t.kind, DotDotEqual, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span.iter().count(), 3, "Bad Span: `{t:?}`");
 }
