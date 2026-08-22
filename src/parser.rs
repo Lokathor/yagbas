@@ -350,7 +350,7 @@ impl OperatorKind {
 }
 
 /// Tries to get a **prefix** operator, or `None` and no input was consumed.
-fn try_prefix_operator(p: &mut Parser) -> Option<OperatorKind> {
+fn try_prefix_operator(p: &mut Parser) -> Option<(OperatorKind, CloseMark)> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   let k = match p.peek() {
@@ -365,12 +365,11 @@ fn try_prefix_operator(p: &mut Parser) -> Option<OperatorKind> {
   debug_assert_eq!(k.binding().1, BindDirection::Ambiguious);
   let m = p.open();
   p.advance();
-  p.close(m, CstKind::PrefixOperator);
-  Some(k)
+  Some((k, p.close(m, CstKind::PrefixOperator)))
 }
 
 /// Tries to get an **infix** operator, or `None` and no input was consumed.
-fn try_infix_operator(p: &mut Parser) -> Option<OperatorKind> {
+fn try_infix_operator(p: &mut Parser) -> Option<(OperatorKind, CloseMark)> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   let k = match p.peek() {
@@ -407,24 +406,19 @@ fn try_infix_operator(p: &mut Parser) -> Option<OperatorKind> {
           return Some(match p.peek() {
             Equal => {
               p.advance();
-              p.close(m, CstKind::InfixOperator);
-              OperatorKind::ShiftLeftAssign
+              (
+                OperatorKind::ShiftLeftAssign,
+                p.close(m, CstKind::InfixOperator),
+              )
             }
-            _ => {
-              p.close(m, CstKind::InfixOperator);
-              OperatorKind::ShiftLeft
-            }
+            _ => (OperatorKind::ShiftLeft, p.close(m, CstKind::InfixOperator)),
           });
         }
         Equal => {
           p.advance();
-          p.close(m, CstKind::InfixOperator);
-          OperatorKind::CmpLe
+          (OperatorKind::CmpLe, p.close(m, CstKind::InfixOperator))
         }
-        _ => {
-          p.close(m, CstKind::InfixOperator);
-          OperatorKind::CmpLt
-        }
+        _ => (OperatorKind::CmpLt, p.close(m, CstKind::InfixOperator)),
       });
     }
     GreaterThan => {
@@ -436,24 +430,19 @@ fn try_infix_operator(p: &mut Parser) -> Option<OperatorKind> {
           return Some(match p.peek() {
             Equal => {
               p.advance();
-              p.close(m, CstKind::InfixOperator);
-              OperatorKind::ShiftRightAssign
+              (
+                OperatorKind::ShiftRightAssign,
+                p.close(m, CstKind::InfixOperator),
+              )
             }
-            _ => {
-              p.close(m, CstKind::InfixOperator);
-              OperatorKind::ShiftRight
-            }
+            _ => (OperatorKind::ShiftRight, p.close(m, CstKind::InfixOperator)),
           });
         }
         Equal => {
           p.advance();
-          p.close(m, CstKind::InfixOperator);
-          OperatorKind::CmpGe
+          (OperatorKind::CmpGe, p.close(m, CstKind::InfixOperator))
         }
-        _ => {
-          p.close(m, CstKind::InfixOperator);
-          OperatorKind::CmpGt
-        }
+        _ => (OperatorKind::CmpGt, p.close(m, CstKind::InfixOperator)),
       });
     }
     Ampersand => {
@@ -462,13 +451,9 @@ fn try_infix_operator(p: &mut Parser) -> Option<OperatorKind> {
       return Some(match p.peek() {
         Ampersand => {
           p.advance();
-          p.close(m, CstKind::InfixOperator);
-          OperatorKind::ConditionalAnd
+          (OperatorKind::ConditionalAnd, p.close(m, CstKind::InfixOperator))
         }
-        _ => {
-          p.close(m, CstKind::InfixOperator);
-          OperatorKind::BitAnd
-        }
+        _ => (OperatorKind::BitAnd, p.close(m, CstKind::InfixOperator)),
       });
     }
     Pipe => {
@@ -477,25 +462,20 @@ fn try_infix_operator(p: &mut Parser) -> Option<OperatorKind> {
       return Some(match p.peek() {
         Pipe => {
           p.advance();
-          p.close(m, CstKind::InfixOperator);
-          OperatorKind::ConditionalOr
+          (OperatorKind::ConditionalOr, p.close(m, CstKind::InfixOperator))
         }
-        _ => {
-          p.close(m, CstKind::InfixOperator);
-          OperatorKind::BitOr
-        }
+        _ => (OperatorKind::BitOr, p.close(m, CstKind::InfixOperator)),
       });
     }
     _ => return None,
   };
   let m = p.open();
   p.advance();
-  p.close(m, CstKind::InfixOperator);
-  Some(k)
+  Some((k, p.close(m, CstKind::InfixOperator)))
 }
 
 /// Tries to get a **postfix** operator, or `None` and no input was consumed.
-fn try_postfix_operator(p: &mut Parser) -> Option<OperatorKind> {
+fn try_postfix_operator(p: &mut Parser) -> Option<(OperatorKind, CloseMark)> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   let k = match p.peek() {
@@ -508,8 +488,7 @@ fn try_postfix_operator(p: &mut Parser) -> Option<OperatorKind> {
   //debug_assert_eq!(k.binding().1, BindDirection::Ambiguious, "{k:?}");
   let m = p.open();
   p.advance();
-  p.close(m, CstKind::PostfixOperator);
-  Some(k)
+  Some((k, p.close(m, CstKind::PostfixOperator)))
 }
 
 /// Parse a value atom, or `None` for no input consumed.
@@ -552,136 +531,166 @@ mod tests {
   #[test]
   fn test_try_prefix_operator() {
     let mut p = Parser::new(tokenize("-").collect());
-    assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Negative));
+    assert_eq!(try_prefix_operator(&mut p).unwrap().0, OperatorKind::Negative);
     p.build_tree();
     let mut p = Parser::new(tokenize("!").collect());
-    assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::BitNot));
+    assert_eq!(try_prefix_operator(&mut p).unwrap().0, OperatorKind::BitNot);
     p.build_tree();
     let mut p = Parser::new(tokenize("*").collect());
-    assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Dereference));
+    assert_eq!(
+      try_prefix_operator(&mut p).unwrap().0,
+      OperatorKind::Dereference
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize("return").collect());
-    assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Return));
+    assert_eq!(try_prefix_operator(&mut p).unwrap().0, OperatorKind::Return);
     p.build_tree();
     let mut p = Parser::new(tokenize("break").collect());
-    assert_eq!(try_prefix_operator(&mut p), Some(OperatorKind::Break));
+    assert_eq!(try_prefix_operator(&mut p).unwrap().0, OperatorKind::Break);
     p.build_tree();
   }
   #[test]
   fn test_try_infix_operator() {
     let mut p = Parser::new(tokenize("::").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Path));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::Path);
     p.build_tree();
     let mut p = Parser::new(tokenize(".").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Access));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::Access);
     p.build_tree();
     let mut p = Parser::new(tokenize("*").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Mul));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::Mul);
     p.build_tree();
     let mut p = Parser::new(tokenize("/").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Div));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::Div);
     p.build_tree();
     let mut p = Parser::new(tokenize("%").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Rem));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::Rem);
     p.build_tree();
     let mut p = Parser::new(tokenize("+").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Add));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::Add);
     p.build_tree();
     let mut p = Parser::new(tokenize("-").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Sub));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::Sub);
     p.build_tree();
     let mut p = Parser::new(tokenize("<<").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ShiftLeft));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::ShiftLeft);
     p.build_tree();
     let mut p = Parser::new(tokenize(">>").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ShiftRight));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::ShiftRight);
     p.build_tree();
     let mut p = Parser::new(tokenize("&").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitAnd));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::BitAnd);
     p.build_tree();
     let mut p = Parser::new(tokenize("^").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitXor));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::BitXor);
     p.build_tree();
     let mut p = Parser::new(tokenize("|").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitOr));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::BitOr);
     p.build_tree();
     let mut p = Parser::new(tokenize("==").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpEq));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::CmpEq);
     p.build_tree();
     let mut p = Parser::new(tokenize("!=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpNe));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::CmpNe);
     p.build_tree();
     let mut p = Parser::new(tokenize("<").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpLt));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::CmpLt);
     p.build_tree();
     let mut p = Parser::new(tokenize(">").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpGt));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::CmpGt);
     p.build_tree();
     let mut p = Parser::new(tokenize("<=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpLe));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::CmpLe);
     p.build_tree();
     let mut p = Parser::new(tokenize(">=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::CmpGe));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::CmpGe);
     p.build_tree();
     let mut p = Parser::new(tokenize("&&").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ConditionalAnd));
+    assert_eq!(
+      try_infix_operator(&mut p).unwrap().0,
+      OperatorKind::ConditionalAnd
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize("||").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ConditionalOr));
+    assert_eq!(
+      try_infix_operator(&mut p).unwrap().0,
+      OperatorKind::ConditionalOr
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize("..").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::RangeExclusive));
+    assert_eq!(
+      try_infix_operator(&mut p).unwrap().0,
+      OperatorKind::RangeExclusive
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize("..=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::RangeInclusive));
+    assert_eq!(
+      try_infix_operator(&mut p).unwrap().0,
+      OperatorKind::RangeInclusive
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize("=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::Assign));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::Assign);
     p.build_tree();
     let mut p = Parser::new(tokenize("+=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::AddAssign));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::AddAssign);
     p.build_tree();
     let mut p = Parser::new(tokenize("-=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::SubAssign));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::SubAssign);
     p.build_tree();
     let mut p = Parser::new(tokenize("*=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::MulAssign));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::MulAssign);
     p.build_tree();
     let mut p = Parser::new(tokenize("/=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::DivAssign));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::DivAssign);
     p.build_tree();
     let mut p = Parser::new(tokenize("%=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::RemAssign));
+    assert_eq!(try_infix_operator(&mut p).unwrap().0, OperatorKind::RemAssign);
     p.build_tree();
     let mut p = Parser::new(tokenize("&=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitAndAssign));
+    assert_eq!(
+      try_infix_operator(&mut p).unwrap().0,
+      OperatorKind::BitAndAssign
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize("|=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitOrAssign));
+    assert_eq!(
+      try_infix_operator(&mut p).unwrap().0,
+      OperatorKind::BitOrAssign
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize("^=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::BitXorAssign));
+    assert_eq!(
+      try_infix_operator(&mut p).unwrap().0,
+      OperatorKind::BitXorAssign
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize("<<=").collect());
-    assert_eq!(try_infix_operator(&mut p), Some(OperatorKind::ShiftLeftAssign));
+    assert_eq!(
+      try_infix_operator(&mut p).unwrap().0,
+      OperatorKind::ShiftLeftAssign
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize(">>=").collect());
     assert_eq!(
-      try_infix_operator(&mut p),
-      Some(OperatorKind::ShiftRightAssign)
+      try_infix_operator(&mut p).unwrap().0,
+      OperatorKind::ShiftRightAssign
     );
     p.build_tree();
   }
   #[test]
   fn test_try_postfix_operator() {
     let mut p = Parser::new(tokenize("(").collect());
-    assert_eq!(try_postfix_operator(&mut p), Some(OperatorKind::FnCall));
+    assert_eq!(try_postfix_operator(&mut p).unwrap().0, OperatorKind::FnCall);
     p.build_tree();
     let mut p = Parser::new(tokenize("[").collect());
-    assert_eq!(try_postfix_operator(&mut p), Some(OperatorKind::ArrayIndex));
+    assert_eq!(
+      try_postfix_operator(&mut p).unwrap().0,
+      OperatorKind::ArrayIndex
+    );
     p.build_tree();
     let mut p = Parser::new(tokenize("as").collect());
-    assert_eq!(try_postfix_operator(&mut p), Some(OperatorKind::As));
+    assert_eq!(try_postfix_operator(&mut p).unwrap().0, OperatorKind::As);
     p.build_tree();
   }
 }
