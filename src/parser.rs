@@ -116,6 +116,37 @@ pub struct Cst {
   pub kind: CstKind,
   pub elements: Vec<CstElem>,
 }
+impl Cst {
+  pub fn pretty_debug(&self) -> String {
+    let mut buffer = String::new();
+    self.pretty_debug_rec(0, &mut buffer);
+    buffer
+  }
+  fn pretty_debug_rec(&self, indents: usize, buffer: &mut String) {
+    use core::fmt::Write;
+    for _ in 0..indents {
+      write!(buffer, " ").ok();
+    }
+    writeln!(buffer, "{:?} {{", self.kind).ok();
+    for element in &self.elements {
+      match element {
+        CstElem::Token(Token { kind, span }) => {
+          for _ in 0..(indents + 2) {
+            write!(buffer, " ").ok();
+          }
+          writeln!(buffer, "{kind:?} @({span:?})").ok();
+        }
+        CstElem::Tree(cst) => {
+          cst.pretty_debug_rec(indents + 2, buffer);
+        }
+      }
+    }
+    for _ in 0..indents {
+      write!(buffer, " ").ok();
+    }
+    writeln!(buffer, "}}").ok();
+  }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CstKind {
