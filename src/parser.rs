@@ -70,10 +70,24 @@ mod parser_core {
     pub fn at(&self, kind: TokenKind) -> bool {
       self.peek() == kind
     }
+    pub fn expect(&mut self, kind: TokenKind) {
+      if self.at(kind) {
+        self.advance();
+      } else {
+        self.advance();
+        // TODO: real error logging
+        eprintln!("Expected {kind:?}");
+      }
+    }
+    pub fn advance_with_error(&mut self, error: &str) {
+      let m = self.open();
+      // TODO: real error logging
+      eprintln!("Error Message: {error}");
+      self.advance();
+      self.close(m, CstKind::ErrGeneric);
+    }
 
     // TODO: method to eat whitespace/comments if any
-
-    // TODO: error logging
 
     pub fn build_tree(mut self) -> Cst {
       let mut tokens = self.tokens.iter().copied();
@@ -151,6 +165,7 @@ impl Cst {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CstKind {
   ErrNoTreeKindSet,
+  ErrGeneric,
   ErrExpectedValueExpression,
   //
   ValExpr,
