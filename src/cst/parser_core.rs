@@ -1,3 +1,7 @@
+use core::range::Range;
+
+use crate::tokenizer::TokenKind;
+
 use super::*;
 
 #[derive(Debug, Clone, Copy)]
@@ -16,15 +20,22 @@ pub struct CloseMark {
   index: usize,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum CstParserErrorKind {
+  UnexpectedToken { expected: TokenKind, actual: Token },
+  ExpectedFunctionArgument,
+}
+
 #[derive(Debug, Clone)]
-pub struct Parser {
+pub struct CstParser {
   tokens: Vec<Token>,
   pos: usize,
   events: Vec<ParseEvent>,
+  errors: Vec<CstParserErrorKind>,
 }
-impl Parser {
+impl CstParser {
   pub fn new(tokens: Vec<Token>) -> Self {
-    Self { tokens, pos: 0, events: Vec::new() }
+    Self { tokens, pos: 0, events: Vec::new(), errors: Vec::new() }
   }
   pub fn open(&mut self) -> OpenMark {
     let mark = OpenMark { index: self.events.len() };
@@ -62,26 +73,41 @@ impl Parser {
   pub fn at(&self, kind: TokenKind) -> bool {
     self.peek() == kind
   }
-  pub fn expect(&mut self, kind: TokenKind) {
-    if self.at(kind) {
+  pub fn expect(&mut self, expected: TokenKind) {
+    if self.at(expected) {
       self.advance();
     } else {
+      self.errors.push(CstParserErrorKind::UnexpectedToken {
+        expected,
+        actual: self.tokens.get(self.pos).copied().unwrap_or(Token {
+          kind: TokenKind::ErrEndOfFile,
+          span: crate::r(0, 0),
+        }),
+      });
       self.advance();
-      // TODO: real error logging
-      eprintln!("Expected {kind:?}");
     }
   }
-  pub fn advance_with_error(&mut self, error: &str) {
+  pub fn advance_over_whitespace_and_comments(&mut self) {
+    while let TokenKind::Whitespace | TokenKind::Comment = self.peek() {
+      self.advance();
+    }
+  }
+  pub fn advance_with_error(&mut self, error: CstParserErrorKind) {
+    self.errors.push(error);
     let m = self.open();
-    // TODO: real error logging
-    eprintln!("Error Message: {error}");
     self.advance();
     self.close(m, CstKind::ErrGeneric);
   }
+  /// An iterator over the tokens still waiting to be parsed.
+  ///
+  /// This lets you peek forward as much as you need before actually consuming
+  /// anything.
+  pub fn tokens_tail(&self) -> impl Iterator<Item = Token> + Clone + '_ {
+    debug_assert!(self.pos <= self.tokens.len());
+    self.tokens[self.pos..].iter().copied()
+  }
 
-  // TODO: method to eat whitespace/comments if any
-
-  pub fn build_tree(mut self) -> Cst {
+  pub fn build_tree(mut self) -> (Cst, Vec<CstParserErrorKind>) {
     let mut tokens = self.tokens.iter().copied();
     let mut stack = Vec::new();
 
@@ -111,6 +137,6 @@ impl Parser {
 
     debug_assert_eq!(stack.len(), 1);
     debug_assert!(tokens.next().is_none(), "{:?}", self.tokens);
-    stack.pop().unwrap()
+    (stack.pop().unwrap(), self.errors)
   }
 }
