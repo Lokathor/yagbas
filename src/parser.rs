@@ -539,8 +539,7 @@ fn try_val_expr(p: &mut Parser, min_bp: u8) -> Option<CloseMark> {
   };
   // infix/postfix
   let mut prevstr: Option<u8> = None;
-  loop {
-    let Some((o, postfix)) = peek_operator_post(p) else { break };
+  while let Some((o, postfix)) = peek_operator_post(p) {
     let (strn, dir) = o.binding();
     let (lhs_bp, rhs_bp) = match dir {
       BindDirection::Left => (strn, strn + 1),
@@ -613,12 +612,13 @@ fn try_val_expr(p: &mut Parser, min_bp: u8) -> Option<CloseMark> {
 // Peek at the next tokens. If they are an operator, which one,
 // and is it postfix.
 fn peek_operator_post(p: &mut Parser) -> Option<(OperatorKind, bool)> {
+  // Note: the comment on this fn is what *should* happen, but this
+  // implementation is a lie and incorrectly consumes input when it should have
+  // only peeked.
   if let Some(x) = try_prefix_operator(p) {
     Some((x.0, false))
-  } else if let Some(x) = try_postfix_operator(p) {
-    Some((x.0, true))
   } else {
-    None
+    try_postfix_operator(p).map(|x| (x.0, true))
   }
 }
 
