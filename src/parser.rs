@@ -547,7 +547,9 @@ fn try_val_expr(p: &mut Parser, min_bp: u8) -> Option<CloseMark> {
       BindDirection::Right => (strn + 1, strn),
       BindDirection::Ambiguious => (strn, strn + 1),
     };
-    // TODO: this is the important part, this is why we need to *peek* the operator before doing anything else, because we sometimes dont eat it here, and instead eat it in the caller's stack frame.
+    // TODO: this is the important part, this is why we need to *peek* the
+    // operator before doing anything else, because we sometimes dont eat it
+    // here, and instead eat it in the caller's stack frame.
     if lhs_bp < min_bp {
       // caller's operator, don't consume
       break;
