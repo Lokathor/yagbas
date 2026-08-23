@@ -547,6 +547,7 @@ fn try_val_expr(p: &mut Parser, min_bp: u8) -> Option<CloseMark> {
       BindDirection::Right => (strn + 1, strn),
       BindDirection::Ambiguious => (strn, strn + 1),
     };
+    // TODO: this is the important part, this is why we need to *peek* the operator before doing anything else, because we sometimes dont eat it here, and instead eat it in the caller's stack frame.
     if lhs_bp < min_bp {
       // caller's operator, don't consume
       break;
@@ -555,13 +556,15 @@ fn try_val_expr(p: &mut Parser, min_bp: u8) -> Option<CloseMark> {
       // the op should have parens (you should parse anyway for resilience)
     }
     prevstr = Some(strn);
-    // now consume
+    // now consume the operator
+    // TODO: remove this, the op getter consumea it already.
     let m = p.open_before(lhs);
     let om = p.open();
     p.advance();
     let k =
       if postfix { CstKind::PostfixOperator } else { CstKind::InfixOperator };
     p.close(om, k);
+    // if it was a postfix op, consume the non-expr tail, otherwise it was infix and we consume the rhs
     match o {
       OperatorKind::Try => {}
       OperatorKind::As => {
@@ -593,6 +596,7 @@ fn try_val_expr(p: &mut Parser, min_bp: u8) -> Option<CloseMark> {
         p.expect(ClParen);
       }
       _ => {
+        // rhs
         if try_val_expr(p, rhs_bp).is_none() {
           let e = p.open();
           p.close(e, CstKind::ErrExpectedValueExpression);
