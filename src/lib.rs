@@ -12,7 +12,7 @@
 
 use core::range::Range;
 
-pub mod parser;
+pub mod cst_parser;
 pub mod tokenizer;
 
 /// Shorthand to make a [Range]
