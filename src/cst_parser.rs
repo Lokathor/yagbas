@@ -7,8 +7,8 @@ use crate::r;
 use crate::tokenizer::TokenKind::*;
 use crate::tokenizer::{Token, TokenKind, tokenize};
 
-use parser_core::*;
-mod parser_core;
+use cst_parser_core::*;
+mod cst_parser_core;
 
 /// Concrete Syntax Tree
 ///
