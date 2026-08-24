@@ -52,14 +52,18 @@ pub enum CstKind {
   ErrNoTreeKindSet,
   ErrGeneric,
   ErrExpectedValueExpression,
+  ErrExpectedTypeExpression,
+  ErrNeedsParensToDisambiguate,
   //
   ValExpr,
+  TypeExpr,
   AtomicValue,
   ParenGroup,
   InfixOperator,
   PrefixOperator,
   PostfixOperator,
   FnCallArgument,
+  ArgumentList,
 }
 
 /// A single element within a [Cst].

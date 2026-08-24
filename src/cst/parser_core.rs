@@ -74,9 +74,7 @@ impl CstParser {
     self.peek() == kind
   }
   pub fn expect(&mut self, expected: TokenKind) {
-    if self.at(expected) {
-      self.advance();
-    } else {
+    if !self.at(expected) {
       self.errors.push(CstParserErrorKind::UnexpectedToken {
         expected,
         actual: self.tokens.get(self.pos).copied().unwrap_or(Token {
@@ -84,19 +82,13 @@ impl CstParser {
           span: crate::r(0, 0),
         }),
       });
-      self.advance();
     }
+    self.advance();
   }
   pub fn advance_over_whitespace_and_comments(&mut self) {
     while let TokenKind::Whitespace | TokenKind::Comment = self.peek() {
       self.advance();
     }
-  }
-  pub fn advance_with_error(&mut self, error: CstParserErrorKind) {
-    self.errors.push(error);
-    let m = self.open();
-    self.advance();
-    self.close(m, CstKind::ErrGeneric);
   }
   /// An iterator over the tokens still waiting to be parsed.
   ///

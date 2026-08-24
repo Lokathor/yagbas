@@ -8,6 +8,8 @@ use crate::r;
 use crate::tokenizer::TokenKind::*;
 use crate::tokenizer::{Token, TokenKind, tokenize};
 
+mod tests;
+
 /// Operator binding direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BindDirection {
@@ -381,25 +383,45 @@ fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
   })
 }
 
+/// try parsing a type expression
+fn try_type_expr(p: &mut CstParser) -> Option<CloseMark> {
+  if p.at(TokenKind::Ident) {
+    let m = p.open();
+    p.expect(TokenKind::Ident);
+    Some(p.close(m, CstKind::TypeExpr))
+  } else {
+    None
+  }
+}
+
 /// Parse a value expression, or `None` for no input consumed.
 fn try_val_expr(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
   // prefix or atom
   let mut lhs: CloseMark = if let Some(op) = peek_prefix_operator(p) {
     let bind_power = op.binding();
-    let prefix_expr_mark = p.open();
-    let prefix_op_mark = p.open();
+    let expr_mark = p.open();
+    let op_mark = p.open();
     for _ in 0..op.token_length() {
       p.advance();
     }
-    p.close(prefix_expr_mark, CstKind::PrefixOperator);
+    p.advance_over_whitespace_and_comments();
+    if op == PrefixOperator::Break && p.at(TokenKind::Quote) {
+      p.expect(TokenKind::Quote);
+      p.expect(TokenKind::Ident);
+      p.advance_over_whitespace_and_comments();
+    }
+    p.close(op_mark, CstKind::PrefixOperator);
     if try_val_expr(p, bind_power).is_none() && op.needs_operand() {
       let m2 = p.open();
       p.close(m2, CstKind::ErrExpectedValueExpression);
     }
-    p.close(prefix_expr_mark, CstKind::ValExpr)
+    p.close(expr_mark, CstKind::ValExpr)
   } else {
     try_val_atom(p)?
   };
+  p.advance_over_whitespace_and_comments();
   // infix/postfix looping
   let mut previous_bind_power: Option<u8> = None;
   loop {
@@ -417,17 +439,53 @@ fn try_val_expr(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
         p.advance();
       }
       p.close(op_mark, CstKind::PostfixOperator);
-      // TODO: parse whatever else we need to grab based on the specific postfix
-      // operator kind
       match op {
-        PostfixOperator::FnCall => todo!(),
-        PostfixOperator::ArrayIndex => todo!(),
-        PostfixOperator::Try => todo!(),
-        PostfixOperator::As => todo!(),
-        PostfixOperator::PostfixRangeExclusive => todo!(),
-        PostfixOperator::PostfixRangeInclusive => todo!(),
+        PostfixOperator::Try => (),
+        PostfixOperator::FnCall => {
+          let arg_list_mark = p.open();
+          loop {
+            p.advance_over_whitespace_and_comments();
+            if let Some(xpr_mark) = try_val_expr(p, bind_power) {
+              p.advance_over_whitespace_and_comments();
+              if p.at(TokenKind::Comma) {
+                p.expect(TokenKind::Comma);
+                p.advance_over_whitespace_and_comments();
+              }
+            } else {
+              break;
+            }
+          }
+          p.close(arg_list_mark, CstKind::ArgumentList);
+          p.expect(TokenKind::ClParen);
+        }
+        PostfixOperator::ArrayIndex => {
+          let arg_list_mark = p.open();
+          p.advance_over_whitespace_and_comments();
+          if try_val_expr(p, 0).is_none() {
+            let err_mark = p.open();
+            p.close(err_mark, CstKind::ErrExpectedValueExpression);
+          }
+          p.advance_over_whitespace_and_comments();
+          p.close(arg_list_mark, CstKind::ValExpr);
+          p.expect(TokenKind::ClBracket);
+        }
+        PostfixOperator::As => {
+          p.advance_over_whitespace_and_comments();
+          if try_type_expr(p).is_none() {
+            let err_mark = p.open();
+            p.close(err_mark, CstKind::ErrExpectedTypeExpression);
+          }
+          p.advance_over_whitespace_and_comments();
+        }
+        PostfixOperator::PostfixRangeExclusive
+        | PostfixOperator::PostfixRangeInclusive => {
+          p.advance_over_whitespace_and_comments();
+          try_val_expr(p, rhs_bp);
+          p.advance_over_whitespace_and_comments();
+        }
       }
       lhs = p.close(expr_mark, CstKind::ValExpr);
+      continue;
     }
     if let Some(op) = peek_infix_operator(p) {
       let bind_power = op.binding();
@@ -443,8 +501,8 @@ fn try_val_expr(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
       if op.direction() == BindDirection::Ambiguious
         && previous_bind_power == Some(bind_power)
       {
-        // TODO: error message that the op should have parens (but also we'll
-        // parse it anyway, just to stay resilient)
+        let err_mark = p.open();
+        p.close(err_mark, CstKind::ErrNeedsParensToDisambiguate);
       }
       let expr_mark = p.open_before(lhs);
       let op_mark = p.open();
@@ -452,12 +510,17 @@ fn try_val_expr(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
         p.advance();
       }
       p.close(op_mark, CstKind::InfixOperator);
+      p.advance_over_whitespace_and_comments();
       // rhs
       if try_val_expr(p, rhs_bp).is_none() {
-        let e = p.open();
-        p.close(e, CstKind::ErrExpectedValueExpression);
+        let err_mark = p.open();
+        p.close(err_mark, CstKind::ErrExpectedValueExpression);
       }
+      lhs = p.close(expr_mark, CstKind::ValExpr);
+      continue;
     }
+    // no operator visible, so we stop gathering.
+    break;
   }
   Some(lhs)
 }
