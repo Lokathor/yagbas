@@ -1,5 +1,4 @@
-#![allow(unused)]
-
+#![allow(dead_code)]
 //! Module for all the parsing junk!
 
 use crate::cst::CstKind;
@@ -59,9 +58,6 @@ fn peek_infix_operator(p: &mut CstParser) -> Option<InfixOperator> {
     StarEqual => InfixOperator::MulAssign,
     SlashEqual => InfixOperator::DivAssign,
     PercentEqual => InfixOperator::RemAssign,
-    AmpersandEqual => InfixOperator::BitAndAssign,
-    PipeEqual => InfixOperator::BitOrAssign,
-    CaretEqual => InfixOperator::BitXorAssign,
     LessThan => {
       return Some(match tokens.next().unwrap_or(TokenKind::ErrEndOfFile) {
         LessThan => {
@@ -163,7 +159,6 @@ fn try_val_expr(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
   debug_assert_ne!(p.peek(), Comment);
   // prefix or atom
   let mut lhs: CloseMark = if let Some(op) = peek_prefix_operator(p) {
-    let bind_power = op.binding();
     let expr_mark = p.open();
     let op_mark = p.open();
     for _ in 0..op.token_length() {
@@ -176,7 +171,7 @@ fn try_val_expr(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
       p.advance_over_whitespace_and_comments();
     }
     p.close(op_mark, CstKind::PrefixOperator);
-    if try_val_expr(p, bind_power).is_none() && op.needs_operand() {
+    if try_val_expr(p, op.binding()).is_none() && op.needs_operand() {
       let m2 = p.open();
       p.close(m2, CstKind::ErrExpectedValueExpression);
     }
@@ -208,7 +203,7 @@ fn try_val_expr(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
           let arg_list_mark = p.open();
           loop {
             p.advance_over_whitespace_and_comments();
-            if let Some(xpr_mark) = try_val_expr(p, bind_power) {
+            if let Some(_xpr_mark) = try_val_expr(p, bind_power) {
               p.advance_over_whitespace_and_comments();
               if p.at(TokenKind::Comma) {
                 p.expect(TokenKind::Comma);
