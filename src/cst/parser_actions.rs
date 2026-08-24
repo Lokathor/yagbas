@@ -13,7 +13,7 @@ use crate::tokenizer::{Token, TokenKind, tokenize};
 
 mod tests;
 
-/// Checks for a **prefix** operator.
+/// Checks for a [PrefixOperator]
 fn peek_prefix_operator(p: &mut CstParser) -> Option<PrefixOperator> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
@@ -31,7 +31,7 @@ fn peek_prefix_operator(p: &mut CstParser) -> Option<PrefixOperator> {
   Some(op)
 }
 
-/// Checks for an **infix** operator.
+/// Checks for an [InfixOperator]
 fn peek_infix_operator(p: &mut CstParser) -> Option<InfixOperator> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
@@ -107,7 +107,7 @@ fn peek_infix_operator(p: &mut CstParser) -> Option<InfixOperator> {
   Some(op)
 }
 
-/// Checks for a **postfix** operator.
+/// Checks for a [PostfixOperator]
 fn peek_postfix_operator(p: &mut CstParser) -> Option<PostfixOperator> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
