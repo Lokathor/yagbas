@@ -6,7 +6,7 @@ use crate::cst::CstKind;
 use crate::cst::operators::{
   BindDirection, InfixOperator, PostfixOperator, PrefixOperator,
 };
-use crate::cst::parser_core::{CloseMark, CstParser, CstParserErrorKind};
+use crate::cst::parser::{CloseMark, CstParser, CstParserErrorKind};
 use crate::r;
 use crate::tokenizer::TokenKind::*;
 use crate::tokenizer::{Token, TokenKind, tokenize};

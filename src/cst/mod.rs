@@ -1,8 +1,8 @@
 use crate::tokenizer::Token;
 
+pub mod actions;
 pub mod operators;
-pub mod parser_actions;
-pub mod parser_core;
+pub mod parser;
 
 /// Concrete Syntax Tree
 ///
