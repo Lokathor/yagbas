@@ -1,5 +1,6 @@
 use crate::tokenizer::Token;
 
+pub mod operators;
 pub mod parser_actions;
 pub mod parser_core;
 
