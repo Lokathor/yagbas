@@ -195,3 +195,11 @@ fn test_postfix_expressions() {
   let (cst, errs) = p.build_tree();
   assert!(errs.is_empty());
 }
+
+#[test]
+fn test_try_stmt_let() {
+  let mut p = CstParser::new("let x = 0;");
+  assert!(try_stmt_let(&mut p).is_some());
+  let (cst, errs) = p.build_tree();
+  assert!(errs.is_empty());
+}

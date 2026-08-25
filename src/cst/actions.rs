@@ -296,3 +296,22 @@ pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
     Some(lhs)
   }
 }
+
+fn try_stmt_let(p: &mut CstParser) -> Option<CloseMark> {
+  if p.peek() != KwLet {
+    return None;
+  }
+  let m = p.open();
+  p.expect(KwLet);
+  p.advance_over_whitespace_and_comments();
+  p.expect(Ident);
+  p.advance_over_whitespace_and_comments();
+  p.expect(Equal);
+  p.advance_over_whitespace_and_comments();
+  if try_value_expr(p).is_none() {
+    let err = p.open();
+    p.close(err, CstKind::ErrExpectedValueExpression);
+  }
+  p.expect(Semicolon);
+  Some(p.close(m, CstKind::StmtLet))
+}

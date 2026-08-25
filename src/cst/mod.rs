@@ -15,36 +15,36 @@ pub struct Cst {
   pub kind: CstKind,
   pub elements: Vec<CstElem>,
 }
-impl Cst {
-  /// pretty-print the debug info of this Cst into a String.
-  pub fn pretty_debug(&self) -> String {
-    let mut buffer = String::new();
-    self.pretty_debug_rec(0, &mut buffer);
-    buffer
-  }
-  fn pretty_debug_rec(&self, indents: usize, buffer: &mut String) {
-    use core::fmt::Write;
-    for _ in 0..indents {
-      write!(buffer, " ").ok();
-    }
-    writeln!(buffer, "{:?} {{", self.kind).ok();
-    for element in &self.elements {
-      match element {
-        CstElem::Token(Token { kind, position }) => {
-          for _ in 0..(indents + 2) {
-            write!(buffer, " ").ok();
+impl core::fmt::Display for Cst {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    return fmt_rec(self, f, 0);
+
+    fn fmt_rec(
+      s: &Cst, f: &mut core::fmt::Formatter<'_>, indents: usize,
+    ) -> core::fmt::Result {
+      use core::fmt::Write;
+      for _ in 0..indents {
+        write!(f, " ")?;
+      }
+      writeln!(f, "{:?} {{", s.kind)?;
+      for element in &s.elements {
+        match element {
+          CstElem::Token(Token { kind, position }) => {
+            for _ in 0..(indents + 2) {
+              write!(f, " ")?;
+            }
+            writeln!(f, "{kind:?} @({position:?})")?;
           }
-          writeln!(buffer, "{kind:?} @({position:?})").ok();
-        }
-        CstElem::Tree(cst) => {
-          cst.pretty_debug_rec(indents + 2, buffer);
+          CstElem::Tree(cst) => {
+            fmt_rec(cst, f, indents + 2)?;
+          }
         }
       }
+      for _ in 0..indents {
+        write!(f, " ")?;
+      }
+      writeln!(f, "}}")
     }
-    for _ in 0..indents {
-      write!(buffer, " ").ok();
-    }
-    writeln!(buffer, "}}").ok();
   }
 }
 
@@ -67,6 +67,7 @@ pub enum CstKind {
   PostfixOperator,
   FnCallArgument,
   ArgumentList,
+  StmtLet,
 }
 
 /// A single element within a [Cst].
