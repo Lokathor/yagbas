@@ -321,13 +321,11 @@ pub fn try_stmt(p: &mut CstParser) -> Option<CloseMark> {
   // todo: support labels
   // todo: item statements
   // todo: statement attributes
-  if let Some(m_let) = try_stmt_let(p) {
-    Some(m_let)
-  } else if let Some(m_val) = try_value_expr(p) {
-    let m = p.open_before(m_val);
-    p.expect(Semicolon);
-    Some(p.close(m, CstKind::StmtValExpr))
-  } else {
-    None
-  }
+  try_stmt_let(p).or_else(|| {
+    try_value_expr(p).map(|m_val| {
+      let m = p.open_before(m_val);
+      p.expect(Semicolon);
+      p.close(m, CstKind::StmtValExpr)
+    })
+  })
 }
