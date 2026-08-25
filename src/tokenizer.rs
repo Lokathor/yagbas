@@ -21,93 +21,85 @@ impl<'a> TokenIter<'a> {
     Self { src, bytes: src.as_bytes().iter().copied().enumerate().peekable() }
   }
 
-  fn handle_block_comment(
-    &mut self, start: usize,
-  ) -> (TokenKind, Range<usize>) {
+  fn handle_block_comment(&mut self, position: u32) -> Option<Token> {
     let mut depth = 1;
-    let (mut end, b) = self.bytes.next().unwrap();
+    let b = self.bytes.next().unwrap().1;
     debug_assert_eq!(b, b'*');
     loop {
       debug_assert!(depth > 0);
       match self.bytes.next() {
-        None => return (ErrBlockCommentUnclosed, r(start, end + 1)),
-        Some((x, b'/')) => {
-          end = x;
+        None => return Some(Token { kind: ErrBlockCommentUnclosed, position }),
+        Some((_, b'/')) => {
           // possible nested block
           if let Some((_, b'*')) = self.bytes.peek() {
-            end = self.bytes.next().unwrap().0;
+            self.bytes.next();
             depth += 1;
           }
         }
-        Some((x, b'*')) => {
-          end = x;
+        Some((_, b'*')) => {
           // possible end block
           if let Some((_, b'/')) = self.bytes.peek() {
-            end = self.bytes.next().unwrap().0;
+            self.bytes.next();
             depth -= 1;
             if depth == 0 {
               break;
             }
           }
         }
-        Some((x, _)) => {
-          end = x;
-        }
+        Some(_) => {}
       }
     }
-    (Comment, r(start, end + 1))
+    Some(Token { kind: Comment, position })
   }
 
-  fn handle_literal_str(&mut self, start: usize) -> (TokenKind, Range<usize>) {
+  fn handle_literal_str(&mut self, position: u32) -> Option<Token> {
     let mut backslash_count = 0;
-    let end = loop {
+    loop {
       match self.bytes.next() {
         None => {
-          return (ErrLitStrUnclosed, r(start, self.src.len()));
+          return Some(Token { kind: ErrLitStrUnclosed, position });
         }
         Some((_, b'\\')) => {
           backslash_count += 1;
         }
-        Some((end, b'"')) => {
+        Some((_, b'"')) => {
           if backslash_count % 2 != 0 {
             backslash_count = 0;
             continue;
           } else {
-            break end + 1;
+            break;
           }
         }
         _ => backslash_count = 0,
       }
-    };
-    (LitStr, r(start, end))
+    }
+    Some(Token { kind: LitStr, position })
   }
 
-  fn handle_literal_raw_value(
-    &mut self, start: usize,
-  ) -> (TokenKind, Range<usize>) {
+  fn handle_literal_raw_value(&mut self, position: u32) -> Option<Token> {
     debug_assert_eq!(self.bytes.peek().unwrap().1, b'#');
-    let mut end = start;
     let mut hash_count = 0;
     while let Some((_, b'#')) = self.bytes.peek() {
       hash_count += 1;
-      end = self.bytes.next().unwrap().0;
+      self.bytes.next();
     }
     match self.bytes.next() {
       Some((_, b'"')) => (),
-      _ => return (ErrBadRawValue, r(start, end + 1)),
+      _ => return Some(Token { kind: ErrBadRawValue, position }),
     }
     debug_assert!(hash_count > 0);
     'find_double_quote: loop {
       match self.bytes.next() {
-        None => return (ErrLitRawStrUnclosed, r(start, self.src.len())),
-        Some((x, b'"')) => {
-          end = x;
+        None => return Some(Token { kind: ErrLitRawStrUnclosed, position }),
+        Some((_, b'"')) => {
           let mut remaining = hash_count;
           'count_hashes: while remaining > 0 {
             match self.bytes.peek() {
-              None => return (ErrLitRawStrUnclosed, r(start, self.src.len())),
+              None => {
+                return Some(Token { kind: ErrLitRawStrUnclosed, position });
+              }
               Some((_x, b'#')) => {
-                end = self.bytes.next().unwrap().0;
+                self.bytes.next();
               }
               Some((_, _y)) => {
                 continue 'find_double_quote;
@@ -120,22 +112,20 @@ impl<'a> TokenIter<'a> {
         Some((_i, _b)) => {}
       }
     }
-    (LitStr, r(start, end + 1))
+    Some(Token { kind: LitStr, position })
   }
 
-  fn handle_literal_num(&mut self, start: usize) -> (TokenKind, Range<usize>) {
-    let mut end = start;
+  fn handle_literal_num(&mut self, position: u32) -> Option<Token> {
     while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
       self.bytes.peek()
     {
-      end = self.bytes.next().unwrap().0;
+      self.bytes.next();
     }
-    (LitNum, r(start, end + 1))
+    Some(Token { kind: LitNum, position })
   }
 
-  fn handle_keyword_or_ident(
-    &mut self, start: usize,
-  ) -> (TokenKind, Range<usize>) {
+  fn handle_keyword_or_ident(&mut self, position: u32) -> Option<Token> {
+    let start = position as usize;
     let mut end = start;
     while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
       self.bytes.peek()
@@ -167,114 +157,115 @@ impl<'a> TokenIter<'a> {
       "use" => KwUse,
       _ => Ident,
     };
-    (kind, r(start, end))
+    Some(Token { kind, position })
   }
 }
 impl<'a> Iterator for TokenIter<'a> {
   type Item = Token;
 
   fn next(&mut self) -> Option<Self::Item> {
-    let (start, byte) = self.bytes.next()?;
-    let (kind, span) = match byte {
+    let (position_usize, byte) = self.bytes.next()?;
+    debug_assert!(u32::try_from(position_usize).is_ok());
+    let position = position_usize as u32;
+    match byte {
       // whitespace
       b' ' | b'\t' | b'\r' | b'\n' => {
-        let mut end = start;
-        'label: while let Some((_, b' ' | b'\t' | b'\r' | b'\n')) =
-          self.bytes.peek()
-        {
-          end = self.bytes.next().unwrap().0;
+        while let Some((_, b' ' | b'\t' | b'\r' | b'\n')) = self.bytes.peek() {
+          self.bytes.next();
         }
-        (Whitespace, r(start, end + 1))
+        Some(Token { kind: Whitespace, position })
       }
       // comments
       b'/' => match self.bytes.peek() {
-        Some((_, b'*')) => self.handle_block_comment(start),
+        Some((_, b'*')) => self.handle_block_comment(position),
         Some((_, b'/')) => {
-          let end = loop {
+          loop {
             match self.bytes.peek() {
-              Some((x, b'\r')) | Some((x, b'\n')) => break *x,
-              None => break self.src.len(),
+              Some((_, b'\r')) | Some((_, b'\n')) => break,
+              None => break,
               _ => {
                 let _ = self.bytes.next();
               }
             }
-          };
-          (Comment, r(start, end))
+          }
+          Some(Token { kind: Comment, position })
         }
         Some((_, b'=')) => {
-          let end = self.bytes.next().unwrap().0;
-          (SlashEqual, r(start, end + 1))
+          self.bytes.next();
+          Some(Token { kind: SlashEqual, position })
         }
-        _ => (Slash, r(start, start + 1)),
+        _ => Some(Token { kind: Slash, position }),
       },
       b'*' => match self.bytes.peek() {
         Some((_, b'/')) => {
-          let end = self.bytes.next().unwrap().0;
-          (ErrBlockCommentExtraClose, r(start, end + 1))
+          self.bytes.next();
+          Some(Token { kind: ErrBlockCommentExtraClose, position })
         }
         Some((_, b'=')) => {
-          let end = self.bytes.next().unwrap().0;
-          (StarEqual, r(start, end + 1))
+          self.bytes.next();
+          Some(Token { kind: StarEqual, position })
         }
-        _ => (Star, r(start, start + 1)),
+        _ => Some(Token { kind: Star, position }),
       },
       // string literals
-      b'"' => self.handle_literal_str(start),
+      b'"' => self.handle_literal_str(position),
       b'r' if self.bytes.peek().map(|b| b.1 == b'#').unwrap_or(false) => {
-        self.handle_literal_raw_value(start)
+        self.handle_literal_raw_value(position)
       }
       // number literals
       b'$' => match self.bytes.peek() {
         Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
-          self.handle_literal_num(start)
+          self.handle_literal_num(position)
         }
-        _ => (Dollar, r(start, start + 1)),
+        _ => Some(Token { kind: Dollar, position }),
       },
       b'%' => match self.bytes.peek() {
         Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
-          self.handle_literal_num(start)
+          self.handle_literal_num(position)
         }
         Some((_, b'=')) => {
-          let end = self.bytes.next().unwrap().0;
-          (PercentEqual, r(start, end + 1))
+          self.bytes.next().unwrap();
+          Some(Token { kind: PercentEqual, position })
         }
-        _ => (Percent, r(start, start + 1)),
+        _ => Some(Token { kind: Percent, position }),
       },
-      b'0'..=b'9' => self.handle_literal_num(start),
+      b'0'..=b'9' => self.handle_literal_num(position),
       // keywords, idents
-      b'A'..=b'Z' | b'a'..=b'z' | b'_' => self.handle_keyword_or_ident(start),
+      b'A'..=b'Z' | b'a'..=b'z' | b'_' => {
+        self.handle_keyword_or_ident(position)
+      }
       // double punctuation
       b':' if self.bytes.peek().map_or(0, |(_, b)| *b) == b':' => {
         let _ = self.bytes.next();
-        (ColonColon, r(start, start + 2))
+        Some(Token { kind: ColonColon, position })
       }
       b'=' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
         let _ = self.bytes.next();
-        (EqualEqual, r(start, start + 2))
+        Some(Token { kind: EqualEqual, position })
       }
       b'!' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
         let _ = self.bytes.next();
-        (BangEqual, r(start, start + 2))
+        Some(Token { kind: BangEqual, position })
       }
       b'+' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
         let _ = self.bytes.next();
-        (PlusEqual, r(start, start + 2))
+        Some(Token { kind: PlusEqual, position })
       }
       b'-' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
         let _ = self.bytes.next();
-        (MinusEqual, r(start, start + 2))
+        Some(Token { kind: MinusEqual, position })
       }
       b'&' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
         let _ = self.bytes.next();
-        (AmpersandEqual, r(start, start + 2))
+        Some(Token { kind: AmpersandEqual, position })
       }
       b'|' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
         let _ = self.bytes.next();
-        (PipeEqual, r(start, start + 2))
+        Some(Token { kind: PipeEqual, position })
       }
       b'^' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
         let _ = self.bytes.next();
-        (CaretEqual, r(start, start + 2))
+        Some(Token { kind: CaretEqual, position })
       }
       b'.' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'.' => {
         let _ = self.bytes.next(); // consume second '.'
@@ -282,21 +273,20 @@ impl<'a> Iterator for TokenIter<'a> {
         match self.bytes.peek().map_or(0, |(_, b)| *b) {
           b'=' => {
             let _ = self.bytes.next();
-            (DotDotEqual, r(start, start + 3))
+            Some(Token { kind: DotDotEqual, position })
           }
-          _ => (DotDot, r(start, start + 2)),
+          _ => Some(Token { kind: DotDot, position }),
         }
       }
       // fallback for all other punctuation cases
       b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
         let t = core::mem::transmute::<u8, TokenKind>;
         // Safety: all bytes in the pattern are variants within the TokenKind enum.
-        (unsafe { t(byte) }, r(start, start + 1))
+        Some(Token { kind: unsafe { t(byte) }, position })
       }
       // otherwise it's out of range
-      ..=0x1F | 0x7F.. => (ErrUnknown, r(start, start + 1)),
-    };
-    Some(Token { kind, span })
+      ..=0x1F | 0x7F.. => Some(Token { kind: ErrUnknown, position }),
+    }
   }
 }
 
@@ -309,10 +299,12 @@ pub fn tokenize(src: &str) -> TokenIter<'_> {
 /// An individual element of Yagbas source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Token {
-  #[allow(missing_docs)]
+  /// The kind of token we found.
   pub kind: TokenKind,
-  /// The span within the source where the token was found.
-  pub span: Range<usize>,
+  /// Where the token was found.
+  ///
+  /// Yagbas source files have a maximum of 4GB.
+  pub position: u32,
 }
 
 /// The possible kinds of token that can exist in Yagbas source.

@@ -28,11 +28,11 @@ impl Cst {
     writeln!(buffer, "{:?} {{", self.kind).ok();
     for element in &self.elements {
       match element {
-        CstElem::Token(Token { kind, span }) => {
+        CstElem::Token(Token { kind, position }) => {
           for _ in 0..(indents + 2) {
             write!(buffer, " ").ok();
           }
-          writeln!(buffer, "{kind:?} @({span:?})").ok();
+          writeln!(buffer, "{kind:?} @({position:?})").ok();
         }
         CstElem::Tree(cst) => {
           cst.pretty_debug_rec(indents + 2, buffer);

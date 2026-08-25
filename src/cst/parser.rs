@@ -79,7 +79,7 @@ impl CstParser {
         expected,
         actual: self.tokens.get(self.pos).copied().unwrap_or(Token {
           kind: TokenKind::ErrEndOfFile,
-          span: crate::r(0, 0),
+          position: u32::MAX,
         }),
       });
     }
