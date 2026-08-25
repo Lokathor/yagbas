@@ -68,6 +68,8 @@ pub enum CstKind {
   FnCallArgument,
   ArgumentList,
   StmtLet,
+  StmtValExpr,
+  StmtItem,
 }
 
 /// A single element within a [Cst].

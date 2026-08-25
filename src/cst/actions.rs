@@ -138,6 +138,7 @@ fn peek_postfix_operator(p: &mut CstParser) -> Option<PostfixOperator> {
   Some(op)
 }
 
+// todo: i think if and loop need to be parsable as expression atoms
 /// Parse a value atom, or `None` for no input consumed.
 fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
   debug_assert_ne!(p.peek(), Whitespace);
@@ -314,4 +315,19 @@ fn try_stmt_let(p: &mut CstParser) -> Option<CloseMark> {
   }
   p.expect(Semicolon);
   Some(p.close(m, CstKind::StmtLet))
+}
+
+pub fn try_stmt(p: &mut CstParser) -> Option<CloseMark> {
+  // todo: support labels
+  // todo: item statements
+  // todo: statement attributes
+  if let Some(m_let) = try_stmt_let(p) {
+    Some(m_let)
+  } else if let Some(m_val) = try_value_expr(p) {
+    let m = p.open_before(m_val);
+    p.expect(Semicolon);
+    Some(p.close(m, CstKind::StmtValExpr))
+  } else {
+    None
+  }
 }

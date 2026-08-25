@@ -194,12 +194,22 @@ fn test_postfix_expressions() {
   assert!(try_value_expr(&mut p).is_some());
   let (cst, errs) = p.build_tree();
   assert!(errs.is_empty());
+
+  let mut p = CstParser::new("sqrt(2)");
+  assert!(try_value_expr(&mut p).is_some());
+  let (cst, errs) = p.build_tree();
+  assert!(errs.is_empty());
 }
 
 #[test]
-fn test_try_stmt_let() {
+fn test_try_stmt() {
   let mut p = CstParser::new("let x = 0;");
-  assert!(try_stmt_let(&mut p).is_some());
+  assert!(try_stmt(&mut p).is_some(), "{p:?}");
+  let (cst, errs) = p.build_tree();
+  assert!(errs.is_empty());
+
+  let mut p = CstParser::new("sqrt(2);");
+  assert!(try_stmt(&mut p).is_some(), "{p:?}");
   let (cst, errs) = p.build_tree();
   assert!(errs.is_empty());
 }
