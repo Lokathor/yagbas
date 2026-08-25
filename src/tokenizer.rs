@@ -8,13 +8,11 @@ use core::iter::*;
 use core::range::Range;
 use core::slice::Iter;
 
-type TokenIterInternal<'a> = Peekable<Enumerate<Copied<Iter<'a, u8>>>>;
-
 /// An iterator over a module's source code which produces [Token] values.
 #[derive(Debug, Clone)]
 pub struct TokenIter<'a> {
   src: &'a str,
-  bytes: TokenIterInternal<'a>,
+  bytes: Peekable<Enumerate<Copied<Iter<'a, u8>>>>,
 }
 impl<'a> TokenIter<'a> {
   /// Constructs a new iterator pointed to the start of the source.
