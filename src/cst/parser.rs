@@ -1,6 +1,6 @@
 use core::range::Range;
 
-use crate::tokenizer::TokenKind;
+use crate::tokenizer::{TokenKind, tokenize};
 
 use super::*;
 
@@ -28,14 +28,27 @@ pub enum CstParserErrorKind {
 
 #[derive(Debug, Clone)]
 pub struct CstParser {
-  tokens: Vec<Token>,
+  token_kinds: Vec<TokenKind>,
+  token_positions: Vec<u32>,
   pos: usize,
   events: Vec<ParseEvent>,
   errors: Vec<CstParserErrorKind>,
 }
 impl CstParser {
-  pub fn new(tokens: Vec<Token>) -> Self {
-    Self { tokens, pos: 0, events: Vec::new(), errors: Vec::new() }
+  pub fn new(src: &str) -> Self {
+    let mut token_kinds = Vec::with_capacity(src.len());
+    let mut token_positions = Vec::with_capacity(src.len());
+    for Token { kind, position } in tokenize(src) {
+      token_kinds.push(kind);
+      token_positions.push(position);
+    }
+    Self {
+      token_kinds,
+      token_positions,
+      pos: 0,
+      events: Vec::new(),
+      errors: Vec::new(),
+    }
   }
   pub fn open(&mut self) -> OpenMark {
     let mark = OpenMark { index: self.events.len() };
@@ -60,15 +73,11 @@ impl CstParser {
   }
 
   pub fn has_more(&self) -> bool {
-    debug_assert!(self.pos <= self.tokens.len());
-    self.pos < self.tokens.len()
+    debug_assert!(self.pos <= self.token_kinds.len());
+    self.pos < self.token_kinds.len()
   }
   pub fn peek(&self) -> TokenKind {
-    if let Some(tk) = self.tokens.get(self.pos) {
-      tk.kind
-    } else {
-      TokenKind::ErrEndOfFile
-    }
+    self.token_kinds.get(self.pos).copied().unwrap_or(TokenKind::ErrEndOfFile)
   }
   pub fn at(&self, kind: TokenKind) -> bool {
     self.peek() == kind
@@ -77,10 +86,18 @@ impl CstParser {
     if !self.at(expected) {
       self.errors.push(CstParserErrorKind::UnexpectedToken {
         expected,
-        actual: self.tokens.get(self.pos).copied().unwrap_or(Token {
-          kind: TokenKind::ErrEndOfFile,
-          position: u32::MAX,
-        }),
+        actual: Token {
+          kind: self
+            .token_kinds
+            .get(self.pos)
+            .copied()
+            .unwrap_or(TokenKind::ErrEndOfFile),
+          position: self
+            .token_positions
+            .get(self.pos)
+            .copied()
+            .unwrap_or(u32::MAX),
+        },
       });
     }
     self.advance();
@@ -94,13 +111,14 @@ impl CstParser {
   ///
   /// This lets you peek forward as much as you need before actually consuming
   /// anything.
-  pub fn tokens_tail(&self) -> impl Iterator<Item = Token> + Clone + '_ {
-    debug_assert!(self.pos <= self.tokens.len());
-    self.tokens[self.pos..].iter().copied()
+  pub fn tokens_tail(&self) -> impl Iterator<Item = TokenKind> + Clone + '_ {
+    debug_assert!(self.pos <= self.token_kinds.len());
+    self.token_kinds[self.pos..].iter().copied()
   }
 
   pub fn build_tree(mut self) -> (Cst, Vec<CstParserErrorKind>) {
-    let mut tokens = self.tokens.iter().copied();
+    let mut token_kinds = self.token_kinds.iter().copied();
+    let mut token_positions = self.token_positions.iter().copied();
     let mut stack = Vec::new();
 
     // remove the last close event so that we can pop the stack's final value
@@ -121,14 +139,17 @@ impl CstParser {
           stack.last_mut().unwrap().elements.push(CstElem::Tree(tree));
         }
         ParseEvent::Advance => {
-          let token = tokens.next().unwrap();
+          let token = Token {
+            kind: token_kinds.next().unwrap(),
+            position: token_positions.next().unwrap(),
+          };
           stack.last_mut().unwrap().elements.push(CstElem::Token(token));
         }
       }
     }
 
     debug_assert_eq!(stack.len(), 1);
-    debug_assert!(tokens.next().is_none(), "{:?}", self.tokens);
+    debug_assert!(token_kinds.next().is_none(), "{:?}", self.token_kinds);
     (stack.pop().unwrap(), self.errors)
   }
 }

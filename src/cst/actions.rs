@@ -46,8 +46,8 @@ fn peek_infix_operator(p: &mut CstParser) -> Option<InfixOperator> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   //
-  let mut tokens = p.tokens_tail().map(|tk| tk.kind);
-  let op = match tokens.next().unwrap_or(TokenKind::ErrEndOfFile) {
+  let mut token_kinds = p.tokens_tail();
+  let op = match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
     ColonColon => InfixOperator::Path,
     Dot => InfixOperator::Access,
     Star => InfixOperator::Mul,
@@ -70,44 +70,52 @@ fn peek_infix_operator(p: &mut CstParser) -> Option<InfixOperator> {
     SlashEqual => InfixOperator::DivAssign,
     PercentEqual => InfixOperator::RemAssign,
     LessThan => {
-      return Some(match tokens.next().unwrap_or(TokenKind::ErrEndOfFile) {
-        LessThan => {
-          return Some(
-            match tokens.next().unwrap_or(TokenKind::ErrEndOfFile) {
-              Equal => InfixOperator::ShiftLeftAssign,
-              _ => InfixOperator::ShiftLeft,
-            },
-          );
-        }
-        Equal => InfixOperator::CmpLe,
-        _ => InfixOperator::CmpLt,
-      });
+      return Some(
+        match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+          LessThan => {
+            return Some(
+              match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+                Equal => InfixOperator::ShiftLeftAssign,
+                _ => InfixOperator::ShiftLeft,
+              },
+            );
+          }
+          Equal => InfixOperator::CmpLe,
+          _ => InfixOperator::CmpLt,
+        },
+      );
     }
     GreaterThan => {
-      return Some(match tokens.next().unwrap_or(TokenKind::ErrEndOfFile) {
-        GreaterThan => {
-          return Some(
-            match tokens.next().unwrap_or(TokenKind::ErrEndOfFile) {
-              Equal => (InfixOperator::ShiftRightAssign),
-              _ => (InfixOperator::ShiftRight),
-            },
-          );
-        }
-        Equal => InfixOperator::CmpGe,
-        _ => InfixOperator::CmpGt,
-      });
+      return Some(
+        match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+          GreaterThan => {
+            return Some(
+              match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+                Equal => (InfixOperator::ShiftRightAssign),
+                _ => (InfixOperator::ShiftRight),
+              },
+            );
+          }
+          Equal => InfixOperator::CmpGe,
+          _ => InfixOperator::CmpGt,
+        },
+      );
     }
     Ampersand => {
-      return Some(match tokens.next().unwrap_or(TokenKind::ErrEndOfFile) {
-        Ampersand => InfixOperator::ConditionalAnd,
-        _ => InfixOperator::BitAnd,
-      });
+      return Some(
+        match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+          Ampersand => InfixOperator::ConditionalAnd,
+          _ => InfixOperator::BitAnd,
+        },
+      );
     }
     Pipe => {
-      return Some(match tokens.next().unwrap_or(TokenKind::ErrEndOfFile) {
-        Pipe => InfixOperator::ConditionalOr,
-        _ => InfixOperator::BitOr,
-      });
+      return Some(
+        match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+          Pipe => InfixOperator::ConditionalOr,
+          _ => InfixOperator::BitOr,
+        },
+      );
     }
     _ => return None,
   };
