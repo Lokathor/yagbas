@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use crate::tokenizer::Token;
 
 pub mod actions;
