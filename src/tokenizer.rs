@@ -2,11 +2,194 @@
 
 //! Types and utilities for tokenizing Yagbas source code.
 
-use crate::r;
 use TokenKind::*;
-use core::iter::*;
-use core::range::Range;
 use core::slice::Iter;
+use std::iter::{Copied, Enumerate, Peekable};
+
+/// An individual element of Yagbas source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Token {
+  /// The kind of token we found.
+  pub kind: TokenKind,
+  /// Where the token was found.
+  ///
+  /// Yagbas source files have a maximum of 4GB.
+  pub position: u32,
+}
+
+/// The possible kinds of token that can exist in Yagbas source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum TokenKind {
+  // error cases
+  /// The lexer doesn't know what this was.
+  ErrUnknown,
+  /// A block comment was opened but not closed.
+  ErrBlockCommentUnclosed,
+  /// A block comment was closed without any preceeding open markers.
+  ErrBlockCommentExtraClose,
+  /// A literal string was unclosed.
+  ErrLitStrUnclosed,
+  /// A literal raw string was unclosed.
+  ErrLitRawStrUnclosed,
+  /// A raw specifier prefix was given but then it didn't turn into an allowed raw value.
+  /// * Currently, only raw strings are allowed.
+  ErrBadRawValue,
+  /// Dummy value for code to use when indexing tokens out of bounds.
+  ErrEndOfFile,
+
+  // keywords
+  /// `as`
+  KwAs,
+  /// `bitbag`
+  KwBitbag,
+  /// `break`
+  KwBreak,
+  /// `const`
+  KwConst,
+  /// `continue`
+  KwContinue,
+  /// `else`
+  KwElse,
+  /// `false`
+  KwFalse,
+  /// `fn`
+  KwFn,
+  /// `for`
+  KwFor,
+  /// `if`
+  KwIf,
+  /// `impl`
+  KwImpl,
+  /// `let`
+  KwLet,
+  /// `loop`
+  KwLoop,
+  /// `match`
+  KwMatch,
+  /// `mut`
+  KwMut,
+  /// `return`
+  KwReturn,
+  /// `struct`
+  KwStruct,
+  /// `static`
+  KwStatic,
+  /// `true`
+  KwTrue,
+  /// `use`
+  KwUse,
+
+  // individual punctuation
+  /// `!`, aka exclamation mark
+  Bang = b'!',
+  /// `"`
+  DoubleQuote = b'"',
+  /// `#`
+  Hash = b'#',
+  /// `$`
+  Dollar = b'$',
+  /// `%`
+  Percent = b'%',
+  /// `&`
+  Ampersand = b'&',
+  /// `'`
+  Quote = b'\'',
+  /// `(`
+  OpParen = b'(',
+  /// `)`
+  ClParen = b')',
+  /// `*`
+  Star = b'*',
+  /// `+`
+  Plus = b'+',
+  /// `,`
+  Comma = b',',
+  /// `-`
+  Minus = b'-',
+  /// `.`
+  Dot = b'.',
+  /// `/`
+  Slash = b'/',
+  /// `:`
+  Colon = b':',
+  /// `;`
+  Semicolon = b';',
+  /// `<`
+  LessThan = b'<',
+  /// `=`
+  Equal = b'=',
+  /// `>`
+  GreaterThan = b'>',
+  /// `?`
+  Question = b'?',
+  /// `@`
+  At = b'@',
+  /// `[`
+  OpBracket = b'[',
+  /// `\`
+  Backslash = b'\\',
+  /// `]`
+  ClBracket = b']',
+  /// `^`
+  Caret = b'^',
+  /// `_`
+  Underscore = b'_',
+  /// ``` ` ```
+  Backtick = b'`',
+  /// `{`
+  OpBrace = b'{',
+  /// `|`
+  Pipe = b'|',
+  /// `}`
+  ClBrace = b'}',
+  /// `~`
+  Tilde = b'~',
+
+  // merged punctuation (makes parsing much easier)
+  /// `::`
+  ColonColon,
+  /// `==`
+  EqualEqual,
+  /// `!=`
+  BangEqual,
+  /// `..`
+  DotDot,
+  /// `..=`
+  DotDotEqual,
+  /// `+=`
+  PlusEqual,
+  /// `-=`
+  MinusEqual,
+  /// `*=`
+  StarEqual,
+  /// `/=`
+  SlashEqual,
+  /// `%=`
+  PercentEqual,
+  /// `&=`
+  AmpersandEqual,
+  /// `|=`
+  PipeEqual,
+  /// `^=`
+  CaretEqual,
+
+  // varying non-code elements
+  /// Any number of spaces, tabs, newlines, and/or carrage returns.
+  Whitespace,
+  /// line comment or block comment.
+  Comment,
+
+  // varying code elements
+  /// Assembly style identifier: letter or underscore followed by a letter, underscore, or digit.
+  Ident,
+  /// Rust style number literal with two special cases:
+  /// * `%` is an allowed prefix, putting the literal into binary mode.
+  /// * `$` is allowed as a prefix, putting the literal into hex mode.
+  LitNum,
+  /// Rust style string or raw string.
+  LitStr,
+}
 
 /// An iterator over a module's source code which produces [Token] values.
 #[derive(Debug, Clone)]
@@ -294,189 +477,4 @@ impl<'a> Iterator for TokenIter<'a> {
 #[inline]
 pub fn tokenize(src: &str) -> TokenIter<'_> {
   TokenIter::new(src)
-}
-
-/// An individual element of Yagbas source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Token {
-  /// The kind of token we found.
-  pub kind: TokenKind,
-  /// Where the token was found.
-  ///
-  /// Yagbas source files have a maximum of 4GB.
-  pub position: u32,
-}
-
-/// The possible kinds of token that can exist in Yagbas source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum TokenKind {
-  // error cases
-  /// The lexer doesn't know what this was.
-  ErrUnknown,
-  /// A block comment was opened but not closed.
-  ErrBlockCommentUnclosed,
-  /// A block comment was closed without any preceeding open markers.
-  ErrBlockCommentExtraClose,
-  /// A literal string was unclosed.
-  ErrLitStrUnclosed,
-  /// A literal raw string was unclosed.
-  ErrLitRawStrUnclosed,
-  /// A raw specifier prefix was given but then it didn't turn into an allowed raw value.
-  /// * Currently, only raw strings are allowed.
-  ErrBadRawValue,
-  /// Dummy value for code to use when indexing tokens out of bounds.
-  ErrEndOfFile,
-
-  // keywords
-  /// `as`
-  KwAs,
-  /// `bitbag`
-  KwBitbag,
-  /// `break`
-  KwBreak,
-  /// `const`
-  KwConst,
-  /// `continue`
-  KwContinue,
-  /// `else`
-  KwElse,
-  /// `false`
-  KwFalse,
-  /// `fn`
-  KwFn,
-  /// `for`
-  KwFor,
-  /// `if`
-  KwIf,
-  /// `impl`
-  KwImpl,
-  /// `let`
-  KwLet,
-  /// `loop`
-  KwLoop,
-  /// `match`
-  KwMatch,
-  /// `mut`
-  KwMut,
-  /// `return`
-  KwReturn,
-  /// `struct`
-  KwStruct,
-  /// `static`
-  KwStatic,
-  /// `true`
-  KwTrue,
-  /// `use`
-  KwUse,
-
-  // individual punctuation
-  /// `!`, aka exclamation mark
-  Bang = b'!',
-  /// `"`
-  DoubleQuote = b'"',
-  /// `#`
-  Hash = b'#',
-  /// `$`
-  Dollar = b'$',
-  /// `%`
-  Percent = b'%',
-  /// `&`
-  Ampersand = b'&',
-  /// `'`
-  Quote = b'\'',
-  /// `(`
-  OpParen = b'(',
-  /// `)`
-  ClParen = b')',
-  /// `*`
-  Star = b'*',
-  /// `+`
-  Plus = b'+',
-  /// `,`
-  Comma = b',',
-  /// `-`
-  Minus = b'-',
-  /// `.`
-  Dot = b'.',
-  /// `/`
-  Slash = b'/',
-  /// `:`
-  Colon = b':',
-  /// `;`
-  Semicolon = b';',
-  /// `<`
-  LessThan = b'<',
-  /// `=`
-  Equal = b'=',
-  /// `>`
-  GreaterThan = b'>',
-  /// `?`
-  Question = b'?',
-  /// `@`
-  At = b'@',
-  /// `[`
-  OpBracket = b'[',
-  /// `\`
-  Backslash = b'\\',
-  /// `]`
-  ClBracket = b']',
-  /// `^`
-  Caret = b'^',
-  /// `_`
-  Underscore = b'_',
-  /// ``` ` ```
-  Backtick = b'`',
-  /// `{`
-  OpBrace = b'{',
-  /// `|`
-  Pipe = b'|',
-  /// `}`
-  ClBrace = b'}',
-  /// `~`
-  Tilde = b'~',
-
-  // merged punctuation (makes parsing much easier)
-  /// `::`
-  ColonColon,
-  /// `==`
-  EqualEqual,
-  /// `!=`
-  BangEqual,
-  /// `..`
-  DotDot,
-  /// `..=`
-  DotDotEqual,
-  /// `+=`
-  PlusEqual,
-  /// `-=`
-  MinusEqual,
-  /// `*=`
-  StarEqual,
-  /// `/=`
-  SlashEqual,
-  /// `%=`
-  PercentEqual,
-  /// `&=`
-  AmpersandEqual,
-  /// `|=`
-  PipeEqual,
-  /// `^=`
-  CaretEqual,
-
-  // varying non-code elements
-  /// Any number of spaces, tabs, newlines, and/or carrage returns.
-  Whitespace,
-  /// line comment or block comment.
-  Comment,
-
-  // varying code elements
-  /// Assembly style identifier: letter or underscore followed by a letter, underscore, or digit.
-  Ident,
-  /// Rust style number literal with two special cases:
-  /// * `%` is an allowed prefix, putting the literal into binary mode.
-  /// * `$` is allowed as a prefix, putting the literal into hex mode.
-  LitNum,
-  /// Rust style string or raw string.
-  LitStr,
 }

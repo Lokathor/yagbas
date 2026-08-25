@@ -2,7 +2,6 @@
 #![allow(unused_mut)]
 #![allow(unused_braces)]
 #![allow(unused_parens)]
-#![allow(unused_imports)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![deny(unreachable_patterns)]
