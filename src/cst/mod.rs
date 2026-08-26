@@ -70,6 +70,9 @@ pub enum CstKind {
   StmtLet,
   StmtValExpr,
   StmtItem,
+  Function,
+  ReturnType,
+  Body,
 }
 
 /// A single element within a [Cst].

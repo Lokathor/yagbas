@@ -329,3 +329,61 @@ pub fn try_stmt(p: &mut CstParser) -> Option<CloseMark> {
     })
   })
 }
+
+pub fn try_func(p: &mut CstParser) -> Option<CloseMark> {
+  if p.peek() != KwFn {
+    return None;
+  }
+  let m_fn = p.open();
+
+  p.expect(KwFn);
+  p.advance_over_whitespace_and_comments();
+  p.expect(Ident);
+  p.advance_over_whitespace_and_comments();
+  let m_args = p.open();
+  p.expect(OpParen);
+  loop {
+    p.advance_over_whitespace_and_comments();
+    if p.at(ClParen) {
+      break;
+    }
+    p.expect(Ident);
+    p.advance_over_whitespace_and_comments();
+    p.expect(Colon);
+    p.advance_over_whitespace_and_comments();
+    try_type_expr(p);
+    p.advance_over_whitespace_and_comments();
+    if p.at(Comma) {
+      p.expect(Comma);
+    }
+    p.advance_over_whitespace_and_comments();
+  }
+  p.expect(ClParen);
+  p.close(m_args, CstKind::ArgumentList);
+  p.advance_over_whitespace_and_comments();
+  if p.at(Minus) {
+    let m_ret_ty = p.open();
+    p.expect(Minus);
+    p.expect(GreaterThan);
+    p.advance_over_whitespace_and_comments();
+    if try_type_expr(p).is_none() {
+      let e = p.open();
+      p.close(e, CstKind::ErrExpectedTypeExpression);
+    }
+    p.close(m_ret_ty, CstKind::ReturnType);
+  }
+  p.advance_over_whitespace_and_comments();
+  let m_body = p.open();
+  p.expect(OpBrace);
+  loop {
+    p.advance_over_whitespace_and_comments();
+    if try_stmt(p).is_none() {
+      break;
+    }
+    // todo: how to parse a tail expression?
+  }
+  p.expect(ClBrace);
+  p.close(m_body, CstKind::Body);
+
+  Some(p.close(m_fn, CstKind::Function))
+}

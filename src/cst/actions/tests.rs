@@ -213,3 +213,29 @@ fn test_try_stmt() {
   let (cst, errs) = p.build_tree();
   assert!(errs.is_empty());
 }
+
+#[test]
+fn test_try_func() {
+  let mut p = CstParser::new("fn foo() {}");
+  assert!(try_func(&mut p).is_some(), "{p:?}");
+  let (cst, errs) = p.build_tree();
+  assert!(errs.is_empty());
+
+  let mut p = CstParser::new(
+    "fn bar() {
+    //
+  }",
+  );
+  assert!(try_func(&mut p).is_some(), "{p:?}");
+  let (cst, errs) = p.build_tree();
+  assert!(errs.is_empty());
+
+  let mut p = CstParser::new(
+    "fn baz() {
+    let x = 0;
+  }",
+  );
+  assert!(try_func(&mut p).is_some(), "{p:?}");
+  let (cst, errs) = p.build_tree();
+  assert!(errs.is_empty());
+}
