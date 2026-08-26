@@ -244,9 +244,9 @@ fn test_try_func() {
 }
 
 #[test]
-fn test_do_item() {
+fn test_do_module() {
   let mut p = CstParser::new("fn foo() {}");
-  do_item(&mut p);
+  do_module(&mut p);
   let (cst, errs) = p.build_tree();
   assert!(errs.is_empty());
 
@@ -254,8 +254,7 @@ fn test_do_item() {
     "// empty fn definition
     fn foo() {}",
   );
-  do_item(&mut p);
+  do_module(&mut p);
   let (cst, errs) = p.build_tree();
   assert!(errs.is_empty());
-  panic!("{cst}");
 }

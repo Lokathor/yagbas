@@ -57,7 +57,9 @@ pub enum CstKind {
   ErrExpectedValueExpression,
   ErrExpectedTypeExpression,
   ErrNeedsParensToDisambiguate,
+  ErrTodo,
   //
+  Module,
   Commentary,
   ValExpr,
   TypeExpr,

@@ -398,11 +398,25 @@ pub fn try_commentary(p: &mut CstParser) -> Option<CloseMark> {
   }
 }
 
-pub fn do_item(p: &mut CstParser) -> CloseMark {
-  let m =
-    if let Some(m) = try_commentary(p) { p.open_before(m) } else { p.open() };
+pub fn do_item(p: &mut CstParser, m: OpenMark) -> CloseMark {
   match p.peek() {
     KwFn => do_func(p, m),
-    _ => todo!(),
+    _ => {
+      p.advance();
+      p.close(m, CstKind::ErrTodo)
+    }
   }
+}
+
+pub fn do_module(p: &mut CstParser) {
+  let m_module = p.open();
+  while p.peek() != ErrEndOfFile {
+    let m_item = if let Some(m_commentary) = try_commentary(p) {
+      p.open_before(m_commentary)
+    } else {
+      p.open()
+    };
+    do_item(p, m_item);
+  }
+  p.close(m_module, CstKind::Module);
 }
