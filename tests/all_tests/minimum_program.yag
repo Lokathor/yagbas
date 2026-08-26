@@ -1,31 +1,28 @@
-bitbag LcdCtrl {
-  background: 0,
-  lcd: 7,
-}
-
-static mmio($FF40) LCDC: LcdCtrl;
-static mmio($FF44) LY: u8;
-static mmio($FF47) BGP: u8;
-
-const DEFAULT_PALETTE: u8 = 0b11_10_01_00;
-
 fn main() {
-  // safely disable LCD
+  // wait for vblank and disable lcd
   loop {
-    if *LY == 144 {
+    if *$FF44 == 144 {
       break
     }
   }
-  *LCDC = LcdCtrl {};
-
-  // Draw a basic pattern with a basic palette.
-  let p = VRAM_BASE;
-  loop VRAM_BYTE_COUNT {
-    *p = $AA;
-    p += 1;
+  *$FF40 = 0;
+  // set tile data
+  *$8800 = $AA;
+  *$8801 = $FF;
+  // set tilemap data
+  let tile_id = $9800;
+  for _ in 0..(32*8) {
+    *tile_id = 0;
+    tile_id += 1;
   }
-  *BGP = DEFAULT_PALETTE;
-
-  // Re-activate the LCD.
-  *LCDC = LcdCtrl {lcd, background};
+  for _ in 0..(32*8) {
+    *tile_id = 1;
+    tile_id += 1;
+  }
+  // set palette
+  *$FF47 = 0b11_10_01_00;
+  // enable lcd
+  *$FF40 = 0b1000_0001;
+  // loop forever
+  loop {}
 }

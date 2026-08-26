@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 
 use crate::tokenizer::Token;
+use crate::tokenizer::TokenKind;
 
 pub mod actions;
 pub mod operators;
@@ -16,6 +17,9 @@ pub struct Cst {
   pub elements: Vec<CstElem>,
 }
 impl core::fmt::Display for Cst {
+  /// Better way to look at the tree than Debug provides.
+  ///
+  /// * use the alternate flag to enable displaying of whitespace and comment tokens, as well as commentary syntax trees. Otherwise they are skipped from the output.
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     return fmt_rec(self, f, 0);
 
@@ -30,12 +34,20 @@ impl core::fmt::Display for Cst {
       for element in &s.elements {
         match element {
           CstElem::Token(Token { kind, position }) => {
+            if !f.alternate()
+              && (*kind == TokenKind::Comment || *kind == TokenKind::Whitespace)
+            {
+              continue;
+            }
             for _ in 0..(indents + 2) {
               write!(f, " ")?;
             }
             writeln!(f, "{kind:?} @({position:?})")?;
           }
           CstElem::Tree(cst) => {
+            if !f.alternate() && cst.kind == CstKind::Commentary {
+              continue;
+            }
             fmt_rec(cst, f, indents + 2)?;
           }
         }
@@ -54,10 +66,12 @@ impl core::fmt::Display for Cst {
 pub enum CstKind {
   ErrNoTreeKindSet,
   ErrGeneric,
+  ErrExpectedItemKeyword,
   ErrExpectedValueExpression,
   ErrExpectedTypeExpression,
   ErrNeedsParensToDisambiguate,
   ErrTodo,
+  ErrExpected(TokenKind),
   //
   Module,
   Commentary,

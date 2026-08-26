@@ -20,19 +20,12 @@ pub struct CloseMark {
   index: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum CstParserErrorKind {
-  UnexpectedToken { expected: TokenKind, actual: Token },
-  ExpectedFunctionArgument,
-}
-
 #[derive(Debug, Clone)]
 pub struct CstParser {
   token_kinds: Vec<TokenKind>,
   token_positions: Vec<u32>,
   pos: usize,
   events: Vec<ParseEvent>,
-  errors: Vec<CstParserErrorKind>,
 }
 impl CstParser {
   pub fn new(src: &str) -> Self {
@@ -47,7 +40,6 @@ impl CstParser {
       token_positions,
       pos: 0,
       events: Vec::new(),
-      errors: Vec::new(),
     }
   }
   pub fn open(&mut self) -> OpenMark {
@@ -84,23 +76,11 @@ impl CstParser {
   }
   pub fn expect(&mut self, expected: TokenKind) {
     if !self.at(expected) {
-      self.errors.push(CstParserErrorKind::UnexpectedToken {
-        expected,
-        actual: Token {
-          kind: self
-            .token_kinds
-            .get(self.pos)
-            .copied()
-            .unwrap_or(TokenKind::ErrEndOfFile),
-          position: self
-            .token_positions
-            .get(self.pos)
-            .copied()
-            .unwrap_or(u32::MAX),
-        },
-      });
+      let e = self.open();
+      self.close(e, CstKind::ErrExpected(expected) );
+    } else {
+      self.advance();
     }
-    self.advance();
   }
   pub fn advance_over_whitespace_and_comments(&mut self) {
     while let TokenKind::Whitespace | TokenKind::Comment = self.peek() {
@@ -116,7 +96,7 @@ impl CstParser {
     self.token_kinds[self.pos..].iter().copied()
   }
 
-  pub fn build_tree(mut self) -> (Cst, Vec<CstParserErrorKind>) {
+  pub fn build_tree(mut self) -> Cst {
     let mut token_kinds = self.token_kinds.iter().copied();
     let mut token_positions = self.token_positions.iter().copied();
     let mut stack = Vec::new();
@@ -150,6 +130,6 @@ impl CstParser {
 
     debug_assert_eq!(stack.len(), 1);
     debug_assert!(token_kinds.next().is_none(), "{:?}", self.token_kinds);
-    (stack.pop().unwrap(), self.errors)
+    stack.pop().unwrap()
   }
 }

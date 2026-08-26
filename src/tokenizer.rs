@@ -51,6 +51,8 @@ pub enum TokenKind {
   KwContinue,
   /// `else`
   KwElse,
+  /// `enum`
+  KwEnum,
   /// `false`
   KwFalse,
   /// `fn`
@@ -324,6 +326,7 @@ impl<'a> TokenIter<'a> {
       "const" => KwConst,
       "continue" => KwContinue,
       "else" => KwElse,
+      "enum" => KwEnum,
       "false" => KwFalse,
       "fn" => KwFn,
       "for" => KwFor,

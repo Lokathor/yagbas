@@ -5,7 +5,7 @@ use crate::cst::CstKind;
 use crate::cst::operators::{
   BindDirection, InfixOperator, PostfixOperator, PrefixOperator,
 };
-use crate::cst::parser::{CloseMark, CstParser, CstParserErrorKind, OpenMark};
+use crate::cst::parser::{CloseMark, CstParser,  OpenMark};
 use crate::r;
 use crate::tokenizer::TokenKind::*;
 use crate::tokenizer::{Token, TokenKind, tokenize};
@@ -398,7 +398,10 @@ pub fn try_commentary(p: &mut CstParser) -> Option<CloseMark> {
   }
 }
 
+static ITEM_KEYWORDS: &[TokenKind] =
+  &[KwUse, KwStruct, KwBitbag, KwEnum, KwStatic, KwConst, KwFn];
 pub fn do_item(p: &mut CstParser, m: OpenMark) -> CloseMark {
+  debug_assert!(ITEM_KEYWORDS.contains(&p.peek()), "bad do_item: {:?}", p.peek());
   match p.peek() {
     KwFn => do_func(p, m),
     _ => {
@@ -412,11 +415,21 @@ pub fn do_module(p: &mut CstParser) {
   let m_module = p.open();
   while p.peek() != ErrEndOfFile {
     let m_item = if let Some(m_commentary) = try_commentary(p) {
+      if p.at(ErrEndOfFile) {
+        break;
+      }
       p.open_before(m_commentary)
     } else {
       p.open()
     };
-    do_item(p, m_item);
+    if ITEM_KEYWORDS.contains(&p.peek()) {
+      do_item(p, m_item);
+    } else {
+      while !ITEM_KEYWORDS.contains(&p.peek()) && p.has_more() {
+        p.advance();
+      }
+      p.close(m_item, CstKind::ErrExpectedItemKeyword);
+    }
   }
   p.close(m_module, CstKind::Module);
 }
