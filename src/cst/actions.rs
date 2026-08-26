@@ -387,3 +387,16 @@ pub fn try_func(p: &mut CstParser) -> Option<CloseMark> {
 
   Some(p.close(m_fn, CstKind::Function))
 }
+
+/// Grabs `Whitespace` and `Comment` into a subtree.
+pub fn try_commentary(p: &mut CstParser) -> Option<CloseMark> {
+  if let Whitespace | Comment = p.peek() {
+    let m = p.open();
+    while let Whitespace | Comment = p.peek() {
+      p.advance()
+    }
+    Some(p.close(m, CstKind::Commentary))
+  } else {
+    None
+  }
+}

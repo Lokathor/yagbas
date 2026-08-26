@@ -58,6 +58,7 @@ pub enum CstKind {
   ErrExpectedTypeExpression,
   ErrNeedsParensToDisambiguate,
   //
+  Commentary,
   ValExpr,
   TypeExpr,
   AtomicValue,
