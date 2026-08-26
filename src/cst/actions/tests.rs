@@ -217,25 +217,45 @@ fn test_try_stmt() {
 #[test]
 fn test_try_func() {
   let mut p = CstParser::new("fn foo() {}");
-  assert!(try_func(&mut p).is_some(), "{p:?}");
+  let m = p.open();
+  do_func(&mut p, m);
   let (cst, errs) = p.build_tree();
   assert!(errs.is_empty());
 
   let mut p = CstParser::new(
     "fn bar() {
-    //
-  }",
+      //
+    }",
   );
-  assert!(try_func(&mut p).is_some(), "{p:?}");
+  let m = p.open();
+  do_func(&mut p, m);
   let (cst, errs) = p.build_tree();
   assert!(errs.is_empty());
 
   let mut p = CstParser::new(
     "fn baz() {
-    let x = 0;
-  }",
+      let x = 0;
+    }",
   );
-  assert!(try_func(&mut p).is_some(), "{p:?}");
+  let m = p.open();
+  do_func(&mut p, m);
   let (cst, errs) = p.build_tree();
   assert!(errs.is_empty());
+}
+
+#[test]
+fn test_do_item() {
+  let mut p = CstParser::new("fn foo() {}");
+  do_item(&mut p);
+  let (cst, errs) = p.build_tree();
+  assert!(errs.is_empty());
+
+  let mut p = CstParser::new(
+    "// empty fn definition
+    fn foo() {}",
+  );
+  do_item(&mut p);
+  let (cst, errs) = p.build_tree();
+  assert!(errs.is_empty());
+  panic!("{cst}");
 }

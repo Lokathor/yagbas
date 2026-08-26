@@ -330,11 +330,8 @@ pub fn try_stmt(p: &mut CstParser) -> Option<CloseMark> {
   })
 }
 
-pub fn try_func(p: &mut CstParser) -> Option<CloseMark> {
-  if p.peek() != KwFn {
-    return None;
-  }
-  let m_fn = p.open();
+pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
+  debug_assert!(p.at(KwFn));
 
   p.expect(KwFn);
   p.advance_over_whitespace_and_comments();
@@ -385,7 +382,7 @@ pub fn try_func(p: &mut CstParser) -> Option<CloseMark> {
   p.expect(ClBrace);
   p.close(m_body, CstKind::Body);
 
-  Some(p.close(m_fn, CstKind::Function))
+  p.close(m_fn, CstKind::Function)
 }
 
 /// Grabs `Whitespace` and `Comment` into a subtree.
@@ -398,5 +395,14 @@ pub fn try_commentary(p: &mut CstParser) -> Option<CloseMark> {
     Some(p.close(m, CstKind::Commentary))
   } else {
     None
+  }
+}
+
+pub fn do_item(p: &mut CstParser) -> CloseMark {
+  let m =
+    if let Some(m) = try_commentary(p) { p.open_before(m) } else { p.open() };
+  match p.peek() {
+    KwFn => do_func(p, m),
+    _ => todo!(),
   }
 }
