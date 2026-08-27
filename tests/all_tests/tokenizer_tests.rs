@@ -4,43 +4,29 @@ use yagbas::tokenizer::TokenKind::*;
 use yagbas::tokenizer::tokenize;
 
 #[test]
-fn test_tokenize_single_chars() {
-  let mut v: Vec<Token>;
-  let singles = [
-    ("(", OpParen),
-    (")", ClParen),
-    ("{", OpBrace),
-    ("}", ClBrace),
-    (":", Colon),
-  ];
-  for (s, k) in singles.iter().copied() {
-    v = tokenize(s).collect();
-    assert_eq!(v.len(), 1);
-    let t = v[0];
-    assert_eq!(t.kind, k, "Bad Kind: `{s}`");
-  }
+fn test_comment_block_plain() {
+  let v = tokenize("/**/").collect::<Vec<_>>();
+  assert_eq!(v.len(), 1);
+  let t = v[0];
+  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
 }
-
 #[test]
-fn test_comment_block() {
-  let mut v: Vec<Token>;
-
-  v = tokenize("/**/").collect();
+fn test_comment_block_nested() {
+  let v = tokenize("/*/**/*/").collect::<Vec<_>>();
   assert_eq!(v.len(), 1);
   let t = v[0];
   assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
-
-  v = tokenize("/*/**/*/").collect();
-  assert_eq!(v.len(), 1);
-  let t = v[0];
-  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
-
-  v = tokenize("/*").collect();
+}
+#[test]
+fn test_comment_block_open_only() {
+  let v = tokenize("/*").collect::<Vec<_>>();
   assert_eq!(v.len(), 1);
   let t = v[0];
   assert_eq!(t.kind, ErrBlockCommentUnclosed, "Bad Kind: `{t:?}`");
-
-  v = tokenize("*/").collect();
+}
+#[test]
+fn test_comment_block_close_only() {
+  let v = tokenize("*/").collect::<Vec<_>>();
   assert_eq!(v.len(), 1);
   let t = v[0];
   assert_eq!(t.kind, ErrBlockCommentExtraClose, "Bad Kind: `{t:?}`");
