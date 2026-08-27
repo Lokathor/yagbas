@@ -64,58 +64,103 @@ pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
   p.eat_trivia();
   p.expect(Ident);
   p.eat_trivia();
-  let m_args = p.open();
-  p.expect(OpParen);
-  loop {
-    p.eat_trivia();
-    if p.at(ClParen) {
-      break;
-    }
-    p.expect(Ident);
-    p.eat_trivia();
-    p.expect(Colon);
-    p.eat_trivia();
-    if try_type_expr(p).is_none() {
-      p.place_error(CstKind::ErrExpectedTypeExpression);
-      if !p.at(ClParen) {
-        p.advance();
-      }
-    }
-    p.eat_trivia();
-    if p.at(Comma) {
-      p.expect(Comma);
-    }
-    p.eat_trivia();
+
+  if p.at(OpParen) {
+    let m_arguments = p.open();
+    do_function_arguments(p);
+    p.close(m_arguments, CstKind::ArgumentList);
+  } else {
+    p.place_error(CstKind::ErrExpected(OpParen));
   }
-  p.expect(ClParen);
-  p.close(m_args, CstKind::ArgumentList);
-  p.eat_trivia();
+
+  let m_return_ty = p.open_eat_trivia();
   if p.at(Minus) {
-    let m_ret_ty = p.open();
     p.expect(Minus);
     p.expect(GreaterThan);
     p.eat_trivia();
-    if try_type_expr(p).is_none() {
-      let e = p.open();
-      p.close(e, CstKind::ErrExpectedTypeExpression);
-    }
-    p.close(m_ret_ty, CstKind::ReturnType);
+    do_type_expr(p);
   }
+  p.close(m_return_ty, CstKind::ReturnType);
+
   let m_body = p.open_eat_trivia();
   do_body(p, m_body);
 
   p.close(m_fn, CstKind::Function)
 }
 
-/// try parsing a type expression
-pub fn try_type_expr(p: &mut CstParser) -> Option<CloseMark> {
-  if p.at(TokenKind::Ident) {
-    let m = p.open();
-    p.expect(TokenKind::Ident);
-    Some(p.close(m, CstKind::TypeExpr))
-  } else {
-    None
+fn do_function_arguments(p: &mut CstParser) {
+  debug_assert_eq!(p.peek(), OpParen);
+  p.expect(OpParen);
+  let mut m_arg = p.open_eat_trivia();
+  loop {
+    if p.at(ClParen) {
+      p.close(m_arg, CstKind::FnCallArgument);
+      p.advance();
+      return;
+    }
+    p.expect(Ident);
+    p.eat_trivia();
+    p.expect(Colon);
+    p.eat_trivia();
+    do_type_expr(p);
+    p.eat_trivia();
+    if p.at(Comma) {
+      p.close(m_arg, CstKind::FnCallArgument);
+      p.expect(Comma);
+      m_arg = p.open_eat_trivia();
+    }
   }
+}
+
+pub fn do_type_expr(p: &mut CstParser) {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
+  let m_type_expr = p.open();
+  match p.peek() {
+    OpParen => {
+      p.expect(OpParen);
+      p.eat_trivia();
+      p.expect(ClParen);
+    }
+    Ident => {
+      p.expect(Ident);
+      p.eat_trivia();
+      let mut depth = 0;
+      if p.at(LessThan) {
+        p.advance();
+        p.eat_trivia();
+        depth += 1;
+      }
+      while depth > 0 {
+        match p.peek() {
+          LessThan => {
+            p.advance();
+            p.eat_trivia();
+            depth += 1;
+          }
+          GreaterThan => {
+            p.advance();
+            p.eat_trivia();
+            depth -= 1;
+          }
+          ErrEndOfFile => {
+            p.place_error(CstKind::ErrUnbalancedAngleMarks);
+            break;
+          }
+          _ => {
+            p.advance();
+          }
+        }
+      }
+    }
+    _ => {
+      if p.peek() != ErrEndOfFile {
+        p.advance();
+      }
+      p.close(m_type_expr, CstKind::ErrExpectedTypeExpression);
+    }
+  }
+  p.close(m_type_expr, CstKind::TypeExpr);
 }
 
 /// Parse a value expression, or `None` for no input consumed.
@@ -338,10 +383,7 @@ pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
           }
           PostfixOperator::As => {
             p.eat_trivia();
-            if try_type_expr(p).is_none() {
-              let err_mark = p.open();
-              p.close(err_mark, CstKind::ErrExpectedTypeExpression);
-            }
+            do_type_expr(p);
             p.eat_trivia();
           }
           PostfixOperator::PostfixRangeExclusive

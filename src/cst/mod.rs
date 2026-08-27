@@ -2,6 +2,8 @@
 
 use crate::tokenizer::Token;
 use crate::tokenizer::TokenKind;
+use crate::tokenizer::TokenKind::Comment;
+use crate::tokenizer::TokenKind::Whitespace;
 
 pub mod actions;
 pub mod operators;
@@ -15,6 +17,25 @@ pub mod parser;
 pub struct Cst {
   pub kind: CstKind,
   pub elements: Vec<CstElem>,
+}
+impl Cst {
+  /// Strip all `Whitespace` and `Comment` tokens from the tree, recursively.
+  pub fn strip_trivia(&mut self) {
+    let mut i = 0;
+    while i < self.elements.len() {
+      match &mut self.elements[i] {
+        CstElem::Token(Token { kind: Whitespace | Comment, .. }) => {
+          self.elements.remove(i);
+          continue;
+        }
+        CstElem::Tree(cst) => {
+          cst.strip_trivia();
+        }
+        _ => (),
+      }
+      i += 1;
+    }
+  }
 }
 impl core::fmt::Display for Cst {
   /// Better way to look at the tree than Debug provides.
@@ -71,6 +92,7 @@ pub enum CstKind {
   ErrExpected(TokenKind),
   ErrExpectedBody,
   ErrExpectedIfCondition,
+  ErrUnbalancedAngleMarks,
   //
   Module,
   ValExpr,

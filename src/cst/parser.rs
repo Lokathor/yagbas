@@ -82,12 +82,14 @@ impl CstParser {
   pub fn at(&self, kind: TokenKind) -> bool {
     self.peek() == kind
   }
-  pub fn expect(&mut self, expected: TokenKind) {
+  pub fn expect(&mut self, expected: TokenKind) -> bool {
     if !self.at(expected) {
       let e = self.open();
       self.close(e, CstKind::ErrExpected(expected));
+      false
     } else {
       self.advance();
+      true
     }
   }
   pub fn eat_trivia(&mut self) {
