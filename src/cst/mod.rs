@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 
+use crate::cst::actions::do_module;
+use crate::cst::parser::CstParser;
 use crate::tokenizer::Token;
 use crate::tokenizer::TokenKind;
 use crate::tokenizer::TokenKind::Comment;
@@ -19,6 +21,15 @@ pub struct Cst {
   pub elements: Vec<CstElem>,
 }
 impl Cst {
+  /// Generates the Cst for a module of source code.
+  ///
+  /// This never fails, but the resulting Cst can contain any number of
+  /// error locations.
+  pub fn from_module_src(src: &str) -> Self {
+    let mut p = CstParser::new(src);
+    do_module(&mut p);
+    p.build_tree()
+  }
   /// Strip all `Whitespace` and `Comment` tokens from the tree, recursively.
   pub fn strip_trivia(&mut self) {
     let mut i = 0;
