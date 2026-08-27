@@ -36,6 +36,17 @@ impl Cst {
       i += 1;
     }
   }
+  /// If this Cst has an error.
+  ///
+  /// An error can be this Cst itself, or it could be any Token or SubTree
+  /// within this Cst.
+  pub fn has_error(&self) -> bool {
+    self.kind.is_error()
+      || self.elements.iter().any(|el| match el {
+        CstElem::Token(token) => token.is_error(),
+        CstElem::Tree(cst) => cst.has_error(),
+      })
+  }
 }
 impl core::fmt::Display for Cst {
   /// Better way to look at the tree than Debug provides.
@@ -116,6 +127,25 @@ pub enum CstKind {
   Body,
   StmtEmpty,
   IfCondition,
+}
+impl CstKind {
+  pub const fn is_error(self) -> bool {
+    use CstKind::*;
+    matches!(
+      self,
+      ErrExpected(_)
+        | ErrExpectedBody
+        | ErrExpectedIfCondition
+        | ErrExpectedItemKeyword
+        | ErrExpectedTypeExpression
+        | ErrExpectedValueExpression
+        | ErrGeneric
+        | ErrNeedsParensToDisambiguate
+        | ErrNoTreeKindSet
+        | ErrTodo
+        | ErrUnbalancedAngleMarks
+    )
+  }
 }
 
 /// A single element within a [Cst].

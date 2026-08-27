@@ -3,8 +3,8 @@
 //! Types and utilities for tokenizing Yagbas source code.
 
 use TokenKind::*;
+use core::iter::{Copied, Enumerate, Peekable};
 use core::slice::Iter;
-use std::iter::{Copied, Enumerate, Peekable};
 
 /// An individual element of Yagbas source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,6 +15,22 @@ pub struct Token {
   ///
   /// Yagbas source files have a maximum of 4GB.
   pub position: u32,
+}
+impl Token {
+  /// If the token's kind is an error kind.
+  pub const fn is_error(self) -> bool {
+    use TokenKind::*;
+    matches!(
+      self.kind,
+      ErrUnknown
+        | ErrBadRawValue
+        | ErrBlockCommentExtraClose
+        | ErrBlockCommentUnclosed
+        | ErrEndOfFile
+        | ErrLitRawStrUnclosed
+        | ErrLitStrUnclosed,
+    )
+  }
 }
 
 /// The possible kinds of token that can exist in Yagbas source.
