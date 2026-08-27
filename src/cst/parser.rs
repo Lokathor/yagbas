@@ -1,6 +1,9 @@
 use core::range::Range;
 
-use crate::tokenizer::{TokenKind, tokenize};
+use crate::tokenizer::{
+  TokenKind::{self, Comment, Whitespace},
+  tokenize,
+};
 
 use super::*;
 
@@ -35,12 +38,7 @@ impl CstParser {
       token_kinds.push(kind);
       token_positions.push(position);
     }
-    Self {
-      token_kinds,
-      token_positions,
-      pos: 0,
-      events: Vec::new(),
-    }
+    Self { token_kinds, token_positions, pos: 0, events: Vec::new() }
   }
   pub fn open(&mut self) -> OpenMark {
     let mark = OpenMark { index: self.events.len() };
@@ -64,6 +62,20 @@ impl CstParser {
     self.pos += 1;
   }
 
+  pub fn open_eat_commentary(&mut self) -> OpenMark {
+    let m_out = self.open();
+    if let Whitespace | Comment = self.peek() {
+      let m_commentary = self.open();
+      self.eat_trivia();
+      self.close(m_commentary, CstKind::Commentary);
+    };
+    m_out
+  }
+  pub fn place_error(&mut self, kind: CstKind) -> CloseMark {
+    let m = self.open();
+    self.close(m, kind)
+  }
+
   pub fn has_more(&self) -> bool {
     debug_assert!(self.pos <= self.token_kinds.len());
     self.pos < self.token_kinds.len()
@@ -77,12 +89,12 @@ impl CstParser {
   pub fn expect(&mut self, expected: TokenKind) {
     if !self.at(expected) {
       let e = self.open();
-      self.close(e, CstKind::ErrExpected(expected) );
+      self.close(e, CstKind::ErrExpected(expected));
     } else {
       self.advance();
     }
   }
-  pub fn advance_over_whitespace_and_comments(&mut self) {
+  pub fn eat_trivia(&mut self) {
     while let TokenKind::Whitespace | TokenKind::Comment = self.peek() {
       self.advance();
     }

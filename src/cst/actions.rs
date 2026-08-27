@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 //! Module for all the parsing junk!
 
-use crate::cst::CstKind;
+use crate::cst::CstKind::{self, ErrExpectedIfCondition};
 use crate::cst::operators::{
   BindDirection, InfixOperator, PostfixOperator, PrefixOperator,
 };
@@ -152,9 +152,9 @@ fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
     OpParen => {
       let m = p.open();
       p.expect(OpParen);
-      p.advance_over_whitespace_and_comments();
+      p.eat_trivia();
       try_value_expr(p);
-      p.advance_over_whitespace_and_comments();
+      p.eat_trivia();
       p.expect(ClParen);
       p.close(m, CstKind::ParenGroup)
     }
@@ -178,11 +178,11 @@ pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
       for _ in 0..op.token_length() {
         p.advance();
       }
-      p.advance_over_whitespace_and_comments();
+      p.eat_trivia();
       if op == PrefixOperator::Break && p.at(TokenKind::Quote) {
         p.expect(TokenKind::Quote);
         p.expect(TokenKind::Ident);
-        p.advance_over_whitespace_and_comments();
+        p.eat_trivia();
       }
       p.close(op_mark, CstKind::PrefixOperator);
       if try_value_expr_rec(p, op.binding()).is_none() && op.needs_operand() {
@@ -193,7 +193,7 @@ pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
     } else {
       try_val_atom(p)?
     };
-    p.advance_over_whitespace_and_comments();
+    p.eat_trivia();
     // infix/postfix looping
     let mut previous_bind_power: Option<u8> = None;
     loop {
@@ -216,12 +216,12 @@ pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
           PostfixOperator::FnCall => {
             let arg_list_mark = p.open();
             loop {
-              p.advance_over_whitespace_and_comments();
+              p.eat_trivia();
               if let Some(_xpr_mark) = try_value_expr_rec(p, bind_power) {
-                p.advance_over_whitespace_and_comments();
+                p.eat_trivia();
                 if p.at(TokenKind::Comma) {
                   p.expect(TokenKind::Comma);
-                  p.advance_over_whitespace_and_comments();
+                  p.eat_trivia();
                 }
               } else {
                 break;
@@ -232,28 +232,28 @@ pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
           }
           PostfixOperator::ArrayIndex => {
             let arg_list_mark = p.open();
-            p.advance_over_whitespace_and_comments();
+            p.eat_trivia();
             if try_value_expr_rec(p, 0).is_none() {
               let err_mark = p.open();
               p.close(err_mark, CstKind::ErrExpectedValueExpression);
             }
-            p.advance_over_whitespace_and_comments();
+            p.eat_trivia();
             p.close(arg_list_mark, CstKind::ValExpr);
             p.expect(TokenKind::ClBracket);
           }
           PostfixOperator::As => {
-            p.advance_over_whitespace_and_comments();
+            p.eat_trivia();
             if try_type_expr(p).is_none() {
               let err_mark = p.open();
               p.close(err_mark, CstKind::ErrExpectedTypeExpression);
             }
-            p.advance_over_whitespace_and_comments();
+            p.eat_trivia();
           }
           PostfixOperator::PostfixRangeExclusive
           | PostfixOperator::PostfixRangeInclusive => {
-            p.advance_over_whitespace_and_comments();
+            p.eat_trivia();
             try_value_expr_rec(p, rhs_bp);
-            p.advance_over_whitespace_and_comments();
+            p.eat_trivia();
           }
         }
         lhs = p.close(expr_mark, CstKind::ValExpr);
@@ -282,7 +282,7 @@ pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
           p.advance();
         }
         p.close(op_mark, CstKind::InfixOperator);
-        p.advance_over_whitespace_and_comments();
+        p.eat_trivia();
         // rhs
         if try_value_expr_rec(p, rhs_bp).is_none() {
           let err_mark = p.open();
@@ -309,22 +309,18 @@ pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
     }
     KwLet => {
       p.expect(KwLet);
-      p.advance_over_whitespace_and_comments();
+      p.eat_trivia();
       p.expect(Ident);
-      p.advance_over_whitespace_and_comments();
+      p.eat_trivia();
       p.expect(Equal);
-      p.advance_over_whitespace_and_comments();
+      p.eat_trivia();
       try_value_expr(p);
       p.expect(Semicolon);
       p.close(m_stmt, CstKind::StmtLet)
     }
     KwLoop => {
       p.expect(KwLoop);
-      let m_body = if let Some(m_commentary) = try_commentary(p) {
-        p.open_before(m_commentary)
-      } else {
-        p.open()
-      };
+      let m_body = p.open_eat_commentary();
       if p.at(OpBrace) {
         do_body(p, m_body);
       } else {
@@ -334,22 +330,12 @@ pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
     }
     KwIf => {
       p.expect(KwIf);
-
-      let m_expr = if let Some(m_commentary) = try_commentary(p) {
-        p.open_before(m_commentary)
-      } else {
-        p.open()
-      };
-      if try_value_expr(p).is_some() {
-        p.close(m_expr, CstKind::ValExpr);
-      } else {
-        p.close(m_expr, CstKind::ErrExpectedValueExpression);
-      };
-      let m_body = if let Some(m_commentary) = try_commentary(p) {
-        p.open_before(m_commentary)
-      } else {
-        p.open()
-      };
+      let m_condition = p.open_eat_commentary();
+      if try_value_expr(p).is_none() {
+        p.place_error(ErrExpectedIfCondition);
+      }
+      p.close(m_condition, CstKind::IfCondition);
+      let m_body = p.open_eat_commentary();
       if p.at(OpBrace) {
         do_body(p, m_body);
       } else {
@@ -359,32 +345,20 @@ pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
     }
     KwFor => {
       p.expect(KwFor);
-      let m_expr = if let Some(m_commentary) = try_commentary(p) {
-        p.open_before(m_commentary)
-      } else {
-        p.open()
-      };
+      let m_expr = p.open_eat_commentary();
       if try_value_expr(p).is_some() {
         p.close(m_expr, CstKind::ValExpr);
       } else {
         p.close(m_expr, CstKind::ErrExpectedValueExpression);
       };
       p.expect(KwIn);
-      let m_expr = if let Some(m_commentary) = try_commentary(p) {
-        p.open_before(m_commentary)
-      } else {
-        p.open()
-      };
+      let m_expr = p.open_eat_commentary();
       if try_value_expr(p).is_some() {
         p.close(m_expr, CstKind::ValExpr);
       } else {
         p.close(m_expr, CstKind::ErrExpectedValueExpression);
       };
-      let m_body = if let Some(m_commentary) = try_commentary(p) {
-        p.open_before(m_commentary)
-      } else {
-        p.open()
-      };
+      let m_body = p.open_eat_commentary();
       if p.at(OpBrace) {
         do_body(p, m_body);
       } else {
@@ -394,7 +368,7 @@ pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
     }
     _ => {
       if try_value_expr(p).is_some() {
-        p.advance_over_whitespace_and_comments();
+        p.eat_trivia();
         if p.at(Semicolon) {
           p.expect(Semicolon);
         }
@@ -435,38 +409,38 @@ pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
   debug_assert!(p.at(KwFn));
 
   p.expect(KwFn);
-  p.advance_over_whitespace_and_comments();
+  p.eat_trivia();
   p.expect(Ident);
-  p.advance_over_whitespace_and_comments();
+  p.eat_trivia();
   let m_args = p.open();
   p.expect(OpParen);
   loop {
-    p.advance_over_whitespace_and_comments();
+    p.eat_trivia();
     if p.at(ClParen) {
       break;
     }
     p.expect(Ident);
-    p.advance_over_whitespace_and_comments();
+    p.eat_trivia();
     p.expect(Colon);
-    p.advance_over_whitespace_and_comments();
+    p.eat_trivia();
     if try_type_expr(p).is_none() {
       let e = p.open();
       p.close(e, CstKind::ErrExpectedTypeExpression);
     }
-    p.advance_over_whitespace_and_comments();
+    p.eat_trivia();
     if p.at(Comma) {
       p.expect(Comma);
     }
-    p.advance_over_whitespace_and_comments();
+    p.eat_trivia();
   }
   p.expect(ClParen);
   p.close(m_args, CstKind::ArgumentList);
-  p.advance_over_whitespace_and_comments();
+  p.eat_trivia();
   if p.at(Minus) {
     let m_ret_ty = p.open();
     p.expect(Minus);
     p.expect(GreaterThan);
-    p.advance_over_whitespace_and_comments();
+    p.eat_trivia();
     if try_type_expr(p).is_none() {
       let e = p.open();
       p.close(e, CstKind::ErrExpectedTypeExpression);

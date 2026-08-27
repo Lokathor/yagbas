@@ -73,6 +73,7 @@ pub enum CstKind {
   ErrTodo,
   ErrExpected(TokenKind),
   ErrExpectedBody,
+  ErrExpectedIfCondition,
   //
   Module,
   Commentary,
@@ -96,6 +97,7 @@ pub enum CstKind {
   ReturnType,
   Body,
   StmtEmpty,
+  IfCondition,
 }
 
 /// A single element within a [Cst].
