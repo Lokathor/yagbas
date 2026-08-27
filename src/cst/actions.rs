@@ -158,6 +158,7 @@ pub fn do_type_expr(p: &mut CstParser) {
         p.advance();
       }
       p.close(m_type_expr, CstKind::ErrExpectedTypeExpression);
+      return;
     }
   }
   p.close(m_type_expr, CstKind::TypeExpr);
