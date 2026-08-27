@@ -62,13 +62,9 @@ impl CstParser {
     self.pos += 1;
   }
 
-  pub fn open_eat_commentary(&mut self) -> OpenMark {
+  pub fn open_eat_trivia(&mut self) -> OpenMark {
     let m_out = self.open();
-    if let Whitespace | Comment = self.peek() {
-      let m_commentary = self.open();
-      self.eat_trivia();
-      self.close(m_commentary, CstKind::Commentary);
-    };
+    self.eat_trivia();
     m_out
   }
   pub fn place_error(&mut self, kind: CstKind) -> CloseMark {

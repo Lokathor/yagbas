@@ -320,7 +320,7 @@ pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
     }
     KwLoop => {
       p.expect(KwLoop);
-      let m_body = p.open_eat_commentary();
+      let m_body = p.open_eat_trivia();
       if p.at(OpBrace) {
         do_body(p, m_body);
       } else {
@@ -330,12 +330,12 @@ pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
     }
     KwIf => {
       p.expect(KwIf);
-      let m_condition = p.open_eat_commentary();
+      let m_condition = p.open_eat_trivia();
       if try_value_expr(p).is_none() {
         p.place_error(ErrExpectedIfCondition);
       }
       p.close(m_condition, CstKind::IfCondition);
-      let m_body = p.open_eat_commentary();
+      let m_body = p.open_eat_trivia();
       if p.at(OpBrace) {
         do_body(p, m_body);
       } else {
@@ -345,20 +345,20 @@ pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
     }
     KwFor => {
       p.expect(KwFor);
-      let m_expr = p.open_eat_commentary();
+      let m_expr = p.open_eat_trivia();
       if try_value_expr(p).is_some() {
         p.close(m_expr, CstKind::ValExpr);
       } else {
         p.close(m_expr, CstKind::ErrExpectedValueExpression);
       };
       p.expect(KwIn);
-      let m_expr = p.open_eat_commentary();
+      let m_expr = p.open_eat_trivia();
       if try_value_expr(p).is_some() {
         p.close(m_expr, CstKind::ValExpr);
       } else {
         p.close(m_expr, CstKind::ErrExpectedValueExpression);
       };
-      let m_body = p.open_eat_commentary();
+      let m_body = p.open_eat_trivia();
       if p.at(OpBrace) {
         do_body(p, m_body);
       } else {
@@ -387,11 +387,7 @@ pub fn do_body(p: &mut CstParser, m_body: OpenMark) -> CloseMark {
   debug_assert_ne!(p.peek(), ErrEndOfFile);
   p.expect(OpBrace);
   loop {
-    let m_stmt = if let Some(m_commentary) = try_commentary(p) {
-      p.open_before(m_commentary)
-    } else {
-      p.open()
-    };
+    let m_stmt = p.open_eat_trivia();
     if p.at(ClBrace) {
       p.close(m_stmt, CstKind::StmtEmpty);
       p.expect(ClBrace);
@@ -447,11 +443,7 @@ pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
     }
     p.close(m_ret_ty, CstKind::ReturnType);
   }
-  let m_body = if let Some(m_commentary) = try_commentary(p) {
-    p.open_before(m_commentary)
-  } else {
-    p.open()
-  };
+  let m_body = p.open_eat_trivia();
   do_body(p, m_body);
 
   p.close(m_fn, CstKind::Function)
@@ -474,31 +466,11 @@ pub fn do_item(p: &mut CstParser, m: OpenMark) -> CloseMark {
   }
 }
 
-/// Grabs `Whitespace` and `Comment` into a `Commentary` subtree.
-pub fn try_commentary(p: &mut CstParser) -> Option<CloseMark> {
-  if let Whitespace | Comment = p.peek() {
-    let m = p.open();
-    while let Whitespace | Comment = p.peek() {
-      p.advance()
-    }
-    Some(p.close(m, CstKind::Commentary))
-  } else {
-    None
-  }
-}
-
 /// Parse an entire module's content.
 pub fn do_module(p: &mut CstParser) {
   let m_module = p.open();
   while p.peek() != ErrEndOfFile {
-    let m_item = if let Some(m_commentary) = try_commentary(p) {
-      if p.at(ErrEndOfFile) {
-        break;
-      }
-      p.open_before(m_commentary)
-    } else {
-      p.open()
-    };
+    let m_item = p.open_eat_trivia();
     if ITEM_KEYWORDS.contains(&p.peek()) {
       do_item(p, m_item);
     } else {

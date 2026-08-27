@@ -45,9 +45,6 @@ impl core::fmt::Display for Cst {
             writeln!(f, "{kind:?} @({position:?})")?;
           }
           CstElem::Tree(cst) => {
-            if !f.alternate() && cst.kind == CstKind::Commentary {
-              continue;
-            }
             fmt_rec(cst, f, indents + 2)?;
           }
         }
@@ -76,7 +73,6 @@ pub enum CstKind {
   ErrExpectedIfCondition,
   //
   Module,
-  Commentary,
   ValExpr,
   TypeExpr,
   AtomicValue,
