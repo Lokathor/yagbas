@@ -22,6 +22,8 @@ pub fn do_module(p: &mut CstParser) {
     let m_item = p.open_eat_trivia();
     if ITEM_KEYWORDS.contains(&p.peek()) {
       do_item(p, m_item);
+    } else if p.peek() == ErrEndOfFile {
+      p.abandon_subtree(m_item);
     } else {
       while !ITEM_KEYWORDS.contains(&p.peek()) && p.has_more() {
         p.advance();

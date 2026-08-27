@@ -7,7 +7,7 @@ use crate::tokenizer::{
 
 use super::*;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParseEvent {
   Open(CstKind),
   Close,
@@ -45,15 +45,21 @@ impl CstParser {
     self.events.push(ParseEvent::Open(CstKind::ErrNoTreeKindSet));
     mark
   }
+  pub fn open_before(&mut self, m: CloseMark) -> OpenMark {
+    let mark = OpenMark { index: m.index };
+    self.events.insert(m.index, ParseEvent::Open(CstKind::ErrNoTreeKindSet));
+    mark
+  }
   pub fn close(&mut self, m: OpenMark, kind: CstKind) -> CloseMark {
     self.events[m.index] = ParseEvent::Open(kind);
     self.events.push(ParseEvent::Close);
     CloseMark { index: m.index }
   }
-  pub fn open_before(&mut self, m: CloseMark) -> OpenMark {
-    let mark = OpenMark { index: m.index };
-    self.events.insert(m.index, ParseEvent::Open(CstKind::ErrNoTreeKindSet));
-    mark
+  pub fn abandon_subtree(&mut self, m: OpenMark) {
+    for event in &self.events[(m.index+1)..] {
+      debug_assert_eq!(*event, ParseEvent::Advance);
+    }
+    self.events.remove(m.index);
   }
   #[cfg_attr(debug_assertions, track_caller)]
   pub fn advance(&mut self) {
