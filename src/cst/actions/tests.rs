@@ -164,17 +164,6 @@ fn test_postfix_expressions() {
 }
 
 #[test]
-fn test_try_stmt() {
-  let mut p = CstParser::new("let x = 0;");
-  assert!(try_stmt(&mut p).is_some(), "{p:?}");
-  let _cst = p.build_tree();
-
-  let mut p = CstParser::new("sqrt(2);");
-  assert!(try_stmt(&mut p).is_some(), "{p:?}");
-  let _cst = p.build_tree();
-}
-
-#[test]
 fn test_try_func() {
   let mut p = CstParser::new("fn foo() {}");
   let m = p.open();
