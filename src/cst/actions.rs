@@ -39,7 +39,7 @@ pub fn do_module(p: &mut CstParser) {
 ///
 /// * `m_item` the mark for the tree holding this item
 /// * **Debug Assert:** that the parser is already pointed at an item keyword.
-pub fn do_item(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
+fn do_item(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
   debug_assert!(
     ITEM_KEYWORDS.contains(&p.peek()),
     "bad do_item: {:?}",
@@ -58,7 +58,7 @@ pub fn do_item(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
 ///
 /// * `m_fn` the mark for this function
 /// * **Debug Assert:** That the parser is pointed at the `fn` keyword.
-pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
+fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
   debug_assert!(p.at(KwFn));
   p.expect(KwFn);
   p.eat_trivia();
@@ -112,7 +112,7 @@ fn do_function_arguments(p: &mut CstParser) {
   }
 }
 
-pub fn do_type_expr(p: &mut CstParser) {
+fn do_type_expr(p: &mut CstParser) {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   let m_type_expr = p.open();
@@ -165,7 +165,7 @@ pub fn do_type_expr(p: &mut CstParser) {
 }
 
 /// Parse a value expression, or `None` for no input consumed.
-pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
+fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
   return try_value_expr_rec(p, 0);
 
   /// Checks for a [PrefixOperator]
@@ -436,7 +436,7 @@ pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
   }
 }
 
-pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
+fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   debug_assert_ne!(p.peek(), ErrEndOfFile);
@@ -519,7 +519,7 @@ pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
   }
 }
 
-pub fn do_body(p: &mut CstParser, m_body: OpenMark) -> CloseMark {
+fn do_body(p: &mut CstParser, m_body: OpenMark) -> CloseMark {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   debug_assert_ne!(p.peek(), ErrEndOfFile);
