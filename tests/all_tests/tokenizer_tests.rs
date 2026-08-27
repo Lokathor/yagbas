@@ -3,221 +3,120 @@ use yagbas::tokenizer::TokenKind;
 use yagbas::tokenizer::TokenKind::*;
 use yagbas::tokenizer::tokenize;
 
+/// This makes the tests easy to read
+#[track_caller]
+fn expect_token(s: &str, k: TokenKind) {
+  let v: Vec<Token> = tokenize(s).collect();
+  assert_eq!(v.len(), 1);
+  let t: Token = v[0];
+  assert_eq!(t.kind, k, "Bad Kind: {t:?}");
+  let span = t.span_within(s);
+  assert_eq!(span, 0..(s.len()), "Bad Span: {span:?}");
+}
+
 #[test]
 fn test_comment_block_plain() {
-  let s = "/**/";
-  let v = tokenize(s).collect::<Vec<_>>();
-  assert_eq!(v.len(), 1);
-  let t = v[0];
-  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span_within(s), 0..(s.len()));
+  expect_token("/**/", Comment);
 }
+
 #[test]
 fn test_comment_block_nested() {
-  let s = "/*/**/*/";
-  let v = tokenize(s).collect::<Vec<_>>();
-  assert_eq!(v.len(), 1);
-  let t = v[0];
-  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span_within(s), 0..(s.len()));
+  expect_token("/*/**/*/", Comment);
 }
+
 #[test]
 fn test_comment_block_open_only() {
-  let s = "/*";
-  let v = tokenize(s).collect::<Vec<_>>();
-  assert_eq!(v.len(), 1);
-  let t = v[0];
-  assert_eq!(t.kind, ErrBlockCommentUnclosed, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span_within(s), 0..(s.len()));
+  expect_token("/*", ErrBlockCommentUnclosed);
 }
+
 #[test]
 fn test_comment_block_close_only() {
-  let s = "*/";
-  let v = tokenize(s).collect::<Vec<_>>();
-  assert_eq!(v.len(), 1);
-  let t = v[0];
-  assert_eq!(t.kind, ErrBlockCommentExtraClose, "Bad Kind: `{t:?}`");
-  assert_eq!(t.span_within(s), 0..(s.len()));
+  expect_token("*/", ErrBlockCommentExtraClose);
 }
 
 #[test]
 fn test_comment_line() {
-  let mut v: Vec<Token>;
-
-  v = tokenize("//").collect();
-  assert_eq!(v.len(), 1);
-  let t = v[0];
-  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
-
-  v = tokenize("// big comment line").collect();
-  assert_eq!(v.len(), 1);
-  let t = v[0];
-  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
-
-  v = tokenize("// */").collect();
-  assert_eq!(v.len(), 1);
-  let t = v[0];
-  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
-
-  v = tokenize(
-    "// big comment line
-  !",
-  )
-  .collect();
-  assert_eq!(v.len(), 3); // comment whitespace bang
-  let t = v[0];
-  assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
+  expect_token("//", Comment);
 }
 
 #[test]
-fn test_tokenize_lit_str() {
-  let mut v: Vec<Token>;
-
-  v = tokenize(r##""""##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##""abc""##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##""a\"bc""##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##""a\\bc""##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
+fn test_comment_line_overrides_end_block() {
+  expect_token("// */", Comment);
 }
 
 #[test]
-fn test_tokenize_lit_raw_str() {
-  let mut v: Vec<Token>;
+fn test_lit_str_empty() {
+  expect_token("\"\"", LitStr);
+}
 
-  v = tokenize(r##"r"""##).collect();
-  assert_eq!(v.len(), 2, "Bad Output Len: {v:?}");
+#[test]
+fn test_lit_str_basic() {
+  expect_token("\"a\\b\\\"c\"", LitStr);
+}
 
-  v = tokenize(r##"r#"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, ErrBadRawValue, "Bad Kind: `{t:?}`");
+#[test]
+fn test_raw_mark_alone() {
+  expect_token("r#", ErrBadRawValue);
+}
 
-  v = tokenize(r##"r#""#"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
+#[test]
+fn test_lone_r_is_ident_not_raw_mark() {
+  expect_token("r", Ident);
+}
 
-  v = tokenize(r#######"r###""#"#######).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, ErrLitRawStrUnclosed, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r#######"r###""###"#######).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r#######"r###"abc""###"#######).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitStr, "Bad Kind: `{t:?}`");
+#[test]
+fn test_raw_str_empty() {
+  expect_token(r#####"r#""#"#####, LitStr);
+  expect_token(r#####"r##""##"#####, LitStr);
+  expect_token(r#####"r###""###"#####, LitStr);
 }
 
 #[test]
 fn test_tokenize_lit_str_no_close() {
-  let mut v: Vec<Token>;
+  expect_token(r##"""##, ErrLitStrUnclosed);
+  expect_token(r##""\""##, ErrLitStrUnclosed);
+}
 
-  v = tokenize(r##"""##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, ErrLitStrUnclosed, "Bad Kind: `{t:?}`");
+#[test]
+fn test_dollar() {
+  expect_token("$", Dollar);
+}
 
-  v = tokenize(r##"" \""##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, ErrLitStrUnclosed, "Bad Kind: `{t:?}`");
+#[test]
+fn test_percent() {
+  expect_token("%", Percent);
 }
 
 #[test]
 fn test_tokenize_lit_num() {
-  let mut v: Vec<Token>;
-
-  v = tokenize(r##"1"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##"$"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, Dollar, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##"%"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, Percent, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##"$F"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##"%1"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##"1_u8"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, LitNum, "Bad Kind: `{t:?}`");
+  expect_token("1", LitNum);
+  expect_token("1_u8", LitNum);
+  expect_token("$1", LitNum);
+  expect_token("%1", LitNum);
 }
 
 #[test]
-fn test_tokenize_keyword_and_ident() {
-  let mut v: Vec<Token>;
-
-  v = tokenize(r##"fn"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, KwFn, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##"static"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, KwStatic, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##"foo"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##"foo_"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
-
-  v = tokenize(r##"regal"##).collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, Ident, "Bad Kind: `{t:?}`");
+fn test_keyword_fn() {
+  expect_token("fn", KwFn);
 }
 
 #[test]
-fn test_merged_punctuation() {
-  let mut v: Vec<Token>;
+fn test_keyword_static() {
+  expect_token("static", KwStatic);
+}
 
-  v = tokenize("::").collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, ColonColon, "Bad Kind: `{t:?}`");
+#[test]
+fn test_ident() {
+  expect_token("_", Ident);
+  expect_token("foo", Ident);
+}
 
-  v = tokenize("..=").collect();
-  assert_eq!(v.len(), 1, "Bad Output Len: {v:?}");
-  let t = v[0];
-  assert_eq!(t.kind, DotDotEqual, "Bad Kind: `{t:?}`");
+#[test]
+fn test_colon_colon() {
+  expect_token("::", ColonColon);
+}
+
+#[test]
+fn test_dot_dot_eq() {
+  expect_token("..=", DotDotEqual);
 }

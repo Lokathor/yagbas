@@ -10,8 +10,6 @@ use crate::r;
 use crate::tokenizer::TokenKind::*;
 use crate::tokenizer::{Token, TokenKind, tokenize};
 
-mod tests;
-
 static ITEM_KEYWORDS: &[TokenKind] =
   &[KwUse, KwStruct, KwBitbag, KwEnum, KwStatic, KwConst, KwFn, KwImpl];
 

@@ -1,21 +1,43 @@
 use yagbas::cst::Cst;
 
-#[test]
-fn test_empty_module() {
-  let cst = Cst::from_module_src("");
+#[track_caller]
+fn cst_no_errors(src: &str) {
+  let cst = Cst::from_module_src(src);
   cst.assert_no_errors();
 }
+
+#[test]
+fn test_empty_module() {
+  cst_no_errors("");
+}
+
 #[test]
 fn test_trivia_module() {
-  let cst = Cst::from_module_src(
+  cst_no_errors(
     "
     // just a comment
     ",
   );
-  cst.assert_no_errors();
 }
+
 #[test]
 fn test_empty_function() {
-  let cst = Cst::from_module_src("fn foo(){}");
-  cst.assert_no_errors();
+  cst_no_errors("fn foo(){}");
+}
+
+#[test]
+fn test_empty_function2() {
+  cst_no_errors(
+    "fn foo(){
+    }",
+  );
+}
+
+#[test]
+fn test_empty_function3() {
+  cst_no_errors(
+    "fn foo(){
+      // comment
+    }",
+  );
 }
