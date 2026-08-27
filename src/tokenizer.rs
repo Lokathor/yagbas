@@ -13,7 +13,7 @@ pub struct Token {
   pub kind: TokenKind,
   /// Where the token was found.
   ///
-  /// Yagbas source files have a maximum of 4GB.
+  /// Yagbas source files can't exceed 4GB.
   pub position: u32,
 }
 impl Token {
@@ -30,6 +30,18 @@ impl Token {
         | ErrLitRawStrUnclosed
         | ErrLitStrUnclosed,
     )
+  }
+  /// Gets the span of a token within the source string it came from.
+  ///
+  /// * If the source string is incorrect for this token, this could give incorrect answers or even trigger a panic.
+  #[track_caller]
+  pub fn span_within(self, src: &str) -> core::ops::Range<usize> {
+    let pos_usize = self.position as usize;
+    let sub_str = &src[pos_usize..];
+    let mut it = tokenize(sub_str);
+    let _self_token = it.next();
+    let len = it.next().map(|tk| tk.position as usize).unwrap_or(sub_str.len());
+    pos_usize..(pos_usize + len)
   }
 }
 

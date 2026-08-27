@@ -56,7 +56,7 @@ impl CstParser {
     CloseMark { index: m.index }
   }
   pub fn abandon_subtree(&mut self, m: OpenMark) {
-    for event in &self.events[(m.index+1)..] {
+    for event in &self.events[(m.index + 1)..] {
       debug_assert_eq!(*event, ParseEvent::Advance);
     }
     self.events.remove(m.index);

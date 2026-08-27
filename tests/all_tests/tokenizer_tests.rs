@@ -5,31 +5,39 @@ use yagbas::tokenizer::tokenize;
 
 #[test]
 fn test_comment_block_plain() {
-  let v = tokenize("/**/").collect::<Vec<_>>();
+  let s = "/**/";
+  let v = tokenize(s).collect::<Vec<_>>();
   assert_eq!(v.len(), 1);
   let t = v[0];
   assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span_within(s), 0..(s.len()));
 }
 #[test]
 fn test_comment_block_nested() {
-  let v = tokenize("/*/**/*/").collect::<Vec<_>>();
+  let s = "/*/**/*/";
+  let v = tokenize(s).collect::<Vec<_>>();
   assert_eq!(v.len(), 1);
   let t = v[0];
   assert_eq!(t.kind, Comment, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span_within(s), 0..(s.len()));
 }
 #[test]
 fn test_comment_block_open_only() {
-  let v = tokenize("/*").collect::<Vec<_>>();
+  let s = "/*";
+  let v = tokenize(s).collect::<Vec<_>>();
   assert_eq!(v.len(), 1);
   let t = v[0];
   assert_eq!(t.kind, ErrBlockCommentUnclosed, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span_within(s), 0..(s.len()));
 }
 #[test]
 fn test_comment_block_close_only() {
-  let v = tokenize("*/").collect::<Vec<_>>();
+  let s = "*/";
+  let v = tokenize(s).collect::<Vec<_>>();
   assert_eq!(v.len(), 1);
   let t = v[0];
   assert_eq!(t.kind, ErrBlockCommentExtraClose, "Bad Kind: `{t:?}`");
+  assert_eq!(t.span_within(s), 0..(s.len()));
 }
 
 #[test]
