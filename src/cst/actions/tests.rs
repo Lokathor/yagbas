@@ -42,7 +42,8 @@ fn test_infix_expressions() {
 
   let mut p = CstParser::new("2+3*4+5");
   assert!(try_value_expr(&mut p).is_some());
-  let _cst = p.build_tree();
+  let cst = p.build_tree();
+  assert!(!cst.has_error(), "Bad Cst: {cst}");
 }
 
 #[test]

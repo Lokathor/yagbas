@@ -47,6 +47,18 @@ impl Cst {
         CstElem::Tree(cst) => cst.has_error(),
       })
   }
+  #[track_caller]
+  pub fn assert_no_errors(&self) {
+    assert!(!self.kind.is_error(), "Bad Kind: {:?}", self.kind);
+    for elemnt in &self.elements {
+      match elemnt {
+        CstElem::Token(token) => {
+          assert!(!token.is_error(), "Bad Token: {token:?}")
+        }
+        CstElem::Tree(cst) => cst.assert_no_errors(),
+      }
+    }
+  }
 }
 impl core::fmt::Display for Cst {
   /// Better way to look at the tree than Debug provides.
