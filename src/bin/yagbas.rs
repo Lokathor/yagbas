@@ -7,5 +7,5 @@ fn main() {
   let mut p = CstParser::new(SOURCE);
   do_module(&mut p);
   let cst = p.build_tree();
-  println!("== CST: {cst:#}");
+  println!("== CST: {cst:}");
 }

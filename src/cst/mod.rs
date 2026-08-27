@@ -72,6 +72,7 @@ pub enum CstKind {
   ErrNeedsParensToDisambiguate,
   ErrTodo,
   ErrExpected(TokenKind),
+  ErrExpectedBody,
   //
   Module,
   Commentary,
@@ -87,9 +88,14 @@ pub enum CstKind {
   StmtLet,
   StmtValExpr,
   StmtItem,
+  StmtLoop,
+  StmtExpression,
+  StmtIf,
+  StmtFor,
   Function,
   ReturnType,
   Body,
+  StmtEmpty,
 }
 
 /// A single element within a [Cst].

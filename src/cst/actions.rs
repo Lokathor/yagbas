@@ -5,7 +5,7 @@ use crate::cst::CstKind;
 use crate::cst::operators::{
   BindDirection, InfixOperator, PostfixOperator, PrefixOperator,
 };
-use crate::cst::parser::{CloseMark, CstParser,  OpenMark};
+use crate::cst::parser::{CloseMark, CstParser, OpenMark};
 use crate::r;
 use crate::tokenizer::TokenKind::*;
 use crate::tokenizer::{Token, TokenKind, tokenize};
@@ -298,36 +298,137 @@ pub fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
   }
 }
 
-fn try_stmt_let(p: &mut CstParser) -> Option<CloseMark> {
-  if p.peek() != KwLet {
-    return None;
+pub fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
+  debug_assert_ne!(p.peek(), ErrEndOfFile);
+  match p.peek() {
+    Semicolon => {
+      p.advance();
+      p.close(m_stmt, CstKind::StmtEmpty)
+    }
+    KwLet => {
+      p.expect(KwLet);
+      p.advance_over_whitespace_and_comments();
+      p.expect(Ident);
+      p.advance_over_whitespace_and_comments();
+      p.expect(Equal);
+      p.advance_over_whitespace_and_comments();
+      try_value_expr(p);
+      p.expect(Semicolon);
+      p.close(m_stmt, CstKind::StmtLet)
+    }
+    KwLoop => {
+      p.expect(KwLoop);
+      let m_body = if let Some(m_commentary) = try_commentary(p) {
+        p.open_before(m_commentary)
+      } else {
+        p.open()
+      };
+      if p.at(OpBrace) {
+        do_body(p, m_body);
+      } else {
+        p.close(m_body, CstKind::ErrExpected(OpBrace));
+      }
+      p.close(m_stmt, CstKind::StmtLoop)
+    }
+    KwIf => {
+      p.expect(KwIf);
+
+      let m_expr = if let Some(m_commentary) = try_commentary(p) {
+        p.open_before(m_commentary)
+      } else {
+        p.open()
+      };
+      if try_value_expr(p).is_some() {
+        p.close(m_expr, CstKind::ValExpr);
+      } else {
+        p.close(m_expr, CstKind::ErrExpectedValueExpression);
+      };
+      let m_body = if let Some(m_commentary) = try_commentary(p) {
+        p.open_before(m_commentary)
+      } else {
+        p.open()
+      };
+      if p.at(OpBrace) {
+        do_body(p, m_body);
+      } else {
+        p.close(m_body, CstKind::ErrExpected(OpBrace));
+      }
+      p.close(m_stmt, CstKind::StmtIf)
+    }
+    KwFor => {
+      p.expect(KwFor);
+      let m_expr = if let Some(m_commentary) = try_commentary(p) {
+        p.open_before(m_commentary)
+      } else {
+        p.open()
+      };
+      if try_value_expr(p).is_some() {
+        p.close(m_expr, CstKind::ValExpr);
+      } else {
+        p.close(m_expr, CstKind::ErrExpectedValueExpression);
+      };
+      p.expect(KwIn);
+      let m_expr = if let Some(m_commentary) = try_commentary(p) {
+        p.open_before(m_commentary)
+      } else {
+        p.open()
+      };
+      if try_value_expr(p).is_some() {
+        p.close(m_expr, CstKind::ValExpr);
+      } else {
+        p.close(m_expr, CstKind::ErrExpectedValueExpression);
+      };
+      let m_body = if let Some(m_commentary) = try_commentary(p) {
+        p.open_before(m_commentary)
+      } else {
+        p.open()
+      };
+      if p.at(OpBrace) {
+        do_body(p, m_body);
+      } else {
+        p.close(m_body, CstKind::ErrExpected(OpBrace));
+      }
+      p.close(m_stmt, CstKind::StmtFor)
+    }
+    _ => {
+      if try_value_expr(p).is_some() {
+        p.advance_over_whitespace_and_comments();
+        if p.at(Semicolon) {
+          p.expect(Semicolon);
+        }
+        p.close(m_stmt, CstKind::StmtExpression)
+      } else {
+        p.advance();
+        p.close(m_stmt, CstKind::ErrTodo)
+      }
+    }
   }
-  let m = p.open();
-  p.expect(KwLet);
-  p.advance_over_whitespace_and_comments();
-  p.expect(Ident);
-  p.advance_over_whitespace_and_comments();
-  p.expect(Equal);
-  p.advance_over_whitespace_and_comments();
-  if try_value_expr(p).is_none() {
-    let err = p.open();
-    p.close(err, CstKind::ErrExpectedValueExpression);
-  }
-  p.expect(Semicolon);
-  Some(p.close(m, CstKind::StmtLet))
 }
 
-pub fn try_stmt(p: &mut CstParser) -> Option<CloseMark> {
-  // todo: support labels
-  // todo: item statements
-  // todo: statement attributes
-  try_stmt_let(p).or_else(|| {
-    try_value_expr(p).map(|m_val| {
-      let m = p.open_before(m_val);
-      p.expect(Semicolon);
-      p.close(m, CstKind::StmtValExpr)
-    })
-  })
+pub fn do_body(p: &mut CstParser, m_body: OpenMark) -> CloseMark {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
+  debug_assert_ne!(p.peek(), ErrEndOfFile);
+  p.expect(OpBrace);
+  loop {
+    let m_stmt = if let Some(m_commentary) = try_commentary(p) {
+      p.open_before(m_commentary)
+    } else {
+      p.open()
+    };
+    if p.at(ClBrace) {
+      p.close(m_stmt, CstKind::StmtEmpty);
+      p.expect(ClBrace);
+      return p.close(m_body, CstKind::Body);
+    }
+    if p.at(ErrEndOfFile) {
+      p.close(m_stmt, CstKind::StmtEmpty);
+      return p.close(m_body, CstKind::ErrExpected(ClBrace));
+    }
+    do_stmt(p, m_stmt);
+  }
 }
 
 pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
@@ -348,7 +449,10 @@ pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
     p.advance_over_whitespace_and_comments();
     p.expect(Colon);
     p.advance_over_whitespace_and_comments();
-    try_type_expr(p);
+    if try_type_expr(p).is_none() {
+      let e = p.open();
+      p.close(e, CstKind::ErrExpectedTypeExpression);
+    }
     p.advance_over_whitespace_and_comments();
     if p.at(Comma) {
       p.expect(Comma);
@@ -369,23 +473,34 @@ pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
     }
     p.close(m_ret_ty, CstKind::ReturnType);
   }
-  p.advance_over_whitespace_and_comments();
-  let m_body = p.open();
-  p.expect(OpBrace);
-  loop {
-    p.advance_over_whitespace_and_comments();
-    if try_stmt(p).is_none() {
-      break;
-    }
-    // todo: how to parse a tail expression?
-  }
-  p.expect(ClBrace);
-  p.close(m_body, CstKind::Body);
+  let m_body = if let Some(m_commentary) = try_commentary(p) {
+    p.open_before(m_commentary)
+  } else {
+    p.open()
+  };
+  do_body(p, m_body);
 
   p.close(m_fn, CstKind::Function)
 }
 
-/// Grabs `Whitespace` and `Comment` into a subtree.
+static ITEM_KEYWORDS: &[TokenKind] =
+  &[KwUse, KwStruct, KwBitbag, KwEnum, KwStatic, KwConst, KwFn];
+pub fn do_item(p: &mut CstParser, m: OpenMark) -> CloseMark {
+  debug_assert!(
+    ITEM_KEYWORDS.contains(&p.peek()),
+    "bad do_item: {:?}",
+    p.peek()
+  );
+  match p.peek() {
+    KwFn => do_func(p, m),
+    _ => {
+      p.advance();
+      p.close(m, CstKind::ErrTodo)
+    }
+  }
+}
+
+/// Grabs `Whitespace` and `Comment` into a `Commentary` subtree.
 pub fn try_commentary(p: &mut CstParser) -> Option<CloseMark> {
   if let Whitespace | Comment = p.peek() {
     let m = p.open();
@@ -398,19 +513,7 @@ pub fn try_commentary(p: &mut CstParser) -> Option<CloseMark> {
   }
 }
 
-static ITEM_KEYWORDS: &[TokenKind] =
-  &[KwUse, KwStruct, KwBitbag, KwEnum, KwStatic, KwConst, KwFn];
-pub fn do_item(p: &mut CstParser, m: OpenMark) -> CloseMark {
-  debug_assert!(ITEM_KEYWORDS.contains(&p.peek()), "bad do_item: {:?}", p.peek());
-  match p.peek() {
-    KwFn => do_func(p, m),
-    _ => {
-      p.advance();
-      p.close(m, CstKind::ErrTodo)
-    }
-  }
-}
-
+/// Parse an entire module's content.
 pub fn do_module(p: &mut CstParser) {
   let m_module = p.open();
   while p.peek() != ErrEndOfFile {

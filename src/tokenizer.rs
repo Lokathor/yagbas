@@ -63,6 +63,8 @@ pub enum TokenKind {
   KwIf,
   /// `impl`
   KwImpl,
+  /// `in`
+  KwIn,
   /// `let`
   KwLet,
   /// `loop`
@@ -332,6 +334,7 @@ impl<'a> TokenIter<'a> {
       "for" => KwFor,
       "if" => KwIf,
       "impl" => KwImpl,
+      "in" => KwIn,
       "let" => KwLet,
       "loop" => KwLoop,
       "match" => KwMatch,
