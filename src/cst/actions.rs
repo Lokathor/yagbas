@@ -12,6 +12,101 @@ use crate::tokenizer::{Token, TokenKind, tokenize};
 
 mod tests;
 
+static ITEM_KEYWORDS: &[TokenKind] =
+  &[KwUse, KwStruct, KwBitbag, KwEnum, KwStatic, KwConst, KwFn, KwImpl];
+
+/// Parse an entire module's content.
+pub fn do_module(p: &mut CstParser) {
+  let m_module = p.open();
+  while p.peek() != ErrEndOfFile {
+    let m_item = p.open_eat_trivia();
+    if ITEM_KEYWORDS.contains(&p.peek()) {
+      do_item(p, m_item);
+    } else {
+      while !ITEM_KEYWORDS.contains(&p.peek()) && p.has_more() {
+        p.advance();
+      }
+      p.close(m_item, CstKind::ErrExpectedItemKeyword);
+    }
+    while let Whitespace = p.peek() {
+      p.advance();
+    }
+  }
+  p.close(m_module, CstKind::Module);
+}
+
+/// Parse for one single item.
+///
+/// * `m_item` the mark for the tree holding this item
+/// * **Debug Assert:** that the parser is already pointed at an item keyword.
+pub fn do_item(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
+  debug_assert!(
+    ITEM_KEYWORDS.contains(&p.peek()),
+    "bad do_item: {:?}",
+    p.peek()
+  );
+  match p.peek() {
+    KwFn => do_func(p, m_item),
+    _ => {
+      p.advance();
+      p.close(m_item, CstKind::ErrTodo)
+    }
+  }
+}
+
+/// Parse one function definition
+///
+/// * `m_fn` the mark for this function
+/// * **Debug Assert:** That the parser is pointed at the `fn` keyword.
+pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
+  debug_assert!(p.at(KwFn));
+  p.expect(KwFn);
+  p.eat_trivia();
+  p.expect(Ident);
+  p.eat_trivia();
+  let m_args = p.open();
+  p.expect(OpParen);
+  loop {
+    p.eat_trivia();
+    if p.at(ClParen) {
+      break;
+    }
+    p.expect(Ident);
+    p.eat_trivia();
+    p.expect(Colon);
+    p.eat_trivia();
+    if try_type_expr(p).is_none() {
+      p.place_error(CstKind::ErrExpectedTypeExpression);
+      if !p.at(ClParen) {
+        p.advance();
+      }
+    }
+    p.eat_trivia();
+    if p.at(Comma) {
+      p.expect(Comma);
+    }
+    p.eat_trivia();
+  }
+  p.expect(ClParen);
+  p.close(m_args, CstKind::ArgumentList);
+  p.eat_trivia();
+  if p.at(Minus) {
+    let m_ret_ty = p.open();
+    p.expect(Minus);
+    p.expect(GreaterThan);
+    p.eat_trivia();
+    if try_type_expr(p).is_none() {
+      let e = p.open();
+      p.close(e, CstKind::ErrExpectedTypeExpression);
+    }
+    p.close(m_ret_ty, CstKind::ReturnType);
+  }
+  let m_body = p.open_eat_trivia();
+  do_body(p, m_body);
+
+  p.close(m_fn, CstKind::Function)
+}
+
 /// try parsing a type expression
 pub fn try_type_expr(p: &mut CstParser) -> Option<CloseMark> {
   if p.at(TokenKind::Ident) {
@@ -399,87 +494,4 @@ pub fn do_body(p: &mut CstParser, m_body: OpenMark) -> CloseMark {
     }
     do_stmt(p, m_stmt);
   }
-}
-
-pub fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
-  debug_assert!(p.at(KwFn));
-
-  p.expect(KwFn);
-  p.eat_trivia();
-  p.expect(Ident);
-  p.eat_trivia();
-  let m_args = p.open();
-  p.expect(OpParen);
-  loop {
-    p.eat_trivia();
-    if p.at(ClParen) {
-      break;
-    }
-    p.expect(Ident);
-    p.eat_trivia();
-    p.expect(Colon);
-    p.eat_trivia();
-    if try_type_expr(p).is_none() {
-      let e = p.open();
-      p.close(e, CstKind::ErrExpectedTypeExpression);
-    }
-    p.eat_trivia();
-    if p.at(Comma) {
-      p.expect(Comma);
-    }
-    p.eat_trivia();
-  }
-  p.expect(ClParen);
-  p.close(m_args, CstKind::ArgumentList);
-  p.eat_trivia();
-  if p.at(Minus) {
-    let m_ret_ty = p.open();
-    p.expect(Minus);
-    p.expect(GreaterThan);
-    p.eat_trivia();
-    if try_type_expr(p).is_none() {
-      let e = p.open();
-      p.close(e, CstKind::ErrExpectedTypeExpression);
-    }
-    p.close(m_ret_ty, CstKind::ReturnType);
-  }
-  let m_body = p.open_eat_trivia();
-  do_body(p, m_body);
-
-  p.close(m_fn, CstKind::Function)
-}
-
-static ITEM_KEYWORDS: &[TokenKind] =
-  &[KwUse, KwStruct, KwBitbag, KwEnum, KwStatic, KwConst, KwFn];
-
-pub fn do_item(p: &mut CstParser, m: OpenMark) -> CloseMark {
-  debug_assert!(
-    ITEM_KEYWORDS.contains(&p.peek()),
-    "bad do_item: {:?}",
-    p.peek()
-  );
-  match p.peek() {
-    KwFn => do_func(p, m),
-    _ => {
-      p.advance();
-      p.close(m, CstKind::ErrTodo)
-    }
-  }
-}
-
-/// Parse an entire module's content.
-pub fn do_module(p: &mut CstParser) {
-  let m_module = p.open();
-  while p.peek() != ErrEndOfFile {
-    let m_item = p.open_eat_trivia();
-    if ITEM_KEYWORDS.contains(&p.peek()) {
-      do_item(p, m_item);
-    } else {
-      while !ITEM_KEYWORDS.contains(&p.peek()) && p.has_more() {
-        p.advance();
-      }
-      p.close(m_item, CstKind::ErrExpectedItemKeyword);
-    }
-  }
-  p.close(m_module, CstKind::Module);
 }
