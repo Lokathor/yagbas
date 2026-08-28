@@ -475,6 +475,9 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
         if op.direction() == BindDirection::Ambiguious
           && previous_bind_power == Some(bind_power)
         {
+          // When we see an Ambiguious operator without parens we emit this
+          // error and then just keep parsing as if it was a left leaning
+          // operator so that the parsing completes not matter what.
           let err_mark = p.open();
           p.close(err_mark, CstKind::ErrNeedsParensToDisambiguate);
         }
