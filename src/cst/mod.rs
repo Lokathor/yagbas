@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+//! Concrete Syntax Tree module.
 
 use crate::cst::actions::do_module;
 use crate::cst::parser::CstParser;
@@ -58,6 +59,7 @@ impl Cst {
         CstElem::Tree(cst) => cst.has_error(),
       })
   }
+  /// Walks the tree and asserts that no token or sub-tree is an error.
   #[track_caller]
   pub fn assert_no_errors(&self) {
     assert!(!self.kind.is_error(), "Bad Kind: {:?}", self.kind);
@@ -153,6 +155,7 @@ pub enum CstKind {
   IfCondition,
 }
 impl CstKind {
+  /// If this tree kind is some sort of error.
   pub const fn is_error(self) -> bool {
     use CstKind::*;
     matches!(
