@@ -1,5 +1,6 @@
 #![allow(dead_code)]
-//! Module for all the parsing junk!
+//! Module for free functions that manipulate a [CstParser] to build a useful
+//! [Cst]
 
 use crate::cst::CstKind::{self, ErrExpectedIfCondition};
 use crate::cst::operators::{
