@@ -99,6 +99,8 @@ pub enum TokenKind {
   KwLoop,
   /// `match`
   KwMatch,
+  /// `mmio`
+  KwMmio,
   /// `mut`
   KwMut,
   /// `return`
@@ -366,6 +368,7 @@ impl<'a> TokenIter<'a> {
       "let" => KwLet,
       "loop" => KwLoop,
       "match" => KwMatch,
+      "mmio" => KwMmio,
       "mut" => KwMut,
       "return" => KwReturn,
       "struct" => KwStruct,

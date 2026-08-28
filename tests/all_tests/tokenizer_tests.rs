@@ -106,6 +106,11 @@ fn test_keyword_static() {
 }
 
 #[test]
+fn test_keyword_mmio() {
+  expect_token("mmio", KwMmio);
+}
+
+#[test]
 fn test_ident() {
   expect_token("_", Ident);
   expect_token("foo", Ident);
