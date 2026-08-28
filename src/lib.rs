@@ -2,6 +2,7 @@
 #![allow(unused_braces)]
 #![allow(unused_parens)]
 #![allow(unused_labels)]
+#![warn(missing_docs)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![deny(unreachable_patterns)]
