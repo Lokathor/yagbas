@@ -1,5 +1,3 @@
-#![warn(missing_docs)]
-
 //! Types and utilities for tokenizing Yagbas source code.
 
 use TokenKind::*;
