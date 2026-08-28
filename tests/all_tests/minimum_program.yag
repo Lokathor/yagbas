@@ -1,28 +1,38 @@
+
+static mmio($8800) VRAM_BLOCK_8000: [u8; 128];
+static mmio($9800) TILEMAP_9800: [u8; 32*32];
+static mmio($FF40) LCDC: u8;
+static mmio($FF44) LY: u8;
+static mmio($FF47) BGP: u8;
+
+const VBLANK_START: u8 = 144;
+const TILES_PER_ROW: u8 = 32;
+
 fn main() {
   // wait for vblank and disable lcd
   loop {
-    if *$FF44 == 144 {
+    if *LY == VBLANK_START {
       break
     }
   }
-  *$FF40 = 0;
+  *LCDC = 0;
   // set tile data
-  *$8800 = $AA;
-  *$8801 = $FF;
+  VRAM_BLOCK_8000[0] = $AA;
+  VRAM_BLOCK_8000[1] = $FF;
   // set tilemap data
-  let tile_id = $9800;
-  for _ in 0..(32*8) {
+  let tile_id = &TILEMAP_9800[0];
+  for _ in 0..(8*TILES_PER_ROW) {
     *tile_id = 0;
     tile_id += 1;
   }
-  for _ in 0..(32*8) {
+  for _ in 0..(8*TILES_PER_ROW) {
     *tile_id = 1;
     tile_id += 1;
   }
   // set palette
-  *$FF47 = 0b11_10_01_00;
-  // enable lcd
-  *$FF40 = 0b1000_0001;
+  *BGP = 0b11_10_01_00;
+  // enable lcd with background
+  *LCDC = 0b1000_1001;
   // loop forever
   loop {}
 }

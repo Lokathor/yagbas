@@ -78,3 +78,12 @@ fn test_empty_let_lit_str() {
     }",
   );
 }
+
+#[test]
+fn test_empty_let_unit() {
+  cst_no_errors(
+    "fn foo() {
+      let _ = ();
+    }",
+  );
+}

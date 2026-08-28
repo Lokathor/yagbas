@@ -94,7 +94,7 @@ fn do_function_arguments(p: &mut CstParser) {
   let mut m_arg = p.open_eat_trivia();
   loop {
     if p.at(ClParen) {
-      p.close(m_arg, CstKind::FnCallArgument);
+      p.abandon_subtree(m_arg);
       p.advance();
       return;
     }
@@ -527,7 +527,7 @@ fn do_body(p: &mut CstParser, m_body: OpenMark) -> CloseMark {
   loop {
     let m_stmt = p.open_eat_trivia();
     if p.at(ClBrace) {
-      p.close(m_stmt, CstKind::StmtEmpty);
+      p.abandon_subtree(m_stmt);
       p.expect(ClBrace);
       return p.close(m_body, CstKind::Body);
     }
