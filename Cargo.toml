@@ -7,12 +7,10 @@ version = "0.3.0"
 edition = "2024"
 license = "Zlib OR Apache-2.0 OR MIT"
 
-[profile.dev.package."*"]
-opt-level = 3
-
 [profile.release]
 codegen-units = 1
 lto = true
 
 [features]
 
+[dependencies]
