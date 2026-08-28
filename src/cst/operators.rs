@@ -1,3 +1,5 @@
+//! Module full of operator info, for expression parsing.
+
 /// Operator binding direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BindDirection {
@@ -9,6 +11,7 @@ pub enum BindDirection {
   Ambiguious,
 }
 
+/// Operator that comes before the operand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrefixOperator {
   /// `-x`
@@ -37,6 +40,7 @@ impl PrefixOperator {
       Self::Negative | Self::BitNot | Self::Dereference | Self::Reference => 28,
     }
   }
+  /// Some prefix operators don't need an operand.
   pub const fn needs_operand(self) -> bool {
     !matches!(
       self,
@@ -46,11 +50,16 @@ impl PrefixOperator {
         | Self::PrefixRangeInclusive
     )
   }
+  /// The token length is always 1.
+  ///
+  /// This is just here because infix operators are variable. Maybe it should
+  /// get tossed out?
   pub const fn token_length(self) -> usize {
     1
   }
 }
 
+/// Operators that come after their operand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PostfixOperator {
   /// `x()`
@@ -77,6 +86,10 @@ impl PostfixOperator {
     }
   }
 
+  /// The token length is always 1.
+  ///
+  /// This is just here because infix operators are variable. Maybe it should
+  /// get tossed out?
   pub const fn token_length(&self) -> usize {
     1
   }
@@ -224,6 +237,10 @@ impl InfixOperator {
     }
   }
 
+  /// Infix operators are NOT all a single token long.
+  ///
+  /// This tells you how many tokens the parser has to step forward to move over
+  /// this particular operator.
   pub const fn token_length(&self) -> usize {
     match self {
       InfixOperator::ShiftLeftAssign | InfixOperator::ShiftRightAssign => 3,
