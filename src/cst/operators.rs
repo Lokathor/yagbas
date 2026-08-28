@@ -199,6 +199,7 @@ impl InfixOperator {
       Self::Path => 36,
     }
   }
+  /// If this operator leans left, right, or is ambiguious and requires parens.
   pub const fn direction(self) -> BindDirection {
     match self {
       Self::ConditionalOr
