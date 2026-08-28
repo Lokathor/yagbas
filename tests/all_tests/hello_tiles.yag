@@ -1,4 +1,5 @@
 
+
 static mmio($8800) VRAM_BLOCK_8000: [[u8;BYTES_PER_TILE]; TILES_PER_BLOCK];
 static mmio($9800) TILEMAP_9800: [u8; 32*32];
 static mmio($FF26) AUDIO_MAIN: u8;
@@ -15,7 +16,7 @@ const EIGHT_ROWS_OF_TILES: u16 = TILES_PER_ROW * 8;
 fn main() {
   // disable sound
   *AUDIO_MAIN = 0;
-  
+
   // wait for vblank and disable lcd
   loop {
     if *LY == VBLANK_START {
@@ -26,13 +27,14 @@ fn main() {
 
   // set tile data manually
   let tile0 = &VRAM_BLOCK_8000[0][0];
+  let pattern = $AA;
   for _ in 0..BYTES_PER_TILE {
-    *tile0 = $AA;
+    *tile0 = pattern;
     *tile0 += 1;
   }
-  let tile1 = &VRAM_BLOCK_8000[1][0];
+  pattern = $FF;
   for _ in 0..BYTES_PER_TILE {
-    *tile1 = $FF;
+    *tile1 = pattern;
     *tile1 += 1;
   }
 

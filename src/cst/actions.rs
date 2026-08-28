@@ -47,6 +47,58 @@ fn do_item(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
   );
   match p.peek() {
     KwFn => do_func(p, m_item),
+    KwStatic => do_static(p, m_item),
+    KwConst => do_const(p, m_item),
+    _ => {
+      p.advance();
+      p.close(m_item, CstKind::ErrTodo)
+    }
+  }
+}
+
+fn do_const(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
+  debug_assert_eq!(p.peek(), KwConst);
+  p.expect(KwConst);
+  p.eat_trivia();
+  p.expect(Ident);
+  p.eat_trivia();
+  p.expect(Colon);
+  p.eat_trivia();
+  do_type_expr(p);
+  p.eat_trivia();
+  p.expect(Equal);
+  p.eat_trivia();
+  try_value_expr(p);
+  p.eat_trivia();
+  p.expect(Semicolon);
+  p.close(m_item, CstKind::ItemConst)
+}
+
+fn do_static(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
+  debug_assert_eq!(p.peek(), KwStatic);
+  p.expect(KwStatic);
+  p.eat_trivia();
+  match p.peek() {
+    KwMmio => {
+      p.expect(KwMmio);
+      p.eat_trivia();
+      p.expect(OpParen);
+      p.eat_trivia();
+      let m_expr = p.open();
+      try_value_expr(p);
+      p.close(m_expr, CstKind::ValExpr);
+      p.eat_trivia();
+      p.expect(ClParen);
+      p.eat_trivia();
+      p.expect(Ident);
+      p.eat_trivia();
+      p.expect(Colon);
+      p.eat_trivia();
+      do_type_expr(p);
+      p.eat_trivia();
+      p.expect(Semicolon);
+      p.close(m_item, CstKind::ItemStatic)
+    }
     _ => {
       p.advance();
       p.close(m_item, CstKind::ErrTodo)
@@ -85,7 +137,7 @@ fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
   let m_body = p.open_eat_trivia();
   do_body(p, m_body);
 
-  p.close(m_fn, CstKind::Function)
+  p.close(m_fn, CstKind::ItemFunction)
 }
 
 fn do_function_arguments(p: &mut CstParser) {
@@ -152,6 +204,17 @@ fn do_type_expr(p: &mut CstParser) {
           }
         }
       }
+    }
+    OpBracket => {
+      p.expect(OpBracket);
+      p.eat_trivia();
+      do_type_expr(p);
+      p.eat_trivia();
+      p.expect(Semicolon);
+      p.eat_trivia();
+      try_value_expr(p);
+      p.eat_trivia();
+      p.expect(ClBracket);
     }
     _ => {
       if p.peek() != ErrEndOfFile {
@@ -292,7 +355,7 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
       KwTrue | KwFalse | Ident | LitNum | LitStr => {
         let m = p.open();
         p.advance();
-        p.close(m, CstKind::AtomicValue)
+        p.close(m, CstKind::ValExpr)
       }
       OpParen => {
         let m = p.open();
@@ -301,7 +364,7 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
         try_value_expr(p);
         p.eat_trivia();
         p.expect(ClParen);
-        p.close(m, CstKind::ParenGroup)
+        p.close(m, CstKind::ValExpr)
       }
       _ => return None,
     })
