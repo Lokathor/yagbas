@@ -14,31 +14,54 @@ enum ParseEvent {
   Advance,
 }
 
+/// Mark for the opening of a sub-tree
 #[derive(Debug, Clone, Copy)]
 pub struct OpenMark {
   index: usize,
 }
+
+/// Mark for the closing of a sub-tree
 #[derive(Debug, Clone, Copy)]
 pub struct CloseMark {
   index: usize,
 }
 
+/// Data for parsing a CST from a series of tokens.
 #[derive(Debug, Clone)]
 pub struct CstParser {
+  /// We store the token components separately during the parsing because the
+  /// parsing process never needs to look at the position value. By having a
+  /// vector of *just* TokenKind values, we can keep 64 kind values in a cache
+  /// line instead of just 12ish.
   token_kinds: Vec<TokenKind>,
+  /// Not used during the actual parse process, just for the tree creation at
+  /// the end.
   token_positions: Vec<u32>,
+  /// Our current position within the input.
   pos: usize,
+  /// The events that we've recorded so far. There will always be one `advance`
+  /// per input token, as well as a starting `Open` and `Close` event, as well
+  /// as all the other `Open` and `Close` events inserted by the tree structure.
   events: Vec<ParseEvent>,
 }
 impl CstParser {
+  /// Makes a new parser.
+  ///
+  /// This pre-allocates the buffers used during parsing, so it's not totally
+  /// free.
   pub fn new(src: &str) -> Self {
-    let mut token_kinds = Vec::with_capacity(src.len());
-    let mut token_positions = Vec::with_capacity(src.len());
+    // There will never be more tokens than the source length, so we can use it
+    // as an approximation for how big the buffers need to be. Mild
+    // over-allocation won't kill anything.
+    let buffer_length = src.len();
+    let mut token_kinds = Vec::with_capacity(buffer_length);
+    let mut token_positions = Vec::with_capacity(buffer_length);
+    let events = Vec::with_capacity(buffer_length);
     for Token { kind, position } in tokenize(src) {
       token_kinds.push(kind);
       token_positions.push(position);
     }
-    Self { token_kinds, token_positions, pos: 0, events: Vec::new() }
+    Self { token_kinds, token_positions, pos: 0, events }
   }
   pub fn open(&mut self) -> OpenMark {
     let mark = OpenMark { index: self.events.len() };
