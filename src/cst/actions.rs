@@ -7,7 +7,6 @@ use crate::cst::operators::{
   BindDirection, InfixOperator, PostfixOperator, PrefixOperator,
 };
 use crate::cst::parser::{CloseMark, CstParser, OpenMark};
-use crate::r;
 use crate::tokenizer::TokenKind::*;
 use crate::tokenizer::{Token, TokenKind, tokenize};
 

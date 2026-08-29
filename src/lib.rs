@@ -8,16 +8,12 @@
 #![deny(unreachable_patterns)]
 
 //! Yagbas is a compiler for a language of the same name.
-
-use core::range::Range;
+//!
+//! The SemVer version of this crate does not refer to the crate library. It
+//! only refers to the language/compiler portion of the project. Contents of the
+//! library and its operation may change at any time.
 
 #[forbid(unsafe_code)]
 pub mod cst;
 
 pub mod tokenizer;
-
-/// Shorthand to make a [Range]
-#[inline(always)]
-const fn r(start: usize, end: usize) -> Range<usize> {
-  Range { start, end }
-}
