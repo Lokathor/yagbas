@@ -57,21 +57,19 @@ pub enum AstTypeExprKind {
 #[derive(Debug, Clone, Default)]
 pub struct AstStaticMmio {
   pub span: Range<usize>,
-  /// location of the static value within the GB
-  pub location: AstValExpr,
+  pub address: AstValExpr,
   pub name: StrId,
   pub name_span: Range<usize>,
   pub ty: AstTypeExpr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AstConstant {
+  pub span: Range<usize>,
   pub name: StrId,
   pub name_span: Range<usize>,
   pub ty: AstTypeExpr,
-  pub ty_span: Range<usize>,
   pub xpr: AstValExpr,
-  pub xpr_span: Range<usize>,
 }
 
 #[derive(Debug, Clone)]

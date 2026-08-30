@@ -6,8 +6,8 @@ use str_id::StrId;
 
 use crate::{
   ast::{
-    AstItem, AstModule, AstStaticMmio, AstTypeExpr, AstTypeExprKind,
-    AstValExpr, AstValExprKind,
+    AstConstant, AstItem, AstModule, AstStaticMmio, AstTypeExpr,
+    AstTypeExprKind, AstValExpr, AstValExprKind,
   },
   cst::{
     Cst, CstElem,
@@ -16,8 +16,8 @@ use crate::{
   tokenizer::{
     Token,
     TokenKind::{
-      self, ClParen, Colon, Ident, KwMmio, KwStatic, LitNum, OpBracket,
-      OpParen, Semicolon,
+      self, ClParen, Colon, Equal, Ident, KwConst, KwMmio, KwStatic, LitNum,
+      OpBracket, OpParen, Semicolon,
     },
   },
 };
@@ -180,8 +180,13 @@ impl AstParser {
             };
             module.items.push(i);
           }
-          CstKind::ItemConst => continue,
-          CstKind::ItemFunction => continue,
+          CstKind::ItemConst => {
+            module.items.push(self.parse_constant(sub_cst));
+          }
+          CstKind::ItemFunction => {
+            dbg!("todo, function parsing");
+            continue;
+          }
           _ => module.items.push(AstItem::ErrAstItem),
         },
         _other => {
@@ -195,22 +200,38 @@ impl AstParser {
   }
 
   pub fn parse_static_mmio(&self, cst: &Cst) -> AstItem {
-    if cst.kind != CstKind::ItemStatic {
-      return AstItem::ErrAstItem;
-    }
+    debug_assert_eq!(cst.kind, CstKind::ItemStatic);
     let mut out = AstStaticMmio::default();
+    out.span = cst.span_within(&self.src);
     let mut it = cst.iter_important();
-    out.span.start = expect_tk_kind!(it, KwStatic).span_within(&self.src).start;
+    expect_tk_kind!(it, KwStatic);
     expect_tk_kind!(it, KwMmio);
     expect_tk_kind!(it, OpParen);
-    out.location = self.parse_val_expr(expect_cst_kind!(it, ValExpr));
+    out.address = self.parse_val_expr(expect_cst_kind!(it, ValExpr));
     expect_tk_kind!(it, ClParen);
     let (id, span) = self.token_id_span(expect_tk_kind!(it, Ident));
     out.name = id;
     out.name_span = span;
     expect_tk_kind!(it, Colon);
     out.ty = self.parse_type_expr(expect_cst_kind!(it, TypeExpr));
-    out.span.end = expect_tk_kind!(it, Semicolon).span_within(&self.src).end;
+    expect_tk_kind!(it, Semicolon);
     AstItem::StaticMmio(out)
+  }
+
+  fn parse_constant(&self, cst: &Cst) -> AstItem {
+    debug_assert_eq!(cst.kind, CstKind::ItemConst);
+    let mut out = AstConstant::default();
+    out.span = cst.span_within(&self.src);
+    let mut it = cst.iter_important();
+    expect_tk_kind!(it, KwConst);
+    let (id, span) = self.token_id_span(expect_tk_kind!(it, Ident));
+    out.name = id;
+    out.name_span = span;
+    expect_tk_kind!(it, Colon);
+    out.ty = self.parse_type_expr(expect_cst_kind!(it, TypeExpr));
+    expect_tk_kind!(it, Equal);
+    out.xpr = self.parse_val_expr(expect_cst_kind!(it, ValExpr));
+    expect_tk_kind!(it, Semicolon);
+    AstItem::Constant(out)
   }
 }
