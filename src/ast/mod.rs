@@ -12,7 +12,6 @@ pub struct AstModule {
 }
 
 #[derive(Debug, Clone)]
-#[allow(missing_docs)]
 pub enum AstItem {
   StaticMmio(AstStaticMmio),
   Constant(AstConstant),
@@ -86,7 +85,6 @@ pub struct AstFunction {
 }
 
 #[derive(Debug, Clone)]
-#[allow(missing_docs)]
 pub struct AstFunctionArgument {
   pub name: Option<StrId>,
   pub name_span: Range<usize>,
@@ -100,7 +98,6 @@ pub struct AstBody {
 }
 
 #[derive(Debug, Clone)]
-#[allow(missing_docs)]
 pub struct AstLet {
   pub pattern: AstValExpr,
   pub pattern_span: Range<usize>,
@@ -109,7 +106,6 @@ pub struct AstLet {
 }
 
 #[derive(Debug, Clone)]
-#[allow(missing_docs)]
 pub enum AstStatement {
   Let(AstLet),
   Expression(AstValExpr),
