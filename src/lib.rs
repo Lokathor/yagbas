@@ -13,7 +13,15 @@
 //! only refers to the language/compiler portion of the project. Contents of the
 //! library and its operation may change at any time.
 
+pub mod tokenizer;
+
 #[forbid(unsafe_code)]
 pub mod cst;
 
-pub mod tokenizer;
+#[forbid(unsafe_code)]
+#[allow(missing_docs)]
+pub mod ast;
+
+#[forbid(unsafe_code)]
+#[allow(missing_docs)]
+pub mod basic_blocks;

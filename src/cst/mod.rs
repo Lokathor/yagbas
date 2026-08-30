@@ -72,6 +72,26 @@ impl Cst {
       }
     }
   }
+  /// Iterator over **only** the elements of this Cst which are a sub-tree.
+  pub fn sub_trees(&self) -> impl Iterator<Item = &Cst> + '_ {
+    self.elements.iter().filter_map(|element| match element {
+      CstElem::Token(_token) => None,
+      CstElem::Tree(cst) => Some(cst),
+    })
+  }
+  /// Iterator over **only** the tokens directly at this level.
+  pub fn tokens_here(&self) -> impl Iterator<Item = Token> + '_ {
+    self.elements.iter().filter_map(|element| match element {
+      CstElem::Token(token) => Some(*token),
+      CstElem::Tree(_cst) => None,
+    })
+  }
+
+  pub(crate) fn iter_important(&self) -> impl Iterator<Item = &CstElem> {
+    self.elements.iter().filter(|el| {
+      !matches!(el, CstElem::Token(Token { kind: Whitespace | Comment, .. }))
+    })
+  }
 }
 impl core::fmt::Display for Cst {
   /// Better way to look at the tree than Debug provides.
@@ -153,6 +173,7 @@ pub enum CstKind {
   Body,
   StmtEmpty,
   IfCondition,
+  Pattern,
 }
 impl CstKind {
   /// If this tree kind is some sort of error.
@@ -171,6 +192,21 @@ impl CstKind {
         | ErrNoTreeKindSet
         | ErrTodo
         | ErrUnbalancedAngleMarks
+    )
+  }
+  /// If this tree kind is some sort of error.
+  pub const fn is_statement(self) -> bool {
+    use CstKind::*;
+    matches!(
+      self,
+      StmtEmpty
+        | StmtExpression
+        | StmtFor
+        | StmtIf
+        | StmtItem
+        | StmtLet
+        | StmtLoop
+        | StmtValExpr
     )
   }
 }

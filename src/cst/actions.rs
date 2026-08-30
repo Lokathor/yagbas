@@ -513,8 +513,9 @@ fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
     }
     KwLet => {
       p.expect(KwLet);
-      p.eat_trivia();
+      let m_pattern = p.open_eat_trivia();
       p.expect(Ident);
+      p.close(m_pattern, CstKind::Pattern);
       p.eat_trivia();
       p.expect(Equal);
       p.eat_trivia();
