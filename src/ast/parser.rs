@@ -11,13 +11,13 @@ use crate::{
   },
   cst::{
     Cst, CstElem,
-    CstKind::{self, MmioLocation, TypeExpr, ValExpr},
+    CstKind::{self, InfixOperator, MmioLocation, TypeExpr, ValExpr},
   },
   tokenizer::{
     Token,
     TokenKind::{
-      self, ClParen, Colon, Ident, KwMmio, KwStatic, OpBracket, OpParen,
-      Semicolon,
+      self, ClParen, Colon, Ident, KwMmio, KwStatic, LitNum, OpBracket,
+      OpParen, Semicolon,
     },
   },
 };
@@ -70,6 +70,8 @@ pub struct AstParser {
   pub filename: OsString,
   pub src: String,
 }
+type InfixMaker = fn(Box<AstValExpr>, Box<AstValExpr>) -> AstValExprKind;
+
 impl AstParser {
   pub fn token_id_span(&self, tk: Token) -> (StrId, Range<usize>) {
     let span = tk.span_within(&self.src);
@@ -79,22 +81,53 @@ impl AstParser {
   }
   pub fn parse_val_expr(&self, cst: &Cst) -> AstValExpr {
     let mut out = AstValExpr::default();
-    out.span = cst.span_within(&self.src);
     if cst.kind != CstKind::ValExpr {
+      out.span = cst.span_within(&self.src);
       return out;
     }
-    let mut it = cst.iter_important();
+    let mut it = cst.iter_important().peekable();
     match it.next() {
-      Some(CstElem::Token(t)) => {
+      Some(CstElem::Token(t)) if t.kind == LitNum => {
         let (id, span) = self.token_id_span(*t);
         out.kind = AstValExprKind::LiteralNumber(id);
         out.span = span;
+        debug_assert!(it.peek().is_none());
+        return out;
       }
-      _ => return AstValExpr::default(),
+      Some(CstElem::Token(t)) if t.kind == Ident => {
+        let (id, span) = self.token_id_span(*t);
+        out.kind = AstValExprKind::Identifier(id);
+        out.span = span;
+        debug_assert!(it.peek().is_none());
+        return out;
+      }
+      Some(CstElem::Tree(cst)) if cst.kind == ValExpr => {
+        let lhs = self.parse_val_expr(cst);
+        let op_cst = expect_cst_kind!(it, InfixOperator, out);
+        let Some(infix) = self.parse_infix_operator(op_cst) else {
+          return out;
+        };
+        let rhs_cst = expect_cst_kind!(it, ValExpr, out);
+        let rhs = self.parse_val_expr(rhs_cst);
+        out.span = lhs.span.start..rhs.span.end;
+        out.kind = infix(Box::new(lhs), Box::new(rhs));
+        return out;
+      }
+      _other => {
+        out.span = cst.span_within(&self.src);
+        return out;
+      }
     }
-    match it.next() {
-      None => return out,
-      _ => todo!(),
+  }
+  pub fn parse_infix_operator(&self, cst: &Cst) -> Option<InfixMaker> {
+    let mut op_iter = cst.iter_important();
+    if op_iter.next().and_then(CstElem::token).map(|t| t.kind)
+      == Some(TokenKind::Star)
+      && op_iter.next().is_none()
+    {
+      Some(AstValExprKind::Multiply)
+    } else {
+      todo!()
     }
   }
   pub fn parse_type_expr(&self, cst: &Cst) -> AstTypeExpr {
@@ -116,6 +149,7 @@ impl AstParser {
       }
       Some(CstElem::Token(t)) if t.kind == OpBracket => {
         let elem_cst = expect_cst_kind!(it, TypeExpr, out);
+        expect_tk_kind!(it, Semicolon, out);
         let elem_ty = self.parse_type_expr(elem_cst);
         let len_cst = expect_cst_kind!(it, ValExpr, out);
         let length = self.parse_val_expr(len_cst);

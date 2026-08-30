@@ -31,8 +31,10 @@ pub enum AstValExprKind {
   #[default]
   ErrAstValExprKind,
   LiteralNumber(StrId),
+  Identifier(StrId),
   Reference(Box<AstValExpr>),
   Dereference(Box<AstValExpr>),
+  Multiply(Box<AstValExpr>, Box<AstValExpr>),
 }
 
 #[derive(Debug, Clone, Default)]
