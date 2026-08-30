@@ -1,15 +1,69 @@
-use std::ffi::OsString;
+#![allow(unused_imports)]
+
+use std::{ffi::OsString, ops::Range};
 
 use str_id::StrId;
 
 use crate::{
-  ast::{AstItem, AstModule, AstStaticMmio, AstTypeExpr, AstValExpr},
-  cst::{Cst, CstElem, CstKind},
+  ast::{
+    AstItem, AstModule, AstStaticMmio, AstTypeExpr, AstTypeExprKind,
+    AstValExpr, AstValExprKind,
+  },
+  cst::{
+    Cst, CstElem,
+    CstKind::{self, MmioLocation, TypeExpr, ValExpr},
+  },
   tokenizer::{
     Token,
-    TokenKind::{ClParen, Colon, KwMmio, KwStatic, OpParen, Semicolon},
+    TokenKind::{
+      self, ClParen, Colon, Ident, KwMmio, KwStatic, OpBracket, OpParen,
+      Semicolon,
+    },
   },
 };
+
+/// `let t = expect_tk_kind!(it, KIND);`
+macro_rules! expect_tk_kind {
+  ($it:expr, $kind:tt) => {
+    if let Some(token) = $it.next().and_then(CstElem::token)
+      && token.kind == $kind
+    {
+      token
+    } else {
+      return AstItem::ErrAstItem;
+    }
+  };
+  ($it:expr, $kind:tt, $out:expr) => {
+    if let Some(token) = $it.next().and_then(CstElem::token)
+      && token.kind == $kind
+    {
+      token
+    } else {
+      return $out;
+    }
+  };
+}
+/// `let cst = expect_cst_kind!(it, KIND);`
+macro_rules! expect_cst_kind {
+  ($it:expr, $kind:tt) => {{
+    if let Some(tree) = $it.next().and_then(CstElem::tree)
+      && tree.kind == $kind
+    {
+      tree
+    } else {
+      return AstItem::ErrAstItem;
+    }
+  }};
+  ($it:expr, $kind:tt, $out:expr) => {{
+    if let Some(tree) = $it.next().and_then(CstElem::tree)
+      && tree.kind == $kind
+    {
+      tree
+    } else {
+      return $out;
+    }
+  }};
+}
 
 #[derive(Debug, Clone)]
 pub struct AstParser {
@@ -17,6 +71,63 @@ pub struct AstParser {
   pub src: String,
 }
 impl AstParser {
+  pub fn token_id_span(&self, tk: Token) -> (StrId, Range<usize>) {
+    let span = tk.span_within(&self.src);
+    let src_str = &self.src[span.clone()];
+    let id = StrId::from(src_str);
+    (id, span)
+  }
+  pub fn parse_val_expr(&self, cst: &Cst) -> AstValExpr {
+    let mut out = AstValExpr::default();
+    out.span = cst.span_within(&self.src);
+    if cst.kind != CstKind::ValExpr {
+      return out;
+    }
+    let mut it = cst.iter_important();
+    match it.next() {
+      Some(CstElem::Token(t)) => {
+        let (id, span) = self.token_id_span(*t);
+        out.kind = AstValExprKind::LiteralNumber(id);
+        out.span = span;
+      }
+      _ => return AstValExpr::default(),
+    }
+    match it.next() {
+      None => return out,
+      _ => todo!(),
+    }
+  }
+  pub fn parse_type_expr(&self, cst: &Cst) -> AstTypeExpr {
+    let mut out = AstTypeExpr::default();
+    out.span = cst.span_within(&self.src);
+    if cst.kind != CstKind::TypeExpr {
+      return out;
+    }
+    let mut it = cst.iter_important().peekable();
+    match it.next() {
+      Some(CstElem::Token(t)) if t.kind == Ident => {
+        let (id, _) = self.token_id_span(*t);
+        out.kind = AstTypeExprKind::Plain(id);
+        if it.peek().is_none() {
+          return out;
+        } else {
+          todo!()
+        }
+      }
+      Some(CstElem::Token(t)) if t.kind == OpBracket => {
+        let elem_cst = expect_cst_kind!(it, TypeExpr, out);
+        let elem_ty = self.parse_type_expr(elem_cst);
+        let len_cst = expect_cst_kind!(it, ValExpr, out);
+        let length = self.parse_val_expr(len_cst);
+        out.kind = AstTypeExprKind::Array {
+          element_ty: Box::new(elem_ty),
+          length: Box::new(length),
+        };
+        return out;
+      }
+      _ => return out,
+    }
+  }
   pub fn parse_module(&self, cst: &Cst) -> Option<AstModule> {
     if cst.kind != CstKind::Module {
       return None;
@@ -24,7 +135,7 @@ impl AstParser {
     let mut module =
       AstModule { filename: self.filename.clone(), items: Vec::new() };
 
-    for element in &cst.elements {
+    for element in cst.iter_important() {
       match element {
         CstElem::Tree(sub_cst) => match sub_cst.kind {
           CstKind::ItemStatic => {
@@ -39,7 +150,10 @@ impl AstParser {
           CstKind::ItemFunction => continue,
           _ => module.items.push(AstItem::ErrAstItem),
         },
-        _ => module.items.push(AstItem::ErrAstItem),
+        _other => {
+          dbg!(_other);
+          module.items.push(AstItem::ErrAstItem)
+        }
       }
     }
 
@@ -50,40 +164,19 @@ impl AstParser {
     if cst.kind != CstKind::ItemStatic {
       return AstItem::ErrAstItem;
     }
-    println!("{cst}");
-    let mut out = AstStaticMmio {
-      location: AstValExpr::ErrAstValExpr,
-      location_span: 0..0,
-      name: StrId::default(),
-      name_span: 0..0,
-      ty: AstTypeExpr::ErrAstTypeExpr,
-      ty_span: 0..0,
-    };
+    let mut out = AstStaticMmio::default();
     let mut it = cst.iter_important();
-    if !matches!(it.next(), Some(CstElem::Token(Token { kind: KwStatic, .. })))
-    {
-      return AstItem::ErrAstItem;
-    }
-    if !matches!(it.next(), Some(CstElem::Token(Token { kind: KwMmio, .. }))) {
-      return AstItem::ErrAstItem;
-    }
-    if !matches!(it.next(), Some(CstElem::Token(Token { kind: OpParen, .. }))) {
-      return AstItem::ErrAstItem;
-    }
-    let _location_expr = it.next(); // TODO
-    if !matches!(it.next(), Some(CstElem::Token(Token { kind: ClParen, .. }))) {
-      return AstItem::ErrAstItem;
-    }
-    let _name = it.next(); // TODO
-    if !matches!(it.next(), Some(CstElem::Token(Token { kind: Colon, .. }))) {
-      return AstItem::ErrAstItem;
-    }
-    let _type_expr = it.next(); // TODO
-    if !matches!(it.next(), Some(CstElem::Token(Token { kind: Semicolon, .. })))
-    {
-      return AstItem::ErrAstItem;
-    }
-
+    out.span.start = expect_tk_kind!(it, KwStatic).span_within(&self.src).start;
+    expect_tk_kind!(it, KwMmio);
+    expect_tk_kind!(it, OpParen);
+    out.location = self.parse_val_expr(expect_cst_kind!(it, ValExpr));
+    expect_tk_kind!(it, ClParen);
+    let (id, span) = self.token_id_span(expect_tk_kind!(it, Ident));
+    out.name = id;
+    out.name_span = span;
+    expect_tk_kind!(it, Colon);
+    out.ty = self.parse_type_expr(expect_cst_kind!(it, TypeExpr));
+    out.span.end = expect_tk_kind!(it, Semicolon).span_within(&self.src).end;
     AstItem::StaticMmio(out)
   }
 }

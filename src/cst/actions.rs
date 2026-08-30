@@ -84,9 +84,7 @@ fn do_static(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
       p.eat_trivia();
       p.expect(OpParen);
       p.eat_trivia();
-      let m_expr = p.open();
       try_value_expr(p);
-      p.close(m_expr, CstKind::ValExpr);
       p.eat_trivia();
       p.expect(ClParen);
       p.eat_trivia();

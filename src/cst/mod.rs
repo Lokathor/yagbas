@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
 //! Concrete Syntax Tree module.
 
+use std::ops::Range;
+
 use crate::cst::actions::do_module;
 use crate::cst::parser::CstParser;
 use crate::tokenizer::Token;
@@ -86,11 +88,28 @@ impl Cst {
       CstElem::Tree(_cst) => None,
     })
   }
-
-  pub(crate) fn iter_important(&self) -> impl Iterator<Item = &CstElem> {
+  /// Iter over elements but skip `Whitespace` and `Comment` token elements.
+  pub fn iter_important(&self) -> impl Iterator<Item = &CstElem> {
     self.elements.iter().filter(|el| {
       !matches!(el, CstElem::Token(Token { kind: Whitespace | Comment, .. }))
     })
+  }
+  /// Gets the span of this tree within the source.
+  pub fn span_within(&self, src: &str) -> Range<usize> {
+    let mut out = 0..0;
+    if let Some(el) = self.elements.first() {
+      out.start = match el {
+        CstElem::Token(token) => token.position as usize,
+        CstElem::Tree(cst) => cst.span_within(src).start,
+      };
+    }
+    if let Some(el) = self.elements.last() {
+      out.end = match el {
+        CstElem::Token(token) => token.span_within(src).end,
+        CstElem::Tree(cst) => cst.span_within(src).end,
+      };
+    }
+    out
   }
 }
 impl core::fmt::Display for Cst {
@@ -174,6 +193,8 @@ pub enum CstKind {
   StmtEmpty,
   IfCondition,
   Pattern,
+  MmioLocation,
+  Name,
 }
 impl CstKind {
   /// If this tree kind is some sort of error.
@@ -217,4 +238,20 @@ impl CstKind {
 pub enum CstElem {
   Token(Token),
   Tree(Cst),
+}
+impl CstElem {
+  /// When this is a `Token` variant, gives the wrapped [Token].
+  pub const fn token(&self) -> Option<Token> {
+    match self {
+      CstElem::Token(token) => Some(*token),
+      CstElem::Tree(_) => None,
+    }
+  }
+  /// When this is a `Tree` variant, gives the wrapped [Cst] (by ref).
+  pub const fn tree(&self) -> Option<&Cst> {
+    match self {
+      CstElem::Token(_) => None,
+      CstElem::Tree(cst) => Some(cst),
+    }
+  }
 }

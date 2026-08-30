@@ -106,9 +106,13 @@ fn do_ast(mut arguments: Vec<OsString>) {
       Ok(src) => {
         let cst = Cst::from_module_src(&src);
         let ast_parser = AstParser { filename, src };
-        let ast = ast_parser.parse_module(&cst);
+        let ast = ast_parser
+          .parse_module(&cst)
+          .expect("Cst parser generated an invalid Cst");
         println!("```");
-        println!("{ast:?}");
+        for item in ast.items {
+          println!("== {item:#?}");
+        }
         println!("```");
       }
       Err(e) => {

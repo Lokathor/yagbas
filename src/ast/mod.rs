@@ -20,28 +20,46 @@ pub enum AstItem {
   ErrAstItem,
 }
 
-#[derive(Debug, Clone)]
-pub enum AstValExpr {
-  ErrAstValExpr,
-  Reference(Box<Self>),
-  Dereference(Box<Self>),
+#[derive(Debug, Clone, Default)]
+pub struct AstValExpr {
+  pub span: Range<usize>,
+  pub kind: AstValExprKind,
 }
 
-#[derive(Debug, Clone)]
-pub enum AstTypeExpr {
-  ErrAstTypeExpr,
+#[derive(Debug, Clone, Default)]
+pub enum AstValExprKind {
+  #[default]
+  ErrAstValExprKind,
+  LiteralNumber(StrId),
+  Reference(Box<AstValExpr>),
+  Dereference(Box<AstValExpr>),
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AstTypeExpr {
+  pub span: Range<usize>,
+  pub kind: AstTypeExprKind,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum AstTypeExprKind {
+  #[default]
+  ErrAstTypeExprKind,
   Plain(StrId),
-  Array { element_ty: Box<AstTypeExpr>, length: Box<AstValExpr> },
+  Array {
+    element_ty: Box<AstTypeExpr>,
+    length: Box<AstValExpr>,
+  },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AstStaticMmio {
+  pub span: Range<usize>,
+  /// location of the static value within the GB
   pub location: AstValExpr,
-  pub location_span: Range<usize>,
   pub name: StrId,
   pub name_span: Range<usize>,
   pub ty: AstTypeExpr,
-  pub ty_span: Range<usize>,
 }
 
 #[derive(Debug, Clone)]

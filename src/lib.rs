@@ -2,6 +2,8 @@
 #![allow(unused_braces)]
 #![allow(unused_parens)]
 #![allow(unused_labels)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::field_reassign_with_default)]
 #![warn(missing_docs)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
