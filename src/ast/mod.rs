@@ -1,13 +1,13 @@
 //! Module for the Abstract Syntax Tree types.
 
-use std::{ffi::OsString, ops::Range};
-use str_id::StrId;
+use std::ops::Range;
+use str_id::{PathId, StrId};
 
 pub mod parser;
 
 #[derive(Debug, Clone)]
 pub struct AstModule {
-  pub filename: OsString,
+  pub filename: PathId,
   pub items: Vec<AstItem>,
 }
 

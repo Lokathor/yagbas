@@ -14,5 +14,4 @@ lto = true
 [features]
 
 [dependencies]
-str_id = "1.0.0"
-#str_id = "1.0.0"
+str_id = "1.1.0"

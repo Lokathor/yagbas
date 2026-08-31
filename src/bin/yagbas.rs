@@ -1,5 +1,6 @@
-use std::ffi::OsString;
+use std::{ffi::OsString, path::Path};
 
+use str_id::PathId;
 use yagbas::{
   ast::parser::AstParser,
   basic_blocks::basic_blocks_of,
@@ -100,13 +101,14 @@ fn do_ast(mut arguments: Vec<OsString>) {
   if target_files.is_empty() {
     println!("(No filenames provided.)")
   }
-  for filename in target_files {
-    println!("## `{}`", filename.display());
-    match std::fs::read_to_string(&filename) {
+  for target_file in target_files {
+    let path_id = PathId::from(Path::new(&target_file));
+    println!("## `{path_id}`");
+    match std::fs::read_to_string(&target_file) {
       Ok(src) => {
         let cst = Cst::from_module_src(&src);
         debug_assert_eq!(cst.kind, CstKind::Module);
-        let ast_parser = AstParser { filename, src };
+        let ast_parser = AstParser { path_id, src };
         let ast = ast_parser.parse_module(&cst);
         println!("```");
         for item in ast.items {

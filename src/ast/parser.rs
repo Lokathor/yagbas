@@ -2,7 +2,7 @@
 
 use std::{ffi::OsString, ops::Range};
 
-use str_id::StrId;
+use str_id::{PathId, StrId};
 
 use crate::{
   ast::{
@@ -51,7 +51,7 @@ macro_rules! expect_cst_kind {
 
 #[derive(Debug, Clone)]
 pub struct AstParser {
-  pub filename: OsString,
+  pub path_id: PathId,
   pub src: String,
 }
 type InfixMaker = fn(Box<AstValExpr>, Box<AstValExpr>) -> AstValExprKind;
@@ -148,8 +148,7 @@ impl AstParser {
   }
   pub fn parse_module(&self, cst: &Cst) -> AstModule {
     debug_assert_eq!(cst.kind, CstKind::Module);
-    let mut out =
-      AstModule { filename: self.filename.clone(), items: Vec::new() };
+    let mut out = AstModule { filename: self.path_id, items: Vec::new() };
 
     for element in cst.iter_important() {
       let mut item = AstItem::default();
