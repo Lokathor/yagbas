@@ -171,7 +171,9 @@ pub enum CstKind {
   //
   Module,
   ItemFunction,
-  ItemStatic,
+  ItemStaticMmio,
+  ItemStaticRam,
+  ItemStaticRom,
   ItemConst,
   ValExpr,
   TypeExpr,

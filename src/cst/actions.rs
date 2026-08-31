@@ -95,7 +95,7 @@ fn do_static(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
       do_type_expr(p);
       p.eat_trivia();
       p.expect(Semicolon);
-      p.close(m_item, CstKind::ItemStatic)
+      p.close(m_item, CstKind::ItemStaticMmio)
     }
     _ => {
       p.advance();

@@ -15,3 +15,4 @@ lto = true
 
 [dependencies]
 str_id = "1.1.0"
+tinyvec = { version = "1.12.0", features = ["latest_stable_rust"] }

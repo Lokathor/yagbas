@@ -112,7 +112,7 @@ fn do_ast(mut arguments: Vec<OsString>) {
         let ast = ast_parser.parse_module(&cst);
         println!("```");
         for item in ast.items {
-          println!("== {item:#?}");
+          //println!("== {item:#?}");
         }
         println!("```");
       }

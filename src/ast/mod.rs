@@ -41,6 +41,7 @@ pub enum AstValExprKind {
   Reference(Box<AstValExpr>),
   Dereference(Box<AstValExpr>),
   Multiply(Box<AstValExpr>, Box<AstValExpr>),
+  Assign(Box<AstValExpr>, Box<AstValExpr>),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -76,16 +77,13 @@ pub struct AstConstant {
   pub xpr: AstValExpr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AstFunction {
   pub name: StrId,
   pub name_span: Range<usize>,
   pub arguments: Vec<AstFunctionArgument>,
   /// if no return is explicit, it's implicitly still `()`
   pub return_ty: AstTypeExpr,
-  /// if no return type is explicit, point to the 0-span position after the
-  /// argument list close as being the implicit position.
-  pub return_ty_span: Range<usize>,
   pub body: AstBody,
 }
 
@@ -97,7 +95,7 @@ pub struct AstFunctionArgument {
   pub ty_span: Range<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AstBody {
   pub statements: Vec<AstStatement>,
 }
@@ -108,8 +106,16 @@ pub struct AstLet {
   pub xpr: AstValExpr,
 }
 
-#[derive(Debug, Clone)]
-pub enum AstStatement {
+#[derive(Debug, Clone, Default)]
+pub struct AstStatement {
+  pub span: Range<usize>,
+  pub kind: AstStatementKind,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum AstStatementKind {
+  #[default]
+  ErrAstStatementKind,
   Let(AstLet),
   Expression(AstValExpr),
   Item(AstItem),

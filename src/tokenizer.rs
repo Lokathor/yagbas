@@ -44,7 +44,7 @@ impl Token {
 }
 
 /// The possible kinds of token that can exist in Yagbas source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(u8)]
 pub enum TokenKind {
   // error cases
@@ -63,6 +63,9 @@ pub enum TokenKind {
   ErrBadRawValue,
   /// Dummy value for code to use when indexing tokens out of bounds.
   ErrEndOfFile,
+  /// variant used for the Default impl
+  #[default]
+  ErrDefault,
 
   // keywords
   /// `as`
