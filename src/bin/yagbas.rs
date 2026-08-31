@@ -105,10 +105,9 @@ fn do_ast(mut arguments: Vec<OsString>) {
     match std::fs::read_to_string(&filename) {
       Ok(src) => {
         let cst = Cst::from_module_src(&src);
+        debug_assert_eq!(cst.kind, CstKind::Module);
         let ast_parser = AstParser { filename, src };
-        let ast = ast_parser
-          .parse_module(&cst)
-          .expect("Cst parser generated an invalid Cst");
+        let ast = ast_parser.parse_module(&cst);
         println!("```");
         for item in ast.items {
           println!("== {item:#?}");

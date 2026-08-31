@@ -6,8 +6,10 @@ use str_id::StrId;
 
 use crate::{
   ast::{
-    AstConstant, AstItem, AstModule, AstStaticMmio, AstTypeExpr,
-    AstTypeExprKind, AstValExpr, AstValExprKind,
+    AstConstant, AstItem,
+    AstItemKind::{self, ErrAstItemKind},
+    AstModule, AstStaticMmio, AstTypeExpr, AstTypeExprKind, AstValExpr,
+    AstValExprKind,
   },
   cst::{
     Cst, CstElem,
@@ -24,15 +26,6 @@ use crate::{
 
 /// `let t = expect_tk_kind!(it, KIND);`
 macro_rules! expect_tk_kind {
-  ($it:expr, $kind:tt) => {
-    if let Some(token) = $it.next().and_then(CstElem::token)
-      && token.kind == $kind
-    {
-      token
-    } else {
-      return AstItem::ErrAstItem;
-    }
-  };
   ($it:expr, $kind:tt, $out:expr) => {
     if let Some(token) = $it.next().and_then(CstElem::token)
       && token.kind == $kind
@@ -45,15 +38,6 @@ macro_rules! expect_tk_kind {
 }
 /// `let cst = expect_cst_kind!(it, KIND);`
 macro_rules! expect_cst_kind {
-  ($it:expr, $kind:tt) => {{
-    if let Some(tree) = $it.next().and_then(CstElem::tree)
-      && tree.kind == $kind
-    {
-      tree
-    } else {
-      return AstItem::ErrAstItem;
-    }
-  }};
   ($it:expr, $kind:tt, $out:expr) => {{
     if let Some(tree) = $it.next().and_then(CstElem::tree)
       && tree.kind == $kind
@@ -162,76 +146,79 @@ impl AstParser {
       _ => return out,
     }
   }
-  pub fn parse_module(&self, cst: &Cst) -> Option<AstModule> {
-    if cst.kind != CstKind::Module {
-      return None;
-    }
-    let mut module =
+  pub fn parse_module(&self, cst: &Cst) -> AstModule {
+    debug_assert_eq!(cst.kind, CstKind::Module);
+    let mut out =
       AstModule { filename: self.filename.clone(), items: Vec::new() };
 
     for element in cst.iter_important() {
+      let mut item = AstItem::default();
       match element {
-        CstElem::Tree(sub_cst) => match sub_cst.kind {
-          CstKind::ItemStatic => {
-            let i = if sub_cst.tokens_here().any(|tk| tk.kind == KwMmio) {
-              self.parse_static_mmio(sub_cst)
-            } else {
-              AstItem::ErrAstItem
-            };
-            module.items.push(i);
+        CstElem::Tree(tree) => {
+          item.span = tree.span_within(&self.src);
+          match tree.kind {
+            CstKind::ItemStatic => {
+              item.kind = self.parse_static_mmio(tree);
+            }
+            CstKind::ItemConst => {
+              item.kind = self.parse_constant(tree);
+            }
+            CstKind::ItemFunction => {
+              dbg!("todo, function parsing");
+            }
+            _other_cst_kind => {
+              dbg!(_other_cst_kind);
+            }
           }
-          CstKind::ItemConst => {
-            module.items.push(self.parse_constant(sub_cst));
-          }
-          CstKind::ItemFunction => {
-            dbg!("todo, function parsing");
-            continue;
-          }
-          _ => module.items.push(AstItem::ErrAstItem),
-        },
-        _other => {
-          dbg!(_other);
-          module.items.push(AstItem::ErrAstItem)
+        }
+        CstElem::Token(token) => {
+          item.span = token.span_within(&self.src);
+          dbg!(token);
         }
       }
+      out.items.push(item);
     }
 
-    Some(module)
+    out
   }
 
-  pub fn parse_static_mmio(&self, cst: &Cst) -> AstItem {
+  pub fn parse_static_mmio(&self, cst: &Cst) -> AstItemKind {
     debug_assert_eq!(cst.kind, CstKind::ItemStatic);
     let mut out = AstStaticMmio::default();
-    out.span = cst.span_within(&self.src);
     let mut it = cst.iter_important();
-    expect_tk_kind!(it, KwStatic);
-    expect_tk_kind!(it, KwMmio);
-    expect_tk_kind!(it, OpParen);
-    out.address = self.parse_val_expr(expect_cst_kind!(it, ValExpr));
-    expect_tk_kind!(it, ClParen);
-    let (id, span) = self.token_id_span(expect_tk_kind!(it, Ident));
+    expect_tk_kind!(it, KwStatic, ErrAstItemKind);
+    expect_tk_kind!(it, KwMmio, ErrAstItemKind);
+    expect_tk_kind!(it, OpParen, ErrAstItemKind);
+    out.address =
+      self.parse_val_expr(expect_cst_kind!(it, ValExpr, ErrAstItemKind));
+    expect_tk_kind!(it, ClParen, ErrAstItemKind);
+    let (id, span) =
+      self.token_id_span(expect_tk_kind!(it, Ident, ErrAstItemKind));
     out.name = id;
     out.name_span = span;
-    expect_tk_kind!(it, Colon);
-    out.ty = self.parse_type_expr(expect_cst_kind!(it, TypeExpr));
-    expect_tk_kind!(it, Semicolon);
-    AstItem::StaticMmio(out)
+    expect_tk_kind!(it, Colon, ErrAstItemKind);
+    out.ty =
+      self.parse_type_expr(expect_cst_kind!(it, TypeExpr, ErrAstItemKind));
+    expect_tk_kind!(it, Semicolon, ErrAstItemKind);
+    AstItemKind::StaticMmio(out)
   }
 
-  fn parse_constant(&self, cst: &Cst) -> AstItem {
+  fn parse_constant(&self, cst: &Cst) -> AstItemKind {
     debug_assert_eq!(cst.kind, CstKind::ItemConst);
     let mut out = AstConstant::default();
-    out.span = cst.span_within(&self.src);
     let mut it = cst.iter_important();
-    expect_tk_kind!(it, KwConst);
-    let (id, span) = self.token_id_span(expect_tk_kind!(it, Ident));
+    expect_tk_kind!(it, KwConst, ErrAstItemKind);
+    let (id, span) =
+      self.token_id_span(expect_tk_kind!(it, Ident, ErrAstItemKind));
     out.name = id;
     out.name_span = span;
-    expect_tk_kind!(it, Colon);
-    out.ty = self.parse_type_expr(expect_cst_kind!(it, TypeExpr));
-    expect_tk_kind!(it, Equal);
-    out.xpr = self.parse_val_expr(expect_cst_kind!(it, ValExpr));
-    expect_tk_kind!(it, Semicolon);
-    AstItem::Constant(out)
+    expect_tk_kind!(it, Colon, ErrAstItemKind);
+    out.ty =
+      self.parse_type_expr(expect_cst_kind!(it, TypeExpr, ErrAstItemKind));
+    expect_tk_kind!(it, Equal, ErrAstItemKind);
+    out.xpr =
+      self.parse_val_expr(expect_cst_kind!(it, ValExpr, ErrAstItemKind));
+    expect_tk_kind!(it, Semicolon, ErrAstItemKind);
+    AstItemKind::Constant(out)
   }
 }

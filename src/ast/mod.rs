@@ -11,12 +11,19 @@ pub struct AstModule {
   pub items: Vec<AstItem>,
 }
 
-#[derive(Debug, Clone)]
-pub enum AstItem {
+#[derive(Debug, Clone, Default)]
+pub struct AstItem {
+  pub span: Range<usize>,
+  pub kind: AstItemKind,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum AstItemKind {
+  #[default]
+  ErrAstItemKind,
   StaticMmio(AstStaticMmio),
   Constant(AstConstant),
   Function(AstFunction),
-  ErrAstItem,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -55,7 +62,6 @@ pub enum AstTypeExprKind {
 
 #[derive(Debug, Clone, Default)]
 pub struct AstStaticMmio {
-  pub span: Range<usize>,
   pub address: AstValExpr,
   pub name: StrId,
   pub name_span: Range<usize>,
@@ -64,7 +70,6 @@ pub struct AstStaticMmio {
 
 #[derive(Debug, Clone, Default)]
 pub struct AstConstant {
-  pub span: Range<usize>,
   pub name: StrId,
   pub name_span: Range<usize>,
   pub ty: AstTypeExpr,
@@ -100,9 +105,7 @@ pub struct AstBody {
 #[derive(Debug, Clone)]
 pub struct AstLet {
   pub pattern: AstValExpr,
-  pub pattern_span: Range<usize>,
   pub xpr: AstValExpr,
-  pub xpr_span: Range<usize>,
 }
 
 #[derive(Debug, Clone)]
