@@ -7,7 +7,7 @@ pub mod parser;
 
 #[derive(Debug, Clone)]
 pub struct AstModule {
-  pub filename: PathId,
+  pub path_id: PathId,
   pub items: Vec<AstItem>,
 }
 

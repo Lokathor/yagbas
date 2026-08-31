@@ -148,7 +148,7 @@ impl AstParser {
   }
   pub fn parse_module(&self, cst: &Cst) -> AstModule {
     debug_assert_eq!(cst.kind, CstKind::Module);
-    let mut out = AstModule { filename: self.path_id, items: Vec::new() };
+    let mut out = AstModule { path_id: self.path_id, items: Vec::new() };
 
     for element in cst.iter_important() {
       let mut item = AstItem::default();
