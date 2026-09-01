@@ -186,7 +186,6 @@ pub enum CstKind {
   StmtLet,
   StmtValExpr,
   StmtItem,
-  StmtLoop,
   StmtExpression,
   StmtIf,
   StmtFor,
@@ -228,7 +227,6 @@ impl CstKind {
         | StmtIf
         | StmtItem
         | StmtLet
-        | StmtLoop
         | StmtValExpr
     )
   }

@@ -2,7 +2,7 @@
 
 use crate::cst::{
   Cst,
-  CstKind::{self, ItemFunction, StmtEmpty, StmtExpression, StmtLet, StmtLoop},
+  CstKind::{self, ItemFunction, StmtEmpty, StmtExpression, StmtLet},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -58,6 +58,7 @@ pub fn basic_blocks_of(cst: &Cst) -> Vec<BasicBlock> {
   return blocks;
 
   #[allow(unused)]
+  #[allow(clippy::ptr_arg)]
   fn rec_basic_blocks_of(
     body: &Cst, blocks: &mut Vec<BasicBlock>, next_id: &mut usize,
   ) {
@@ -78,26 +79,6 @@ pub fn basic_blocks_of(cst: &Cst) -> Vec<BasicBlock> {
             .unwrap()
             .statements
             .push(BasicBlockStatement::Let { pattern, expression })
-        }
-        StmtLoop => {
-          let loop_body_id = BlockId(*next_id);
-          *next_id += 1;
-          let loop_after_id = BlockId(*next_id);
-          *next_id += 1;
-          let Some(loop_body) =
-            stmt_tree.sub_trees().find(|cst| cst.kind == CstKind::Body)
-          else {
-            // do we need to log an error here?
-            continue;
-          };
-          let mut loop_body_block = BasicBlock::new(loop_body_id);
-          let mut loop_after_block = BasicBlock::new(loop_after_id);
-          blocks.last_mut().unwrap().terminator =
-            BasicBlockTerminator::AlwaysJump(loop_body_block.id);
-          blocks.push(loop_body_block);
-          // oops!! no labels went into here so the recursive call can't tell
-          // where to break to if it sees a break expression.
-          rec_basic_blocks_of(loop_body, blocks, next_id);
         }
         StmtExpression => blocks
           .last_mut()

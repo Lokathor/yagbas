@@ -364,6 +364,17 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
         p.expect(ClParen);
         p.close(m, CstKind::ValExpr)
       }
+      KwLoop => {
+        let m_loop = p.open();
+        p.expect(KwLoop);
+        let m_body = p.open_eat_trivia();
+        if p.at(OpBrace) {
+          do_body(p, m_body);
+        } else {
+          p.close(m_body, CstKind::ErrExpected(OpBrace));
+        }
+        p.close(m_loop, CstKind::ValExpr)
+      }
       _ => return None,
     })
   }
@@ -520,16 +531,6 @@ fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
       try_value_expr(p);
       p.expect(Semicolon);
       p.close(m_stmt, CstKind::StmtLet)
-    }
-    KwLoop => {
-      p.expect(KwLoop);
-      let m_body = p.open_eat_trivia();
-      if p.at(OpBrace) {
-        do_body(p, m_body);
-      } else {
-        p.close(m_body, CstKind::ErrExpected(OpBrace));
-      }
-      p.close(m_stmt, CstKind::StmtLoop)
     }
     KwIf => {
       p.expect(KwIf);

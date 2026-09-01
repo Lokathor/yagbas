@@ -23,8 +23,8 @@ use crate::{
   tokenizer::{
     Token,
     TokenKind::{
-      self, ClBrace, ClParen, Colon, Equal, Ident, KwConst, KwFn, KwMmio,
-      KwStatic, LitNum, OpBrace, OpBracket, OpParen, Semicolon,
+      self, ClBrace, ClParen, Colon, Equal, Ident, KwConst, KwFn, KwLoop,
+      KwMmio, KwStatic, LitNum, OpBrace, OpBracket, OpParen, Semicolon,
     },
   },
 };
@@ -268,7 +268,6 @@ impl AstParser {
           stmt.kind = match cst.kind {
             CstKind::StmtEmpty => continue,
             CstKind::StmtExpression => self.parse_stmt_expression(cst),
-            CstKind::StmtLoop => self.parse_stmt_loop(cst),
             CstKind::StmtLet => self.parse_stmt_let(cst),
             CstKind::StmtFor => self.parse_stmt_for(cst),
             _other => {
@@ -293,12 +292,6 @@ impl AstParser {
     let val_expr = self.parse_val_expr(val_expr_cst);
     expect_tk_kind!(it, Semicolon, ErrAstStatementKind);
     AstStatementKind::Expression(val_expr)
-  }
-
-  fn parse_stmt_loop(&self, cst: &Cst) -> AstStatementKind {
-    debug_assert_eq!(cst.kind, CstKind::StmtLoop);
-    eprintln!("==StmtLoop {cst:?}");
-    ErrAstStatementKind
   }
 
   fn parse_stmt_let(&self, cst: &Cst) -> AstStatementKind {
