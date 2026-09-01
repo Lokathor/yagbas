@@ -184,7 +184,6 @@ pub enum CstKind {
   FnCallArgument,
   ArgumentList,
   StmtLet,
-  StmtValExpr,
   StmtItem,
   StmtExpression,
   StmtIf,
@@ -221,13 +220,7 @@ impl CstKind {
     use CstKind::*;
     matches!(
       self,
-      StmtEmpty
-        | StmtExpression
-        | StmtFor
-        | StmtIf
-        | StmtItem
-        | StmtLet
-        | StmtValExpr
+      StmtEmpty | StmtExpression | StmtFor | StmtIf | StmtItem | StmtLet
     )
   }
 }
