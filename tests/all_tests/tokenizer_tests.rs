@@ -125,3 +125,8 @@ fn test_colon_colon() {
 fn test_dot_dot_eq() {
   expect_token("..=", DotDotEqual);
 }
+
+#[test]
+fn test_eq_eq() {
+  expect_token("==", EqualEqual);
+}

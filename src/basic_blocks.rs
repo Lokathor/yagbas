@@ -66,13 +66,10 @@ pub fn basic_blocks_of(cst: &Cst) -> Vec<BasicBlock> {
       match stmt_tree.kind {
         StmtEmpty => continue,
         StmtLet => {
-          let pattern = stmt_tree
-            .sub_trees()
-            .find(|st| st.kind == CstKind::Pattern)
-            .cloned();
+          let pattern = todo!();
           let expression = stmt_tree
             .sub_trees()
-            .find(|st| st.kind == CstKind::ValExpr)
+            .find(|st| st.kind == CstKind::ExprVal)
             .cloned();
           blocks
             .last_mut()

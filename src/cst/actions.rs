@@ -222,7 +222,7 @@ fn do_type_expr(p: &mut CstParser) {
       return;
     }
   }
-  p.close(m_type_expr, CstKind::TypeExpr);
+  p.close(m_type_expr, CstKind::ExprType);
 }
 
 /// Parse a value expression, or `None` for no input consumed.
@@ -353,7 +353,7 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
       KwTrue | KwFalse | Ident | LitNum | LitStr => {
         let m = p.open();
         p.advance();
-        p.close(m, CstKind::ValExpr)
+        p.close(m, CstKind::ExprVal)
       }
       OpParen => {
         let m = p.open();
@@ -362,7 +362,7 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
         try_value_expr(p);
         p.eat_trivia();
         p.expect(ClParen);
-        p.close(m, CstKind::ValExpr)
+        p.close(m, CstKind::ExprVal)
       }
       KwLoop => {
         let m_expr = p.open();
@@ -387,7 +387,7 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
     debug_assert_ne!(p.peek(), Comment);
     // prefix or atom
     let mut lhs: CloseMark = if let Some(op) = peek_prefix_operator(p) {
-      let expr_mark = p.open();
+      let lhs_mark = p.open();
       let op_mark = p.open();
       for _ in 0..op.token_length() {
         p.advance();
@@ -398,12 +398,12 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
         p.expect(TokenKind::Ident);
         p.eat_trivia();
       }
-      p.close(op_mark, CstKind::PrefixOperator);
+      p.close(op_mark, CstKind::OperatorPrefix(op));
       if try_value_expr_rec(p, op.binding()).is_none() && op.needs_operand() {
         let m2 = p.open();
         p.close(m2, CstKind::ErrExpectedValueExpression);
       }
-      p.close(expr_mark, CstKind::ValExpr)
+      p.close(lhs_mark, CstKind::ExprVal)
     } else {
       try_val_atom(p)?
     };
@@ -419,12 +419,12 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
           break;
         }
         previous_bind_power = Some(bind_power);
-        let expr_mark = p.open_before(lhs);
+        let new_lhs = p.open_before(lhs);
         let op_mark = p.open();
         for _ in 0..op.token_length() {
           p.advance();
         }
-        p.close(op_mark, CstKind::PostfixOperator);
+        p.close(op_mark, CstKind::OperatorPostfix(op));
         match op {
           PostfixOperator::Try => (),
           PostfixOperator::FnCall => {
@@ -452,7 +452,7 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
               p.close(err_mark, CstKind::ErrExpectedValueExpression);
             }
             p.eat_trivia();
-            p.close(arg_list_mark, CstKind::ValExpr);
+            p.close(arg_list_mark, CstKind::ExprVal);
             p.expect(TokenKind::ClBracket);
           }
           PostfixOperator::As => {
@@ -467,7 +467,7 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
             p.eat_trivia();
           }
         }
-        lhs = p.close(expr_mark, CstKind::ValExpr);
+        lhs = p.close(new_lhs, CstKind::ExprVal);
         continue;
       }
       if let Some(op) = peek_infix_operator(p) {
@@ -490,19 +490,19 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
           let err_mark = p.open();
           p.close(err_mark, CstKind::ErrNeedsParensToDisambiguate);
         }
-        let expr_mark = p.open_before(lhs);
+        let new_lhs = p.open_before(lhs);
         let op_mark = p.open();
         for _ in 0..op.token_length() {
           p.advance();
         }
-        p.close(op_mark, CstKind::InfixOperator);
+        p.close(op_mark, CstKind::OperatorInfix(op));
         p.eat_trivia();
         // rhs
         if try_value_expr_rec(p, rhs_bp).is_none() {
           let err_mark = p.open();
           p.close(err_mark, CstKind::ErrExpectedValueExpression);
         }
-        lhs = p.close(expr_mark, CstKind::ValExpr);
+        lhs = p.close(new_lhs, CstKind::ExprVal);
         continue;
       }
       // no operator visible, so we stop gathering.
@@ -523,9 +523,8 @@ fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
     }
     KwLet => {
       p.expect(KwLet);
-      let m_pattern = p.open_eat_trivia();
+      p.eat_trivia();
       p.expect(Ident);
-      p.close(m_pattern, CstKind::Pattern);
       p.eat_trivia();
       p.expect(Equal);
       p.eat_trivia();
@@ -596,17 +595,16 @@ fn do_loop(p: &mut CstParser, mark: OpenMark) -> CloseMark {
   } else {
     p.close(m_body, CstKind::ErrExpected(OpBrace));
   }
-  p.close(mark, CstKind::ValExpr)
+  p.close(mark, CstKind::ExprVal)
 }
 
 fn do_if(p: &mut CstParser, mark: OpenMark) -> CloseMark {
   debug_assert_eq!(p.peek(), KwIf);
   p.expect(KwIf);
-  let m_condition = p.open_eat_trivia();
+  p.eat_trivia();
   if try_value_expr(p).is_none() {
     p.place_error(ErrExpectedIfCondition);
   }
-  p.close(m_condition, CstKind::IfCondition);
   let m_body = p.open_eat_trivia();
   if p.at(OpBrace) {
     do_body(p, m_body);
@@ -614,7 +612,7 @@ fn do_if(p: &mut CstParser, mark: OpenMark) -> CloseMark {
     p.close(m_body, CstKind::ErrExpected(OpBrace));
   }
   // TODO: handle "else"
-  p.close(mark, CstKind::ValExpr)
+  p.close(mark, CstKind::ExprVal)
 }
 
 fn do_for(p: &mut CstParser, m_expr: OpenMark) -> CloseMark {
@@ -622,14 +620,14 @@ fn do_for(p: &mut CstParser, m_expr: OpenMark) -> CloseMark {
   p.expect(KwFor);
   let m_step_var = p.open_eat_trivia();
   if try_value_expr(p).is_some() {
-    p.close(m_step_var, CstKind::ForStepExpr);
+    p.close(m_step_var, CstKind::ExprForVar);
   } else {
     p.close(m_step_var, CstKind::ErrExpectedValueExpression);
   };
   p.expect(KwIn);
   let m_range_var = p.open_eat_trivia();
   if try_value_expr(p).is_some() {
-    p.close(m_range_var, CstKind::ForRangeExpr);
+    p.close(m_range_var, CstKind::ExprForRange);
   } else {
     p.close(m_range_var, CstKind::ErrExpectedValueExpression);
   };
@@ -639,5 +637,5 @@ fn do_for(p: &mut CstParser, m_expr: OpenMark) -> CloseMark {
   } else {
     p.close(m_body, CstKind::ErrExpected(OpBrace));
   }
-  p.close(m_expr, CstKind::ValExpr)
+  p.close(m_expr, CstKind::ExprVal)
 }

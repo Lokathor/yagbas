@@ -27,54 +27,63 @@ pub enum AstItemKind {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct AstValExpr {
+pub struct AstExprVal {
   pub span: Range<usize>,
-  pub kind: AstValExprKind,
+  pub kind: AstExprValKind,
 }
 
 #[derive(Debug, Clone, Default)]
-pub enum AstValExprKind {
+pub enum AstExprValKind {
   #[default]
   ErrAstValExprKind,
   LiteralNumber(StrId),
   Identifier(StrId),
-  Reference(Box<AstValExpr>),
-  Dereference(Box<AstValExpr>),
-  Multiply(Box<AstValExpr>, Box<AstValExpr>),
-  Assign(Box<AstValExpr>, Box<AstValExpr>),
+  Reference(Box<AstExprVal>),
+  Dereference(Box<AstExprVal>),
+  Multiply(Box<AstExprVal>, Box<AstExprVal>),
+  CmpEq(Box<AstExprVal>, Box<AstExprVal>),
+  Assign(Box<AstExprVal>, Box<AstExprVal>),
+  AddAssign(Box<AstExprVal>, Box<AstExprVal>),
+  ArrayIndex(Box<AstExprVal>, Box<AstExprVal>),
+  RangeInclusive(Box<AstExprVal>, Box<AstExprVal>),
+  RangeExclusive(Box<AstExprVal>, Box<AstExprVal>),
+  Loop(Box<AstBody>),
+  If(Box<AstExprVal>, Box<AstBody>),
+  Break,
+  For(Box<AstExprVal>, Box<AstExprVal>, Box<AstBody>),
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct AstTypeExpr {
+pub struct AstExprType {
   pub span: Range<usize>,
-  pub kind: AstTypeExprKind,
+  pub kind: AstExprTypeKind,
 }
 
 #[derive(Debug, Clone, Default)]
-pub enum AstTypeExprKind {
+pub enum AstExprTypeKind {
   #[default]
   ErrAstTypeExprKind,
   Plain(StrId),
   Array {
-    element_ty: Box<AstTypeExpr>,
-    length: Box<AstValExpr>,
+    element_ty: Box<AstExprType>,
+    length: Box<AstExprVal>,
   },
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct AstStaticMmio {
-  pub address: AstValExpr,
+  pub address: AstExprVal,
   pub name: StrId,
   pub name_span: Range<usize>,
-  pub ty: AstTypeExpr,
+  pub ty: AstExprType,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct AstConstant {
   pub name: StrId,
   pub name_span: Range<usize>,
-  pub ty: AstTypeExpr,
-  pub xpr: AstValExpr,
+  pub ty: AstExprType,
+  pub xpr: AstExprVal,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -83,7 +92,7 @@ pub struct AstFunction {
   pub name_span: Range<usize>,
   pub arguments: Vec<AstFunctionArgument>,
   /// if no return is explicit, it's implicitly still `()`
-  pub return_ty: AstTypeExpr,
+  pub return_ty: AstExprType,
   pub body: AstBody,
 }
 
@@ -91,7 +100,7 @@ pub struct AstFunction {
 pub struct AstFunctionArgument {
   pub name: Option<StrId>,
   pub name_span: Range<usize>,
-  pub ty: AstTypeExpr,
+  pub ty: AstExprType,
   pub ty_span: Range<usize>,
 }
 
@@ -102,8 +111,8 @@ pub struct AstBody {
 
 #[derive(Debug, Clone)]
 pub struct AstLet {
-  pub pattern: AstValExpr,
-  pub xpr: AstValExpr,
+  pub pattern: AstExprVal,
+  pub xpr: AstExprVal,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -117,6 +126,6 @@ pub enum AstStatementKind {
   #[default]
   ErrAstStatementKind,
   Let(AstLet),
-  Expression(AstValExpr),
+  Expression(AstExprVal),
   Item(AstItem),
 }

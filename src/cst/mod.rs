@@ -4,6 +4,9 @@
 use std::ops::Range;
 
 use crate::cst::actions::do_module;
+use crate::cst::operators::InfixOperator;
+use crate::cst::operators::PostfixOperator;
+use crate::cst::operators::PrefixOperator;
 use crate::cst::parser::CstParser;
 use crate::tokenizer::Token;
 use crate::tokenizer::TokenKind;
@@ -176,26 +179,26 @@ pub enum CstKind {
   ItemStaticRom,
   ItemConst,
   //
+  ArgumentList,
+  FnCallArgument,
+  ReturnType,
+  Body,
+  //
   StmtLet,
   StmtItem,
   StmtExpression,
-  //
-  ForStepExpr,
-  ForRangeExpr,
-  ValExpr,
-  TypeExpr,
-  InfixOperator,
-  PrefixOperator,
-  PostfixOperator,
-  FnCallArgument,
-  ArgumentList,
-  ReturnType,
-  Body,
   StmtEmpty,
-  IfCondition,
-  Pattern,
+  //
+  ExprVal,
+  ExprType,
+  ExprForVar,
+  ExprForRange,
+  //
+  OperatorInfix(InfixOperator),
+  OperatorPrefix(PrefixOperator),
+  OperatorPostfix(PostfixOperator),
+  //
   MmioLocation,
-  Name,
 }
 impl CstKind {
   /// If this tree kind is some sort of error.
