@@ -366,55 +366,15 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
       }
       KwLoop => {
         let m_expr = p.open();
-        p.expect(KwLoop);
-        let m_body = p.open_eat_trivia();
-        if p.at(OpBrace) {
-          do_body(p, m_body);
-        } else {
-          p.close(m_body, CstKind::ErrExpected(OpBrace));
-        }
-        p.close(m_expr, CstKind::ValExpr)
+        do_loop(p, m_expr)
       }
       KwIf => {
         let m_expr = p.open();
-        p.expect(KwIf);
-        let m_condition = p.open_eat_trivia();
-        if try_value_expr(p).is_none() {
-          p.place_error(ErrExpectedIfCondition);
-        }
-        p.close(m_condition, CstKind::IfCondition);
-        let m_body = p.open_eat_trivia();
-        if p.at(OpBrace) {
-          do_body(p, m_body);
-        } else {
-          p.close(m_body, CstKind::ErrExpected(OpBrace));
-        }
-        // TODO: handle "else"
-        p.close(m_expr, CstKind::ValExpr)
+        do_if(p, m_expr)
       }
       KwFor => {
         let m_expr = p.open();
-        p.expect(KwFor);
-        let m_step_var = p.open_eat_trivia();
-        if try_value_expr(p).is_some() {
-          p.close(m_step_var, CstKind::ForStepExpr);
-        } else {
-          p.close(m_step_var, CstKind::ErrExpectedValueExpression);
-        };
-        p.expect(KwIn);
-        let m_range_var = p.open_eat_trivia();
-        if try_value_expr(p).is_some() {
-          p.close(m_range_var, CstKind::ForRangeExpr);
-        } else {
-          p.close(m_range_var, CstKind::ErrExpectedValueExpression);
-        };
-        let m_body = p.open_eat_trivia();
-        if p.at(OpBrace) {
-          do_body(p, m_body);
-        } else {
-          p.close(m_body, CstKind::ErrExpected(OpBrace));
-        }
-        p.close(m_expr, CstKind::ValExpr)
+        do_for(p, m_expr)
       }
       _ => return None,
     })
@@ -573,6 +533,25 @@ fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
       p.expect(Semicolon);
       p.close(m_stmt, CstKind::StmtLet)
     }
+    // Keywords that start an expression which ends with a brace, which have an
+    // implied semicolon after the brace, need to be caught here and given that
+    // separate handling, instead of passing to the generic expression statement
+    // handling which doesn't know about the implied semicolon.
+    KwLoop => {
+      let m_expr = p.open();
+      do_loop(p, m_expr);
+      p.close(m_stmt, CstKind::StmtExpression)
+    }
+    KwIf => {
+      let m_expr = p.open();
+      do_if(p, m_expr);
+      p.close(m_stmt, CstKind::StmtExpression)
+    }
+    KwFor => {
+      let m_expr = p.open();
+      do_for(p, m_expr);
+      p.close(m_stmt, CstKind::StmtExpression)
+    }
     _ => {
       if try_value_expr(p).is_some() {
         p.eat_trivia();
@@ -606,4 +585,59 @@ fn do_body(p: &mut CstParser, m_body: OpenMark) -> CloseMark {
     }
     do_stmt(p, m_stmt);
   }
+}
+
+fn do_loop(p: &mut CstParser, mark: OpenMark) -> CloseMark {
+  debug_assert_eq!(p.peek(), KwLoop);
+  p.expect(KwLoop);
+  let m_body = p.open_eat_trivia();
+  if p.at(OpBrace) {
+    do_body(p, m_body);
+  } else {
+    p.close(m_body, CstKind::ErrExpected(OpBrace));
+  }
+  p.close(mark, CstKind::ValExpr)
+}
+
+fn do_if(p: &mut CstParser, mark: OpenMark) -> CloseMark {
+  debug_assert_eq!(p.peek(), KwIf);
+  p.expect(KwIf);
+  let m_condition = p.open_eat_trivia();
+  if try_value_expr(p).is_none() {
+    p.place_error(ErrExpectedIfCondition);
+  }
+  p.close(m_condition, CstKind::IfCondition);
+  let m_body = p.open_eat_trivia();
+  if p.at(OpBrace) {
+    do_body(p, m_body);
+  } else {
+    p.close(m_body, CstKind::ErrExpected(OpBrace));
+  }
+  // TODO: handle "else"
+  p.close(mark, CstKind::ValExpr)
+}
+
+fn do_for(p: &mut CstParser, m_expr: OpenMark) -> CloseMark {
+  debug_assert_eq!(p.peek(), KwFor);
+  p.expect(KwFor);
+  let m_step_var = p.open_eat_trivia();
+  if try_value_expr(p).is_some() {
+    p.close(m_step_var, CstKind::ForStepExpr);
+  } else {
+    p.close(m_step_var, CstKind::ErrExpectedValueExpression);
+  };
+  p.expect(KwIn);
+  let m_range_var = p.open_eat_trivia();
+  if try_value_expr(p).is_some() {
+    p.close(m_range_var, CstKind::ForRangeExpr);
+  } else {
+    p.close(m_range_var, CstKind::ErrExpectedValueExpression);
+  };
+  let m_body = p.open_eat_trivia();
+  if p.at(OpBrace) {
+    do_body(p, m_body);
+  } else {
+    p.close(m_body, CstKind::ErrExpected(OpBrace));
+  }
+  p.close(m_expr, CstKind::ValExpr)
 }
