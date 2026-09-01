@@ -268,8 +268,6 @@ impl AstParser {
           stmt.kind = match cst.kind {
             CstKind::StmtEmpty => continue,
             CstKind::StmtExpression => self.parse_stmt_expression(cst),
-            CstKind::StmtLet => self.parse_stmt_let(cst),
-            CstKind::StmtFor => self.parse_stmt_for(cst),
             _other => {
               dbg!(&_other);
               AstStatementKind::ErrAstStatementKind
@@ -292,17 +290,5 @@ impl AstParser {
     let val_expr = self.parse_val_expr(val_expr_cst);
     expect_tk_kind!(it, Semicolon, ErrAstStatementKind);
     AstStatementKind::Expression(val_expr)
-  }
-
-  fn parse_stmt_let(&self, cst: &Cst) -> AstStatementKind {
-    debug_assert_eq!(cst.kind, CstKind::StmtLet);
-    eprintln!("==StmtLet {cst:?}");
-    ErrAstStatementKind
-  }
-
-  fn parse_stmt_for(&self, cst: &Cst) -> AstStatementKind {
-    debug_assert_eq!(cst.kind, CstKind::StmtFor);
-    eprintln!("==StmtFor {cst:?}");
-    ErrAstStatementKind
   }
 }

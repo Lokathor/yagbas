@@ -365,7 +365,7 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
         p.close(m, CstKind::ValExpr)
       }
       KwLoop => {
-        let m_loop = p.open();
+        let m_expr = p.open();
         p.expect(KwLoop);
         let m_body = p.open_eat_trivia();
         if p.at(OpBrace) {
@@ -373,7 +373,48 @@ fn try_value_expr(p: &mut CstParser) -> Option<CloseMark> {
         } else {
           p.close(m_body, CstKind::ErrExpected(OpBrace));
         }
-        p.close(m_loop, CstKind::ValExpr)
+        p.close(m_expr, CstKind::ValExpr)
+      }
+      KwIf => {
+        let m_expr = p.open();
+        p.expect(KwIf);
+        let m_condition = p.open_eat_trivia();
+        if try_value_expr(p).is_none() {
+          p.place_error(ErrExpectedIfCondition);
+        }
+        p.close(m_condition, CstKind::IfCondition);
+        let m_body = p.open_eat_trivia();
+        if p.at(OpBrace) {
+          do_body(p, m_body);
+        } else {
+          p.close(m_body, CstKind::ErrExpected(OpBrace));
+        }
+        // TODO: handle "else"
+        p.close(m_expr, CstKind::ValExpr)
+      }
+      KwFor => {
+        let m_expr = p.open();
+        p.expect(KwFor);
+        let m_step_var = p.open_eat_trivia();
+        if try_value_expr(p).is_some() {
+          p.close(m_step_var, CstKind::ForStepExpr);
+        } else {
+          p.close(m_step_var, CstKind::ErrExpectedValueExpression);
+        };
+        p.expect(KwIn);
+        let m_range_var = p.open_eat_trivia();
+        if try_value_expr(p).is_some() {
+          p.close(m_range_var, CstKind::ForRangeExpr);
+        } else {
+          p.close(m_range_var, CstKind::ErrExpectedValueExpression);
+        };
+        let m_body = p.open_eat_trivia();
+        if p.at(OpBrace) {
+          do_body(p, m_body);
+        } else {
+          p.close(m_body, CstKind::ErrExpected(OpBrace));
+        }
+        p.close(m_expr, CstKind::ValExpr)
       }
       _ => return None,
     })
@@ -531,44 +572,6 @@ fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) -> CloseMark {
       try_value_expr(p);
       p.expect(Semicolon);
       p.close(m_stmt, CstKind::StmtLet)
-    }
-    KwIf => {
-      p.expect(KwIf);
-      let m_condition = p.open_eat_trivia();
-      if try_value_expr(p).is_none() {
-        p.place_error(ErrExpectedIfCondition);
-      }
-      p.close(m_condition, CstKind::IfCondition);
-      let m_body = p.open_eat_trivia();
-      if p.at(OpBrace) {
-        do_body(p, m_body);
-      } else {
-        p.close(m_body, CstKind::ErrExpected(OpBrace));
-      }
-      p.close(m_stmt, CstKind::StmtIf)
-    }
-    KwFor => {
-      p.expect(KwFor);
-      let m_expr = p.open_eat_trivia();
-      if try_value_expr(p).is_some() {
-        p.close(m_expr, CstKind::ValExpr);
-      } else {
-        p.close(m_expr, CstKind::ErrExpectedValueExpression);
-      };
-      p.expect(KwIn);
-      let m_expr = p.open_eat_trivia();
-      if try_value_expr(p).is_some() {
-        p.close(m_expr, CstKind::ValExpr);
-      } else {
-        p.close(m_expr, CstKind::ErrExpectedValueExpression);
-      };
-      let m_body = p.open_eat_trivia();
-      if p.at(OpBrace) {
-        do_body(p, m_body);
-      } else {
-        p.close(m_body, CstKind::ErrExpected(OpBrace));
-      }
-      p.close(m_stmt, CstKind::StmtFor)
     }
     _ => {
       if try_value_expr(p).is_some() {

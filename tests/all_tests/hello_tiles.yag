@@ -14,7 +14,7 @@ const EIGHT_ROWS_OF_TILES: u16 = TILES_PER_ROW * 8;
 
 fn main() {
   // disable sound
-  *AUDIO_MAIN = 0;
+  //*AUDIO_MAIN = 0;
 
   // wait for vblank and disable lcd
   loop {

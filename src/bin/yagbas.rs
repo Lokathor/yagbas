@@ -160,6 +160,7 @@ fn do_cst(mut arguments: Vec<OsString>) {
           println!("{cst}");
         }
         println!("```");
+        cst.assert_no_errors();
       }
       Err(e) => {
         println!("File Reading Error: {e:?}");

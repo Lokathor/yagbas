@@ -175,6 +175,8 @@ pub enum CstKind {
   ItemStaticRam,
   ItemStaticRom,
   ItemConst,
+  ForStepExpr,
+  ForRangeExpr,
   ValExpr,
   TypeExpr,
   ParenGroup,
@@ -186,8 +188,6 @@ pub enum CstKind {
   StmtLet,
   StmtItem,
   StmtExpression,
-  StmtIf,
-  StmtFor,
   ReturnType,
   Body,
   StmtEmpty,
@@ -218,10 +218,7 @@ impl CstKind {
   /// If this tree kind is some sort of error.
   pub const fn is_statement(self) -> bool {
     use CstKind::*;
-    matches!(
-      self,
-      StmtEmpty | StmtExpression | StmtFor | StmtIf | StmtItem | StmtLet
-    )
+    matches!(self, StmtEmpty | StmtExpression | StmtItem | StmtLet)
   }
 }
 

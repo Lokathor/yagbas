@@ -108,11 +108,31 @@ fn test_stmt_loop() {
 
 #[test]
 fn test_stmt_for() {
-  cst_no_errors(
+  let _x = cst_no_errors(
     "fn foo() {
       for _ in 0..12 { }
     }",
   );
+}
+
+#[test]
+fn test_stmt_for2() {
+  let _x = cst_no_errors(
+    "fn foo() {
+      let tile0 = &VRAM_BLOCK_8000[0][0];
+      let pattern = $AA;
+      for _ in 0..BYTES_PER_TILE {
+        *tile0 = pattern;
+        *tile0 += 1;
+      }
+      pattern = $FF;
+      for _ in 0..BYTES_PER_TILE {
+        *tile1 = pattern;
+        *tile1 += 1;
+      }
+    }",
+  );
+  //panic!("{_x}");
 }
 
 #[test]
