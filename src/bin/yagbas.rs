@@ -108,7 +108,7 @@ fn do_ast(mut arguments: Vec<OsString>) {
       Ok(src) => {
         let cst = Cst::from_module_src(&src);
         debug_assert_eq!(cst.kind, CstKind::Module);
-        let ast_parser = AstParser { path_id, src };
+        let ast_parser = AstParser { src };
         let ast = ast_parser.parse_module(&cst);
         println!("```");
         for item in ast.items {
