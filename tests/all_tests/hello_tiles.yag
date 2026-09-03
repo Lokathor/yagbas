@@ -24,36 +24,36 @@ fn main() {
   }
   *LCDC = 0;
 
-  // set tile data manually
-  let tile0 = &VRAM_BLOCK_8000[0][0];
-  let pattern = $AA;
-  for _ in 0..BYTES_PER_TILE {
-    *tile0 = pattern;
-    *tile0 += 1;
-  }
-  pattern = $FF;
-  for _ in 0..BYTES_PER_TILE {
-    *tile1 = pattern;
-    *tile1 += 1;
-  }
-  
-  // set tilemap data
-  let tile_id = &TILEMAP_9800[0];
-  for _ in 0..EIGHT_ROWS_OF_TILES {
-    *tile_id = 0;
-    tile_id += 1;
-  }
-  for _ in 0..EIGHT_ROWS_OF_TILES {
-    *tile_id = 1;
-    tile_id += 1;
-  }
-  
-  // set palette
-  *BGP = 0b11_10_01_00;
-  
-  // enable lcd with background and block_8000
-  *LCDC = 0b1000_1001;
-  
-  // loop forever
-  loop {}
+  //// set tile data manually
+  //let tile0 = &VRAM_BLOCK_8000[0][0];
+  //let pattern = $AA;
+  //for _ in 0..BYTES_PER_TILE {
+  //  *tile0 = pattern;
+  //  *tile0 += 1;
+  //}
+  //pattern = $FF;
+  //for _ in 0..BYTES_PER_TILE {
+  //  *tile1 = pattern;
+  //  *tile1 += 1;
+  //}
+  //
+  //// set tilemap data
+  //let tile_id = &TILEMAP_9800[0];
+  //for _ in 0..EIGHT_ROWS_OF_TILES {
+  //  *tile_id = 0;
+  //  tile_id += 1;
+  //}
+  //for _ in 0..EIGHT_ROWS_OF_TILES {
+  //  *tile_id = 1;
+  //  tile_id += 1;
+  //}
+  //
+  //// set palette
+  //*BGP = 0b11_10_01_00;
+  //
+  //// enable lcd with background and block_8000
+  //*LCDC = 0b1000_1001;
+  //
+  //// loop forever
+  //loop {}
 }
