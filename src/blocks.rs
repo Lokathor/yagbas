@@ -230,7 +230,6 @@ impl TacBuilderContext {
       }
       AstExprValKind::Identifier(i) => return Some(*i),
       AstExprValKind::Break => {
-        dbg!("hello");
         let target_id = StrId::default();
         let Some((_, block_id)) =
           self.label_stack.iter().rev().find(|(l, _)| *l == target_id)
