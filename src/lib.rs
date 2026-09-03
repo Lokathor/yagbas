@@ -26,4 +26,4 @@ pub mod ast;
 
 #[forbid(unsafe_code)]
 #[allow(missing_docs)]
-pub mod basic_blocks;
+pub mod blocks;

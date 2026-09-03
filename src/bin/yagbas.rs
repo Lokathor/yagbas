@@ -3,8 +3,7 @@ use std::{ffi::OsString, path::Path};
 use str_id::PathId;
 use yagbas::{
   ast::parser::AstParser,
-  basic_blocks::basic_blocks_of,
-  cst::{Cst, CstElem, CstKind},
+  cst::{Cst, CstKind},
 };
 
 fn main() {
@@ -17,69 +16,9 @@ fn main() {
     Some("help") | Some("--help") | Some("/?") => do_help(),
     Some("cst") => do_cst(arguments),
     Some("ast") => do_ast(arguments),
-    Some("blocks") => do_blocks(arguments),
     _ => {
       eprintln!("Unknown sub-command.");
       do_help();
-    }
-  }
-}
-
-fn do_blocks(mut arguments: Vec<OsString>) {
-  debug_assert_eq!(arguments[0].to_str().unwrap(), "blocks");
-  arguments.remove(0);
-  let mut target_files = Vec::new();
-  for argument in arguments {
-    match argument.to_str() {
-      Some("--help") => {
-        println!("Usage: yagbas blocks [args]");
-        println!("show the basic blocks for one or more files");
-        return;
-      }
-      _ => target_files.push(argument),
-    }
-  }
-  if target_files.is_empty() {
-    println!("(No filenames provided.)")
-  }
-  for target_file in target_files {
-    println!("## `{}`", target_file.display());
-    match std::fs::read_to_string(&target_file) {
-      Ok(src) => {
-        let cst = Cst::from_module_src(&src);
-        for element in &cst.elements {
-          let sub_tree = match element {
-            CstElem::Token(_token) => continue,
-            CstElem::Tree(cst) => cst,
-          };
-          if sub_tree.kind != CstKind::ItemFunction {
-            continue;
-          }
-          let blocks = basic_blocks_of(sub_tree);
-          println!("### {:?}", sub_tree.kind);
-          if blocks.is_empty() {
-            println!("None")
-          } else {
-            println!("```");
-            for (x, block) in blocks.iter().enumerate() {
-              if x > 0 {
-                println!();
-              }
-              println!("== id: {:?}", block.id);
-              println!("== statements: [");
-              for statement in &block.statements {
-                println!("   == {:?}", statement);
-              }
-              println!("]");
-              println!("== terminator: {:?}", block.terminator);
-            }
-            println!("```");
-          }
-        }
-      }
-      Err(e) => {
-        println!("File Reading Error: {e:?}");
-      }
     }
   }
 }
