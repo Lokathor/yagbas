@@ -17,13 +17,22 @@ pub struct TacBlockStep {
 #[derive(Debug, Clone, Copy)]
 pub enum TacBlockStepKind {
   ErrTacBlockStepKind,
+
+  /// `let new_name = xpr;`
+  Let(StrId, StrId),
+
   /// `*dst = src;`
   DerefStore(StrId, StrId),
   /// `dst = *src;`
   DerefLoad(StrId, StrId),
+
+  /// `dst = &src`
+  Reference(StrId, StrId),
+
+  /// `dst = a[b];`
+  ArrayIndex(StrId, StrId, StrId),
   /// `dst = a == b;`
   CmpEq(StrId, StrId, StrId),
-  // TODO
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -78,8 +87,21 @@ impl TacBuilderContext {
         }
         //
         AstStatementKind::Let(ast_let) => match &ast_let.pattern.kind {
-          _other => {
-            dbg!(&_other);
+          AstExprValKind::Identifier(p) => {
+            let Some(x) = self.handle_expression(&ast_let.xpr) else {
+              self.blocks.last_mut().unwrap().steps.push(TacBlockStep {
+                span: ast_let.xpr.span.clone(),
+                kind: TacBlockStepKind::ErrTacBlockStepKind,
+              });
+              continue;
+            };
+            self.blocks.last_mut().unwrap().steps.push(TacBlockStep {
+              span: stmt.span.clone(),
+              kind: TacBlockStepKind::Let(*p, x),
+            });
+          }
+          _other_pattern => {
+            dbg!(&_other_pattern);
             self.blocks.last_mut().unwrap().steps.push(TacBlockStep {
               span: stmt.span.clone(),
               kind: TacBlockStepKind::ErrTacBlockStepKind,
@@ -228,7 +250,23 @@ impl TacBuilderContext {
           });
         }
       }
+      AstExprValKind::Reference(inner_xpr) => {
+        if let Some(inner) = self.handle_expression(inner_xpr) {
+          let tmp = self.make_temp_var();
+          self.blocks.last_mut().unwrap().steps.push(TacBlockStep {
+            span: ast_expr_val.span.clone(),
+            kind: TacBlockStepKind::Reference(tmp, inner),
+          });
+          return Some(tmp);
+        } else {
+          self.blocks.last_mut().unwrap().steps.push(TacBlockStep {
+            span: inner_xpr.span.clone(),
+            kind: TacBlockStepKind::ErrTacBlockStepKind,
+          });
+        }
+      }
       AstExprValKind::Identifier(i) => return Some(*i),
+      AstExprValKind::LiteralNumber(i) => return Some(*i),
       AstExprValKind::Break => {
         let target_id = StrId::default();
         let Some((_, block_id)) =
@@ -243,6 +281,25 @@ impl TacBuilderContext {
         };
         self.blocks.last_mut().unwrap().terminator =
           TacBlockTerminator::JumpTo(*block_id);
+      }
+      AstExprValKind::ArrayIndex(arr, index) => {
+        match [self.handle_expression(arr), self.handle_expression(index)] {
+          [Some(lhs), Some(rhs)] => {
+            let tmp = self.make_temp_var();
+            self.blocks.last_mut().unwrap().steps.push(TacBlockStep {
+              span: ast_expr_val.span.clone(),
+              kind: TacBlockStepKind::ArrayIndex(tmp, lhs, rhs),
+            });
+            return Some(tmp);
+          }
+          _other => {
+            dbg!(_other);
+            self.blocks.last_mut().unwrap().steps.push(TacBlockStep {
+              span: ast_expr_val.span.clone(),
+              kind: TacBlockStepKind::ErrTacBlockStepKind,
+            });
+          }
+        }
       }
       _other => {
         dbg!(&_other);
