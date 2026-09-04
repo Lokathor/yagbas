@@ -9,6 +9,7 @@ fn main() {
   let arguments: Vec<_> = std::env::args_os().skip(1).collect();
   if arguments.is_empty() {
     eprintln!("usage: yagbas [sub_command]");
+    eprintln!("you can also pass --help for options");
     return;
   }
   match arguments[0].to_str() {
@@ -141,4 +142,5 @@ fn do_help() {
   println!("Current sub-commands are:");
   println!(" help     this help message.");
   println!(" cst      view the concrete syntax tree for one or more files.");
+  println!(" ast      view the abstract syntax tree for one or more files.");
 }
