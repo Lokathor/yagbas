@@ -6,6 +6,7 @@ use str_id::{PathId, StrId};
 use tinyvec::ArrayVec;
 
 use crate::{
+  Span,
   ast::{
     AstBody, AstConstant, AstExprType, AstExprTypeKind, AstExprVal,
     AstExprValKind::{self, ArrayIndex},
@@ -68,15 +69,13 @@ pub struct AstParser {
 type InfixMaker = fn(Box<AstExprVal>, Box<AstExprVal>) -> AstExprValKind;
 
 impl AstParser {
-  pub fn token_id_span(&self, tk: Token) -> (StrId, Range<usize>) {
-    let span = tk.span.as_range();
-    let src_str = &self.src[span.clone()];
-    let id = StrId::from(src_str);
-    (id, span)
+  pub fn token_id(&self, tk: Token) -> StrId {
+    let src_str = &self.src[tk.span.as_range()];
+    StrId::from(src_str)
   }
   pub fn parse_expr_val(&self, cst: &Cst) -> AstExprVal {
     let mut out = AstExprVal::default();
-    out.span = cst.span_within();
+    out.span = cst.span();
     if ![CstKind::ExprVal, CstKind::ExprForVar, CstKind::ExprForRange]
       .contains(&cst.kind)
     {
@@ -85,16 +84,16 @@ impl AstParser {
     let mut it = cst.iter_important().peekable();
     match it.next() {
       Some(CstElem::Token(t)) if t.kind == LitNum => {
-        let (id, span) = self.token_id_span(*t);
+        let id = self.token_id(*t);
         out.kind = AstExprValKind::LiteralNumber(id);
-        out.span = span;
+        out.span = t.span;
         debug_assert!(it.peek().is_none());
         return out;
       }
       Some(CstElem::Token(t)) if t.kind == Ident => {
-        let (id, span) = self.token_id_span(*t);
+        let id = self.token_id(*t);
         out.kind = AstExprValKind::Identifier(id);
-        out.span = span;
+        out.span = t.span;
         debug_assert!(it.peek().is_none());
         return out;
       }
@@ -153,7 +152,7 @@ impl AstParser {
             let infix = self.parse_infix_operator(cst).unwrap();
             let rhs_cst = expect_cst_kind!(it, ExprVal, out);
             let rhs = self.parse_expr_val(rhs_cst);
-            out.span = lhs.span.start..rhs.span.end;
+            out.span = Span::new(lhs.span.start, rhs.span.end);
             out.kind = infix(Box::new(lhs), Box::new(rhs));
             debug_assert!(it.peek().is_none());
             return out;
@@ -221,7 +220,7 @@ impl AstParser {
             PrefixOperator::BitNot => todo!(),
             PrefixOperator::Dereference => {
               if let Some(CstElem::Tree(cst)) = it.next() {
-                out.span = cst.span_within();
+                out.span = cst.span();
                 let i = self.parse_expr_val(cst);
                 out.kind = AstExprValKind::Dereference(Box::new(i));
                 return out;
@@ -229,7 +228,7 @@ impl AstParser {
             }
             PrefixOperator::Reference => {
               if let Some(CstElem::Tree(cst)) = it.next() {
-                out.span = cst.span_within();
+                out.span = cst.span();
                 let i = self.parse_expr_val(cst);
                 out.kind = AstExprValKind::Reference(Box::new(i));
                 return out;
@@ -237,7 +236,7 @@ impl AstParser {
             }
             PrefixOperator::Return => todo!(),
             PrefixOperator::Break => {
-              out.span = cst.span_within();
+              out.span = cst.span();
               out.kind = AstExprValKind::Break;
               assert!(it.next().is_none());
             }
@@ -251,7 +250,7 @@ impl AstParser {
       }
       _other => {
         dbg!(&_other);
-        out.span = cst.span_within();
+        out.span = cst.span();
         debug_assert!(it.peek().is_none());
         return out;
       }
@@ -299,14 +298,14 @@ impl AstParser {
   }
   pub fn parse_type_expr(&self, cst: &Cst) -> AstExprType {
     let mut out = AstExprType::default();
-    out.span = cst.span_within();
+    out.span = cst.span();
     if cst.kind != CstKind::ExprType {
       return out;
     }
     let mut it = cst.iter_important().peekable();
     match it.next() {
       Some(CstElem::Token(t)) if t.kind == Ident => {
-        let (id, _) = self.token_id_span(*t);
+        let id = self.token_id(*t);
         out.kind = AstExprTypeKind::Plain(id);
         if it.peek().is_none() {
           return out;
@@ -337,7 +336,7 @@ impl AstParser {
       let mut item = AstItem::default();
       match element {
         CstElem::Tree(tree) => {
-          item.span = tree.span_within();
+          item.span = tree.span();
           match tree.kind {
             CstKind::ItemStaticMmio => {
               item.kind = self.parse_static_mmio(tree);
@@ -354,7 +353,7 @@ impl AstParser {
           }
         }
         CstElem::Token(token) => {
-          item.span = token.span.as_range();
+          item.span = token.span;
           dbg!(token);
         }
       }
@@ -373,10 +372,10 @@ impl AstParser {
     out.address =
       self.parse_expr_val(expect_cst_kind!(it, ExprVal, ErrAstItemKind));
     expect_tk_kind!(it, ClParen, ErrAstItemKind);
-    let (id, span) =
-      self.token_id_span(expect_tk_kind!(it, Ident, ErrAstItemKind));
+    let i = expect_tk_kind!(it, Ident, ErrAstItemKind);
+    let id = self.token_id(i);
     out.name = id;
-    out.name_span = span;
+    out.name_span = i.span;
     expect_tk_kind!(it, Colon, ErrAstItemKind);
     out.ty =
       self.parse_type_expr(expect_cst_kind!(it, ExprType, ErrAstItemKind));
@@ -388,10 +387,10 @@ impl AstParser {
     let mut out = AstConstant::default();
     let mut it = cst.iter_important();
     expect_tk_kind!(it, KwConst, ErrAstItemKind);
-    let (id, span) =
-      self.token_id_span(expect_tk_kind!(it, Ident, ErrAstItemKind));
+    let i = expect_tk_kind!(it, Ident, ErrAstItemKind);
+    let id = self.token_id(i);
     out.name = id;
-    out.name_span = span;
+    out.name_span = i.span;
     expect_tk_kind!(it, Colon, ErrAstItemKind);
     out.ty =
       self.parse_type_expr(expect_cst_kind!(it, ExprType, ErrAstItemKind));
@@ -406,10 +405,10 @@ impl AstParser {
     let mut out = AstFunction::default();
     let mut it = cst.iter_important();
     expect_tk_kind!(it, KwFn, ErrAstItemKind);
-    let (id, span) =
-      self.token_id_span(expect_tk_kind!(it, Ident, ErrAstItemKind));
+    let i = expect_tk_kind!(it, Ident, ErrAstItemKind);
+    let id = self.token_id(i);
     out.name = id;
-    out.name_span = span;
+    out.name_span = i.span;
     out.arguments = self.parse_argument_list(expect_cst_kind!(
       it,
       ArgumentList,
@@ -430,7 +429,7 @@ impl AstParser {
   fn parse_return_ty(&self, cst: &Cst) -> AstExprType {
     debug_assert_eq!(cst.kind, CstKind::ReturnType);
     let mut out = AstExprType::default();
-    out.span = cst.span_within();
+    out.span = cst.span();
     let mut it = cst.iter_important();
     match it.next() {
       None => {
@@ -451,7 +450,7 @@ impl AstParser {
         CstElem::Token(token) if token.kind == ClBrace => break,
         CstElem::Tree(cst) => {
           let mut stmt = AstStatement::default();
-          stmt.span = cst.span_within();
+          stmt.span = cst.span();
           stmt.kind = match cst.kind {
             CstKind::StmtEmpty => continue,
             CstKind::StmtExpression => self.parse_stmt_expression(cst),
@@ -485,9 +484,10 @@ impl AstParser {
     debug_assert_eq!(cst.kind, CstKind::StmtLet);
     let mut it = cst.iter_important();
     expect_tk_kind!(it, KwLet, ErrAstStatementKind);
-    let (id, span) =
-      self.token_id_span(expect_tk_kind!(it, Ident, ErrAstStatementKind));
-    let pattern = AstExprVal { span, kind: AstExprValKind::Identifier(id) };
+    let i = expect_tk_kind!(it, Ident, ErrAstStatementKind);
+    let id = self.token_id(i);
+    let pattern =
+      AstExprVal { span: i.span, kind: AstExprValKind::Identifier(id) };
     expect_tk_kind!(it, Equal, ErrAstStatementKind);
     let val_cst = expect_cst_kind!(it, ExprVal, ErrAstStatementKind);
     let xpr = self.parse_expr_val(val_cst);

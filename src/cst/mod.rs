@@ -1,8 +1,7 @@
 #![allow(unused_imports)]
 //! Concrete Syntax Tree module.
 
-use std::ops::Range;
-
+use crate::Span;
 use crate::cst::actions::do_module;
 use crate::cst::operators::InfixOperator;
 use crate::cst::operators::PostfixOperator;
@@ -98,18 +97,18 @@ impl Cst {
     })
   }
   /// Gets the span of this tree within the source.
-  pub fn span_within(&self) -> Range<usize> {
-    let mut out = 0..0;
+  pub fn span(&self) -> Span {
+    let mut out = Span::new(0, 0);
     if let Some(el) = self.elements.first() {
       out.start = match el {
-        CstElem::Token(token) => token.span.as_range().start,
-        CstElem::Tree(cst) => cst.span_within().start,
+        CstElem::Token(token) => token.span.start,
+        CstElem::Tree(cst) => cst.span().start,
       };
     }
     if let Some(el) = self.elements.last() {
       out.end = match el {
-        CstElem::Token(token) => token.span.as_range().end,
-        CstElem::Tree(cst) => cst.span_within().end,
+        CstElem::Token(token) => token.span.end,
+        CstElem::Tree(cst) => cst.span().end,
       };
     }
     out

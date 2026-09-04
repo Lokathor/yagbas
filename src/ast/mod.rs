@@ -1,9 +1,9 @@
 //! Module for the Abstract Syntax Tree types.
 
-use std::ops::Range;
 use str_id::StrId;
 
 use crate::{
+  Span,
   ast::parser::AstParser,
   cst::{Cst, CstKind},
 };
@@ -34,12 +34,12 @@ impl AstModule {
 
 #[derive(Debug, Clone, Default)]
 pub struct AstItem {
-  pub span: Range<usize>,
+  pub span: Span,
   pub kind: AstItemKind,
 }
 impl AstItem {
   fn has_errors(&self) -> bool {
-    self.span == (0..0)
+    self.span == Span::default()
       || match &self.kind {
         AstItemKind::ErrAstItemKind => true,
         AstItemKind::StaticMmio(x) => x.has_errors(),
@@ -60,12 +60,12 @@ pub enum AstItemKind {
 
 #[derive(Debug, Clone, Default)]
 pub struct AstExprVal {
-  pub span: Range<usize>,
+  pub span: Span,
   pub kind: AstExprValKind,
 }
 impl AstExprVal {
   fn has_errors(&self) -> bool {
-    self.span == (0..0)
+    self.span == Span::default()
       || match &self.kind {
         AstExprValKind::ErrAstValExprKind => true,
         AstExprValKind::LiteralNumber(str_id) => str_id == &StrId::default(),
@@ -176,12 +176,12 @@ pub enum AstExprValKind {
 
 #[derive(Debug, Clone, Default)]
 pub struct AstExprType {
-  pub span: Range<usize>,
+  pub span: Span,
   pub kind: AstExprTypeKind,
 }
 impl AstExprType {
   fn has_errors(&self) -> bool {
-    self.span == (0..0)
+    self.span == Span::default()
       || match &self.kind {
         AstExprTypeKind::ErrAstTypeExprKind => true,
         AstExprTypeKind::Plain(str_id) => str_id == &StrId::default(),
@@ -207,14 +207,14 @@ pub enum AstExprTypeKind {
 pub struct AstStaticMmio {
   pub address: AstExprVal,
   pub name: StrId,
-  pub name_span: Range<usize>,
+  pub name_span: Span,
   pub ty: AstExprType,
 }
 impl AstStaticMmio {
   fn has_errors(&self) -> bool {
     self.address.has_errors()
       || self.name == StrId::default()
-      || self.name_span == (0..0)
+      || self.name_span == Span::default()
       || self.ty.has_errors()
   }
 }
@@ -222,14 +222,14 @@ impl AstStaticMmio {
 #[derive(Debug, Clone, Default)]
 pub struct AstConstant {
   pub name: StrId,
-  pub name_span: Range<usize>,
+  pub name_span: Span,
   pub ty: AstExprType,
   pub xpr: AstExprVal,
 }
 impl AstConstant {
   fn has_errors(&self) -> bool {
     self.name == StrId::default()
-      || self.name_span == (0..0)
+      || self.name_span == Span::default()
       || self.ty.has_errors()
       || self.xpr.has_errors()
   }
@@ -238,7 +238,7 @@ impl AstConstant {
 #[derive(Debug, Clone, Default)]
 pub struct AstFunction {
   pub name: StrId,
-  pub name_span: Range<usize>,
+  pub name_span: Span,
   pub arguments: Vec<AstFunctionArgument>,
   /// if no return is explicit, it's implicitly still `()`
   pub return_ty: AstExprType,
@@ -247,7 +247,7 @@ pub struct AstFunction {
 impl AstFunction {
   fn has_errors(&self) -> bool {
     self.name == StrId::default()
-      || self.name_span == (0..0)
+      || self.name_span == Span::default()
       || self.arguments.iter().any(|arg| arg.has_errors())
       || self.return_ty.has_errors()
       || self.body.has_errors()
@@ -257,13 +257,13 @@ impl AstFunction {
 #[derive(Debug, Clone)]
 pub struct AstFunctionArgument {
   pub name: StrId,
-  pub name_span: Range<usize>,
+  pub name_span: Span,
   pub ty: AstExprType,
 }
 impl AstFunctionArgument {
   fn has_errors(&self) -> bool {
     self.name == StrId::default()
-      || self.name_span == (0..0)
+      || self.name_span == Span::default()
       || self.ty.has_errors()
   }
 }
@@ -291,12 +291,12 @@ impl AstLet {
 
 #[derive(Debug, Clone, Default)]
 pub struct AstStatement {
-  pub span: Range<usize>,
+  pub span: Span,
   pub kind: AstStatementKind,
 }
 impl AstStatement {
   fn has_errors(&self) -> bool {
-    self.span == (0..0)
+    self.span == Span::default()
       || match &self.kind {
         AstStatementKind::ErrAstStatementKind => true,
         AstStatementKind::Let(ast_let) => ast_let.has_errors(),

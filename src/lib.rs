@@ -51,7 +51,3 @@ pub mod ast;
 #[forbid(unsafe_code)]
 #[allow(missing_docs)]
 pub mod ir_nameres;
-
-#[forbid(unsafe_code)]
-#[allow(missing_docs)]
-pub mod blocks;
