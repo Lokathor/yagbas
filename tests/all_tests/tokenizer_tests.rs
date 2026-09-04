@@ -7,11 +7,10 @@ use yagbas::tokenizer::tokenize;
 #[track_caller]
 fn expect_token(s: &str, k: TokenKind) {
   let v: Vec<Token> = tokenize(s).collect();
-  assert_eq!(v.len(), 1);
+  assert_eq!(v.len(), 1, "Bad Token Total: {v:?}");
   let t: Token = v[0];
   assert_eq!(t.kind, k, "Bad Kind: {t:?}");
-  let span = t.span_within(s);
-  assert_eq!(span, 0..(s.len()), "Bad Span: {span:?}");
+  assert_eq!(t.span.as_range(), 0..(s.len()), "Bad Span: {t:?}");
 }
 
 #[test]

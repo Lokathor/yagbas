@@ -1,9 +1,7 @@
-use std::{ffi::OsString, path::Path};
-
-use str_id::PathId;
+use std::ffi::OsString;
+use str_id::StrId;
 use yagbas::{
-  ast::{AstItemKind, AstModule},
-  blocks::tac_blocks_of_function,
+  ast::{Ast, AstModule},
   cst::Cst,
 };
 
@@ -17,7 +15,7 @@ fn main() {
     Some("help") | Some("--help") | Some("/?") => do_help(),
     Some("cst") => do_cst(arguments),
     Some("ast") => do_ast(arguments),
-    Some("tac") => do_tac(arguments),
+    //Some("tac") => do_tac(arguments),
     _ => {
       eprintln!("Unknown sub-command.");
       do_help();
@@ -25,6 +23,7 @@ fn main() {
   }
 }
 
+#[cfg(false)]
 fn do_tac(mut arguments: Vec<OsString>) {
   debug_assert_eq!(arguments[0].to_str().unwrap(), "tac");
   arguments.remove(0);
@@ -42,41 +41,19 @@ fn do_tac(mut arguments: Vec<OsString>) {
   if target_files.is_empty() {
     println!("(No filenames provided.)")
   }
+  let mut ast = Ast::default();
   for target_file in target_files {
-    let path_id = PathId::from(Path::new(&target_file));
-    println!("## `{path_id}`");
     match std::fs::read_to_string(&target_file) {
       Ok(src) => {
-        let ast = AstModule::from_source(&src);
-        for item in ast.items.iter() {
-          match &item.kind {
-            AstItemKind::Function(f) => {
-              let blocks = tac_blocks_of_function(f);
-              println!("```");
-              for (x, block) in blocks.iter().enumerate() {
-                let id = block.id;
-                if x > 0 {
-                  println!();
-                }
-                println!("== TacBlock [{id:?}] {{");
-                for step in block.steps.iter() {
-                  let kind = &step.kind;
-                  println!("  {kind:?}");
-                }
-                let terminator = block.terminator;
-                println!("}}then> {terminator:?}");
-              }
-            }
-            _ => continue,
-          }
-        }
-        println!("```");
+        let origin = StrId::from(target_file.display().to_string());
+        ast.modules.push(AstModule::from_source(origin, &src));
       }
       Err(e) => {
         println!("File Reading Error: {e:?}");
       }
     }
   }
+  dbg!(ast);
 }
 
 fn do_ast(mut arguments: Vec<OsString>) {
@@ -94,25 +71,22 @@ fn do_ast(mut arguments: Vec<OsString>) {
     }
   }
   if target_files.is_empty() {
-    println!("(No filenames provided.)")
+    println!("(No filenames provided.)");
+    return;
   }
+  let mut ast = Ast::default();
   for target_file in target_files {
-    let path_id = PathId::from(Path::new(&target_file));
-    println!("## `{path_id}`");
     match std::fs::read_to_string(&target_file) {
       Ok(src) => {
-        let ast = AstModule::from_source(&src);
-        println!("```");
-        for item in ast.items {
-          println!("== {item:#?}");
-        }
-        println!("```");
+        let origin = StrId::from(target_file.display().to_string());
+        ast.modules.push(AstModule::from_source(origin, &src));
       }
       Err(e) => {
         println!("File Reading Error: {e:?}");
       }
     }
   }
+  dbg!(ast);
 }
 
 fn do_cst(mut arguments: Vec<OsString>) {

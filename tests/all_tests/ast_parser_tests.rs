@@ -1,8 +1,10 @@
+use str_id::StrId;
 use yagbas::ast::AstModule;
 
 #[track_caller]
 fn module_no_errors(src: &str) -> AstModule {
-  let ast = AstModule::from_source(src);
+  let origin = StrId::from("<InMemoryTest>");
+  let ast = AstModule::from_source(origin, src);
   assert!(!ast.has_errors(), "===Ast Has Errors: {ast:?}");
   ast
 }

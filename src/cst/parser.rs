@@ -5,9 +5,12 @@
 
 use core::range::Range;
 
-use crate::tokenizer::{
-  TokenKind::{self, Comment, Whitespace},
-  tokenize,
+use crate::{
+  Span,
+  tokenizer::{
+    TokenKind::{self, Comment, Whitespace},
+    tokenize,
+  },
 };
 
 use super::*;
@@ -41,7 +44,7 @@ pub struct CstParser {
   token_kinds: Vec<TokenKind>,
   /// Not used during the actual parse process, just for the tree creation at
   /// the end.
-  token_positions: Vec<u32>,
+  token_spans: Vec<Span>,
   /// Our current position within the input.
   pos: usize,
   /// The events that we've recorded so far. There will always be one `advance`
@@ -60,13 +63,13 @@ impl CstParser {
     // over-allocation won't kill anything.
     let buffer_length = src.len();
     let mut token_kinds = Vec::with_capacity(buffer_length);
-    let mut token_positions = Vec::with_capacity(buffer_length);
+    let mut token_spans = Vec::with_capacity(buffer_length);
     let events = Vec::with_capacity(buffer_length);
-    for Token { kind, position } in tokenize(src) {
+    for Token { kind, span } in tokenize(src) {
       token_kinds.push(kind);
-      token_positions.push(position);
+      token_spans.push(span);
     }
-    Self { token_kinds, token_positions, pos: 0, events }
+    Self { token_kinds, token_spans, pos: 0, events }
   }
   /// Open a new sub-tree
   pub fn open(&mut self) -> OpenMark {
@@ -171,7 +174,7 @@ impl CstParser {
   /// * All `advance` events must be inside of a tree.
   pub fn build_tree(mut self) -> Cst {
     let mut token_kinds = self.token_kinds.iter().copied();
-    let mut token_positions = self.token_positions.iter().copied();
+    let mut token_spans = self.token_spans.iter().copied();
     let mut stack = Vec::new();
 
     // remove the last close event so that we can pop the stack's final value
@@ -194,7 +197,7 @@ impl CstParser {
         ParseEvent::Advance => {
           let token = Token {
             kind: token_kinds.next().unwrap(),
-            position: token_positions.next().unwrap(),
+            span: token_spans.next().unwrap(),
           };
           stack.last_mut().unwrap().elements.push(CstElem::Token(token));
         }

@@ -1,8 +1,8 @@
 //! Types and utilities for tokenizing Yagbas source code.
 
 use TokenKind::*;
-use core::iter::{Copied, Enumerate, Peekable};
-use core::slice::Iter;
+
+use crate::Span;
 
 /// An individual element of Yagbas source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -12,7 +12,7 @@ pub struct Token {
   /// Where the token was found.
   ///
   /// Yagbas source files can't exceed 4GB.
-  pub position: u32,
+  pub span: Span,
 }
 impl Token {
   /// If the token's kind is an error kind.
@@ -28,18 +28,6 @@ impl Token {
         | ErrLitRawStrUnclosed
         | ErrLitStrUnclosed,
     )
-  }
-  /// Gets the span of a token within the source string it came from.
-  ///
-  /// * If the source string is incorrect for this token, this could give incorrect answers or even trigger a panic.
-  #[track_caller]
-  pub fn span_within(self, src: &str) -> core::ops::Range<usize> {
-    let pos_usize = self.position as usize;
-    let sub_str = &src[pos_usize..];
-    let mut it = tokenize(sub_str);
-    let _self_token = it.next();
-    let len = it.next().map(|tk| tk.position as usize).unwrap_or(sub_str.len());
-    pos_usize..(pos_usize + len)
   }
 }
 
@@ -229,35 +217,68 @@ pub enum TokenKind {
 /// An iterator over a module's source code which produces [Token] values.
 #[derive(Debug, Clone)]
 pub struct TokenIter<'a> {
-  src: &'a str,
-  bytes: Peekable<Enumerate<Copied<Iter<'a, u8>>>>,
+  bytes: &'a [u8],
+  position: usize,
+  span: Span,
 }
 impl<'a> TokenIter<'a> {
   /// Constructs a new iterator pointed to the start of the source.
   #[inline]
   pub fn new(src: &'a str) -> Self {
-    Self { src, bytes: src.as_bytes().iter().copied().enumerate().peekable() }
+    debug_assert!(u32::try_from(src.len()).is_ok());
+    let bytes = src.as_bytes();
+    let position = 0;
+    let span = Span::new(0, 0);
+    Self { bytes, position, span }
   }
 
-  fn handle_block_comment(&mut self, position: u32) -> Option<Token> {
+  /// When in bounds, get a byte then advance the span and possition.
+  ///
+  /// If at bounds or out of bounds then returns `None`.
+  fn next_byte(&mut self) -> Option<u8> {
+    if self.position < self.bytes.len() {
+      let out = self.bytes[self.position];
+      self.span.end += 1;
+      self.position += 1;
+      Some(out)
+    } else {
+      None
+    }
+  }
+
+  /// Peek at the next source byte
+  fn peek_byte(&self) -> Option<u8> {
+    self.bytes.get(self.position).copied()
+  }
+
+  /// find the close to a block comment
+  ///
+  /// * assumes that the position is currently pointed at the '*' byte after a
+  ///   '/' byte.
+  fn handle_block_comment(&mut self) -> Option<Token> {
+    let byte = self.next_byte().unwrap();
+    debug_assert_eq!(byte, b'*');
     let mut depth = 1;
-    let b = self.bytes.next().unwrap().1;
-    debug_assert_eq!(b, b'*');
     loop {
       debug_assert!(depth > 0);
-      match self.bytes.next() {
-        None => return Some(Token { kind: ErrBlockCommentUnclosed, position }),
-        Some((_, b'/')) => {
+      match self.next_byte() {
+        None => {
+          return Some(Token {
+            kind: ErrBlockCommentUnclosed,
+            span: self.span,
+          });
+        }
+        Some(b'/') => {
           // possible nested block
-          if let Some((_, b'*')) = self.bytes.peek() {
-            self.bytes.next();
+          if let Some(b'*') = self.peek_byte() {
+            self.next_byte();
             depth += 1;
           }
         }
-        Some((_, b'*')) => {
+        Some(b'*') => {
           // possible end block
-          if let Some((_, b'/')) = self.bytes.peek() {
-            self.bytes.next();
+          if let Some((b'/')) = self.peek_byte() {
+            self.next_byte();
             depth -= 1;
             if depth == 0 {
               break;
@@ -267,20 +288,20 @@ impl<'a> TokenIter<'a> {
         Some(_) => {}
       }
     }
-    Some(Token { kind: Comment, position })
+    Some(Token { kind: Comment, span: self.span })
   }
 
-  fn handle_literal_str(&mut self, position: u32) -> Option<Token> {
+  fn handle_literal_str(&mut self) -> Option<Token> {
     let mut backslash_count = 0;
     loop {
-      match self.bytes.next() {
+      match self.next_byte() {
         None => {
-          return Some(Token { kind: ErrLitStrUnclosed, position });
+          return Some(Token { kind: ErrLitStrUnclosed, span: self.span });
         }
-        Some((_, b'\\')) => {
+        Some(b'\\') => {
           backslash_count += 1;
         }
-        Some((_, b'"')) => {
+        Some(b'"') => {
           if backslash_count % 2 != 0 {
             backslash_count = 0;
             continue;
@@ -288,38 +309,45 @@ impl<'a> TokenIter<'a> {
             break;
           }
         }
-        _ => backslash_count = 0,
+        Some(_) => {
+          backslash_count = 0;
+        }
       }
     }
-    Some(Token { kind: LitStr, position })
+    Some(Token { kind: LitStr, span: self.span })
   }
 
-  fn handle_literal_raw_value(&mut self, position: u32) -> Option<Token> {
-    debug_assert_eq!(self.bytes.peek().unwrap().1, b'#');
+  fn handle_literal_raw_value(&mut self) -> Option<Token> {
+    debug_assert_eq!(self.peek_byte().unwrap(), b'#');
     let mut hash_count = 0;
-    while let Some((_, b'#')) = self.bytes.peek() {
+    while let Some(b'#') = self.peek_byte() {
       hash_count += 1;
-      self.bytes.next();
+      self.next_byte();
     }
-    match self.bytes.next() {
-      Some((_, b'"')) => (),
-      _ => return Some(Token { kind: ErrBadRawValue, position }),
+    match self.next_byte() {
+      Some(b'"') => {}
+      _ => return Some(Token { kind: ErrBadRawValue, span: self.span }),
     }
     debug_assert!(hash_count > 0);
     'find_double_quote: loop {
-      match self.bytes.next() {
-        None => return Some(Token { kind: ErrLitRawStrUnclosed, position }),
-        Some((_, b'"')) => {
+      match self.next_byte() {
+        None => {
+          return Some(Token { kind: ErrLitRawStrUnclosed, span: self.span });
+        }
+        Some(b'"') => {
           let mut remaining = hash_count;
           'count_hashes: while remaining > 0 {
-            match self.bytes.peek() {
+            match self.peek_byte() {
               None => {
-                return Some(Token { kind: ErrLitRawStrUnclosed, position });
+                return Some(Token {
+                  kind: ErrLitRawStrUnclosed,
+                  span: self.span,
+                });
               }
-              Some((_x, b'#')) => {
-                self.bytes.next();
+              Some(b'#') => {
+                self.next_byte();
               }
-              Some((_, _y)) => {
+              Some(_) => {
                 continue 'find_double_quote;
               }
             }
@@ -327,186 +355,182 @@ impl<'a> TokenIter<'a> {
           }
           break 'find_double_quote;
         }
-        Some((_i, _b)) => {}
+        Some(_) => {}
       }
     }
-    Some(Token { kind: LitStr, position })
+    Some(Token { kind: LitStr, span: self.span })
   }
 
-  fn handle_literal_num(&mut self, position: u32) -> Option<Token> {
-    while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
-      self.bytes.peek()
+  fn handle_literal_num(&mut self) -> Option<Token> {
+    while let Some(b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_') =
+      self.peek_byte()
     {
-      self.bytes.next();
+      self.next_byte();
     }
-    Some(Token { kind: LitNum, position })
+    Some(Token { kind: LitNum, span: self.span })
   }
 
-  fn handle_keyword_or_ident(&mut self, position: u32) -> Option<Token> {
-    let start = position as usize;
-    let mut end = start;
-    while let Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_')) =
-      self.bytes.peek()
+  fn handle_keyword_or_ident(&mut self) -> Option<Token> {
+    while let Some(b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_') =
+      self.peek_byte()
     {
-      end = self.bytes.next().unwrap().0;
+      self.next_byte();
     }
-    end += 1;
-    let captured = &self.src[start..end];
+    let captured = &self.bytes[self.span.as_range()];
     let kind = match captured {
-      "as" => KwAs,
-      "bitbag" => KwBitbag,
-      "break" => KwBreak,
-      "const" => KwConst,
-      "continue" => KwContinue,
-      "else" => KwElse,
-      "enum" => KwEnum,
-      "false" => KwFalse,
-      "fn" => KwFn,
-      "for" => KwFor,
-      "if" => KwIf,
-      "impl" => KwImpl,
-      "in" => KwIn,
-      "let" => KwLet,
-      "loop" => KwLoop,
-      "match" => KwMatch,
-      "mmio" => KwMmio,
-      "mut" => KwMut,
-      "return" => KwReturn,
-      "struct" => KwStruct,
-      "static" => KwStatic,
-      "true" => KwTrue,
-      "use" => KwUse,
+      b"as" => KwAs,
+      b"bitbag" => KwBitbag,
+      b"break" => KwBreak,
+      b"const" => KwConst,
+      b"continue" => KwContinue,
+      b"else" => KwElse,
+      b"enum" => KwEnum,
+      b"false" => KwFalse,
+      b"fn" => KwFn,
+      b"for" => KwFor,
+      b"if" => KwIf,
+      b"impl" => KwImpl,
+      b"in" => KwIn,
+      b"let" => KwLet,
+      b"loop" => KwLoop,
+      b"match" => KwMatch,
+      b"mmio" => KwMmio,
+      b"mut" => KwMut,
+      b"return" => KwReturn,
+      b"struct" => KwStruct,
+      b"static" => KwStatic,
+      b"true" => KwTrue,
+      b"use" => KwUse,
       _ => Ident,
     };
-    Some(Token { kind, position })
+    Some(Token { kind, span: self.span })
   }
 }
 impl<'a> Iterator for TokenIter<'a> {
   type Item = Token;
 
   fn next(&mut self) -> Option<Self::Item> {
-    let (position_usize, byte) = self.bytes.next()?;
-    debug_assert!(u32::try_from(position_usize).is_ok());
-    let position = position_usize as u32;
-    match byte {
+    // reset the span
+    self.span.start = self.position as u32;
+    self.span.end = self.position as u32;
+    //
+    match self.next_byte()? {
       // whitespace
       b' ' | b'\t' | b'\r' | b'\n' => {
-        while let Some((_, b' ' | b'\t' | b'\r' | b'\n')) = self.bytes.peek() {
-          self.bytes.next();
+        while let Some(b' ' | b'\t' | b'\r' | b'\n') = self.peek_byte() {
+          self.next_byte();
         }
-        Some(Token { kind: Whitespace, position })
+        Some(Token { kind: Whitespace, span: self.span })
       }
       // comments
-      b'/' => match self.bytes.peek() {
-        Some((_, b'*')) => self.handle_block_comment(position),
-        Some((_, b'/')) => {
+      b'/' => match self.peek_byte() {
+        Some(b'*') => self.handle_block_comment(),
+        Some(b'/') => {
           loop {
-            match self.bytes.peek() {
-              Some((_, b'\r')) | Some((_, b'\n')) => break,
+            match self.peek_byte() {
+              Some(b'\r') | Some(b'\n') => break,
               None => break,
               _ => {
-                let _ = self.bytes.next();
+                self.next_byte();
               }
             }
           }
-          Some(Token { kind: Comment, position })
+          Some(Token { kind: Comment, span: self.span })
         }
-        Some((_, b'=')) => {
-          self.bytes.next();
-          Some(Token { kind: SlashEqual, position })
+        Some(b'=') => {
+          self.next_byte();
+          Some(Token { kind: SlashEqual, span: self.span })
         }
-        _ => Some(Token { kind: Slash, position }),
+        _ => Some(Token { kind: Slash, span: self.span }),
       },
-      b'*' => match self.bytes.peek() {
-        Some((_, b'/')) => {
-          self.bytes.next();
-          Some(Token { kind: ErrBlockCommentExtraClose, position })
+      b'*' => match self.peek_byte() {
+        Some(b'/') => {
+          self.next_byte();
+          Some(Token { kind: ErrBlockCommentExtraClose, span: self.span })
         }
-        Some((_, b'=')) => {
-          self.bytes.next();
-          Some(Token { kind: StarEqual, position })
+        Some(b'=') => {
+          self.next_byte();
+          Some(Token { kind: StarEqual, span: self.span })
         }
-        _ => Some(Token { kind: Star, position }),
+        _ => Some(Token { kind: Star, span: self.span }),
       },
       // string literals
-      b'"' => self.handle_literal_str(position),
-      b'r' if self.bytes.peek().map(|b| b.1 == b'#').unwrap_or(false) => {
-        self.handle_literal_raw_value(position)
+      b'"' => self.handle_literal_str(),
+      b'r' if self.peek_byte().map(|b| b == b'#').unwrap_or(false) => {
+        self.handle_literal_raw_value()
       }
       // number literals
-      b'$' => match self.bytes.peek() {
-        Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
-          self.handle_literal_num(position)
+      b'$' => match self.peek_byte() {
+        Some(b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z') => {
+          self.handle_literal_num()
         }
-        _ => Some(Token { kind: Dollar, position }),
+        _ => Some(Token { kind: Dollar, span: self.span }),
       },
-      b'%' => match self.bytes.peek() {
-        Some((_, b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z')) => {
-          self.handle_literal_num(position)
+      b'%' => match self.peek_byte() {
+        Some(b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z') => {
+          self.handle_literal_num()
         }
-        Some((_, b'=')) => {
-          self.bytes.next().unwrap();
-          Some(Token { kind: PercentEqual, position })
+        Some(b'=') => {
+          self.next_byte().unwrap();
+          Some(Token { kind: PercentEqual, span: self.span })
         }
-        _ => Some(Token { kind: Percent, position }),
+        _ => Some(Token { kind: Percent, span: self.span }),
       },
-      b'0'..=b'9' => self.handle_literal_num(position),
+      b'0'..=b'9' => self.handle_literal_num(),
       // keywords, idents
-      b'A'..=b'Z' | b'a'..=b'z' | b'_' => {
-        self.handle_keyword_or_ident(position)
-      }
+      b'A'..=b'Z' | b'a'..=b'z' | b'_' => self.handle_keyword_or_ident(),
       // double punctuation
-      b':' if self.bytes.peek().map_or(0, |(_, b)| *b) == b':' => {
-        let _ = self.bytes.next();
-        Some(Token { kind: ColonColon, position })
+      b':' if self.peek_byte() == Some(b':') => {
+        self.next_byte();
+        Some(Token { kind: ColonColon, span: self.span })
       }
-      b'=' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
-        let _ = self.bytes.next();
-        Some(Token { kind: EqualEqual, position })
+      b'=' if self.peek_byte() == Some(b'=') => {
+        self.next_byte();
+        Some(Token { kind: EqualEqual, span: self.span })
       }
-      b'!' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
-        let _ = self.bytes.next();
-        Some(Token { kind: BangEqual, position })
+      b'!' if self.peek_byte() == Some(b'=') => {
+        self.next_byte();
+        Some(Token { kind: BangEqual, span: self.span })
       }
-      b'+' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
-        let _ = self.bytes.next();
-        Some(Token { kind: PlusEqual, position })
+      b'+' if self.peek_byte() == Some(b'=') => {
+        self.next_byte();
+        Some(Token { kind: PlusEqual, span: self.span })
       }
-      b'-' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
-        let _ = self.bytes.next();
-        Some(Token { kind: MinusEqual, position })
+      b'-' if self.peek_byte() == Some(b'=') => {
+        self.next_byte();
+        Some(Token { kind: MinusEqual, span: self.span })
       }
-      b'&' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
-        let _ = self.bytes.next();
-        Some(Token { kind: AmpersandEqual, position })
+      b'&' if self.peek_byte() == Some(b'=') => {
+        self.next_byte();
+        Some(Token { kind: AmpersandEqual, span: self.span })
       }
-      b'|' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
-        let _ = self.bytes.next();
-        Some(Token { kind: PipeEqual, position })
+      b'|' if self.peek_byte() == Some(b'=') => {
+        self.next_byte();
+        Some(Token { kind: PipeEqual, span: self.span })
       }
-      b'^' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'=' => {
-        let _ = self.bytes.next();
-        Some(Token { kind: CaretEqual, position })
+      b'^' if self.peek_byte() == Some(b'=') => {
+        self.next_byte();
+        Some(Token { kind: CaretEqual, span: self.span })
       }
-      b'.' if self.bytes.peek().map_or(0, |(_, b)| *b) == b'.' => {
-        let _ = self.bytes.next(); // consume second '.'
+      b'.' if self.peek_byte() == Some(b'.') => {
+        self.next_byte(); // consume second '.'
         // possible '=' after the second '.'
-        match self.bytes.peek().map_or(0, |(_, b)| *b) {
-          b'=' => {
-            let _ = self.bytes.next();
-            Some(Token { kind: DotDotEqual, position })
+        match self.peek_byte() {
+          Some(b'=') => {
+            self.next_byte(); // consume '='
+            Some(Token { kind: DotDotEqual, span: self.span })
           }
-          _ => Some(Token { kind: DotDot, position }),
+          _ => Some(Token { kind: DotDot, span: self.span }),
         }
       }
       // fallback for all other punctuation cases
-      b'!'..=b'/' | b':'..=b'@' | b'['..=b'`' | b'{'..=b'~' => {
+      x @ b'!'..=b'/' | x @ b':'..=b'@' | x @ b'['..=b'`' | x @ b'{'..=b'~' => {
         let t = core::mem::transmute::<u8, TokenKind>;
         // Safety: all bytes in the pattern are variants within the TokenKind enum.
-        Some(Token { kind: unsafe { t(byte) }, position })
+        Some(Token { kind: unsafe { t(x) }, span: self.span })
       }
       // otherwise it's out of range
-      ..=0x1F | 0x7F.. => Some(Token { kind: ErrUnknown, position }),
+      ..=0x1F | 0x7F.. => Some(Token { kind: ErrUnknown, span: self.span }),
     }
   }
 }

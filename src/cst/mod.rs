@@ -98,18 +98,18 @@ impl Cst {
     })
   }
   /// Gets the span of this tree within the source.
-  pub fn span_within(&self, src: &str) -> Range<usize> {
+  pub fn span_within(&self) -> Range<usize> {
     let mut out = 0..0;
     if let Some(el) = self.elements.first() {
       out.start = match el {
-        CstElem::Token(token) => token.position as usize,
-        CstElem::Tree(cst) => cst.span_within(src).start,
+        CstElem::Token(token) => token.span.as_range().start,
+        CstElem::Tree(cst) => cst.span_within().start,
       };
     }
     if let Some(el) = self.elements.last() {
       out.end = match el {
-        CstElem::Token(token) => token.span_within(src).end,
-        CstElem::Tree(cst) => cst.span_within(src).end,
+        CstElem::Token(token) => token.span.as_range().end,
+        CstElem::Tree(cst) => cst.span_within().end,
       };
     }
     out
@@ -132,7 +132,7 @@ impl core::fmt::Display for Cst {
       writeln!(f, "{:?} {{", s.kind)?;
       for element in &s.elements {
         match element {
-          CstElem::Token(Token { kind, position }) => {
+          CstElem::Token(Token { kind, span }) => {
             if !f.alternate()
               && (*kind == TokenKind::Comment || *kind == TokenKind::Whitespace)
             {
@@ -141,7 +141,7 @@ impl core::fmt::Display for Cst {
             for _ in 0..(indents + 2) {
               write!(f, " ")?;
             }
-            writeln!(f, "{kind:?} @({position:?})")?;
+            writeln!(f, "{kind:?} @({span:?})")?;
           }
           CstElem::Tree(cst) => {
             fmt_rec(cst, f, indents + 2)?;

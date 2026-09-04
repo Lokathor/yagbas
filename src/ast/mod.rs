@@ -10,22 +10,22 @@ use crate::{
 
 pub mod parser;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Ast {
   pub modules: Vec<AstModule>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AstModule {
+  pub origin: StrId,
   pub items: Vec<AstItem>,
-  // TODO: add a field to track where the module came from.
 }
 impl AstModule {
-  pub fn from_source(src: &str) -> Self {
+  pub fn from_source(origin: StrId, src: &str) -> Self {
     let cst = Cst::from_module_src(src);
     debug_assert_eq!(cst.kind, CstKind::Module);
     let ast_parser = AstParser { src: src.to_string() };
-    ast_parser.parse_module(&cst)
+    ast_parser.parse_module(origin, &cst)
   }
   pub fn has_errors(&self) -> bool {
     self.items.iter().any(|i| i.has_errors())

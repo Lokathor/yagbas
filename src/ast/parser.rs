@@ -69,14 +69,14 @@ type InfixMaker = fn(Box<AstExprVal>, Box<AstExprVal>) -> AstExprValKind;
 
 impl AstParser {
   pub fn token_id_span(&self, tk: Token) -> (StrId, Range<usize>) {
-    let span = tk.span_within(&self.src);
+    let span = tk.span.as_range();
     let src_str = &self.src[span.clone()];
     let id = StrId::from(src_str);
     (id, span)
   }
   pub fn parse_expr_val(&self, cst: &Cst) -> AstExprVal {
     let mut out = AstExprVal::default();
-    out.span = cst.span_within(&self.src);
+    out.span = cst.span_within();
     if ![CstKind::ExprVal, CstKind::ExprForVar, CstKind::ExprForRange]
       .contains(&cst.kind)
     {
@@ -221,7 +221,7 @@ impl AstParser {
             PrefixOperator::BitNot => todo!(),
             PrefixOperator::Dereference => {
               if let Some(CstElem::Tree(cst)) = it.next() {
-                out.span = cst.span_within(&self.src);
+                out.span = cst.span_within();
                 let i = self.parse_expr_val(cst);
                 out.kind = AstExprValKind::Dereference(Box::new(i));
                 return out;
@@ -229,7 +229,7 @@ impl AstParser {
             }
             PrefixOperator::Reference => {
               if let Some(CstElem::Tree(cst)) = it.next() {
-                out.span = cst.span_within(&self.src);
+                out.span = cst.span_within();
                 let i = self.parse_expr_val(cst);
                 out.kind = AstExprValKind::Reference(Box::new(i));
                 return out;
@@ -237,7 +237,7 @@ impl AstParser {
             }
             PrefixOperator::Return => todo!(),
             PrefixOperator::Break => {
-              out.span = cst.span_within(&self.src);
+              out.span = cst.span_within();
               out.kind = AstExprValKind::Break;
               assert!(it.next().is_none());
             }
@@ -251,7 +251,7 @@ impl AstParser {
       }
       _other => {
         dbg!(&_other);
-        out.span = cst.span_within(&self.src);
+        out.span = cst.span_within();
         debug_assert!(it.peek().is_none());
         return out;
       }
@@ -299,7 +299,7 @@ impl AstParser {
   }
   pub fn parse_type_expr(&self, cst: &Cst) -> AstExprType {
     let mut out = AstExprType::default();
-    out.span = cst.span_within(&self.src);
+    out.span = cst.span_within();
     if cst.kind != CstKind::ExprType {
       return out;
     }
@@ -329,15 +329,15 @@ impl AstParser {
       _ => return out,
     }
   }
-  pub fn parse_module(&self, cst: &Cst) -> AstModule {
+  pub fn parse_module(&self, origin: StrId, cst: &Cst) -> AstModule {
     debug_assert_eq!(cst.kind, CstKind::Module);
-    let mut out = AstModule { items: Vec::new() };
+    let mut out = AstModule { origin, items: Vec::new() };
 
     for element in cst.iter_important() {
       let mut item = AstItem::default();
       match element {
         CstElem::Tree(tree) => {
-          item.span = tree.span_within(&self.src);
+          item.span = tree.span_within();
           match tree.kind {
             CstKind::ItemStaticMmio => {
               item.kind = self.parse_static_mmio(tree);
@@ -354,7 +354,7 @@ impl AstParser {
           }
         }
         CstElem::Token(token) => {
-          item.span = token.span_within(&self.src);
+          item.span = token.span.as_range();
           dbg!(token);
         }
       }
@@ -430,7 +430,7 @@ impl AstParser {
   fn parse_return_ty(&self, cst: &Cst) -> AstExprType {
     debug_assert_eq!(cst.kind, CstKind::ReturnType);
     let mut out = AstExprType::default();
-    out.span = cst.span_within(&self.src);
+    out.span = cst.span_within();
     let mut it = cst.iter_important();
     match it.next() {
       None => {
@@ -451,7 +451,7 @@ impl AstParser {
         CstElem::Token(token) if token.kind == ClBrace => break,
         CstElem::Tree(cst) => {
           let mut stmt = AstStatement::default();
-          stmt.span = cst.span_within(&self.src);
+          stmt.span = cst.span_within();
           stmt.kind = match cst.kind {
             CstKind::StmtEmpty => continue,
             CstKind::StmtExpression => self.parse_stmt_expression(cst),
