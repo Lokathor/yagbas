@@ -3,6 +3,7 @@ use str_id::StrId;
 use yagbas::{
   ast::{Ast, AstModule},
   cst::Cst,
+  ir_nameres::IrNameres,
 };
 
 fn main() {
@@ -16,7 +17,7 @@ fn main() {
     Some("help") | Some("--help") | Some("/?") => do_help(),
     Some("cst") => do_cst(arguments),
     Some("ast") => do_ast(arguments),
-    //Some("tac") => do_tac(arguments),
+    Some("nameres") => do_nameres(arguments),
     _ => {
       eprintln!("Unknown sub-command.");
       do_help();
@@ -24,23 +25,23 @@ fn main() {
   }
 }
 
-#[cfg(false)]
-fn do_tac(mut arguments: Vec<OsString>) {
-  debug_assert_eq!(arguments[0].to_str().unwrap(), "tac");
+fn do_nameres(mut arguments: Vec<OsString>) {
+  debug_assert_eq!(arguments[0].to_str().unwrap(), "nameres");
   arguments.remove(0);
   let mut target_files = Vec::new();
   for argument in arguments {
     match argument.to_str() {
       Some("--help") => {
-        println!("Usage: yagbas tac [args]");
-        println!("show the three-address-code steps for one or more files");
+        println!("Usage: yagbas nameres [args]");
+        println!("show the name resolution of the files.");
         return;
       }
       _ => target_files.push(argument),
     }
   }
   if target_files.is_empty() {
-    println!("(No filenames provided.)")
+    println!("(No filenames provided.)");
+    return;
   }
   let mut ast = Ast::default();
   for target_file in target_files {
@@ -54,7 +55,10 @@ fn do_tac(mut arguments: Vec<OsString>) {
       }
     }
   }
-  dbg!(ast);
+  let ir_nameres = IrNameres::from_ast(ast);
+  for (k, v) in ir_nameres.names.iter() {
+    println!("{k:?}: {v:#?}");
+  }
 }
 
 fn do_ast(mut arguments: Vec<OsString>) {
@@ -140,7 +144,8 @@ fn do_help() {
   println!("yagbas is an incomplete compiler.");
   println!("Usage: yagbas [sub_command]");
   println!("Current sub-commands are:");
-  println!(" help     this help message.");
-  println!(" cst      view the concrete syntax tree for one or more files.");
-  println!(" ast      view the abstract syntax tree for one or more files.");
+  println!(" help     This help message.");
+  println!(" cst      View the concrete syntax tree for the files.");
+  println!(" ast      View the abstract syntax tree for the files.");
+  println!(" nameres  Run name resolution on the files.");
 }
