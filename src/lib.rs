@@ -21,7 +21,7 @@ use core::ops::Range;
 ///
 /// Yagbas source files are limited in size to 4GB, which is pretty reasonable
 /// because we're compiling code for the game boy here.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {
   /// start of the span
   pub start: u32,
@@ -36,6 +36,11 @@ impl Span {
   /// Convert the span to a [Range], so you can index with it.
   pub const fn as_range(self) -> Range<usize> {
     (self.start as usize)..(self.end as usize)
+  }
+}
+impl core::fmt::Debug for Span {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    core::fmt::Debug::fmt(&self.as_range(), f)
   }
 }
 
