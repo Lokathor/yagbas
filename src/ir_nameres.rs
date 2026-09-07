@@ -199,9 +199,7 @@ impl<'a> NameResolver<'a> {
           .flat_map(|hm| hm.iter())
           .find(|(s, _n)| i == *s)
         {
-          dbg!(&n);
           xpr.kind = AstExprValKind::ResolvedName(*n);
-          dbg!(&xpr.kind);
         } else {
           // TODO: log error
           dbg!("not in scope");
