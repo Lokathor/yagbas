@@ -6,6 +6,7 @@ use crate::{
   Span,
   ast::parser::AstParser,
   cst::{Cst, CstKind},
+  ir_nameres::NameId,
 };
 
 pub mod parser;
@@ -118,6 +119,7 @@ impl AstExprVal {
         | AstExprValKind::ShiftRightAssign(ast_expr_val, ast_expr_val1) => {
           ast_expr_val.has_errors() || ast_expr_val1.has_errors()
         }
+        AstExprValKind::ResolvedName(_) => false,
       }
   }
 }
@@ -172,6 +174,8 @@ pub enum AstExprValKind {
   ShiftRightAssign(Box<AstExprVal>, Box<AstExprVal>),
   Sub(Box<AstExprVal>, Box<AstExprVal>),
   SubAssign(Box<AstExprVal>, Box<AstExprVal>),
+  //
+  ResolvedName(NameId),
 }
 
 #[derive(Debug, Clone, Default)]
