@@ -18,7 +18,7 @@ pub struct Ast {
 
 #[derive(Debug, Clone)]
 pub struct AstModule {
-  pub origin: StrId,
+  pub file_origin: StrId,
   pub items: Vec<AstItem>,
 }
 impl AstModule {

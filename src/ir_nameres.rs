@@ -17,7 +17,7 @@ new_key_type! {
 
 #[derive(Debug, Clone, Copy)]
 pub struct NameInfo {
-  pub origin: StrId,
+  pub file_origin: StrId,
   pub span: Span,
   pub text: StrId,
   pub kind: NameKind,
@@ -44,7 +44,7 @@ impl IrNameres {
     out.ast = ast;
     let mut name_resolver = NameResolver {
       names: &mut out.names,
-      origin: StrId::default(),
+      file_origin: StrId::default(),
       scopes: &mut Vec::new(),
     };
     name_resolver.resolve_for_ast(&mut out.ast);
@@ -55,7 +55,7 @@ impl IrNameres {
 #[derive(Debug)]
 struct NameResolver<'a> {
   names: &'a mut SlotMap<NameId, NameInfo>,
-  origin: StrId,
+  file_origin: StrId,
   scopes: &'a mut Vec<HashMap<StrId, NameId>>,
 }
 impl<'a> NameResolver<'a> {
@@ -63,7 +63,7 @@ impl<'a> NameResolver<'a> {
     for module in ast.modules.iter_mut() {
       self.scopes.clear();
       self.scopes.push(HashMap::new());
-      self.origin = module.origin;
+      self.file_origin = module.file_origin;
       self.resolve_for_module(module);
     }
   }
@@ -93,7 +93,7 @@ impl<'a> NameResolver<'a> {
         (ast_function.name, ast_function.name_span, NameKind::Function)
       }
     };
-    let info = NameInfo { origin: self.origin, span, text, kind };
+    let info = NameInfo { file_origin: self.file_origin, span, text, kind };
     let name_key = self.names.insert(info);
     if let Some(_old) = self.scopes.last_mut().unwrap().insert(text, name_key) {
       // TODO: error here, more than one symbol share the same name at this
@@ -113,7 +113,7 @@ impl<'a> NameResolver<'a> {
       AstItemKind::Function(ast_function) => {
         for arg in ast_function.arguments.iter() {
           let info = NameInfo {
-            origin: self.origin,
+            file_origin: self.file_origin,
             span: arg.name_span,
             text: arg.name,
             kind: NameKind::FunctionArgument,
@@ -168,7 +168,7 @@ impl<'a> NameResolver<'a> {
     match &ast_let.pattern.kind {
       AstExprValKind::Identifier(i) => {
         let info = NameInfo {
-          origin: self.origin,
+          file_origin: self.file_origin,
           text: *i,
           span: ast_let.pattern.span,
           kind: NameKind::LetVariable,
