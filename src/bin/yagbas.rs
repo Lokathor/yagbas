@@ -58,7 +58,7 @@ fn do_nameres(mut arguments: Vec<OsString>) {
   println!("```");
   let ir_nameres = IrNameres::from_ast(ast);
   dbg!(&ir_nameres.ast);
-  eprintln!("=======");
+  println!("=======");
   for (k, v) in ir_nameres.names.iter() {
     println!("{k:?}: {v:#?}");
   }
