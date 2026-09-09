@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-f36ece3a.js";
+            window.path_to_searchindex_js = "searchindex-cb72eb75.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-08a9b9b3.js"></script>
@@ -185,7 +185,54 @@ found in the <a href="https://gbdev.io/pandocs/">Pan Docs</a>.</p>
 <p>Yagbas looks mostly like Rust, where reasonable.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="language-reference"><a class="header" href="#language-reference">Language Reference</a></h1>
-<p>todo!</p>
+<p>Yagbas is a high level programming language intended for writing programs that run on the Game Boy hardware family. Other “very old hardware” targets might also be available some day.</p>
+<p>The language is intended to be familiar to Rust progrmmers, while also keeping a reasonable scope for a one-crab hobby project.</p>
+<h2 id="modules"><a class="header" href="#modules">Modules</a></h2>
+<p>In yagbas, every source file is a “module”.</p>
+<h2 id="items"><a class="header" href="#items">Items</a></h2>
+<p>An “item” is a program element that can exist on its own within a module.</p>
+<p>All items in a module are considered to be defined “simultaneously”. This means that an item can refer to another that’s defined later on in the source file.</p>
+<h2 id="item-kinds"><a class="header" href="#item-kinds">Item Kinds</a></h2>
+<h3 id="constants"><a class="header" href="#constants">Constants</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>const NAME: Type = expression;
+<span class="boring">}</span></code></pre>
+<p>Defines a name for a compile-time value.</p>
+<h3 id="statics"><a class="header" href="#statics">Statics</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>static mmio($FF40) LCDC: LcdControl;
+
+static ram SCORE: u8 = 0;
+
+static rom BASE_HP: [u8; 5] = [0, 3, 5, 12, 10];
+<span class="boring">}</span></code></pre>
+<p>Statics define data available at runtime.</p>
+<ul>
+<li>mmio loctions are memory-mapped IO access.</li>
+<li>ram locations are mutable runtime data.</li>
+<li>rom locations are read-only runtime data.</li>
+</ul>
+<h3 id="functions"><a class="header" href="#functions">Functions</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn add_two(x: u8) -&gt; u8 {
+  x + 2
+}
+<span class="boring">}</span></code></pre>
+<p>Functions create executable code.</p>
+<p>Every program must define a <code>main</code> function, which is the start of exectution.</p>
+<h3 id="structs"><a class="header" href="#structs">Structs</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>struct OamData {
+  y: u8,
+  x: u8,
+  tile_index: u8,
+  attributes: OamAttrs,
+}
+<span class="boring">}</span></code></pre>
 
                     </main>
 
