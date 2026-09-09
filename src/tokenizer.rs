@@ -92,8 +92,12 @@ pub enum TokenKind {
   KwMmio,
   /// `mut`
   KwMut,
+  /// `ram`
+  KwRam,
   /// `return`
   KwReturn,
+  /// `rom`
+  KwRom,
   /// `struct`
   KwStruct,
   /// `static`
@@ -102,6 +106,10 @@ pub enum TokenKind {
   KwTrue,
   /// `use`
   KwUse,
+  /// `while`
+  KwWhile,
+  /// `vol`
+  KwVol,
 
   // individual punctuation
   /// `!`, aka exclamation mark
@@ -396,11 +404,15 @@ impl<'a> TokenIter<'a> {
       b"match" => KwMatch,
       b"mmio" => KwMmio,
       b"mut" => KwMut,
+      b"ram" => KwRam,
       b"return" => KwReturn,
+      b"rom" => KwRom,
       b"struct" => KwStruct,
       b"static" => KwStatic,
       b"true" => KwTrue,
       b"use" => KwUse,
+      b"while" => KwWhile,
+      b"vol" => KwVol,
       _ => Ident,
     };
     Some(Token { kind, span: self.span })

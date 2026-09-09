@@ -4,9 +4,55 @@ Yagbas is a high level programming language intended for writing programs that r
 
 The language is intended to be familiar to Rust progrmmers, while also keeping a reasonable scope for a one-crab hobby project.
 
+## Builtin Types
+
+* `()`
+* `bool`
+* `u8`
+* `i8`
+* `u16`
+* `i16`
+* `fx8_8` (fixed point 8.8)
+* `[T; count]` array of `count` elements.
+* `*const T`
+* `*mut T`
+* `*vol T`
+
+## Keywords
+
+* `as`
+* `bitbag`
+* `break`
+* `const`
+* `continue`
+* `else`
+* `enum`
+* `false`
+* `fn`
+* `for`
+* `if`
+* `impl`
+* `in`
+* `let`
+* `loop`
+* `match`
+* `mmio`
+* `ram`
+* `return`
+* `rom`
+* `struct`
+* `static`
+* `true`
+* `use`
+* `while`
+
 ## Modules
 
-In yagbas, every source file is a "module".
+In yagbas, every source file defines a "module".
+
+Source files must contain utf-8 compatible data.
+
+Source files are expected to use the `.yag` extension, but this doesn't affect the operation of the compiler.
 
 ## Items
 
@@ -63,3 +109,62 @@ struct OamData {
 }
 ```
 
+A structure definition defines a data layout.
+
+### Bitbags
+
+```rust
+bitbag IrqFlags {
+  vblank: 0,
+  lcd: 1,
+  timer: 2,
+  serial: 3,
+  joypad: 4,
+}
+```
+
+A bitbag defines names for the bits within a byte.
+
+The individual fields are bit positions, not whole bytes, so you cannot create a pointer to a field of a bitbag.
+
+### Enum
+
+The language should support enums at some point, but I'm not sure of the details we want.
+
+### Use
+
+```rust
+use core::memcpy;
+```
+
+A `use` statement brings an item from another module into scope.
+
+### Impl
+
+```rust
+impl OamData {
+  fn hide(&mut self) {
+    self.y = 0;
+  }
+}
+```
+
+An `impl` block defines methods on a data type.
+
+## Statements
+
+Within a block of code (enclosed in `{ }`) there's one or more statements, and possibly a tail expression.
+
+A statement can be one of:
+
+* A `let` to introduce a new variable name.
+* An expression.
+* An item definition.
+
+Expressions can always be followed by a semicolon to end the statement, but expressions that start with a keyword and end with a braced body are implicitly "done" when the body is over, and so do not require a semicolon after them when used as a statement. Particularly, this means that `if`, `loop`, `while`, and `for` expressions do not require a semicolon, while struct literal expressions do require a semicolon (because struct literal exlressions end with a braced body but start with an identifier instead of a keyword).
+
+As with items in a module, item statements farther down in a block can be referred to by earlier statements.
+
+## Expressions
+
+The [Expression Precedence](https://doc.rust-lang.org/reference/expressions.html#expression-precedence) ordering from Rust is also used in Yagbas.
