@@ -162,9 +162,13 @@ impl<'a> NameResolver<'a> {
     }
   }
 
+  /// resolve for let statement.
+  ///
+  /// * resolve the expression of the let
+  /// * make the new name in the let pattern.
+  /// * replace that new name with the reaolved form.
   fn resolve_for_let(&mut self, ast_let: &mut AstLet) {
-    // log the new pattern, then fix up on both the new pattern and also the
-    // expression.
+    self.resolve_for_expr(&mut ast_let.xpr);
     match &ast_let.pattern.kind {
       AstExprValKind::Identifier(i) => {
         let info = NameInfo {
@@ -176,7 +180,7 @@ impl<'a> NameResolver<'a> {
         let name_key = self.names.insert(info);
         if let Some(_old) = self.scopes.last_mut().unwrap().insert(*i, name_key)
         {
-          // the new let definition shadows a previous one at the same scope,
+          // here the new let definition shadows a previous one at the same scope,
           // which is allowed. some day maybe a pedantic warning?
         }
       }
@@ -186,7 +190,6 @@ impl<'a> NameResolver<'a> {
       }
     }
     self.resolve_for_expr(&mut ast_let.pattern);
-    self.resolve_for_expr(&mut ast_let.xpr);
   }
 
   fn resolve_for_expr(&mut self, xpr: &mut AstExprVal) {
