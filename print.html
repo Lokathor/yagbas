@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-cb72eb75.js";
+            window.path_to_searchindex_js = "searchindex-872f14c1.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-08a9b9b3.js"></script>
@@ -187,8 +187,52 @@ found in the <a href="https://gbdev.io/pandocs/">Pan Docs</a>.</p>
 <h1 id="language-reference"><a class="header" href="#language-reference">Language Reference</a></h1>
 <p>Yagbas is a high level programming language intended for writing programs that run on the Game Boy hardware family. Other “very old hardware” targets might also be available some day.</p>
 <p>The language is intended to be familiar to Rust progrmmers, while also keeping a reasonable scope for a one-crab hobby project.</p>
+<h2 id="builtin-types"><a class="header" href="#builtin-types">Builtin Types</a></h2>
+<ul>
+<li><code>()</code></li>
+<li><code>bool</code></li>
+<li><code>u8</code></li>
+<li><code>i8</code></li>
+<li><code>u16</code></li>
+<li><code>i16</code></li>
+<li><code>fx8_8</code> (fixed point 8.8)</li>
+<li><code>[T; count]</code> array of <code>count</code> elements.</li>
+<li><code>*const T</code></li>
+<li><code>*mut T</code></li>
+<li><code>*vol T</code></li>
+</ul>
+<h2 id="keywords"><a class="header" href="#keywords">Keywords</a></h2>
+<ul>
+<li><code>as</code></li>
+<li><code>bitbag</code></li>
+<li><code>break</code></li>
+<li><code>const</code></li>
+<li><code>continue</code></li>
+<li><code>else</code></li>
+<li><code>enum</code></li>
+<li><code>false</code></li>
+<li><code>fn</code></li>
+<li><code>for</code></li>
+<li><code>if</code></li>
+<li><code>impl</code></li>
+<li><code>in</code></li>
+<li><code>let</code></li>
+<li><code>loop</code></li>
+<li><code>match</code></li>
+<li><code>mmio</code></li>
+<li><code>ram</code></li>
+<li><code>return</code></li>
+<li><code>rom</code></li>
+<li><code>struct</code></li>
+<li><code>static</code></li>
+<li><code>true</code></li>
+<li><code>use</code></li>
+<li><code>while</code></li>
+</ul>
 <h2 id="modules"><a class="header" href="#modules">Modules</a></h2>
-<p>In yagbas, every source file is a “module”.</p>
+<p>In yagbas, every source file defines a “module”.</p>
+<p>Source files must contain utf-8 compatible data.</p>
+<p>Source files are expected to use the <code>.yag</code> extension, but this doesn’t affect the operation of the compiler.</p>
 <h2 id="items"><a class="header" href="#items">Items</a></h2>
 <p>An “item” is a program element that can exist on its own within a module.</p>
 <p>All items in a module are considered to be defined “simultaneously”. This means that an item can refer to another that’s defined later on in the source file.</p>
@@ -233,6 +277,50 @@ static rom BASE_HP: [u8; 5] = [0, 3, 5, 12, 10];
   attributes: OamAttrs,
 }
 <span class="boring">}</span></code></pre>
+<p>A structure definition defines a data layout.</p>
+<h3 id="bitbags"><a class="header" href="#bitbags">Bitbags</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>bitbag IrqFlags {
+  vblank: 0,
+  lcd: 1,
+  timer: 2,
+  serial: 3,
+  joypad: 4,
+}
+<span class="boring">}</span></code></pre>
+<p>A bitbag defines names for the bits within a byte.</p>
+<p>The individual fields are bit positions, not whole bytes, so you cannot create a pointer to a field of a bitbag.</p>
+<h3 id="enum"><a class="header" href="#enum">Enum</a></h3>
+<p>The language should support enums at some point, but I’m not sure of the details we want.</p>
+<h3 id="use"><a class="header" href="#use">Use</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use core::memcpy;
+<span class="boring">}</span></code></pre>
+<p>A <code>use</code> statement brings an item from another module into scope.</p>
+<h3 id="impl"><a class="header" href="#impl">Impl</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl OamData {
+  fn hide(&amp;mut self) {
+    self.y = 0;
+  }
+}
+<span class="boring">}</span></code></pre>
+<p>An <code>impl</code> block defines methods on a data type.</p>
+<h2 id="statements"><a class="header" href="#statements">Statements</a></h2>
+<p>Within a block of code (enclosed in <code>{ }</code>) there’s one or more statements, and possibly a tail expression.</p>
+<p>A statement can be one of:</p>
+<ul>
+<li>A <code>let</code> to introduce a new variable name.</li>
+<li>An expression.</li>
+<li>An item definition.</li>
+</ul>
+<p>Expressions can always be followed by a semicolon to end the statement, but expressions that start with a keyword and end with a braced body are implicitly “done” when the body is over, and so do not require a semicolon after them when used as a statement. Particularly, this means that <code>if</code>, <code>loop</code>, <code>while</code>, and <code>for</code> expressions do not require a semicolon, while struct literal expressions do require a semicolon (because struct literal exlressions end with a braced body but start with an identifier instead of a keyword).</p>
+<p>As with items in a module, item statements farther down in a block can be referred to by earlier statements.</p>
+<h2 id="expressions"><a class="header" href="#expressions">Expressions</a></h2>
+<p>The <a href="https://doc.rust-lang.org/reference/expressions.html#expression-precedence">Expression Precedence</a> ordering from Rust is also used in Yagbas.</p>
 
                     </main>
 
