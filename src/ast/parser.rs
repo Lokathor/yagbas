@@ -22,8 +22,8 @@ use crate::{
       self, ArgumentList, Body, ExprType, ExprVal, MmioLocation, OperatorInfix,
       OperatorPostfix, OperatorPrefix, ReturnType,
     },
-    operators::{InfixOperator, PostfixOperator, PrefixOperator},
   },
+  operators::{InfixOperator, PostfixOperator, PrefixOperator},
   tokenizer::{
     Token,
     TokenKind::{
