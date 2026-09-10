@@ -42,7 +42,7 @@ impl IrNameres {
   pub fn from_ast(ast: Ast) -> Self {
     let mut out = Self::default();
     out.ast = ast;
-    let mut name_resolver = NameResolver {
+    let mut name_resolver = VarNameResolver {
       names: &mut out.names,
       file_origin: StrId::default(),
       scopes: &mut Vec::new(),
@@ -53,12 +53,12 @@ impl IrNameres {
 }
 
 #[derive(Debug)]
-struct NameResolver<'a> {
+struct VarNameResolver<'a> {
   names: &'a mut SlotMap<NameId, NameInfo>,
   file_origin: StrId,
   scopes: &'a mut Vec<HashMap<StrId, NameId>>,
 }
-impl<'a> NameResolver<'a> {
+impl<'a> VarNameResolver<'a> {
   fn resolve_for_ast(&mut self, ast: &mut Ast) {
     for module in ast.modules.iter_mut() {
       self.scopes.clear();
@@ -205,7 +205,7 @@ impl<'a> NameResolver<'a> {
           xpr.kind = AstExprValKind::ResolvedName(*n);
         } else {
           // TODO: log error
-          dbg!("not in scope");
+          eprintln!("Not In Scope: {} at ({:?})", *i, xpr.span);
         }
       }
       AstExprValKind::If(ast_expr_val, ast_body) => {
@@ -220,10 +220,33 @@ impl<'a> NameResolver<'a> {
         self.scopes.push(HashMap::new());
       }
       AstExprValKind::For(ast_expr_val, ast_expr_val1, ast_body) => {
-        self.resolve_for_expr(ast_expr_val);
         self.resolve_for_expr(ast_expr_val1);
         self.scopes.push(HashMap::new());
-        self.resolve_for_body(ast_body);
+        {
+          match &ast_expr_val.kind {
+            AstExprValKind::Identifier(i) => {
+              let info = NameInfo {
+                file_origin: self.file_origin,
+                text: *i,
+                span: ast_expr_val.span,
+                kind: NameKind::LetVariable,
+              };
+              let name_key = self.names.insert(info);
+              if let Some(_old) =
+                self.scopes.last_mut().unwrap().insert(*i, name_key)
+              {
+                // here the new let definition shadows a previous one at the same scope,
+                // which is allowed. some day maybe a pedantic warning?
+              }
+            }
+            _other => {
+              dbg!(_other);
+              return;
+            }
+          }
+          self.resolve_for_expr(ast_expr_val);
+          self.resolve_for_body(ast_body);
+        }
         self.scopes.push(HashMap::new());
       }
       AstExprValKind::Dereference(ast_expr_val)
