@@ -62,6 +62,9 @@ fn do_nameres(mut arguments: Vec<OsString>) {
   for (k, v) in ir_nameres.names.iter() {
     println!("{k:?}: {v:#?}");
   }
+  for (k, v) in ir_nameres.types.iter() {
+    println!("{k:?}: {v:#?}");
+  }
   println!("```");
 }
 

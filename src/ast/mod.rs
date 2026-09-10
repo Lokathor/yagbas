@@ -6,7 +6,7 @@ use crate::{
   Span,
   ast::parser::AstParser,
   cst::{Cst, CstKind},
-  ir_nameres::NameId,
+  ir_nameres::{NameId, TypeId},
   operators::{BinOpKind, UnOpKind},
 };
 
@@ -158,6 +158,10 @@ impl AstExprType {
         AstExprTypeKind::Array { element_ty, length } => {
           element_ty.has_errors() || length.has_errors()
         }
+        AstExprTypeKind::ConstPtr(p)
+        | AstExprTypeKind::MutPtr(p)
+        | AstExprTypeKind::VolPtr(p) => p.has_errors(),
+        AstExprTypeKind::ResolvedType(_) => false,
       }
   }
 }
@@ -168,9 +172,14 @@ pub enum AstExprTypeKind {
   ErrAstTypeExprKind,
   Plain(StrId),
   Array {
+    // todo: make this one box instead of 2.
     element_ty: Box<AstExprType>,
     length: Box<AstExprVal>,
   },
+  ConstPtr(Box<AstExprType>),
+  MutPtr(Box<AstExprType>),
+  VolPtr(Box<AstExprType>),
+  ResolvedType(TypeId),
 }
 
 #[derive(Debug, Clone, Default)]
