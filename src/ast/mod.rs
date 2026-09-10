@@ -7,6 +7,7 @@ use crate::{
   ast::parser::AstParser,
   cst::{Cst, CstKind},
   ir_nameres::NameId,
+  operators::{BinOpKind, UnOpKind},
 };
 
 pub mod parser;
@@ -71,54 +72,16 @@ impl AstExprVal {
         AstExprValKind::ErrAstValExprKind => true,
         AstExprValKind::LiteralNumber(str_id) => str_id == &StrId::default(),
         AstExprValKind::Identifier(str_id) => str_id == &StrId::default(),
-        AstExprValKind::Reference(ast_expr_val) => ast_expr_val.has_errors(),
-        AstExprValKind::Dereference(ast_expr_val) => ast_expr_val.has_errors(),
+        AstExprValKind::UnOp(_, inner) => inner.has_errors(),
+        AstExprValKind::BinOp(_, left, right) => {
+          left.has_errors() || right.has_errors()
+        }
         AstExprValKind::Break => false,
         AstExprValKind::Loop(ast_body) => ast_body.has_errors(),
         AstExprValKind::If(ast_expr_val, ast_body) => {
           ast_expr_val.has_errors() || ast_body.has_errors()
         }
-        AstExprValKind::For(ast_expr_val, ast_expr_val1, ast_body) => {
-          ast_expr_val.has_errors()
-            || ast_expr_val1.has_errors()
-            || ast_body.has_errors()
-        }
-        AstExprValKind::Mul(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::CmpEq(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::Assign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::AddAssign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::ArrayIndex(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::RangeInclusive(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::RangeExclusive(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::Path(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::Access(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::Div(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::Rem(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::Add(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::Sub(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::ShiftLeft(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::ShiftRight(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::BitAnd(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::BitOr(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::BitXor(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::CmpNe(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::CmpLt(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::CmpGt(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::CmpLe(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::CmpGe(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::ConditionalAnd(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::ConditionalOr(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::SubAssign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::MulAssign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::DivAssign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::RemAssign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::BitAndAssign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::BitOrAssign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::BitXorAssign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::ShiftLeftAssign(ast_expr_val, ast_expr_val1)
-        | AstExprValKind::ShiftRightAssign(ast_expr_val, ast_expr_val1) => {
-          ast_expr_val.has_errors() || ast_expr_val1.has_errors()
-        }
+        AstExprValKind::For(data) => data.has_errors(),
         AstExprValKind::ResolvedName(_) => false,
       }
   }
@@ -135,47 +98,26 @@ pub enum AstExprValKind {
   Break,
   If(Box<AstExprVal>, Box<AstBody>),
   Loop(Box<AstBody>),
-  For(Box<AstExprVal>, Box<AstExprVal>, Box<AstBody>),
+  For(Box<AstForData>),
   //
-  Dereference(Box<AstExprVal>),
-  Reference(Box<AstExprVal>),
-  //
-  Access(Box<AstExprVal>, Box<AstExprVal>),
-  Add(Box<AstExprVal>, Box<AstExprVal>),
-  AddAssign(Box<AstExprVal>, Box<AstExprVal>),
-  ArrayIndex(Box<AstExprVal>, Box<AstExprVal>),
-  Assign(Box<AstExprVal>, Box<AstExprVal>),
-  BitAnd(Box<AstExprVal>, Box<AstExprVal>),
-  BitAndAssign(Box<AstExprVal>, Box<AstExprVal>),
-  BitOr(Box<AstExprVal>, Box<AstExprVal>),
-  BitOrAssign(Box<AstExprVal>, Box<AstExprVal>),
-  BitXor(Box<AstExprVal>, Box<AstExprVal>),
-  BitXorAssign(Box<AstExprVal>, Box<AstExprVal>),
-  CmpEq(Box<AstExprVal>, Box<AstExprVal>),
-  CmpGe(Box<AstExprVal>, Box<AstExprVal>),
-  CmpGt(Box<AstExprVal>, Box<AstExprVal>),
-  CmpLe(Box<AstExprVal>, Box<AstExprVal>),
-  CmpLt(Box<AstExprVal>, Box<AstExprVal>),
-  CmpNe(Box<AstExprVal>, Box<AstExprVal>),
-  ConditionalAnd(Box<AstExprVal>, Box<AstExprVal>),
-  ConditionalOr(Box<AstExprVal>, Box<AstExprVal>),
-  Div(Box<AstExprVal>, Box<AstExprVal>),
-  DivAssign(Box<AstExprVal>, Box<AstExprVal>),
-  Mul(Box<AstExprVal>, Box<AstExprVal>),
-  MulAssign(Box<AstExprVal>, Box<AstExprVal>),
-  Path(Box<AstExprVal>, Box<AstExprVal>),
-  RangeExclusive(Box<AstExprVal>, Box<AstExprVal>),
-  RangeInclusive(Box<AstExprVal>, Box<AstExprVal>),
-  Rem(Box<AstExprVal>, Box<AstExprVal>),
-  RemAssign(Box<AstExprVal>, Box<AstExprVal>),
-  ShiftLeft(Box<AstExprVal>, Box<AstExprVal>),
-  ShiftLeftAssign(Box<AstExprVal>, Box<AstExprVal>),
-  ShiftRight(Box<AstExprVal>, Box<AstExprVal>),
-  ShiftRightAssign(Box<AstExprVal>, Box<AstExprVal>),
-  Sub(Box<AstExprVal>, Box<AstExprVal>),
-  SubAssign(Box<AstExprVal>, Box<AstExprVal>),
+  UnOp(UnOpKind, Box<AstExprVal>),
+  BinOp(BinOpKind, Box<AstExprVal>, Box<AstExprVal>),
   //
   ResolvedName(NameId),
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AstForData {
+  pub step_expr: AstExprVal,
+  pub range_expr: AstExprVal,
+  pub body: AstBody,
+}
+impl AstForData {
+  pub fn has_errors(&self) -> bool {
+    self.step_expr.has_errors()
+      || self.range_expr.has_errors()
+      || self.body.has_errors()
+  }
 }
 
 #[derive(Debug, Clone, Default)]

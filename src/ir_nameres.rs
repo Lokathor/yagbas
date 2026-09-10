@@ -9,6 +9,7 @@ use crate::{
     Ast, AstBody, AstExprVal, AstExprValKind, AstItem, AstItemKind, AstLet,
     AstModule, AstStatementKind,
   },
+  operators::BinOpKind,
 };
 
 new_key_type! {
@@ -219,16 +220,16 @@ impl<'a> VarNameResolver<'a> {
         self.resolve_for_body(ast_body);
         self.scopes.push(HashMap::new());
       }
-      AstExprValKind::For(ast_expr_val, ast_expr_val1, ast_body) => {
-        self.resolve_for_expr(ast_expr_val1);
+      AstExprValKind::For(data) => {
+        self.resolve_for_expr(&mut data.range_expr);
         self.scopes.push(HashMap::new());
         {
-          match &ast_expr_val.kind {
+          match &data.step_expr.kind {
             AstExprValKind::Identifier(i) => {
               let info = NameInfo {
                 file_origin: self.file_origin,
                 text: *i,
-                span: ast_expr_val.span,
+                span: data.step_expr.span,
                 kind: NameKind::LetVariable,
               };
               let name_key = self.names.insert(info);
@@ -244,57 +245,26 @@ impl<'a> VarNameResolver<'a> {
               return;
             }
           }
-          self.resolve_for_expr(ast_expr_val);
-          self.resolve_for_body(ast_body);
+          self.resolve_for_expr(&mut data.step_expr);
+          self.resolve_for_body(&mut data.body);
         }
         self.scopes.push(HashMap::new());
       }
-      AstExprValKind::Dereference(ast_expr_val)
-      | AstExprValKind::Reference(ast_expr_val) => {
-        self.resolve_for_expr(ast_expr_val);
+      AstExprValKind::UnOp(_, inner) => {
+        self.resolve_for_expr(inner);
       }
-      AstExprValKind::Access(ast_expr_val, _ast_expr_val1) => {
-        self.resolve_for_expr(ast_expr_val);
-        // we don't want to update the right hand side... do we? I think we
-        // should only adjust the left hand side?
+      AstExprValKind::BinOp(op, left, right) => {
+        if *op == BinOpKind::Access {
+          self.resolve_for_expr(left);
+          // skip right side for now, we don't know the type yet.
+        } else {
+          self.resolve_for_expr(left);
+          self.resolve_for_expr(right);
+        }
       }
-      AstExprValKind::Add(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::AddAssign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::ArrayIndex(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::Assign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::BitAnd(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::BitAndAssign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::BitOr(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::BitOrAssign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::BitXor(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::BitXorAssign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::CmpEq(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::CmpGe(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::CmpGt(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::CmpLe(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::CmpLt(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::CmpNe(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::ConditionalAnd(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::ConditionalOr(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::Div(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::DivAssign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::Mul(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::MulAssign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::Path(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::RangeExclusive(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::RangeInclusive(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::Rem(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::RemAssign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::ShiftLeft(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::ShiftLeftAssign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::ShiftRight(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::ShiftRightAssign(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::Sub(ast_expr_val, ast_expr_val1)
-      | AstExprValKind::SubAssign(ast_expr_val, ast_expr_val1) => {
-        self.resolve_for_expr(ast_expr_val);
-        self.resolve_for_expr(ast_expr_val1);
+      _other => {
+        dbg!(&_other);
       }
-      _ => (),
     }
   }
 }

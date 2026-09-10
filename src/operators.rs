@@ -255,3 +255,103 @@ impl InfixOperator {
     }
   }
 }
+
+/// A binary operator
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinOpKind {
+  /// `x[y]`
+  ArrayIndex,
+  /// `x::y`
+  Path,
+  /// `x.y`
+  Access,
+  /// `x*y`
+  Mul,
+  /// `x/y`
+  Div,
+  /// `x%y`
+  Rem,
+  /// `x+y`
+  Add,
+  /// `x-y`
+  Sub,
+  /// `x<<y`
+  ShiftLeft,
+  /// `x>>y`
+  ShiftRight,
+  /// `x&y`
+  BitAnd,
+  /// `x^y`
+  BitXor,
+  /// `x|y`
+  BitOr,
+  /// `x==y`
+  CmpEq,
+  /// `x!=y`
+  CmpNe,
+  /// `x<y`
+  CmpLt,
+  /// `x>y`
+  CmpGt,
+  /// `x<=y`
+  CmpLe,
+  /// `x>=y`
+  CmpGe,
+  /// `x&&y`
+  ConditionalAnd,
+  /// `x||y`
+  ConditionalOr,
+  /// `x..y`
+  RangeExclusive,
+  /// `x..=y`
+  RangeInclusive,
+  /// `x=y`
+  Assign,
+  /// `x+=y`
+  AddAssign,
+  /// `x-=y`
+  SubAssign,
+  /// `x*=y`
+  MulAssign,
+  /// `x/=y`
+  DivAssign,
+  /// `x%=y`
+  RemAssign,
+  /// `x&=y`
+  BitAndAssign,
+  /// `x|=y`
+  BitOrAssign,
+  /// `x^=y`
+  BitXorAssign,
+  /// `x>>=y`
+  ShiftLeftAssign,
+  /// `x<<=y`
+  ShiftRightAssign,
+}
+
+/// A unary (one-value) operator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnOpKind {
+  /// `x?`
+  Try,
+  /// `x..`
+  PostfixRangeExclusive,
+  /// `x..=`
+  PostfixRangeInclusive,
+  /// `-x`
+  Negative,
+  /// `!x`
+  BitNot,
+  /// `*x`
+  Dereference,
+  /// `&x`
+  Reference,
+  /// `return x`
+  Return,
+  /// `break x`
+  Break,
+  /// `..x`
+  PrefixRangeExclusive,
+  /// `..=x`
+  PrefixRangeInclusive,
+}

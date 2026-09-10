@@ -9,8 +9,8 @@ use crate::{
   Span,
   ast::{
     AstBody, AstConstant, AstExprType, AstExprTypeKind, AstExprVal,
-    AstExprValKind::{self, ArrayIndex},
-    AstFunction, AstFunctionArgument, AstItem,
+    AstExprValKind::{self},
+    AstForData, AstFunction, AstFunctionArgument, AstItem,
     AstItemKind::{self, ErrAstItemKind},
     AstLet, AstModule, AstStatement,
     AstStatementKind::{self, ErrAstStatementKind},
@@ -23,7 +23,9 @@ use crate::{
       OperatorPostfix, OperatorPrefix, ReturnType,
     },
   },
-  operators::{InfixOperator, PostfixOperator, PrefixOperator},
+  operators::{
+    BinOpKind, InfixOperator, PostfixOperator, PrefixOperator, UnOpKind,
+  },
   tokenizer::{
     Token,
     TokenKind::{
@@ -66,7 +68,6 @@ macro_rules! expect_cst_kind {
 pub struct AstParser {
   pub src: String,
 }
-type InfixMaker = fn(Box<AstExprVal>, Box<AstExprVal>) -> AstExprValKind;
 
 impl AstParser {
   pub fn token_id(&self, tk: Token) -> StrId {
@@ -137,11 +138,11 @@ impl AstParser {
         } else {
           return out;
         };
-        out.kind = AstExprValKind::For(
-          Box::new(step_expr),
-          Box::new(range_expr),
-          Box::new(body),
-        );
+        out.kind = AstExprValKind::For(Box::new(AstForData {
+          step_expr,
+          range_expr,
+          body,
+        }));
         debug_assert!(it.peek().is_none());
         return out;
       }
@@ -149,11 +150,12 @@ impl AstParser {
         let lhs = self.parse_expr_val(cst);
         match it.next() {
           Some(CstElem::Tree(cst)) if matches!(cst.kind, OperatorInfix(_)) => {
-            let infix = self.parse_infix_operator(cst).unwrap();
+            let bin_op_kind = self.parse_infix_operator(cst).unwrap();
             let rhs_cst = expect_cst_kind!(it, ExprVal, out);
             let rhs = self.parse_expr_val(rhs_cst);
             out.span = Span::new(lhs.span.start, rhs.span.end);
-            out.kind = infix(Box::new(lhs), Box::new(rhs));
+            out.kind =
+              AstExprValKind::BinOp(bin_op_kind, Box::new(lhs), Box::new(rhs));
             debug_assert!(it.peek().is_none());
             return out;
           }
@@ -169,8 +171,11 @@ impl AstParser {
                     dbg!("aaaa");
                     return out;
                   };
-                  out.kind =
-                    AstExprValKind::ArrayIndex(Box::new(lhs), Box::new(xpr));
+                  out.kind = AstExprValKind::BinOp(
+                    BinOpKind::ArrayIndex,
+                    Box::new(lhs),
+                    Box::new(xpr),
+                  );
                 }
                 PostfixOperator::FnCall => todo!(),
                 PostfixOperator::Try => todo!(),
@@ -182,7 +187,8 @@ impl AstParser {
                     dbg!("aaaa");
                     return out;
                   };
-                  out.kind = AstExprValKind::RangeExclusive(
+                  out.kind = AstExprValKind::BinOp(
+                    BinOpKind::RangeExclusive,
                     Box::new(lhs),
                     Box::new(end_expr),
                   );
@@ -194,7 +200,8 @@ impl AstParser {
                     dbg!("aaaa");
                     return out;
                   };
-                  out.kind = AstExprValKind::RangeInclusive(
+                  out.kind = AstExprValKind::BinOp(
+                    BinOpKind::RangeInclusive,
                     Box::new(lhs),
                     Box::new(end_expr),
                   );
@@ -222,7 +229,8 @@ impl AstParser {
               if let Some(CstElem::Tree(cst)) = it.next() {
                 out.span = cst.span();
                 let i = self.parse_expr_val(cst);
-                out.kind = AstExprValKind::Dereference(Box::new(i));
+                out.kind =
+                  AstExprValKind::UnOp(UnOpKind::Dereference, Box::new(i));
                 return out;
               }
             }
@@ -230,7 +238,8 @@ impl AstParser {
               if let Some(CstElem::Tree(cst)) = it.next() {
                 out.span = cst.span();
                 let i = self.parse_expr_val(cst);
-                out.kind = AstExprValKind::Reference(Box::new(i));
+                out.kind =
+                  AstExprValKind::UnOp(UnOpKind::Reference, Box::new(i));
                 return out;
               }
             }
@@ -256,42 +265,42 @@ impl AstParser {
       }
     }
   }
-  pub fn parse_infix_operator(&self, cst: &Cst) -> Option<InfixMaker> {
+  pub fn parse_infix_operator(&self, cst: &Cst) -> Option<BinOpKind> {
     match cst.kind {
       CstKind::OperatorInfix(x) => Some(match x {
-        InfixOperator::Path => AstExprValKind::Path,
-        InfixOperator::Access => AstExprValKind::Access,
-        InfixOperator::Mul => AstExprValKind::Mul,
-        InfixOperator::Div => AstExprValKind::Div,
-        InfixOperator::Rem => AstExprValKind::Rem,
-        InfixOperator::Add => AstExprValKind::Add,
-        InfixOperator::Sub => AstExprValKind::Sub,
-        InfixOperator::ShiftLeft => AstExprValKind::ShiftLeft,
-        InfixOperator::ShiftRight => AstExprValKind::ShiftRight,
-        InfixOperator::BitAnd => AstExprValKind::BitAnd,
-        InfixOperator::BitXor => AstExprValKind::BitXor,
-        InfixOperator::BitOr => AstExprValKind::BitOr,
-        InfixOperator::CmpEq => AstExprValKind::CmpEq,
-        InfixOperator::CmpNe => AstExprValKind::CmpNe,
-        InfixOperator::CmpLt => AstExprValKind::CmpLt,
-        InfixOperator::CmpGt => AstExprValKind::CmpGt,
-        InfixOperator::CmpLe => AstExprValKind::CmpLe,
-        InfixOperator::CmpGe => AstExprValKind::CmpGe,
-        InfixOperator::ConditionalAnd => AstExprValKind::ConditionalAnd,
-        InfixOperator::ConditionalOr => AstExprValKind::ConditionalOr,
-        InfixOperator::RangeExclusive => AstExprValKind::RangeExclusive,
-        InfixOperator::RangeInclusive => AstExprValKind::RangeInclusive,
-        InfixOperator::Assign => AstExprValKind::Assign,
-        InfixOperator::AddAssign => AstExprValKind::AddAssign,
-        InfixOperator::SubAssign => AstExprValKind::SubAssign,
-        InfixOperator::MulAssign => AstExprValKind::MulAssign,
-        InfixOperator::DivAssign => AstExprValKind::DivAssign,
-        InfixOperator::RemAssign => AstExprValKind::RemAssign,
-        InfixOperator::BitAndAssign => AstExprValKind::BitAndAssign,
-        InfixOperator::BitOrAssign => AstExprValKind::BitOrAssign,
-        InfixOperator::BitXorAssign => AstExprValKind::BitXorAssign,
-        InfixOperator::ShiftLeftAssign => AstExprValKind::ShiftLeftAssign,
-        InfixOperator::ShiftRightAssign => AstExprValKind::ShiftRightAssign,
+        InfixOperator::Path => BinOpKind::Path,
+        InfixOperator::Access => BinOpKind::Access,
+        InfixOperator::Mul => BinOpKind::Mul,
+        InfixOperator::Div => BinOpKind::Div,
+        InfixOperator::Rem => BinOpKind::Rem,
+        InfixOperator::Add => BinOpKind::Add,
+        InfixOperator::Sub => BinOpKind::Sub,
+        InfixOperator::ShiftLeft => BinOpKind::ShiftLeft,
+        InfixOperator::ShiftRight => BinOpKind::ShiftRight,
+        InfixOperator::BitAnd => BinOpKind::BitAnd,
+        InfixOperator::BitXor => BinOpKind::BitXor,
+        InfixOperator::BitOr => BinOpKind::BitOr,
+        InfixOperator::CmpEq => BinOpKind::CmpEq,
+        InfixOperator::CmpNe => BinOpKind::CmpNe,
+        InfixOperator::CmpLt => BinOpKind::CmpLt,
+        InfixOperator::CmpGt => BinOpKind::CmpGt,
+        InfixOperator::CmpLe => BinOpKind::CmpLe,
+        InfixOperator::CmpGe => BinOpKind::CmpGe,
+        InfixOperator::ConditionalAnd => BinOpKind::ConditionalAnd,
+        InfixOperator::ConditionalOr => BinOpKind::ConditionalOr,
+        InfixOperator::RangeExclusive => BinOpKind::RangeExclusive,
+        InfixOperator::RangeInclusive => BinOpKind::RangeInclusive,
+        InfixOperator::Assign => BinOpKind::Assign,
+        InfixOperator::AddAssign => BinOpKind::AddAssign,
+        InfixOperator::SubAssign => BinOpKind::SubAssign,
+        InfixOperator::MulAssign => BinOpKind::MulAssign,
+        InfixOperator::DivAssign => BinOpKind::DivAssign,
+        InfixOperator::RemAssign => BinOpKind::RemAssign,
+        InfixOperator::BitAndAssign => BinOpKind::BitAndAssign,
+        InfixOperator::BitOrAssign => BinOpKind::BitOrAssign,
+        InfixOperator::BitXorAssign => BinOpKind::BitXorAssign,
+        InfixOperator::ShiftLeftAssign => BinOpKind::ShiftLeftAssign,
+        InfixOperator::ShiftRightAssign => BinOpKind::ShiftRightAssign,
       }),
       _ => None,
     }
