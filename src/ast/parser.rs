@@ -8,9 +8,10 @@ use tinyvec::ArrayVec;
 use crate::{
   Span,
   ast::{
-    AstBody, AstConstant, AstExprType, AstExprTypeKind, AstExprVal,
+    AstBinOpData, AstBody, AstConstant, AstExprType, AstExprTypeKind,
+    AstExprVal,
     AstExprValKind::{self},
-    AstForData, AstFunction, AstFunctionArgument, AstItem,
+    AstForData, AstFunction, AstFunctionArgument, AstIfData, AstItem,
     AstItemKind::{self, ErrAstItemKind},
     AstLet, AstModule, AstStatement,
     AstStatementKind::{self, ErrAstStatementKind},
@@ -117,7 +118,11 @@ impl AstParser {
         } else {
           return out;
         };
-        out.kind = AstExprValKind::If(Box::new(condition), Box::new(body));
+        out.kind = AstExprValKind::If(Box::new(AstIfData {
+          condition,
+          if_body: body,
+          else_body: AstBody::default(),
+        }));
         debug_assert!(it.peek().is_none());
         return out;
       }
@@ -154,8 +159,11 @@ impl AstParser {
             let rhs_cst = expect_cst_kind!(it, ExprVal, out);
             let rhs = self.parse_expr_val(rhs_cst);
             out.span = Span::new(lhs.span.start, rhs.span.end);
-            out.kind =
-              AstExprValKind::BinOp(bin_op_kind, Box::new(lhs), Box::new(rhs));
+            out.kind = AstExprValKind::BinOp(Box::new(AstBinOpData {
+              op: bin_op_kind,
+              left: lhs,
+              right: rhs,
+            }));
             debug_assert!(it.peek().is_none());
             return out;
           }
@@ -171,11 +179,11 @@ impl AstParser {
                     dbg!("aaaa");
                     return out;
                   };
-                  out.kind = AstExprValKind::BinOp(
-                    BinOpKind::ArrayIndex,
-                    Box::new(lhs),
-                    Box::new(xpr),
-                  );
+                  out.kind = AstExprValKind::BinOp(Box::new(AstBinOpData {
+                    op: BinOpKind::ArrayIndex,
+                    left: lhs,
+                    right: xpr,
+                  }));
                 }
                 PostfixOperator::FnCall => todo!(),
                 PostfixOperator::Try => todo!(),
@@ -187,11 +195,11 @@ impl AstParser {
                     dbg!("aaaa");
                     return out;
                   };
-                  out.kind = AstExprValKind::BinOp(
-                    BinOpKind::RangeExclusive,
-                    Box::new(lhs),
-                    Box::new(end_expr),
-                  );
+                  out.kind = AstExprValKind::BinOp(Box::new(AstBinOpData {
+                    op: BinOpKind::RangeExclusive,
+                    left: lhs,
+                    right: end_expr,
+                  }));
                 }
                 PostfixOperator::PostfixRangeInclusive => {
                   let end_expr = if let Some(CstElem::Tree(cst)) = it.next() {
@@ -200,11 +208,11 @@ impl AstParser {
                     dbg!("aaaa");
                     return out;
                   };
-                  out.kind = AstExprValKind::BinOp(
-                    BinOpKind::RangeInclusive,
-                    Box::new(lhs),
-                    Box::new(end_expr),
-                  );
+                  out.kind = AstExprValKind::BinOp(Box::new(AstBinOpData {
+                    op: BinOpKind::RangeInclusive,
+                    left: lhs,
+                    right: end_expr,
+                  }));
                 }
               },
               _ => unimplemented!(),

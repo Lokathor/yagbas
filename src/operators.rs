@@ -257,8 +257,11 @@ impl InfixOperator {
 }
 
 /// A binary operator
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BinOpKind {
+  /// error kind, mostly used as the default.
+  #[default]
+  ErrBinOpKind,
   /// `x[y]`
   ArrayIndex,
   /// `x::y`

@@ -73,14 +73,10 @@ impl AstExprVal {
         AstExprValKind::LiteralNumber(str_id) => str_id == &StrId::default(),
         AstExprValKind::Identifier(str_id) => str_id == &StrId::default(),
         AstExprValKind::UnOp(_, inner) => inner.has_errors(),
-        AstExprValKind::BinOp(_, left, right) => {
-          left.has_errors() || right.has_errors()
-        }
+        AstExprValKind::BinOp(data) => data.has_errors(),
         AstExprValKind::Break => false,
         AstExprValKind::Loop(ast_body) => ast_body.has_errors(),
-        AstExprValKind::If(ast_expr_val, ast_body) => {
-          ast_expr_val.has_errors() || ast_body.has_errors()
-        }
+        AstExprValKind::If(data) => data.has_errors(),
         AstExprValKind::For(data) => data.has_errors(),
         AstExprValKind::ResolvedName(_) => false,
       }
@@ -96,14 +92,28 @@ pub enum AstExprValKind {
   LiteralNumber(StrId),
   //
   Break,
-  If(Box<AstExprVal>, Box<AstBody>),
+  If(Box<AstIfData>),
   Loop(Box<AstBody>),
   For(Box<AstForData>),
   //
   UnOp(UnOpKind, Box<AstExprVal>),
-  BinOp(BinOpKind, Box<AstExprVal>, Box<AstExprVal>),
+  BinOp(Box<AstBinOpData>),
   //
   ResolvedName(NameId),
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AstIfData {
+  pub condition: AstExprVal,
+  pub if_body: AstBody,
+  pub else_body: AstBody,
+}
+impl AstIfData {
+  pub fn has_errors(&self) -> bool {
+    self.condition.has_errors()
+      || self.if_body.has_errors()
+      || self.else_body.has_errors()
+  }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -117,6 +127,20 @@ impl AstForData {
     self.step_expr.has_errors()
       || self.range_expr.has_errors()
       || self.body.has_errors()
+  }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AstBinOpData {
+  pub op: BinOpKind,
+  pub left: AstExprVal,
+  pub right: AstExprVal,
+}
+impl AstBinOpData {
+  pub fn has_errors(&self) -> bool {
+    self.op == BinOpKind::ErrBinOpKind
+      || self.left.has_errors()
+      || self.right.has_errors()
   }
 }
 

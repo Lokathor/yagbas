@@ -209,10 +209,15 @@ impl<'a> VarNameResolver<'a> {
           eprintln!("Not In Scope: {} at ({:?})", *i, xpr.span);
         }
       }
-      AstExprValKind::If(ast_expr_val, ast_body) => {
-        self.resolve_for_expr(ast_expr_val);
+      AstExprValKind::If(data) => {
+        self.resolve_for_expr(&mut data.condition);
+        //
         self.scopes.push(HashMap::new());
-        self.resolve_for_body(ast_body);
+        self.resolve_for_body(&mut data.if_body);
+        self.scopes.push(HashMap::new());
+        //
+        self.scopes.push(HashMap::new());
+        self.resolve_for_body(&mut data.else_body);
         self.scopes.push(HashMap::new());
       }
       AstExprValKind::Loop(ast_body) => {
@@ -253,13 +258,13 @@ impl<'a> VarNameResolver<'a> {
       AstExprValKind::UnOp(_, inner) => {
         self.resolve_for_expr(inner);
       }
-      AstExprValKind::BinOp(op, left, right) => {
-        if *op == BinOpKind::Access {
-          self.resolve_for_expr(left);
+      AstExprValKind::BinOp(data) => {
+        if data.op == BinOpKind::Access {
+          self.resolve_for_expr(&mut data.left);
           // skip right side for now, we don't know the type yet.
         } else {
-          self.resolve_for_expr(left);
-          self.resolve_for_expr(right);
+          self.resolve_for_expr(&mut data.left);
+          self.resolve_for_expr(&mut data.right);
         }
       }
       _other => {
