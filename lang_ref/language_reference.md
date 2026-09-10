@@ -13,7 +13,7 @@ The language is intended to be familiar to Rust progrmmers, while also keeping a
 * `u16`
 * `i16`
 * `fx8_8` (fixed point 8.8)
-* `[T; count]` array of `count` elements.
+* `[T; count]` (arrays)
 * `*const T`
 * `*mut T`
 * `*vol T`
@@ -45,6 +45,7 @@ The language is intended to be familiar to Rust progrmmers, while also keeping a
 * `true`
 * `use`
 * `while`
+* `vol`
 
 ## Modules
 
