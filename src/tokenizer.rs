@@ -55,62 +55,6 @@ pub enum TokenKind {
   #[default]
   ErrDefault,
 
-  // keywords
-  /// `as`
-  KwAs,
-  /// `bitbag`
-  KwBitbag,
-  /// `break`
-  KwBreak,
-  /// `const`
-  KwConst,
-  /// `continue`
-  KwContinue,
-  /// `else`
-  KwElse,
-  /// `enum`
-  KwEnum,
-  /// `false`
-  KwFalse,
-  /// `fn`
-  KwFn,
-  /// `for`
-  KwFor,
-  /// `if`
-  KwIf,
-  /// `impl`
-  KwImpl,
-  /// `in`
-  KwIn,
-  /// `let`
-  KwLet,
-  /// `loop`
-  KwLoop,
-  /// `match`
-  KwMatch,
-  /// `mmio`
-  KwMmio,
-  /// `mut`
-  KwMut,
-  /// `ram`
-  KwRam,
-  /// `return`
-  KwReturn,
-  /// `rom`
-  KwRom,
-  /// `struct`
-  KwStruct,
-  /// `static`
-  KwStatic,
-  /// `true`
-  KwTrue,
-  /// `use`
-  KwUse,
-  /// `while`
-  KwWhile,
-  /// `vol`
-  KwVol,
-
   // individual punctuation
   /// `!`, aka exclamation mark
   Bang = b'!',
@@ -176,6 +120,62 @@ pub enum TokenKind {
   ClBrace = b'}',
   /// `~`
   Tilde = b'~',
+
+  // keywords
+  /// `as`
+  KwAs,
+  /// `bitbag`
+  KwBitbag,
+  /// `break`
+  KwBreak,
+  /// `const`
+  KwConst,
+  /// `continue`
+  KwContinue,
+  /// `else`
+  KwElse,
+  /// `enum`
+  KwEnum,
+  /// `false`
+  KwFalse,
+  /// `fn`
+  KwFn,
+  /// `for`
+  KwFor,
+  /// `if`
+  KwIf,
+  /// `impl`
+  KwImpl,
+  /// `in`
+  KwIn,
+  /// `let`
+  KwLet,
+  /// `loop`
+  KwLoop,
+  /// `match`
+  KwMatch,
+  /// `mmio`
+  KwMmio,
+  /// `mut`
+  KwMut,
+  /// `ram`
+  KwRam,
+  /// `return`
+  KwReturn,
+  /// `rom`
+  KwRom,
+  /// `struct`
+  KwStruct,
+  /// `static`
+  KwStatic,
+  /// `true`
+  KwTrue,
+  /// `use`
+  KwUse,
+  /// `while`
+  KwWhile,
+  /// `vol`
+  KwVol,
 
   // merged punctuation (makes parsing much easier)
   /// `::`
