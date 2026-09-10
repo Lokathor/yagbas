@@ -44,6 +44,7 @@ impl core::fmt::Debug for Span {
   }
 }
 
+pub mod operators;
 pub mod tokenizer;
 
 #[forbid(unsafe_code)]

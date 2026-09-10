@@ -3,10 +3,10 @@
 //! [Cst]
 
 use crate::cst::CstKind::{self, ErrExpectedIfCondition};
-use crate::cst::operators::{
+use crate::cst::parser::{CloseMark, CstParser, OpenMark};
+use crate::operators::{
   BindDirection, InfixOperator, PostfixOperator, PrefixOperator,
 };
-use crate::cst::parser::{CloseMark, CstParser, OpenMark};
 use crate::tokenizer::TokenKind::*;
 use crate::tokenizer::{Token, TokenKind, tokenize};
 

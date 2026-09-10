@@ -3,17 +3,16 @@
 
 use crate::Span;
 use crate::cst::actions::do_module;
-use crate::cst::operators::InfixOperator;
-use crate::cst::operators::PostfixOperator;
-use crate::cst::operators::PrefixOperator;
 use crate::cst::parser::CstParser;
+use crate::operators::InfixOperator;
+use crate::operators::PostfixOperator;
+use crate::operators::PrefixOperator;
 use crate::tokenizer::Token;
 use crate::tokenizer::TokenKind;
 use crate::tokenizer::TokenKind::Comment;
 use crate::tokenizer::TokenKind::Whitespace;
 
 pub mod actions;
-pub mod operators;
 pub mod parser;
 
 /// Concrete Syntax Tree
