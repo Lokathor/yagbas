@@ -20,7 +20,7 @@ impl Token {
     use TokenKind::*;
     matches!(
       self.kind,
-      ErrUnknown
+      ErrUnknownByte
         | ErrBadRawValue
         | ErrBlockCommentExtraClose
         | ErrBlockCommentUnclosed
@@ -32,12 +32,15 @@ impl Token {
 }
 
 /// The possible kinds of token that can exist in Yagbas source.
+///
+/// The ordering of these variants isn't important except that the single
+/// punctuation variants must have a tag value equal to their ascii byte value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(u8)]
 pub enum TokenKind {
   // error cases
   /// The lexer doesn't know what this was.
-  ErrUnknown,
+  ErrUnknownByte,
   /// A block comment was opened but not closed.
   ErrBlockCommentUnclosed,
   /// A block comment was closed without any preceeding open markers.
@@ -177,7 +180,7 @@ pub enum TokenKind {
   /// `vol`
   KwVol,
 
-  // merged punctuation (makes parsing much easier)
+  // merged punctuation (makes parts of parsing much easier)
   /// `::`
   ColonColon,
   /// `==`
@@ -299,7 +302,10 @@ impl<'a> TokenIter<'a> {
     Some(Token { kind: Comment, span: self.span })
   }
 
+  /// With the lexer pointed at the byte just after the opening `"`, find the
+  /// closing `"` that matches it.
   fn handle_literal_str(&mut self) -> Option<Token> {
+    debug_assert_eq!(self.bytes[self.position - 1], b'"');
     let mut backslash_count = 0;
     loop {
       match self.next_byte() {
@@ -325,8 +331,12 @@ impl<'a> TokenIter<'a> {
     Some(Token { kind: LitStr, span: self.span })
   }
 
+  /// With the lexer pointed at a `#` immediately after a `r`, finish this raw
+  /// value token.
+  ///
+  /// * Currently only handles raw string literals.
   fn handle_literal_raw_value(&mut self) -> Option<Token> {
-    debug_assert_eq!(self.peek_byte().unwrap(), b'#');
+    debug_assert_eq!(self.peek_byte(), Some(b'#'));
     let mut hash_count = 0;
     while let Some(b'#') = self.peek_byte() {
       hash_count += 1;
@@ -369,6 +379,8 @@ impl<'a> TokenIter<'a> {
     Some(Token { kind: LitStr, span: self.span })
   }
 
+  /// Having just consumed the first byte of a number literal, this finishes
+  /// that number literal.
   fn handle_literal_num(&mut self) -> Option<Token> {
     while let Some(b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_') =
       self.peek_byte()
@@ -378,6 +390,8 @@ impl<'a> TokenIter<'a> {
     Some(Token { kind: LitNum, span: self.span })
   }
 
+  /// Having just consumed the first byte of a keyword or ident, finish the
+  /// token.
   fn handle_keyword_or_ident(&mut self) -> Option<Token> {
     while let Some(b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_') =
       self.peek_byte()
@@ -468,9 +482,7 @@ impl<'a> Iterator for TokenIter<'a> {
       },
       // string literals
       b'"' => self.handle_literal_str(),
-      b'r' if self.peek_byte().map(|b| b == b'#').unwrap_or(false) => {
-        self.handle_literal_raw_value()
-      }
+      b'r' if self.peek_byte() == Some(b'#') => self.handle_literal_raw_value(),
       // number literals
       b'$' => match self.peek_byte() {
         Some(b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z') => {
@@ -542,7 +554,7 @@ impl<'a> Iterator for TokenIter<'a> {
         Some(Token { kind: unsafe { t(x) }, span: self.span })
       }
       // otherwise it's out of range
-      ..=0x1F | 0x7F.. => Some(Token { kind: ErrUnknown, span: self.span }),
+      ..=0x1F | 0x7F.. => Some(Token { kind: ErrUnknownByte, span: self.span }),
     }
   }
 }
