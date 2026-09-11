@@ -24,7 +24,7 @@ fn main() {
   }
   *LCDC = 0;
 
-  //// set tile data manually
+  // set tile data manually
   let tile = &VRAM_BLOCK_8000[0][0];
   let pattern = $AA;
   for _ in 0..BYTES_PER_TILE {
