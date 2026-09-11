@@ -116,7 +116,9 @@ impl Cst {
 impl core::fmt::Display for Cst {
   /// Better way to look at the tree than Debug provides.
   ///
-  /// * use the alternate flag to enable displaying of whitespace and comment tokens, as well as commentary syntax trees. Otherwise they are skipped from the output.
+  /// * use the alternate flag to enable displaying of whitespace and comment
+  ///   tokens, as well as commentary syntax trees. Otherwise they are skipped
+  ///   from the output.
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     return fmt_rec(self, f, 0);
 
