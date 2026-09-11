@@ -14,6 +14,11 @@ fn expect_token(s: &str, k: TokenKind) {
 }
 
 #[test]
+fn test_size_and_align_of_types() {
+  assert_eq!(size_of::<TokenKind>(), 1);
+}
+
+#[test]
 fn test_comment_block_plain() {
   expect_token("/**/", Comment);
 }
