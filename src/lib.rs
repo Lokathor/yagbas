@@ -19,13 +19,13 @@ use core::ops::Range;
 
 /// A span within a source file.
 ///
-/// Yagbas source files are limited in size to 4GB, which is pretty reasonable
-/// because we're compiling code for the game boy here.
+/// Because we use `u32` positions, Yagbas source files are limited in size to
+/// 4GB, which is entirely reasonable.
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {
-  /// start of the span
+  /// the start of the span
   pub start: u32,
-  /// exclusive end of the span.
+  /// the **exclusive** end of the span.
   pub end: u32,
 }
 impl Span {
