@@ -1,5 +1,9 @@
 
+/// vram blocks don't have clear natural names, so we name them
+/// after the base address value.
 static mmio($8800) VRAM_BLOCK_8000: [[u8;BYTES_PER_TILE]; TILES_PER_BLOCK];
+
+/// tilemaps also don't have good sensible names.
 static mmio($9800) TILEMAP_9800: [u8; 32*32];
 static mmio($FF26) AUDIO_MAIN: u8;
 static mmio($FF40) LCDC: u8;

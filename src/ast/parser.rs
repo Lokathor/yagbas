@@ -355,14 +355,28 @@ impl AstParser {
         CstElem::Tree(tree) => {
           item.span = tree.span();
           match tree.kind {
-            CstKind::ItemStaticMmio => {
-              item.kind = self.parse_static_mmio(tree);
-            }
-            CstKind::ItemConst => {
-              item.kind = self.parse_constant(tree);
-            }
-            CstKind::ItemFunction => {
-              item.kind = self.parse_function(tree);
+            CstKind::Item => {
+              let mut it = tree.iter_important();
+              if let Some(first) = it.next() {
+                match first {
+                  CstElem::Token(Token {
+                    kind: TokenKind::KwStatic, ..
+                  }) => {
+                    item.kind = self.parse_static(tree);
+                  }
+                  CstElem::Token(Token {
+                    kind: TokenKind::KwConst, ..
+                  }) => {
+                    item.kind = self.parse_constant(tree);
+                  }
+                  CstElem::Token(Token { kind: TokenKind::KwFn, .. }) => {
+                    item.kind = self.parse_function(tree);
+                  }
+                  _other_cst_kind => {
+                    dbg!(_other_cst_kind);
+                  }
+                }
+              }
             }
             _other_cst_kind => {
               dbg!(_other_cst_kind);
@@ -379,8 +393,8 @@ impl AstParser {
 
     out
   }
-  pub fn parse_static_mmio(&self, cst: &Cst) -> AstItemKind {
-    debug_assert_eq!(cst.kind, CstKind::ItemStaticMmio);
+  pub fn parse_static(&self, cst: &Cst) -> AstItemKind {
+    debug_assert_eq!(cst.kind, CstKind::Item);
     let mut out = AstStaticMmio::default();
     let mut it = cst.iter_important();
     expect_tk_kind!(it, KwStatic, ErrAstItemKind);
@@ -400,7 +414,7 @@ impl AstParser {
     AstItemKind::StaticMmio(out)
   }
   fn parse_constant(&self, cst: &Cst) -> AstItemKind {
-    debug_assert_eq!(cst.kind, CstKind::ItemConst);
+    debug_assert_eq!(cst.kind, CstKind::Item);
     let mut out = AstConstant::default();
     let mut it = cst.iter_important();
     expect_tk_kind!(it, KwConst, ErrAstItemKind);
@@ -418,7 +432,7 @@ impl AstParser {
     AstItemKind::Constant(out)
   }
   fn parse_function(&self, cst: &Cst) -> AstItemKind {
-    debug_assert_eq!(cst.kind, CstKind::ItemFunction);
+    debug_assert_eq!(cst.kind, CstKind::Item);
     let mut out = AstFunction::default();
     let mut it = cst.iter_important();
     expect_tk_kind!(it, KwFn, ErrAstItemKind);

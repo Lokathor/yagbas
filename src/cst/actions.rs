@@ -16,47 +16,55 @@ static ITEM_KEYWORDS: &[TokenKind] =
 /// Parse an entire module's content.
 pub fn do_module(p: &mut CstParser) {
   let m_module = p.open();
-  while p.peek() != ErrEndOfFile {
-    let m_item = p.open_eat_trivia();
-    if ITEM_KEYWORDS.contains(&p.peek()) {
-      do_item(p, m_item);
-    } else if p.peek() == ErrEndOfFile {
-      p.abandon_subtree(m_item);
-    } else {
-      while !ITEM_KEYWORDS.contains(&p.peek()) && p.has_more() {
-        p.advance();
-      }
-      p.close(m_item, CstKind::ErrExpectedItemKeyword);
-    }
+  loop {
     while let Whitespace = p.peek() {
       p.advance();
     }
+    let m_item = p.open_eat_trivia();
+    match p.peek() {
+      ErrEndOfFile => {
+        p.abandon_subtree(m_item);
+        p.close(m_module, CstKind::Module);
+        return;
+      }
+      k if ITEM_KEYWORDS.contains(&k) => {
+        do_item(p);
+        while let Whitespace = p.peek() {
+          p.advance();
+        }
+        p.close(m_item, CstKind::Item);
+      }
+      _ => {
+        while p.has_more() && !ITEM_KEYWORDS.contains(&p.peek()) {
+          p.advance();
+        }
+        p.close(m_item, CstKind::ErrExpectedItemKeyword);
+      }
+    }
   }
-  p.close(m_module, CstKind::Module);
 }
 
 /// Parse for one single item.
 ///
 /// * `m_item` the mark for the tree holding this item
 /// * **Debug Assert:** that the parser is already pointed at an item keyword.
-fn do_item(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
+fn do_item(p: &mut CstParser) {
   debug_assert!(
     ITEM_KEYWORDS.contains(&p.peek()),
     "bad do_item: {:?}",
     p.peek()
   );
   match p.peek() {
-    KwFn => do_func(p, m_item),
-    KwStatic => do_static(p, m_item),
-    KwConst => do_const(p, m_item),
+    KwFn => do_func(p),
+    KwStatic => do_static(p),
+    KwConst => do_const(p),
     _ => {
       p.advance();
-      p.close(m_item, CstKind::ErrTodo)
     }
   }
 }
 
-fn do_const(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
+fn do_const(p: &mut CstParser) {
   debug_assert_eq!(p.peek(), KwConst);
   p.expect(KwConst);
   p.eat_trivia();
@@ -71,10 +79,9 @@ fn do_const(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
   try_value_expr(p);
   p.eat_trivia();
   p.expect(Semicolon);
-  p.close(m_item, CstKind::ItemConst)
 }
 
-fn do_static(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
+fn do_static(p: &mut CstParser) {
   debug_assert_eq!(p.peek(), KwStatic);
   p.expect(KwStatic);
   p.eat_trivia();
@@ -95,11 +102,9 @@ fn do_static(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
       do_type_expr(p);
       p.eat_trivia();
       p.expect(Semicolon);
-      p.close(m_item, CstKind::ItemStaticMmio)
     }
     _ => {
       p.advance();
-      p.close(m_item, CstKind::ErrTodo)
     }
   }
 }
@@ -108,7 +113,7 @@ fn do_static(p: &mut CstParser, m_item: OpenMark) -> CloseMark {
 ///
 /// * `m_fn` the mark for this function
 /// * **Debug Assert:** That the parser is pointed at the `fn` keyword.
-fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
+fn do_func(p: &mut CstParser) {
   debug_assert!(p.at(KwFn));
   p.expect(KwFn);
   p.eat_trivia();
@@ -134,8 +139,6 @@ fn do_func(p: &mut CstParser, m_fn: OpenMark) -> CloseMark {
 
   let m_body = p.open_eat_trivia();
   do_body(p, m_body);
-
-  p.close(m_fn, CstKind::ItemFunction)
 }
 
 fn do_function_arguments(p: &mut CstParser) {
@@ -146,6 +149,9 @@ fn do_function_arguments(p: &mut CstParser) {
     if p.at(ClParen) {
       p.abandon_subtree(m_arg);
       p.advance();
+      while let Whitespace = p.peek() {
+        p.advance();
+      }
       return;
     }
     p.expect(Ident);

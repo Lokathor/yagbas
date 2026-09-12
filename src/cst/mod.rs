@@ -173,11 +173,7 @@ pub enum CstKind {
   ErrUnbalancedAngleMarks,
   //
   Module,
-  ItemFunction,
-  ItemStaticMmio,
-  ItemStaticRam,
-  ItemStaticRom,
-  ItemConst,
+  Item,
   //
   ArgumentList,
   FnCallArgument,
