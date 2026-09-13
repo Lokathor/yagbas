@@ -159,18 +159,19 @@ pub struct AstExprType {
 }
 impl AstExprType {
   fn has_errors(&self) -> bool {
-    self.span == Span::default()
-      || match &self.kind {
-        AstExprTypeKind::ErrAstTypeExprKind => true,
-        AstExprTypeKind::Plain(str_id) => str_id == &StrId::default(),
-        AstExprTypeKind::Array { element_ty, length } => {
-          element_ty.has_errors() || length.has_errors()
-        }
-        AstExprTypeKind::ConstPtr(p)
-        | AstExprTypeKind::MutPtr(p)
-        | AstExprTypeKind::VolPtr(p) => p.has_errors(),
-        AstExprTypeKind::ResolvedType(_) => false,
+    // type expressions can and do have a default span, so we don't check span
+    // here like we do elsewhere.
+    match &self.kind {
+      AstExprTypeKind::ErrAstTypeExprKind => true,
+      AstExprTypeKind::Plain(str_id) => str_id == &StrId::default(),
+      AstExprTypeKind::Array { element_ty, length } => {
+        element_ty.has_errors() || length.has_errors()
       }
+      AstExprTypeKind::ConstPtr(p)
+      | AstExprTypeKind::MutPtr(p)
+      | AstExprTypeKind::VolPtr(p) => p.has_errors(),
+      AstExprTypeKind::ResolvedType(_) => false,
+    }
   }
 }
 
