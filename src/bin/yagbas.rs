@@ -59,10 +59,10 @@ fn do_nameres(mut arguments: Vec<OsString>) {
   let ir_nameres = IrNameres::from_ast(ast);
   println!("{:?}", ir_nameres.ast);
   println!("=======");
-  for (k, v) in ir_nameres.names.iter() {
+  for (k, v) in ir_nameres.var_names.iter() {
     println!("{k:?}: {v:#?}");
   }
-  for (k, v) in ir_nameres.types.iter() {
+  for (k, v) in ir_nameres.type_names.iter() {
     println!("{k:?}: {v:#?}");
   }
   println!("```");

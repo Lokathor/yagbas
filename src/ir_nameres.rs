@@ -13,23 +13,23 @@ use crate::{
 };
 
 new_key_type! {
-  pub struct NameId;
+  pub struct VarNameId;
 }
 
 new_key_type! {
-  pub struct TypeId;
+  pub struct TypeNameId;
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct NameInfo {
+pub struct VarNameInfo {
   pub file_origin: StrId,
   pub span: Span,
   pub text: StrId,
-  pub kind: NameKind,
+  pub kind: VarNameKind,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum NameKind {
+pub enum VarNameKind {
   StaticMmio,
   Constant,
   Function,
@@ -38,15 +38,15 @@ pub enum NameKind {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct TypeInfo {
+pub struct TypeNameInfo {
   pub file_origin: StrId,
   pub span: Span,
   pub text: StrId,
-  pub kind: TypeKind,
+  pub kind: TypeNameKind,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum TypeKind {
+pub enum TypeNameKind {
   Plain,
   Array,
   Pointer,
@@ -56,8 +56,8 @@ pub enum TypeKind {
 #[derive(Debug, Clone, Default)]
 pub struct IrNameres {
   pub ast: Ast,
-  pub names: SlotMap<NameId, NameInfo>,
-  pub types: SlotMap<TypeId, TypeInfo>,
+  pub var_names: SlotMap<VarNameId, VarNameInfo>,
+  pub type_names: SlotMap<TypeNameId, TypeNameInfo>,
 }
 impl IrNameres {
   pub fn from_ast(ast: Ast) -> Self {
@@ -65,14 +65,14 @@ impl IrNameres {
     out.ast = ast;
     //
     let mut name_resolver = VarNameResolver {
-      names: &mut out.names,
+      names: &mut out.var_names,
       file_origin: StrId::default(),
       scopes: &mut Vec::new(),
     };
     name_resolver.resolve_for_ast(&mut out.ast);
     //
     let mut type_resolver = TypeNameResolver {
-      types: &mut out.types,
+      types: &mut out.type_names,
       file_origin: StrId::default(),
       scopes: &mut Vec::new(),
     };
@@ -85,9 +85,9 @@ impl IrNameres {
 
 #[derive(Debug)]
 struct VarNameResolver<'a> {
-  names: &'a mut SlotMap<NameId, NameInfo>,
+  names: &'a mut SlotMap<VarNameId, VarNameInfo>,
   file_origin: StrId,
-  scopes: &'a mut Vec<HashMap<StrId, NameId>>,
+  scopes: &'a mut Vec<HashMap<StrId, VarNameId>>,
 }
 impl<'a> VarNameResolver<'a> {
   fn resolve_for_ast(&mut self, ast: &mut Ast) {
@@ -114,17 +114,19 @@ impl<'a> VarNameResolver<'a> {
   fn resolve_item_exterior(&mut self, item: &AstItem) {
     let (text, span, kind) = match &item.kind {
       AstItemKind::ErrAstItemKind => return,
-      AstItemKind::StaticMmio(ast_static_mmio) => {
-        (ast_static_mmio.name, ast_static_mmio.name_span, NameKind::StaticMmio)
-      }
+      AstItemKind::StaticMmio(ast_static_mmio) => (
+        ast_static_mmio.name,
+        ast_static_mmio.name_span,
+        VarNameKind::StaticMmio,
+      ),
       AstItemKind::Constant(ast_constant) => {
-        (ast_constant.name, ast_constant.name_span, NameKind::Constant)
+        (ast_constant.name, ast_constant.name_span, VarNameKind::Constant)
       }
       AstItemKind::Function(ast_function) => {
-        (ast_function.name, ast_function.name_span, NameKind::Function)
+        (ast_function.name, ast_function.name_span, VarNameKind::Function)
       }
     };
-    let info = NameInfo { file_origin: self.file_origin, span, text, kind };
+    let info = VarNameInfo { file_origin: self.file_origin, span, text, kind };
     let name_key = self.names.insert(info);
     if let Some(_old) = self.scopes.last_mut().unwrap().insert(text, name_key) {
       // TODO: error here, more than one symbol share the same name at this
@@ -143,11 +145,11 @@ impl<'a> VarNameResolver<'a> {
       }
       AstItemKind::Function(ast_function) => {
         for arg in ast_function.arguments.iter() {
-          let info = NameInfo {
+          let info = VarNameInfo {
             file_origin: self.file_origin,
             span: arg.name_span,
             text: arg.name,
-            kind: NameKind::FunctionArgument,
+            kind: VarNameKind::FunctionArgument,
           };
           let name_key = self.names.insert(info);
           if let Some(_old) =
@@ -202,11 +204,11 @@ impl<'a> VarNameResolver<'a> {
     self.resolve_for_expr(&mut ast_let.xpr);
     match &ast_let.pattern.kind {
       AstExprValKind::Identifier(i) => {
-        let info = NameInfo {
+        let info = VarNameInfo {
           file_origin: self.file_origin,
           text: *i,
           span: ast_let.pattern.span,
-          kind: NameKind::LetVariable,
+          kind: VarNameKind::LetVariable,
         };
         let name_key = self.names.insert(info);
         if let Some(_old) = self.scopes.last_mut().unwrap().insert(*i, name_key)
@@ -261,11 +263,11 @@ impl<'a> VarNameResolver<'a> {
         {
           match &data.step_expr.kind {
             AstExprValKind::Identifier(i) => {
-              let info = NameInfo {
+              let info = VarNameInfo {
                 file_origin: self.file_origin,
                 text: *i,
                 span: data.step_expr.span,
-                kind: NameKind::LetVariable,
+                kind: VarNameKind::LetVariable,
               };
               let name_key = self.names.insert(info);
               if let Some(_old) =
@@ -299,7 +301,7 @@ impl<'a> VarNameResolver<'a> {
       }
       AstExprValKind::LiteralNumber(_)
       | AstExprValKind::ResolvedName(_)
-      | AstExprValKind::Break => return,
+      | AstExprValKind::Break(_) => return,
       _other => {
         dbg!(&_other);
       }
@@ -309,18 +311,18 @@ impl<'a> VarNameResolver<'a> {
 
 #[derive(Debug)]
 struct TypeNameResolver<'a> {
-  types: &'a mut SlotMap<TypeId, TypeInfo>,
+  types: &'a mut SlotMap<TypeNameId, TypeNameInfo>,
   file_origin: StrId,
-  scopes: &'a mut Vec<HashMap<StrId, TypeId>>,
+  scopes: &'a mut Vec<HashMap<StrId, TypeNameId>>,
 }
 impl<'a> TypeNameResolver<'a> {
   fn init(&mut self) {
     self.scopes.push(HashMap::new());
-    let mut info = TypeInfo {
+    let mut info = TypeNameInfo {
       file_origin: StrId::from("builtin"),
       span: Span::default(),
       text: StrId::default(),
-      kind: TypeKind::Plain,
+      kind: TypeNameKind::Plain,
     };
     let x = ["()", "bool", "u8", "i8", "u16", "i16", "fx8_8"];
     for s in x {
@@ -462,7 +464,7 @@ impl<'a> TypeNameResolver<'a> {
       }
       AstExprValKind::LiteralNumber(_)
       | AstExprValKind::ResolvedName(_)
-      | AstExprValKind::Break => return,
+      | AstExprValKind::Break(_) => return,
       _other => {
         dbg!(&_other);
       }

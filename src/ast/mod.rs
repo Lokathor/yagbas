@@ -6,7 +6,7 @@ use crate::{
   Span,
   ast::parser::AstParser,
   cst::{Cst, CstKind},
-  ir_nameres::{NameId, TypeId},
+  ir_nameres::{TypeNameId, VarNameId},
   operators::{BinOpKind, UnOpKind},
 };
 
@@ -74,7 +74,9 @@ impl AstExprVal {
         AstExprValKind::Identifier(str_id) => str_id == &StrId::default(),
         AstExprValKind::UnOp(_, inner) => inner.has_errors(),
         AstExprValKind::BinOp(data) => data.has_errors(),
-        AstExprValKind::Break => false,
+        AstExprValKind::Break(data) => {
+          data.expr.as_ref().map(|x| x.has_errors()).unwrap_or(false)
+        }
         AstExprValKind::Loop(ast_body) => ast_body.has_errors(),
         AstExprValKind::If(data) => data.has_errors(),
         AstExprValKind::For(data) => data.has_errors(),
@@ -91,7 +93,7 @@ pub enum AstExprValKind {
   Identifier(StrId),
   LiteralNumber(StrId),
   //
-  Break,
+  Break(Box<AstBreakData>),
   If(Box<AstIfData>),
   Loop(Box<AstBody>),
   For(Box<AstForData>),
@@ -99,7 +101,13 @@ pub enum AstExprValKind {
   UnOp(UnOpKind, Box<AstExprVal>),
   BinOp(Box<AstBinOpData>),
   //
-  ResolvedName(NameId),
+  ResolvedName(VarNameId),
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AstBreakData {
+  pub label_target: Option<StrId>,
+  pub expr: Option<AstExprVal>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -179,7 +187,7 @@ pub enum AstExprTypeKind {
   ConstPtr(Box<AstExprType>),
   MutPtr(Box<AstExprType>),
   VolPtr(Box<AstExprType>),
-  ResolvedType(TypeId),
+  ResolvedType(TypeNameId),
 }
 
 #[derive(Debug, Clone, Default)]

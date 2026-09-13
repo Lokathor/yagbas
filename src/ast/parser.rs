@@ -8,8 +8,8 @@ use tinyvec::ArrayVec;
 use crate::{
   Span,
   ast::{
-    AstBinOpData, AstBody, AstConstant, AstExprType, AstExprTypeKind,
-    AstExprVal,
+    AstBinOpData, AstBody, AstBreakData, AstConstant, AstExprType,
+    AstExprTypeKind, AstExprVal,
     AstExprValKind::{self},
     AstForData, AstFunction, AstFunctionArgument, AstIfData, AstItem,
     AstItemKind::{self, ErrAstItemKind},
@@ -254,7 +254,7 @@ impl AstParser {
             PrefixOperator::Return => todo!(),
             PrefixOperator::Break => {
               out.span = cst.span();
-              out.kind = AstExprValKind::Break;
+              out.kind = AstExprValKind::Break(Box::default());
               assert!(it.next().is_none());
             }
             PrefixOperator::PrefixRangeExclusive => todo!(),

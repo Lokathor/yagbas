@@ -4,7 +4,7 @@
 #![allow(unused_labels)]
 #![allow(clippy::needless_return)]
 #![allow(clippy::field_reassign_with_default)]
-#![warn(missing_docs)]
+//#![warn(missing_docs)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![deny(unreachable_patterns)]
@@ -15,19 +15,22 @@
 //! only refers to the language/compiler portion of the project. Contents of the
 //! library and its operation may change at any time.
 
+#[forbid(unsafe_code)]
 pub mod operators;
+
 pub mod tokenizer;
 
 #[forbid(unsafe_code)]
 pub mod cst;
 
 #[forbid(unsafe_code)]
-#[allow(missing_docs)]
 pub mod ast;
 
 #[forbid(unsafe_code)]
-#[allow(missing_docs)]
 pub mod ir_nameres;
+
+#[forbid(unsafe_code)]
+pub mod ir_typecheck;
 
 /// A span within a source file.
 ///
