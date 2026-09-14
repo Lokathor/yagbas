@@ -100,7 +100,7 @@ impl AstParser {
         return out;
       }
       Some(CstElem::Token(t)) if t.kind == KwLoop => {
-        if let Some(CstElem::Tree(cst)) = it.next() {
+        if let Some(CstElem::SubTree(cst)) = it.next() {
           let body = self.parse_body(cst);
           out.kind = AstExprValKind::Loop(Box::new(body));
         }
@@ -108,12 +108,12 @@ impl AstParser {
         return out;
       }
       Some(CstElem::Token(t)) if t.kind == KwIf => {
-        let condition = if let Some(CstElem::Tree(cst)) = it.next() {
+        let condition = if let Some(CstElem::SubTree(cst)) = it.next() {
           self.parse_expr_val(cst)
         } else {
           return out;
         };
-        let body = if let Some(CstElem::Tree(cst)) = it.next() {
+        let body = if let Some(CstElem::SubTree(cst)) = it.next() {
           self.parse_body(cst)
         } else {
           return out;
@@ -127,18 +127,18 @@ impl AstParser {
         return out;
       }
       Some(CstElem::Token(t)) if t.kind == KwFor => {
-        let step_expr = if let Some(CstElem::Tree(cst)) = it.next() {
+        let step_expr = if let Some(CstElem::SubTree(cst)) = it.next() {
           self.parse_expr_val(cst)
         } else {
           return out;
         };
         expect_tk_kind!(it, KwIn, out);
-        let range_expr = if let Some(CstElem::Tree(cst)) = it.next() {
+        let range_expr = if let Some(CstElem::SubTree(cst)) = it.next() {
           self.parse_expr_val(cst)
         } else {
           return out;
         };
-        let body = if let Some(CstElem::Tree(cst)) = it.next() {
+        let body = if let Some(CstElem::SubTree(cst)) = it.next() {
           self.parse_body(cst)
         } else {
           return out;
@@ -151,10 +151,12 @@ impl AstParser {
         debug_assert!(it.peek().is_none());
         return out;
       }
-      Some(CstElem::Tree(cst)) if cst.kind == ExprVal => {
+      Some(CstElem::SubTree(cst)) if cst.kind == ExprVal => {
         let lhs = self.parse_expr_val(cst);
         match it.next() {
-          Some(CstElem::Tree(cst)) if matches!(cst.kind, OperatorInfix(_)) => {
+          Some(CstElem::SubTree(cst))
+            if matches!(cst.kind, OperatorInfix(_)) =>
+          {
             let bin_op_kind = self.parse_infix_operator(cst).unwrap();
             let rhs_cst = expect_cst_kind!(it, ExprVal, out);
             let rhs = self.parse_expr_val(rhs_cst);
@@ -167,13 +169,13 @@ impl AstParser {
             debug_assert!(it.peek().is_none());
             return out;
           }
-          Some(CstElem::Tree(cst))
+          Some(CstElem::SubTree(cst))
             if matches!(cst.kind, OperatorPostfix(_)) =>
           {
             match cst.kind {
               OperatorPostfix(op) => match op {
                 PostfixOperator::ArrayIndex => {
-                  let xpr = if let Some(CstElem::Tree(cst)) = it.next() {
+                  let xpr = if let Some(CstElem::SubTree(cst)) = it.next() {
                     self.parse_expr_val(cst)
                   } else {
                     dbg!("aaaa");
@@ -189,7 +191,8 @@ impl AstParser {
                 PostfixOperator::Try => todo!(),
                 PostfixOperator::As => todo!(),
                 PostfixOperator::PostfixRangeExclusive => {
-                  let end_expr = if let Some(CstElem::Tree(cst)) = it.next() {
+                  let end_expr = if let Some(CstElem::SubTree(cst)) = it.next()
+                  {
                     self.parse_expr_val(cst)
                   } else {
                     dbg!("aaaa");
@@ -202,7 +205,8 @@ impl AstParser {
                   }));
                 }
                 PostfixOperator::PostfixRangeInclusive => {
-                  let end_expr = if let Some(CstElem::Tree(cst)) = it.next() {
+                  let end_expr = if let Some(CstElem::SubTree(cst)) = it.next()
+                  {
                     self.parse_expr_val(cst)
                   } else {
                     dbg!("aaaa");
@@ -226,7 +230,7 @@ impl AstParser {
           }
         }
       }
-      Some(CstElem::Tree(cst))
+      Some(CstElem::SubTree(cst))
         if matches!(cst.kind, CstKind::OperatorPrefix(_)) =>
       {
         match cst.kind {
@@ -234,7 +238,7 @@ impl AstParser {
             PrefixOperator::Negative => todo!(),
             PrefixOperator::BitNot => todo!(),
             PrefixOperator::Dereference => {
-              if let Some(CstElem::Tree(cst)) = it.next() {
+              if let Some(CstElem::SubTree(cst)) = it.next() {
                 out.span = cst.span();
                 let i = self.parse_expr_val(cst);
                 out.kind =
@@ -243,7 +247,7 @@ impl AstParser {
               }
             }
             PrefixOperator::Reference => {
-              if let Some(CstElem::Tree(cst)) = it.next() {
+              if let Some(CstElem::SubTree(cst)) = it.next() {
                 out.span = cst.span();
                 let i = self.parse_expr_val(cst);
                 out.kind =
@@ -352,7 +356,7 @@ impl AstParser {
     for element in cst.iter_important() {
       let mut item = AstItem::default();
       match element {
-        CstElem::Tree(tree) => {
+        CstElem::SubTree(tree) => {
           item.span = tree.span();
           match tree.kind {
             CstKind::Item => {
@@ -479,7 +483,7 @@ impl AstParser {
     for elem in it {
       match elem {
         CstElem::Token(token) if token.kind == ClBrace => break,
-        CstElem::Tree(cst) => {
+        CstElem::SubTree(cst) => {
           let mut stmt = AstStatement::default();
           stmt.span = cst.span();
           stmt.kind = match cst.kind {

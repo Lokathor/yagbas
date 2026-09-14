@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
 //! Concrete Syntax Tree module.
 
+use str_id::StrId;
+
 use crate::Span;
 use crate::cst::actions::do_module;
 use crate::cst::parser::CstParser;
@@ -24,84 +26,11 @@ pub struct Cst {
   pub kind: CstKind,
   pub elements: Vec<CstElem>,
 }
-impl Cst {
-  /// Generates the Cst for a module of source code.
-  ///
-  /// This never fails, but the resulting Cst can contain any number of
-  /// error locations.
-  pub fn from_module_src(src: &str) -> Self {
-    let mut p = CstParser::new(src);
-    do_module(&mut p);
-    p.build_tree()
-  }
-  /// If this Cst has an error.
-  ///
-  /// An error can be this Cst itself, or it could be any Token or SubTree
-  /// within this Cst.
-  pub fn has_error(&self) -> bool {
-    self.kind.is_error()
-      || self.elements.iter().any(|el| match el {
-        CstElem::Token(token) => token.kind.is_error(),
-        CstElem::Tree(cst) => cst.has_error(),
-      })
-  }
-  /// Walks the tree and asserts that no token or sub-tree is an error.
-  #[track_caller]
-  pub fn assert_no_errors(&self) {
-    assert!(!self.kind.is_error(), "Bad Kind: {:?}", self.kind);
-    for elemnt in &self.elements {
-      match elemnt {
-        CstElem::Token(token) => {
-          assert!(!token.kind.is_error(), "Bad Token: {token:?}")
-        }
-        CstElem::Tree(cst) => cst.assert_no_errors(),
-      }
-    }
-  }
-  /// Iterator over **only** the elements of this Cst which are a sub-tree.
-  pub fn sub_trees(&self) -> impl Iterator<Item = &Cst> + '_ {
-    self.elements.iter().filter_map(|element| match element {
-      CstElem::Token(_token) => None,
-      CstElem::Tree(cst) => Some(cst),
-    })
-  }
-  /// Iterator over **only** the tokens directly at this level.
-  pub fn tokens_here(&self) -> impl Iterator<Item = Token> + '_ {
-    self.elements.iter().filter_map(|element| match element {
-      CstElem::Token(token) => Some(*token),
-      CstElem::Tree(_cst) => None,
-    })
-  }
-  /// Iter over elements but skip `Whitespace` and `Comment` token elements.
-  pub fn iter_important(&self) -> impl Iterator<Item = &CstElem> {
-    self.elements.iter().filter(|el| {
-      !matches!(el, CstElem::Token(Token { kind: Whitespace | Comment, .. }))
-    })
-  }
-  /// Gets the span of this tree within the source.
-  pub fn span(&self) -> Span {
-    let mut out = Span::new(0, 0);
-    if let Some(el) = self.elements.first() {
-      out.start = match el {
-        CstElem::Token(token) => token.span.start,
-        CstElem::Tree(cst) => cst.span().start,
-      };
-    }
-    if let Some(el) = self.elements.last() {
-      out.end = match el {
-        CstElem::Token(token) => token.span.end,
-        CstElem::Tree(cst) => cst.span().end,
-      };
-    }
-    out
-  }
-}
 impl core::fmt::Display for Cst {
   /// Better way to look at the tree than Debug provides.
   ///
   /// * use the alternate flag to enable displaying of whitespace and comment
-  ///   tokens, as well as commentary syntax trees. Otherwise they are skipped
-  ///   from the output.
+  ///   elements. Otherwise they are skipped from the output.
   fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
     return fmt_rec(self, f, 0);
 
@@ -115,19 +44,93 @@ impl core::fmt::Display for Cst {
       writeln!(f, "{:?} {{", s.kind)?;
       for element in &s.elements {
         match element {
-          CstElem::Token(Token { kind, span }) => {
-            if !f.alternate()
-              && (*kind == TokenKind::Comment || *kind == TokenKind::Whitespace)
-            {
-              continue;
-            }
+          CstElem::SubTree(cst) => {
+            fmt_rec(cst, f, indents + 2)?;
+          }
+          CstElem::FixedToken(token_kind, span) => {
             for _ in 0..(indents + 2) {
               write!(f, " ")?;
             }
-            writeln!(f, "{kind:?} @({span:?})")?;
+            if let Some(s) = token_kind.fixed_str() {
+              write!(f, "{s}")?;
+            } else {
+              write!(f, "{token_kind:?}")?;
+            }
+            if let Some(span) = span {
+              writeln!(f, " @({span:?})")?;
+            } else {
+              writeln!(f)?;
+            }
           }
-          CstElem::Tree(cst) => {
-            fmt_rec(cst, f, indents + 2)?;
+          CstElem::Whitespace(_, span) => {
+            if f.alternate() {
+              for _ in 0..(indents + 2) {
+                write!(f, " ")?;
+              }
+              write!(f, "Whitespace")?;
+              if let Some(span) = span {
+                writeln!(f, " @({span:?})")?;
+              } else {
+                writeln!(f)?;
+              }
+            }
+          }
+          CstElem::Comment(_, span) => {
+            if f.alternate() {
+              for _ in 0..(indents + 2) {
+                write!(f, " ")?;
+              }
+              write!(f, "Comment")?;
+              if let Some(span) = span {
+                writeln!(f, " @({span:?})")?;
+              } else {
+                writeln!(f)?;
+              }
+            }
+          }
+          CstElem::Identifier(string, span) => {
+            for _ in 0..(indents + 2) {
+              write!(f, " ")?;
+            }
+            write!(f, "Identifier({string:?})")?;
+            if let Some(span) = span {
+              writeln!(f, " @({span:?})")?;
+            } else {
+              writeln!(f)?;
+            }
+          }
+          CstElem::LitNumber(string, span) => {
+            for _ in 0..(indents + 2) {
+              write!(f, " ")?;
+            }
+            write!(f, "LitNumber({string:?})")?;
+            if let Some(span) = span {
+              writeln!(f, " @({span:?})")?;
+            } else {
+              writeln!(f)?;
+            }
+          }
+          CstElem::LitString(string, span) => {
+            for _ in 0..(indents + 2) {
+              write!(f, " ")?;
+            }
+            write!(f, "LitString({string:?})")?;
+            if let Some(span) = span {
+              writeln!(f, " @({span:?})")?;
+            } else {
+              writeln!(f)?;
+            }
+          }
+          CstElem::ErrorBytes(_, span) => {
+            for _ in 0..(indents + 2) {
+              write!(f, " ")?;
+            }
+            write!(f, "ErrorBytes")?;
+            if let Some(span) = span {
+              writeln!(f, " @({span:?})")?;
+            } else {
+              writeln!(f)?;
+            }
           }
         }
       }
@@ -141,92 +144,45 @@ impl core::fmt::Display for Cst {
 
 /// I have no idea what the correct set of tags is here!
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CstKind {
-  ErrNoTreeKindSet,
-  ErrGeneric,
-  ErrExpectedItemKeyword,
-  ErrExpectedValueExpression,
-  ErrExpectedTypeExpression,
-  ErrNeedsParensToDisambiguate,
-  ErrTodo,
-  ErrExpected(TokenKind),
-  ErrExpectedBody,
-  ErrExpectedIfCondition,
-  ErrUnbalancedAngleMarks,
-  //
+  #[default]
+  ErrCstKind,
+
   /// * The `Module` tag should only contain `Item` trees.
   Module,
   /// * The first non-trivial element of each `Item` should be an item keyword
   Item,
-  //
-  ArgumentList,
-  FnCallArgument,
-  ReturnType,
-  Body,
-  //
-  StmtLet,
-  StmtItem,
-  StmtExpression,
-  StmtEmpty,
-  //
+
+  ParensGroup,
+  BracketGroup,
+  BraceGroup,
+
+  Statement,
   ExprVal,
   ExprType,
-  ExprForVar,
-  ExprForRange,
-  //
   OperatorInfix(InfixOperator),
   OperatorPrefix(PrefixOperator),
   OperatorPostfix(PostfixOperator),
-  //
-  MmioLocation,
-}
-impl CstKind {
-  /// If this tree kind is some sort of error.
-  pub const fn is_error(self) -> bool {
-    use CstKind::*;
-    matches!(
-      self,
-      ErrExpected(_)
-        | ErrExpectedBody
-        | ErrExpectedIfCondition
-        | ErrExpectedItemKeyword
-        | ErrExpectedTypeExpression
-        | ErrExpectedValueExpression
-        | ErrGeneric
-        | ErrNeedsParensToDisambiguate
-        | ErrNoTreeKindSet
-        | ErrTodo
-        | ErrUnbalancedAngleMarks
-    )
-  }
-  /// If this tree kind is some sort of error.
-  pub const fn is_statement(self) -> bool {
-    use CstKind::*;
-    matches!(self, StmtEmpty | StmtExpression | StmtItem | StmtLet)
-  }
 }
 
 /// A single element within a [Cst].
-#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CstElem {
-  Token(Token),
-  Tree(Cst),
-}
-impl CstElem {
-  /// When this is a `Token` variant, gives the wrapped [Token].
-  pub const fn token(&self) -> Option<Token> {
-    match self {
-      CstElem::Token(token) => Some(*token),
-      CstElem::Tree(_) => None,
-    }
-  }
-  /// When this is a `Tree` variant, gives the wrapped [Cst] (by ref).
-  pub const fn tree(&self) -> Option<&Cst> {
-    match self {
-      CstElem::Token(_) => None,
-      CstElem::Tree(cst) => Some(cst),
-    }
-  }
+  /// An entire inner tree
+  SubTree(Cst),
+  /// A fixed-text token (keyword or punctuation)
+  FixedToken(TokenKind, Option<Span>),
+  /// Whitespace text.
+  Whitespace(String, Option<Span>),
+  /// Comment text
+  Comment(String, Option<Span>),
+  /// An identifier.
+  Identifier(String, Option<Span>),
+  /// A literal number.
+  LitNumber(String, Option<Span>),
+  /// A literal string.
+  LitString(String, Option<Span>),
+  /// Raw error bytes.
+  ErrorBytes(Vec<u8>, Option<Span>),
 }

@@ -15,6 +15,10 @@
 //! only refers to the language/compiler portion of the project. Contents of the
 //! library and its operation may change at any time.
 
+use crate::non_max_u32::NonMaxU32;
+
+pub mod non_max_u32;
+
 #[forbid(unsafe_code)]
 pub mod operators;
 
@@ -23,6 +27,7 @@ pub mod tokenizer;
 #[forbid(unsafe_code)]
 pub mod cst;
 
+/*
 #[forbid(unsafe_code)]
 pub mod ast;
 
@@ -31,6 +36,7 @@ pub mod ir_nameres;
 
 #[forbid(unsafe_code)]
 pub mod ir_typecheck;
+*/
 
 /// A span within a source file.
 ///
@@ -39,18 +45,18 @@ pub mod ir_typecheck;
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {
   /// the start of the span
-  pub start: u32,
+  pub start: NonMaxU32,
   /// the **exclusive** end of the span.
   pub end: u32,
 }
 impl Span {
   /// Makes the new span.
   pub const fn new(start: u32, end: u32) -> Self {
-    Self { start, end }
+    Self { start: NonMaxU32::try_new(start).unwrap(), end }
   }
   /// Convert the span to a [Range], so you can index with it.
   pub const fn as_range(self) -> core::ops::Range<usize> {
-    (self.start as usize)..(self.end as usize)
+    (self.start.get() as usize)..(self.end as usize)
   }
 }
 impl core::fmt::Debug for Span {

@@ -1,10 +1,5 @@
 use std::ffi::OsString;
-use str_id::StrId;
-use yagbas::{
-  ast::{Ast, AstModule},
-  cst::Cst,
-  ir_nameres::IrNameres,
-};
+use yagbas::cst::{actions::do_module, parser::CstParser};
 
 fn main() {
   let arguments: Vec<_> = std::env::args_os().skip(1).collect();
@@ -16,8 +11,8 @@ fn main() {
   match arguments[0].to_str() {
     Some("help") | Some("--help") | Some("/?") => do_help(),
     Some("cst") => do_cst(arguments),
-    Some("ast") => do_ast(arguments),
-    Some("nameres") => do_nameres(arguments),
+    //Some("ast") => do_ast(arguments),
+    //Some("nameres") => do_nameres(arguments),
     _ => {
       eprintln!("Unknown sub-command.");
       do_help();
@@ -25,6 +20,7 @@ fn main() {
   }
 }
 
+#[cfg(false)]
 fn do_nameres(mut arguments: Vec<OsString>) {
   debug_assert_eq!(arguments[0].to_str().unwrap(), "nameres");
   arguments.remove(0);
@@ -68,6 +64,7 @@ fn do_nameres(mut arguments: Vec<OsString>) {
   println!("```");
 }
 
+#[cfg(false)]
 fn do_ast(mut arguments: Vec<OsString>) {
   debug_assert_eq!(arguments[0].to_str().unwrap(), "ast");
   arguments.remove(0);
@@ -131,14 +128,18 @@ fn do_cst(mut arguments: Vec<OsString>) {
     match std::fs::read_to_string(&target_file) {
       Ok(src) => {
         println!("```");
-        let cst = Cst::from_module_src(&src);
+        let mut p = CstParser::new(&src);
+        do_module(&mut p);
+        let (cst, errors) = p.build_tree();
         if show_trivia {
           println!("{cst:#}");
         } else {
           println!("{cst}");
         }
         println!("```");
-        cst.assert_no_errors();
+        if !errors.is_empty() {
+          eprintln!("Cst Errors: {errors:?}");
+        }
       }
       Err(e) => {
         println!("File Reading Error: {e:?}");

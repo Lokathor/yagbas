@@ -5,7 +5,7 @@ use str_id::StrId;
 use crate::{
   Span,
   ast::parser::AstParser,
-  cst::{Cst, CstKind},
+  cst::{CstKind, actions::do_module, parser::CstParser},
   ir_nameres::{TypeNameId, VarNameId},
   operators::{BinOpKind, UnOpKind},
 };
@@ -24,7 +24,9 @@ pub struct AstModule {
 }
 impl AstModule {
   pub fn from_source(origin: StrId, src: &str) -> Self {
-    let cst = Cst::from_module_src(src);
+    let mut cst_parser = CstParser::new(src);
+    do_module(&mut cst_parser);
+    let cst = cst_parser.build_tree();
     debug_assert_eq!(cst.kind, CstKind::Module);
     let ast_parser = AstParser { src: src.to_string() };
     ast_parser.parse_module(origin, &cst)

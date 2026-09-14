@@ -2,7 +2,7 @@
 
 use TokenKind::*;
 
-use crate::Span;
+use crate::{Span, non_max_u32::NonMaxU32};
 
 /// An individual element of Yagbas source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -108,6 +108,36 @@ pub enum TokenKind {
   /// `~`
   Tilde = b'~',
 
+  // merged punctuation (makes parts of parsing much easier)
+  /// `::`
+  ColonColon,
+  /// `==`
+  EqualEqual,
+  /// `!=`
+  BangEqual,
+  /// `..`
+  DotDot,
+  /// `..=`
+  DotDotEqual,
+  /// `+=`
+  PlusEqual,
+  /// `-=`
+  MinusEqual,
+  /// `*=`
+  StarEqual,
+  /// `/=`
+  SlashEqual,
+  /// `%=`
+  PercentEqual,
+  /// `&=`
+  AmpersandEqual,
+  /// `|=`
+  PipeEqual,
+  /// `^=`
+  CaretEqual,
+  /// `->`
+  MinusGreater,
+
   // keywords
   /// `as`
   KwAs,
@@ -164,36 +194,6 @@ pub enum TokenKind {
   /// `vol`
   KwVol,
 
-  // merged punctuation (makes parts of parsing much easier)
-  /// `::`
-  ColonColon,
-  /// `==`
-  EqualEqual,
-  /// `!=`
-  BangEqual,
-  /// `..`
-  DotDot,
-  /// `..=`
-  DotDotEqual,
-  /// `+=`
-  PlusEqual,
-  /// `-=`
-  MinusEqual,
-  /// `*=`
-  StarEqual,
-  /// `/=`
-  SlashEqual,
-  /// `%=`
-  PercentEqual,
-  /// `&=`
-  AmpersandEqual,
-  /// `|=`
-  PipeEqual,
-  /// `^=`
-  CaretEqual,
-  /// `->`
-  MinusGreater,
-
   // varying non-code elements
   /// Any number of spaces, tabs, newlines, and/or carrage returns.
   Whitespace,
@@ -229,6 +229,97 @@ impl TokenKind {
       self,
       KwFn | KwStatic | KwConst | KwStruct | KwBitbag | KwEnum | KwUse
     )
+  }
+
+  pub const fn fixed_str(self) -> Option<&'static str> {
+    Some(match self {
+      Bang => "!",
+      DoubleQuote => "\"",
+      Hash => "#",
+      Dollar => "$",
+      Percent => "%",
+      Ampersand => "*",
+      Quote => "'",
+      OpParen => "(",
+      ClParen => ")",
+      Star => "*",
+      Plus => "+",
+      Comma => ",",
+      Minus => "-",
+      Dot => ".",
+      Slash => "/",
+      Colon => ":",
+      Semicolon => ";",
+      LessThan => "<",
+      Equal => "=",
+      GreaterThan => ">",
+      Question => "?",
+      At => "@",
+      OpBracket => "[",
+      Backslash => "\\",
+      ClBracket => "]",
+      Caret => "^",
+      Underscore => "_",
+      Backtick => "`",
+      OpBrace => "{",
+      Pipe => "|",
+      ClBrace => "}",
+      Tilde => "~",
+      ColonColon => "::",
+      EqualEqual => "==",
+      BangEqual => "!=",
+      DotDot => "..",
+      DotDotEqual => "..=",
+      PlusEqual => "+=",
+      MinusEqual => "-=",
+      StarEqual => "*=",
+      SlashEqual => "/=",
+      PercentEqual => "%=",
+      AmpersandEqual => "&=",
+      PipeEqual => "|=",
+      CaretEqual => "^=",
+      MinusGreater => "->",
+      KwAs
+      | KwBitbag
+      | KwBreak
+      | KwConst
+      | KwContinue
+      | KwElse
+      | KwEnum
+      | KwFalse
+      | KwFn
+      | KwFor
+      | KwIf
+      | KwImpl
+      | KwIn
+      | KwLet
+      | KwLoop
+      | KwMatch
+      | KwMmio
+      | KwMut
+      | KwRam
+      | KwReturn
+      | KwRom
+      | KwStruct
+      | KwStatic
+      | KwTrue
+      | KwUse
+      | KwWhile
+      | KwVol
+      | Whitespace
+      | Comment
+      | Ident
+      | LitNum
+      | LitStr
+      | ErrUnknownByte
+      | ErrBlockCommentUnclosed
+      | ErrBlockCommentExtraClose
+      | ErrLitStrUnclosed
+      | ErrLitRawStrUnclosed
+      | ErrBadRawValue
+      | ErrEndOfFile
+      | ErrDefault => return None,
+    })
   }
 }
 
@@ -444,7 +535,7 @@ impl<'a> Iterator for TokenIter<'a> {
 
   fn next(&mut self) -> Option<Self::Item> {
     // reset the span
-    self.span.start = self.position as u32;
+    self.span.start = NonMaxU32::try_new(self.position as u32).unwrap();
     self.span.end = self.position as u32;
     //
     match self.next_byte()? {

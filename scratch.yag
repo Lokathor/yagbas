@@ -1,0 +1,5 @@
+impl OamData {
+  fn hide(&mut self) {
+    self.y = 0;
+  }
+}
