@@ -34,23 +34,6 @@ impl Cst {
     do_module(&mut p);
     p.build_tree()
   }
-  /// Strip all `Whitespace` and `Comment` tokens from the tree, recursively.
-  pub fn strip_trivia(&mut self) {
-    let mut i = 0;
-    while i < self.elements.len() {
-      match &mut self.elements[i] {
-        CstElem::Token(Token { kind: Whitespace | Comment, .. }) => {
-          self.elements.remove(i);
-          continue;
-        }
-        CstElem::Tree(cst) => {
-          cst.strip_trivia();
-        }
-        _ => (),
-      }
-      i += 1;
-    }
-  }
   /// If this Cst has an error.
   ///
   /// An error can be this Cst itself, or it could be any Token or SubTree
