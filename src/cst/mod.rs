@@ -58,7 +58,7 @@ impl Cst {
   pub fn has_error(&self) -> bool {
     self.kind.is_error()
       || self.elements.iter().any(|el| match el {
-        CstElem::Token(token) => token.is_error(),
+        CstElem::Token(token) => token.kind.is_error(),
         CstElem::Tree(cst) => cst.has_error(),
       })
   }
@@ -69,7 +69,7 @@ impl Cst {
     for elemnt in &self.elements {
       match elemnt {
         CstElem::Token(token) => {
-          assert!(!token.is_error(), "Bad Token: {token:?}")
+          assert!(!token.kind.is_error(), "Bad Token: {token:?}")
         }
         CstElem::Tree(cst) => cst.assert_no_errors(),
       }
@@ -172,7 +172,9 @@ pub enum CstKind {
   ErrExpectedIfCondition,
   ErrUnbalancedAngleMarks,
   //
+  /// * The `Module` tag should only contain `Item` trees.
   Module,
+  /// * The first non-trivial element of each `Item` should be an item keyword
   Item,
   //
   ArgumentList,

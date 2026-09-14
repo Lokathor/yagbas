@@ -9,26 +9,10 @@ use crate::Span;
 pub struct Token {
   /// The kind of token we found.
   pub kind: TokenKind,
-  /// Where the token was found.
+  /// Where the token was found in a source string.
   ///
   /// Yagbas source files can't exceed 4GB.
   pub span: Span,
-}
-impl Token {
-  /// If the token's kind is an error kind.
-  pub const fn is_error(self) -> bool {
-    use TokenKind::*;
-    matches!(
-      self.kind,
-      ErrUnknownByte
-        | ErrBadRawValue
-        | ErrBlockCommentExtraClose
-        | ErrBlockCommentUnclosed
-        | ErrEndOfFile
-        | ErrLitRawStrUnclosed
-        | ErrLitStrUnclosed,
-    )
-  }
 }
 
 /// The possible kinds of token that can exist in Yagbas source.
@@ -61,7 +45,7 @@ pub enum TokenKind {
   // individual punctuation
   /// `!`, aka exclamation mark
   Bang = b'!',
-  /// `"`
+  /// `"` (never produced, kept for transmute safety)
   DoubleQuote = b'"',
   /// `#`
   Hash = b'#',
@@ -111,7 +95,7 @@ pub enum TokenKind {
   ClBracket = b']',
   /// `^`
   Caret = b'^',
-  /// `_`
+  /// `_` (never produced, kept for transmute safety)
   Underscore = b'_',
   /// ``` ` ```
   Backtick = b'`',
@@ -207,6 +191,8 @@ pub enum TokenKind {
   PipeEqual,
   /// `^=`
   CaretEqual,
+  /// `->`
+  MinusGreater,
 
   // varying non-code elements
   /// Any number of spaces, tabs, newlines, and/or carrage returns.
@@ -223,6 +209,27 @@ pub enum TokenKind {
   LitNum,
   /// Rust style string or raw string.
   LitStr,
+}
+impl TokenKind {
+  pub const fn is_error(self) -> bool {
+    matches!(
+      self,
+      ErrUnknownByte
+        | ErrBadRawValue
+        | ErrBlockCommentExtraClose
+        | ErrBlockCommentUnclosed
+        | ErrEndOfFile
+        | ErrLitRawStrUnclosed
+        | ErrLitStrUnclosed,
+    )
+  }
+
+  pub const fn is_item_keyword(self) -> bool {
+    matches!(
+      self,
+      KwFn | KwStatic | KwConst | KwStruct | KwBitbag | KwEnum | KwUse
+    )
+  }
 }
 
 /// An iterator over a module's source code which produces [Token] values.
@@ -504,6 +511,10 @@ impl<'a> Iterator for TokenIter<'a> {
       // keywords, idents
       b'A'..=b'Z' | b'a'..=b'z' | b'_' => self.handle_keyword_or_ident(),
       // double punctuation
+      b'-' if self.peek_byte() == Some(b'>') => {
+        self.next_byte();
+        Some(Token { kind: MinusGreater, span: self.span })
+      }
       b':' if self.peek_byte() == Some(b':') => {
         self.next_byte();
         Some(Token { kind: ColonColon, span: self.span })
