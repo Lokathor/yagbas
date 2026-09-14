@@ -238,7 +238,7 @@ impl TokenKind {
       Hash => "#",
       Dollar => "$",
       Percent => "%",
-      Ampersand => "*",
+      Ampersand => "&",
       Quote => "'",
       OpParen => "(",
       ClParen => ")",
@@ -279,34 +279,34 @@ impl TokenKind {
       PipeEqual => "|=",
       CaretEqual => "^=",
       MinusGreater => "->",
-      KwAs
-      | KwBitbag
-      | KwBreak
-      | KwConst
-      | KwContinue
-      | KwElse
-      | KwEnum
-      | KwFalse
-      | KwFn
-      | KwFor
-      | KwIf
-      | KwImpl
-      | KwIn
-      | KwLet
-      | KwLoop
-      | KwMatch
-      | KwMmio
-      | KwMut
-      | KwRam
-      | KwReturn
-      | KwRom
-      | KwStruct
-      | KwStatic
-      | KwTrue
-      | KwUse
-      | KwWhile
-      | KwVol
-      | Whitespace
+      KwAs => "as",
+      KwBitbag => "bitbag",
+      KwBreak => "break",
+      KwConst => "const",
+      KwContinue => "continue",
+      KwElse => "else",
+      KwEnum => "enum",
+      KwFalse => "false",
+      KwFn => "fn",
+      KwFor => "for",
+      KwIf => "if",
+      KwImpl => "impl",
+      KwIn => "in",
+      KwLet => "let",
+      KwLoop => "loop",
+      KwMatch => "match",
+      KwMmio => "mmio",
+      KwMut => "mut",
+      KwRam => "ram",
+      KwReturn => "return",
+      KwRom => "rom",
+      KwStruct => "struct",
+      KwStatic => "static",
+      KwTrue => "true",
+      KwUse => "use",
+      KwWhile => "while",
+      KwVol => "vol",
+      Whitespace
       | Comment
       | Ident
       | LitNum
