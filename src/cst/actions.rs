@@ -110,6 +110,7 @@ fn do_fn(p: &mut CstParser<'_>) {
     p.advance();
     p.eat_trivia();
     p.expect(Ident);
+    p.eat_trivia();
   }
   let m = p.open();
   p.expect(OpBrace);

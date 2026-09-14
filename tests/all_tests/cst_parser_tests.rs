@@ -15,3 +15,74 @@ fn test_empty_module() {
   cst_no_errors(" ");
   cst_no_errors("/**/");
 }
+
+#[test]
+fn test_const() {
+  cst_no_errors("const NAME: Type = expression;");
+}
+
+#[test]
+fn test_static_mmio() {
+  cst_no_errors("static mmio($FF40) LCDC: LcdControl;");
+}
+
+#[test]
+fn test_static_ram() {
+  cst_no_errors("static ram SCORE: u8 = 0;");
+}
+
+#[test]
+fn test_static_rom() {
+  cst_no_errors("static rom BASE_HP: [u8; 5] = [0, 3, 5, 12, 10];");
+}
+
+#[test]
+fn test_function() {
+  cst_no_errors("fn foo ( ) { }");
+  cst_no_errors(
+    "fn add_two(x: u8) -> u8 {
+      x + 2
+    }",
+  );
+}
+
+#[test]
+fn test_struct() {
+  cst_no_errors(
+    "struct OamData {
+      y: u8,
+      x: u8,
+      tile_index: u8,
+      attributes: OamAttrs,
+    }",
+  );
+}
+
+#[test]
+fn test_bitbag() {
+  cst_no_errors(
+    "bitbag IrqFlags {
+      vblank: 0,
+      lcd: 1,
+      timer: 2,
+      serial: 3,
+      joypad: 4,
+    }",
+  );
+}
+
+#[test]
+fn test_use() {
+  cst_no_errors("use core::memcpy;");
+}
+
+#[test]
+fn test_impl() {
+  cst_no_errors(
+    "impl OamData {
+      fn hide(&mut self) {
+        self.y = 0;
+      }
+    }",
+  );
+}
