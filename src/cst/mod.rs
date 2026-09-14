@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
 //! Concrete Syntax Tree module.
 
+use std::string::FromUtf8Error;
+
 use str_id::StrId;
 
 use crate::Span;
@@ -19,12 +21,54 @@ pub mod parser;
 
 /// Concrete Syntax Tree
 ///
-/// Use the `pretty_debug` method if you need to print debug info nicely.
-#[allow(missing_docs)]
+/// Unlike an Abstract Syntax Tree, the Concrete syntax tree preserves **all**
+/// data about the source code, and can recreate a source file exactly. This is
+/// an explicit layer in the compiler because one day hopefully Yagbas will have
+/// a code re-formatter, which would operate on Cst data instead of only an Ast,
+/// so that comments can be shifted around safely.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cst {
+  /// This is a hint about the intended form of the Cst's elements.
   pub kind: CstKind,
+  /// The elements of this tree, possibly including entire inner trees.
   pub elements: Vec<CstElem>,
+}
+impl Cst {
+  /// Convert a Cst back to source code.
+  ///
+  /// If the Cst hasn't been altered since it came out of the parser, then it
+  /// will be an exact match with the source code parsed.
+  ///
+  /// ## Failure
+  /// * If the Cst contains error bytes they can cause the output to not be
+  ///   valid utf-8.
+  pub fn to_source_code(&self) -> Result<String, FromUtf8Error> {
+    let mut buf = Vec::new();
+    recursive_helper(self, &mut buf);
+    return String::try_from(buf);
+
+    fn recursive_helper(cst: &Cst, buf: &mut Vec<u8>) {
+      for element in &cst.elements {
+        match element {
+          CstElem::SubTree(cst) => recursive_helper(cst, buf),
+          CstElem::FixedToken(token_kind, _span) => {
+            let s = token_kind.fixed_str().unwrap_or("");
+            buf.extend_from_slice(s.as_bytes());
+          }
+          CstElem::Whitespace(string, _span)
+          | CstElem::Comment(string, _span)
+          | CstElem::Identifier(string, _span)
+          | CstElem::LitNumber(string, _span)
+          | CstElem::LitString(string, _span) => {
+            buf.extend_from_slice(string.as_bytes());
+          }
+          CstElem::ErrorBytes(items, _span) => {
+            buf.extend_from_slice(items);
+          }
+        }
+      }
+    }
+  }
 }
 impl core::fmt::Display for Cst {
   /// Better way to look at the tree than Debug provides.
@@ -167,15 +211,22 @@ pub enum CstKind {
 }
 
 /// A single element within a [Cst].
+///
+/// Span data is available and accurate when the `Cst` was created via normal
+/// parsing of a source file. If the Cst has been edited since creation, or was
+/// created in memory, the spans cannot be trusted and might not be present.
+/// Because of this, the data for varying token types is extracted from the
+/// source immediately during Cst creation, and tagged according to the token
+/// kind that it came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CstElem {
-  /// An entire inner tree
+  /// An entire inner tree.
   SubTree(Cst),
   /// A fixed-text token (keyword or punctuation)
   FixedToken(TokenKind, Option<Span>),
   /// Whitespace text.
   Whitespace(String, Option<Span>),
-  /// Comment text
+  /// Comment text.
   Comment(String, Option<Span>),
   /// An identifier.
   Identifier(String, Option<Span>),
