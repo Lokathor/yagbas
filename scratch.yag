@@ -1,5 +1,6 @@
-impl OamData {
-  fn hide(&mut self) {
-    self.y = 0;
-  }
+struct OamData {
+  y: u8,
+  x: u8,
+  tile_index: u8,
+  attributes: OamAttrs,
 }

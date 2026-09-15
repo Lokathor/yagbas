@@ -237,3 +237,53 @@ pub enum CstElem {
   /// Raw error bytes.
   ErrorBytes(Vec<u8>, Option<Span>),
 }
+impl CstElem {
+  pub fn sub_tree(&self) -> Option<&Cst> {
+    if let CstElem::SubTree(cst) = self { Some(cst) } else { None }
+  }
+  pub fn fixed_token(&self) -> Option<(TokenKind, Option<Span>)> {
+    if let CstElem::FixedToken(k, s) = self { Some((*k, *s)) } else { None }
+  }
+  pub fn whitespace(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::Whitespace(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn comment(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::Comment(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn identifier(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::Identifier(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn lit_number(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::LitNumber(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn lit_string(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::LitString(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn error_bytes(&self) -> Option<(&[u8], Option<Span>)> {
+    if let CstElem::ErrorBytes(st, s) = self {
+      Some((st.as_slice(), *s))
+    } else {
+      None
+    }
+  }
+}
