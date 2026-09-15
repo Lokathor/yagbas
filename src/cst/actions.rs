@@ -20,64 +20,43 @@ static ITEM_KEYWORDS: &[TokenKind] =
   &[KwUse, KwStruct, KwBitbag, KwEnum, KwStatic, KwConst, KwFn, KwImpl];
 
 /// Parse an entire module's content.
-pub fn do_module(p: &mut CstParser) {
+///
+/// * makes its own events.
+pub fn group_module(p: &mut CstParser) {
+  let m = p.open();
   loop {
     // comments before an item are "part of" that item.
     let m_item = p.open_eat_trivia();
     match p.peek() {
       ErrEndOfFile => {
         p.abandon_subtree(m_item);
-        return;
+        break;
       }
-      KwUse => {
-        do_use(p);
-        p.close(m_item, CstKind::Item);
-      }
-      KwStruct => {
-        do_struct(p);
-        p.close(m_item, CstKind::Item);
-      }
-      KwBitbag => {
-        do_bitbag(p);
-        p.close(m_item, CstKind::Item);
-      }
-      KwEnum => {
-        do_enum(p);
-        p.close(m_item, CstKind::Item);
-      }
-      KwStatic => {
-        do_static(p);
-        p.close(m_item, CstKind::Item);
-      }
-      KwConst => {
-        do_const(p);
-        p.close(m_item, CstKind::Item);
-      }
-      KwFn => {
-        do_fn(p);
-        p.close(m_item, CstKind::Item);
-      }
-      KwImpl => {
-        do_impl(p);
-        p.close(m_item, CstKind::Item);
-      }
+      KwUse => do_use(p),
+      KwStruct => do_struct(p),
+      KwBitbag => do_bitbag(p),
+      KwEnum => do_enum(p),
+      KwStatic => do_static(p),
+      KwConst => do_const(p),
+      KwFn => do_fn(p),
+      KwImpl => do_impl(p),
       _ => {
-        // skip over everything until the next comment, which might be the start
-        // of another item, or an actual item keyword.
-        while p.has_more() {
+        // skip over everything until we see another potential item.
+        loop {
           match p.peek() {
-            Comment => break,
-            x if ITEM_KEYWORDS.contains(&x) => break,
+            ErrEndOfFile | KwUse | KwStruct | KwBitbag | KwEnum | KwStatic
+            | KwConst | KwFn | KwImpl | Comment => break,
             _ => {
               p.advance();
             }
           }
         }
         // todo: log error
-        p.close(m_item, CstKind::ErrCstKind);
       }
     }
+    p.close(m_item, CstKind::Item);
   }
+  p.close(m, CstKind::Module);
 }
 
 // is this design even a good idea?????
@@ -156,68 +135,82 @@ fn do_fn(p: &mut CstParser<'_>) {
   if p.peek() == MinusGreater {
     p.advance();
     p.eat_trivia();
-    p.expect(Ident);
+    group_expr_type(p);
     p.eat_trivia();
   }
   let m = p.open();
-  p.expect(OpBrace);
-  while p.has_more() && p.peek() != ClBrace {
-    p.advance();
-  }
-  p.expect(ClBrace);
-  p.close(m, CstKind::BraceGroup);
+  do_body(p);
+  p.close(m, CstKind::ExprVal);
 }
 
 fn do_const(p: &mut CstParser<'_>) {
   p.expect(KwConst);
-  let mut bracket_depth = 0_isize;
-  let mut brackets = Vec::new();
-  while p.has_more() {
-    match p.peek() {
-      Semicolon if bracket_depth == 0 => break,
-      OpBracket => {
-        bracket_depth += 1;
-        brackets.push(p.open());
-      }
-      ClBracket => {
-        bracket_depth -= 1;
-        if let Some(mark) = brackets.pop() {
-          p.advance();
-          p.close(mark, CstKind::BracketGroup);
-          continue;
-        }
-      }
-      _ => (),
-    }
-    p.advance();
-  }
-  p.advance();
+  p.eat_trivia();
+  p.expect(Ident);
+  p.eat_trivia();
+  p.expect(Colon);
+  p.eat_trivia();
+  group_expr_type(p);
+  p.eat_trivia();
+  p.expect(Equal);
+  p.eat_trivia();
+  do_expr_value(p);
+  p.expect(Semicolon);
 }
 
 fn do_static(p: &mut CstParser<'_>) {
   p.expect(KwStatic);
-  let mut bracket_depth = 0_isize;
-  let mut brackets = Vec::new();
-  while p.has_more() {
-    match p.peek() {
-      Semicolon if bracket_depth == 0 => break,
-      OpBracket => {
-        bracket_depth += 1;
-        brackets.push(p.open());
-      }
-      ClBracket => {
-        bracket_depth -= 1;
-        if let Some(mark) = brackets.pop() {
-          p.advance();
-          p.close(mark, CstKind::BracketGroup);
-          continue;
-        }
-      }
-      _ => (),
+  p.eat_trivia();
+  match p.peek() {
+    KwMmio => {
+      p.expect(KwMmio);
+      p.eat_trivia();
+      p.expect(OpParen);
+      p.eat_trivia();
+      do_expr_value(p);
+      p.eat_trivia();
+      p.expect(ClParen);
+      p.eat_trivia();
+      p.expect(Ident);
+      p.eat_trivia();
+      p.expect(Colon);
+      p.eat_trivia();
+      group_expr_type(p);
+      p.eat_trivia();
+      p.expect(Semicolon);
     }
-    p.advance();
+    KwRam => {
+      p.expect(KwRam);
+      p.eat_trivia();
+      p.expect(Ident);
+      p.eat_trivia();
+      p.expect(Colon);
+      p.eat_trivia();
+      group_expr_type(p);
+      p.eat_trivia();
+      p.expect(Equal);
+      p.eat_trivia();
+      do_expr_value(p);
+      p.expect(Semicolon);
+    }
+    KwRom => {
+      p.expect(KwRom);
+      p.eat_trivia();
+      p.expect(Ident);
+      p.eat_trivia();
+      p.expect(Colon);
+      p.eat_trivia();
+      group_expr_type(p);
+      p.eat_trivia();
+      p.expect(Equal);
+      p.eat_trivia();
+      do_expr_value(p);
+      p.expect(Semicolon);
+    }
+    _ => {
+      // todo: log error
+    }
   }
-  p.advance();
 }
 
 fn do_enum(p: &mut CstParser<'_>) {
@@ -241,11 +234,39 @@ fn do_bitbag(p: &mut CstParser<'_>) {
   p.eat_trivia();
   let m_braces = p.open();
   p.expect(OpBrace);
-  while p.has_more() && p.peek() != ClBrace {
-    p.advance();
+  loop {
+    p.eat_trivia();
+    match p.peek() {
+      ErrEndOfFile => {
+        // todo: log error about no close brace
+        p.close(m_braces, CstKind::BraceGroup);
+        return;
+      }
+      ClBrace => {
+        p.expect(ClBrace);
+        p.close(m_braces, CstKind::BraceGroup);
+        return;
+      }
+      _ => {
+        p.expect(Ident);
+        p.eat_trivia();
+        p.expect(Colon);
+        p.eat_trivia();
+        do_expr_value(p);
+        p.eat_trivia();
+        match p.peek() {
+          ClBrace => {
+            p.expect(ClBrace);
+            p.close(m_braces, CstKind::BraceGroup);
+            return;
+          }
+          _ => {
+            p.expect(Comma);
+          }
+        }
+      }
+    }
   }
-  p.expect(ClBrace);
-  p.close(m_braces, CstKind::BraceGroup);
 }
 
 fn do_struct(p: &mut CstParser<'_>) {
@@ -273,7 +294,7 @@ fn do_struct(p: &mut CstParser<'_>) {
         p.eat_trivia();
         p.expect(Colon);
         p.eat_trivia();
-        do_expr_type(p);
+        group_expr_type(p);
         p.eat_trivia();
         match p.peek() {
           ClBrace => {
@@ -298,15 +319,26 @@ fn do_use(p: &mut CstParser<'_>) {
   p.advance();
 }
 
-fn do_expr_type(p: &mut CstParser<'_>) {
+fn group_expr_type(p: &mut CstParser<'_>) {
   let m_ty = p.open();
   match p.peek() {
     Comment | Whitespace => panic!(),
     Ident => {
       p.expect(Ident);
     }
-    _ => {
-      todo!();
+    OpBracket => {
+      p.expect(OpBracket);
+      p.eat_trivia();
+      group_expr_type(p);
+      p.eat_trivia();
+      p.expect(Semicolon);
+      p.eat_trivia();
+      do_expr_value(p);
+      p.eat_trivia();
+      p.expect(ClBracket);
+    }
+    other => {
+      todo!("{other:?}");
     }
   }
   p.close(m_ty, CstKind::ExprType);
@@ -427,170 +459,172 @@ fn peek_postfix_operator(p: &mut CstParser<'_>) -> Option<PostfixOperator> {
   Some(op)
 }
 
-/// Parse a value expression, or `None` for no input consumed.
-fn do_expr_value(p: &mut CstParser) {
-  try_expr_value_rec(p, 0);
-  return;
+// todo: i think if and loop need to be parsable as expression atoms
+/// Parse a value atom, or `None` for no input consumed.
+fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
+  Some(match p.peek() {
+    KwTrue | KwFalse | Ident | LitNum | LitStr => {
+      let m = p.open();
+      p.advance();
+      p.close(m, CstKind::ExprVal)
+    }
+    OpParen => {
+      let m = p.open();
+      p.expect(OpParen);
+      p.eat_trivia();
+      try_expr_value_rec(p, 0);
+      p.eat_trivia();
+      p.expect(ClParen);
+      p.close(m, CstKind::ExprVal)
+    }
+    KwLoop => {
+      let m_expr = p.open();
+      do_loop(p, m_expr)
+    }
+    KwIf => {
+      let m_expr = p.open();
+      do_if(p, m_expr)
+    }
+    KwFor => {
+      let m_expr = p.open();
+      do_for(p, m_expr)
+    }
+    _ => return None,
+  })
+}
 
-  // todo: i think if and loop need to be parsable as expression atoms
-  /// Parse a value atom, or `None` for no input consumed.
-  fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
-    debug_assert_ne!(p.peek(), Whitespace);
-    debug_assert_ne!(p.peek(), Comment);
-    Some(match p.peek() {
-      KwTrue | KwFalse | Ident | LitNum | LitStr => {
-        let m = p.open();
-        p.advance();
-        p.close(m, CstKind::ExprVal)
+/// recrusive form, where you also pass the pratt bind power from the parent
+/// context.
+#[track_caller]
+fn try_expr_value_rec(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
+  // prefix or atom
+  let mut lhs: CloseMark = if let Some(op) = peek_prefix_operator(p) {
+    let lhs_mark = p.open();
+    let op_mark = p.open();
+    for _ in 0..op.token_length() {
+      p.advance();
+    }
+    p.eat_trivia();
+    if op == PrefixOperator::Break && p.peek() == Quote {
+      p.expect(TokenKind::Quote);
+      p.expect(TokenKind::Ident);
+      p.eat_trivia();
+    }
+    p.close(op_mark, CstKind::OperatorPrefix(op));
+    if try_expr_value_rec(p, op.binding()).is_none() && op.needs_operand() {
+      // todo: log error
+    }
+    p.close(lhs_mark, CstKind::ExprVal)
+  } else {
+    try_val_atom(p)?
+  };
+  p.eat_trivia();
+  // infix/postfix looping
+  let mut previous_bind_power: Option<u8> = None;
+  loop {
+    if let Some(op) = peek_postfix_operator(p) {
+      let bind_power = op.binding();
+      let (lhs_bp, rhs_bp) = (bind_power, bind_power + 1);
+      if lhs_bp < min_bp {
+        // caller's operator, don't consume it
+        break;
       }
-      OpParen => {
-        let m = p.open();
-        p.expect(OpParen);
-        p.eat_trivia();
-        try_expr_value_rec(p, 0);
-        p.eat_trivia();
-        p.expect(ClParen);
-        p.close(m, CstKind::ExprVal)
-      }
-      KwLoop => {
-        let m_expr = p.open();
-        do_loop(p, m_expr)
-      }
-      KwIf => {
-        let m_expr = p.open();
-        do_if(p, m_expr)
-      }
-      KwFor => {
-        let m_expr = p.open();
-        do_for(p, m_expr)
-      }
-      _ => return None,
-    })
-  }
-
-  /// recrusive form, where you also pass the pratt bind power from the parent
-  /// context.
-  fn try_expr_value_rec(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
-    debug_assert_ne!(p.peek(), Whitespace);
-    debug_assert_ne!(p.peek(), Comment);
-    // prefix or atom
-    let mut lhs: CloseMark = if let Some(op) = peek_prefix_operator(p) {
-      let lhs_mark = p.open();
+      previous_bind_power = Some(bind_power);
+      let new_lhs = p.open_before(lhs);
       let op_mark = p.open();
       for _ in 0..op.token_length() {
         p.advance();
       }
-      p.eat_trivia();
-      if op == PrefixOperator::Break && p.peek() == Quote {
-        p.expect(TokenKind::Quote);
-        p.expect(TokenKind::Ident);
-        p.eat_trivia();
+      p.close(op_mark, CstKind::OperatorPostfix(op));
+      match op {
+        PostfixOperator::Try => (),
+        PostfixOperator::FnCall => {
+          let arg_list_mark = p.open();
+          loop {
+            p.eat_trivia();
+            if let Some(_xpr_mark) = try_expr_value_rec(p, bind_power) {
+              p.eat_trivia();
+              if p.peek() == Comma {
+                p.expect(TokenKind::Comma);
+                p.eat_trivia();
+              }
+            } else {
+              break;
+            }
+          }
+          p.close(arg_list_mark, CstKind::ParensGroup);
+          p.expect(TokenKind::ClParen);
+        }
+        PostfixOperator::ArrayIndex => {
+          let arg_list_mark = p.open();
+          p.eat_trivia();
+          if try_expr_value_rec(p, 0).is_none() {
+            // todo: log error
+          }
+          p.eat_trivia();
+          p.close(arg_list_mark, CstKind::ExprVal);
+          p.expect(TokenKind::ClBracket);
+        }
+        PostfixOperator::As => {
+          p.eat_trivia();
+          group_expr_type(p);
+          p.eat_trivia();
+        }
+        PostfixOperator::PostfixRangeExclusive
+        | PostfixOperator::PostfixRangeInclusive => {
+          p.eat_trivia();
+          try_expr_value_rec(p, rhs_bp);
+          p.eat_trivia();
+        }
       }
-      p.close(op_mark, CstKind::OperatorPrefix(op));
-      if try_expr_value_rec(p, op.binding()).is_none() && op.needs_operand() {
+      lhs = p.close(new_lhs, CstKind::ExprVal);
+      continue;
+    }
+    if let Some(op) = peek_infix_operator(p) {
+      let bind_power = op.binding();
+      let (lhs_bp, rhs_bp) = match op.direction() {
+        BindDirection::Left => (bind_power, bind_power + 1),
+        BindDirection::Right => (bind_power + 1, bind_power),
+        BindDirection::Ambiguious => (bind_power, bind_power + 1),
+      };
+      if lhs_bp < min_bp {
+        // caller's operator, don't consume it
+        break;
+      }
+      if op.direction() == BindDirection::Ambiguious
+        && previous_bind_power == Some(bind_power)
+      {
         // todo: log error
       }
-      p.close(lhs_mark, CstKind::ExprVal)
-    } else {
-      try_val_atom(p)?
-    };
-    p.eat_trivia();
-    // infix/postfix looping
-    let mut previous_bind_power: Option<u8> = None;
-    loop {
-      if let Some(op) = peek_postfix_operator(p) {
-        let bind_power = op.binding();
-        let (lhs_bp, rhs_bp) = (bind_power, bind_power + 1);
-        if lhs_bp < min_bp {
-          // caller's operator, don't consume it
-          break;
-        }
-        previous_bind_power = Some(bind_power);
-        let new_lhs = p.open_before(lhs);
-        let op_mark = p.open();
-        for _ in 0..op.token_length() {
-          p.advance();
-        }
-        p.close(op_mark, CstKind::OperatorPostfix(op));
-        match op {
-          PostfixOperator::Try => (),
-          PostfixOperator::FnCall => {
-            let arg_list_mark = p.open();
-            loop {
-              p.eat_trivia();
-              if let Some(_xpr_mark) = try_expr_value_rec(p, bind_power) {
-                p.eat_trivia();
-                if p.peek() == Comma {
-                  p.expect(TokenKind::Comma);
-                  p.eat_trivia();
-                }
-              } else {
-                break;
-              }
-            }
-            p.close(arg_list_mark, CstKind::ParensGroup);
-            p.expect(TokenKind::ClParen);
-          }
-          PostfixOperator::ArrayIndex => {
-            let arg_list_mark = p.open();
-            p.eat_trivia();
-            if try_expr_value_rec(p, 0).is_none() {
-              // todo: log error
-            }
-            p.eat_trivia();
-            p.close(arg_list_mark, CstKind::ExprVal);
-            p.expect(TokenKind::ClBracket);
-          }
-          PostfixOperator::As => {
-            p.eat_trivia();
-            do_expr_type(p);
-            p.eat_trivia();
-          }
-          PostfixOperator::PostfixRangeExclusive
-          | PostfixOperator::PostfixRangeInclusive => {
-            p.eat_trivia();
-            try_expr_value_rec(p, rhs_bp);
-            p.eat_trivia();
-          }
-        }
-        lhs = p.close(new_lhs, CstKind::ExprVal);
-        continue;
+      let new_lhs = p.open_before(lhs);
+      let op_mark = p.open();
+      for _ in 0..op.token_length() {
+        p.advance();
       }
-      if let Some(op) = peek_infix_operator(p) {
-        let bind_power = op.binding();
-        let (lhs_bp, rhs_bp) = match op.direction() {
-          BindDirection::Left => (bind_power, bind_power + 1),
-          BindDirection::Right => (bind_power + 1, bind_power),
-          BindDirection::Ambiguious => (bind_power, bind_power + 1),
-        };
-        if lhs_bp < min_bp {
-          // caller's operator, don't consume it
-          break;
-        }
-        if op.direction() == BindDirection::Ambiguious
-          && previous_bind_power == Some(bind_power)
-        {
-          // todo: log error
-        }
-        let new_lhs = p.open_before(lhs);
-        let op_mark = p.open();
-        for _ in 0..op.token_length() {
-          p.advance();
-        }
-        p.close(op_mark, CstKind::OperatorInfix(op));
-        p.eat_trivia();
-        // rhs
-        if try_expr_value_rec(p, rhs_bp).is_none() {
-          // todo: log error
-        }
-        lhs = p.close(new_lhs, CstKind::ExprVal);
-        continue;
+      p.close(op_mark, CstKind::OperatorInfix(op));
+      p.eat_trivia();
+      // rhs
+      if try_expr_value_rec(p, rhs_bp).is_none() {
+        // todo: log error
       }
-      // no operator visible, so we stop gathering.
-      break;
+      lhs = p.close(new_lhs, CstKind::ExprVal);
+      continue;
     }
-    Some(lhs)
+    // no operator visible, so we stop gathering.
+    break;
   }
+  Some(lhs)
+}
+
+/// Parse a value expression, or `None` for no input consumed.
+#[track_caller]
+fn do_expr_value(p: &mut CstParser) {
+  try_expr_value_rec(p, 0);
+  return;
 }
 
 fn do_loop(p: &mut CstParser, mark: OpenMark) -> CloseMark {
@@ -598,7 +632,8 @@ fn do_loop(p: &mut CstParser, mark: OpenMark) -> CloseMark {
   p.expect(KwLoop);
   let m_body = p.open_eat_trivia();
   if p.peek() == OpBrace {
-    do_body(p, m_body);
+    do_body(p);
+    p.close(m_body, CstKind::ExprVal);
   } else {
     p.close(m_body, CstKind::ErrCstKind);
   }
@@ -612,7 +647,8 @@ fn do_if(p: &mut CstParser, mark: OpenMark) -> CloseMark {
   do_expr_value(p);
   let m_body = p.open_eat_trivia();
   if p.peek() == OpBrace {
-    do_body(p, m_body);
+    do_body(p);
+    p.close(m_body, CstKind::ExprVal);
   } else {
     p.close(m_body, CstKind::ErrCstKind);
   }
@@ -626,17 +662,19 @@ fn do_for(p: &mut CstParser, m_expr: OpenMark) -> CloseMark {
   p.eat_trivia();
   do_expr_value(p);
   p.expect(KwIn);
+  p.eat_trivia();
   do_expr_value(p);
   let m_body = p.open_eat_trivia();
   if p.peek() == OpBrace {
-    do_body(p, m_body);
+    do_body(p);
+    p.close(m_body, CstKind::ExprVal);
   } else {
     p.close(m_body, CstKind::ErrCstKind);
   }
   p.close(m_expr, CstKind::ExprVal)
 }
 
-fn do_body(p: &mut CstParser, m_body: OpenMark) {
+fn do_body(p: &mut CstParser) {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   debug_assert_ne!(p.peek(), ErrEndOfFile);
@@ -646,12 +684,10 @@ fn do_body(p: &mut CstParser, m_body: OpenMark) {
     if p.peek() == ClBrace {
       p.abandon_subtree(m_stmt);
       p.expect(ClBrace);
-      p.close(m_body, CstKind::BraceGroup);
       return;
     }
     if p.peek() == ErrEndOfFile {
       p.close(m_stmt, CstKind::Statement);
-      p.close(m_body, CstKind::ErrCstKind);
       return;
     }
     do_stmt(p, m_stmt);
@@ -699,8 +735,16 @@ fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) {
     }
     _ => {
       do_expr_value(p);
-      p.expect(Semicolon);
-      p.close(m_stmt, CstKind::Statement);
+      p.eat_trivia();
+      match p.peek() {
+        ClBrace => {
+          p.close(m_stmt, CstKind::Statement);
+        }
+        _ => {
+          p.expect(Semicolon);
+          p.close(m_stmt, CstKind::Statement);
+        }
+      }
     }
   }
 }

@@ -6,7 +6,7 @@ use std::string::FromUtf8Error;
 use str_id::StrId;
 
 use crate::Span;
-use crate::cst::actions::do_module;
+use crate::cst::actions::group_module;
 use crate::cst::parser::CstParser;
 use crate::operators::InfixOperator;
 use crate::operators::PostfixOperator;
@@ -85,7 +85,7 @@ impl core::fmt::Display for Cst {
       for _ in 0..indents {
         write!(f, " ")?;
       }
-      writeln!(f, "{:?} {{", s.kind)?;
+      writeln!(f, "{:?}", s.kind)?;
       for element in &s.elements {
         match element {
           CstElem::SubTree(cst) => {
@@ -178,10 +178,12 @@ impl core::fmt::Display for Cst {
           }
         }
       }
+      #[cfg(false)]
       for _ in 0..indents {
         write!(f, " ")?;
       }
-      writeln!(f, "}}")
+      //writeln!(f, "}}")?;
+      Ok(())
     }
   }
 }
