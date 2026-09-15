@@ -1,6 +1,4 @@
-struct OamData {
-  y: u8,
-  x: u8,
-  tile_index: u8,
-  attributes: OamAttrs,
+fn add_two(x: u8) -> u8 {
+  let two = 2;
+  two + x
 }

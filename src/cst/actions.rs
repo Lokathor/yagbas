@@ -1,6 +1,12 @@
 #![allow(dead_code)]
 //! Module for free functions that manipulate a [CstParser] to build a useful
 //! [Cst]
+//!
+//! ## Conventions
+//! * All actions that need to be within a grouping should have the grouping
+//!   opened and closed by the *caller* of the action.
+
+use std::ops::ControlFlow;
 
 use crate::cst::CstKind::{self};
 use crate::cst::parser::{CloseMark, CstParser, OpenMark};
@@ -15,26 +21,49 @@ static ITEM_KEYWORDS: &[TokenKind] =
 
 /// Parse an entire module's content.
 pub fn do_module(p: &mut CstParser) {
-  let m_module = p.open();
   loop {
-    while let Whitespace = p.peek() {
-      p.advance();
-    }
+    // comments before an item are "part of" that item.
     let m_item = p.open_eat_trivia();
     match p.peek() {
       ErrEndOfFile => {
         p.abandon_subtree(m_item);
-        p.close(m_module, CstKind::Module);
         return;
       }
-      k if ITEM_KEYWORDS.contains(&k) => {
-        do_item(p);
-        while let Whitespace = p.peek() {
-          p.advance();
-        }
+      KwUse => {
+        do_use(p);
+        p.close(m_item, CstKind::Item);
+      }
+      KwStruct => {
+        do_struct(p);
+        p.close(m_item, CstKind::Item);
+      }
+      KwBitbag => {
+        do_bitbag(p);
+        p.close(m_item, CstKind::Item);
+      }
+      KwEnum => {
+        do_enum(p);
+        p.close(m_item, CstKind::Item);
+      }
+      KwStatic => {
+        do_static(p);
+        p.close(m_item, CstKind::Item);
+      }
+      KwConst => {
+        do_const(p);
+        p.close(m_item, CstKind::Item);
+      }
+      KwFn => {
+        do_fn(p);
+        p.close(m_item, CstKind::Item);
+      }
+      KwImpl => {
+        do_impl(p);
         p.close(m_item, CstKind::Item);
       }
       _ => {
+        // skip over everything until the next comment, which might be the start
+        // of another item, or an actual item keyword.
         while p.has_more() {
           match p.peek() {
             Comment => break,
@@ -44,26 +73,37 @@ pub fn do_module(p: &mut CstParser) {
             }
           }
         }
+        // todo: log error
         p.close(m_item, CstKind::ErrCstKind);
       }
     }
   }
 }
 
-/// Eats one item.
-///
-/// * Panics if `p.peek()` isn't an item keyword.
-fn do_item(p: &mut CstParser<'_>) {
-  match p.peek() {
-    KwUse => do_use(p),
-    KwStruct => do_struct(p),
-    KwBitbag => do_bitbag(p),
-    KwEnum => do_enum(p),
-    KwStatic => do_static(p),
-    KwConst => do_const(p),
-    KwFn => do_fn(p),
-    KwImpl => do_impl(p),
-    other => panic!("{other:?}"),
+// is this design even a good idea?????
+fn do_generic_braces_group<F>(p: &mut CstParser<'_>, f: &mut F)
+where
+  F: FnMut(&mut CstParser<'_>, TokenKind) -> ControlFlow<(), ()>,
+{
+  p.expect(OpBrace);
+  while let ControlFlow::Continue(()) = f(p, p.peek()) {
+    match p.peek() {
+      ClBrace => {
+        p.advance();
+        return;
+      }
+      ErrEndOfFile => {
+        // todo: log error about missing close brace
+      }
+      OpBrace => {
+        let m = p.open();
+        do_generic_braces_group(p, f);
+        p.close(m, CstKind::BraceGroup);
+      }
+      _ => {
+        p.advance();
+      }
+    }
   }
 }
 
@@ -73,46 +113,31 @@ fn do_impl(p: &mut CstParser<'_>) {
   p.expect(Ident);
   p.eat_trivia();
   let m_brace = p.open();
-  p.expect(OpBrace);
-  loop {
-    while let Whitespace = p.peek() {
-      p.advance();
-    }
-    let m_item = p.open_eat_trivia();
-    match p.peek() {
-      ErrEndOfFile => {
-        p.abandon_subtree(m_item);
-        // todo: log error about a missing close brace.
-        p.close(m_brace, CstKind::BraceGroup);
-        return;
-      }
-      ClBrace => {
-        p.abandon_subtree(m_item);
-        p.advance();
-        p.close(m_brace, CstKind::BraceGroup);
-        return;
-      }
-      k if ITEM_KEYWORDS.contains(&k) => {
-        do_item(p);
-        while let Whitespace = p.peek() {
-          p.advance();
+  do_generic_braces_group(p, &mut |p, tk| {
+    if tk == Comment || ITEM_KEYWORDS.contains(&tk) {
+      let m_item = p.open_eat_trivia();
+      match p.peek() {
+        KwUse => do_use(p),
+        KwStruct => do_struct(p),
+        KwBitbag => do_bitbag(p),
+        KwEnum => do_enum(p),
+        KwStatic => do_static(p),
+        KwConst => do_const(p),
+        KwFn => do_fn(p),
+        KwImpl => do_impl(p),
+        ClBrace => {
+          p.abandon_subtree(m_item);
         }
-        p.close(m_item, CstKind::Item);
-      }
-      _ => {
-        while p.has_more() {
-          match p.peek() {
-            Comment => break,
-            x if ITEM_KEYWORDS.contains(&x) => break,
-            _ => {
-              p.advance();
-            }
-          }
+        _other => {
+          // todo: log error
+          p.abandon_subtree(m_item);
         }
-        p.close(m_item, CstKind::ErrCstKind);
       }
+      p.close(m_item, CstKind::Item);
     }
-  }
+    ControlFlow::Continue(())
+  });
+  p.close(m_brace, CstKind::BraceGroup);
 }
 
 fn do_fn(p: &mut CstParser<'_>) {
@@ -288,7 +313,7 @@ fn do_expr_type(p: &mut CstParser<'_>) {
 }
 
 /// Checks for a [PrefixOperator]
-fn peek_prefix_operator(p: &mut CstParser) -> Option<PrefixOperator> {
+fn peek_prefix_operator(p: &mut CstParser<'_>) -> Option<PrefixOperator> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   let op = match p.peek() {
@@ -306,7 +331,7 @@ fn peek_prefix_operator(p: &mut CstParser) -> Option<PrefixOperator> {
 }
 
 /// Checks for an [InfixOperator]
-fn peek_infix_operator(p: &mut CstParser) -> Option<InfixOperator> {
+fn peek_infix_operator(p: &mut CstParser<'_>) -> Option<InfixOperator> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   //
@@ -387,7 +412,7 @@ fn peek_infix_operator(p: &mut CstParser) -> Option<InfixOperator> {
 }
 
 /// Checks for a [PostfixOperator]
-fn peek_postfix_operator(p: &mut CstParser) -> Option<PostfixOperator> {
+fn peek_postfix_operator(p: &mut CstParser<'_>) -> Option<PostfixOperator> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   let op = match p.peek() {
