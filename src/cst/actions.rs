@@ -287,125 +287,125 @@ fn do_expr_type(p: &mut CstParser<'_>) {
   p.close(m_ty, CstKind::ExprType);
 }
 
+/// Checks for a [PrefixOperator]
+fn peek_prefix_operator(p: &mut CstParser) -> Option<PrefixOperator> {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
+  let op = match p.peek() {
+    Minus => PrefixOperator::Negative,
+    Bang => PrefixOperator::BitNot,
+    Star => PrefixOperator::Dereference,
+    Ampersand => PrefixOperator::Reference,
+    KwReturn => PrefixOperator::Return,
+    KwBreak => PrefixOperator::Break,
+    DotDot => PrefixOperator::PrefixRangeExclusive,
+    DotDotEqual => PrefixOperator::PrefixRangeInclusive,
+    _ => return None,
+  };
+  Some(op)
+}
+
+/// Checks for an [InfixOperator]
+fn peek_infix_operator(p: &mut CstParser) -> Option<InfixOperator> {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
+  //
+  let mut token_kinds = p.tokens_tail();
+  let op = match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+    ColonColon => InfixOperator::Path,
+    Dot => InfixOperator::Access,
+    Star => InfixOperator::Mul,
+    Slash => InfixOperator::Div,
+    Percent => InfixOperator::Rem,
+    Plus => InfixOperator::Add,
+    Minus => InfixOperator::Sub,
+    AmpersandEqual => InfixOperator::BitAndAssign,
+    PipeEqual => InfixOperator::BitOrAssign,
+    Caret => InfixOperator::BitXor,
+    CaretEqual => InfixOperator::BitXorAssign,
+    Equal => InfixOperator::Assign,
+    EqualEqual => InfixOperator::CmpEq,
+    BangEqual => InfixOperator::CmpNe,
+    DotDot => InfixOperator::RangeExclusive,
+    DotDotEqual => InfixOperator::RangeInclusive,
+    PlusEqual => InfixOperator::AddAssign,
+    MinusEqual => InfixOperator::SubAssign,
+    StarEqual => InfixOperator::MulAssign,
+    SlashEqual => InfixOperator::DivAssign,
+    PercentEqual => InfixOperator::RemAssign,
+    LessThan => {
+      return Some(
+        match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+          LessThan => {
+            return Some(
+              match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+                Equal => InfixOperator::ShiftLeftAssign,
+                _ => InfixOperator::ShiftLeft,
+              },
+            );
+          }
+          Equal => InfixOperator::CmpLe,
+          _ => InfixOperator::CmpLt,
+        },
+      );
+    }
+    GreaterThan => {
+      return Some(
+        match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+          GreaterThan => {
+            return Some(
+              match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+                Equal => (InfixOperator::ShiftRightAssign),
+                _ => (InfixOperator::ShiftRight),
+              },
+            );
+          }
+          Equal => InfixOperator::CmpGe,
+          _ => InfixOperator::CmpGt,
+        },
+      );
+    }
+    Ampersand => {
+      return Some(
+        match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+          Ampersand => InfixOperator::ConditionalAnd,
+          _ => InfixOperator::BitAnd,
+        },
+      );
+    }
+    Pipe => {
+      return Some(
+        match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
+          Pipe => InfixOperator::ConditionalOr,
+          _ => InfixOperator::BitOr,
+        },
+      );
+    }
+    _ => return None,
+  };
+  Some(op)
+}
+
+/// Checks for a [PostfixOperator]
+fn peek_postfix_operator(p: &mut CstParser) -> Option<PostfixOperator> {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
+  let op = match p.peek() {
+    OpParen => PostfixOperator::FnCall,
+    OpBracket => PostfixOperator::ArrayIndex,
+    Question => PostfixOperator::Try,
+    KwAs => PostfixOperator::As,
+    DotDot => PostfixOperator::PostfixRangeExclusive,
+    DotDotEqual => PostfixOperator::PostfixRangeInclusive,
+    _ => return None,
+  };
+  Some(op)
+}
+
 /// Parse a value expression, or `None` for no input consumed.
-fn do_value_expr(p: &mut CstParser) {
-  try_value_expr_rec(p, 0);
+fn do_expr_value(p: &mut CstParser) {
+  try_expr_value_rec(p, 0);
   return;
-
-  /// Checks for a [PrefixOperator]
-  fn peek_prefix_operator(p: &mut CstParser) -> Option<PrefixOperator> {
-    debug_assert_ne!(p.peek(), Whitespace);
-    debug_assert_ne!(p.peek(), Comment);
-    let op = match p.peek() {
-      Minus => PrefixOperator::Negative,
-      Bang => PrefixOperator::BitNot,
-      Star => PrefixOperator::Dereference,
-      Ampersand => PrefixOperator::Reference,
-      KwReturn => PrefixOperator::Return,
-      KwBreak => PrefixOperator::Break,
-      DotDot => PrefixOperator::PrefixRangeExclusive,
-      DotDotEqual => PrefixOperator::PrefixRangeInclusive,
-      _ => return None,
-    };
-    Some(op)
-  }
-
-  /// Checks for an [InfixOperator]
-  fn peek_infix_operator(p: &mut CstParser) -> Option<InfixOperator> {
-    debug_assert_ne!(p.peek(), Whitespace);
-    debug_assert_ne!(p.peek(), Comment);
-    //
-    let mut token_kinds = p.tokens_tail();
-    let op = match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
-      ColonColon => InfixOperator::Path,
-      Dot => InfixOperator::Access,
-      Star => InfixOperator::Mul,
-      Slash => InfixOperator::Div,
-      Percent => InfixOperator::Rem,
-      Plus => InfixOperator::Add,
-      Minus => InfixOperator::Sub,
-      AmpersandEqual => InfixOperator::BitAndAssign,
-      PipeEqual => InfixOperator::BitOrAssign,
-      Caret => InfixOperator::BitXor,
-      CaretEqual => InfixOperator::BitXorAssign,
-      Equal => InfixOperator::Assign,
-      EqualEqual => InfixOperator::CmpEq,
-      BangEqual => InfixOperator::CmpNe,
-      DotDot => InfixOperator::RangeExclusive,
-      DotDotEqual => InfixOperator::RangeInclusive,
-      PlusEqual => InfixOperator::AddAssign,
-      MinusEqual => InfixOperator::SubAssign,
-      StarEqual => InfixOperator::MulAssign,
-      SlashEqual => InfixOperator::DivAssign,
-      PercentEqual => InfixOperator::RemAssign,
-      LessThan => {
-        return Some(
-          match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
-            LessThan => {
-              return Some(
-                match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
-                  Equal => InfixOperator::ShiftLeftAssign,
-                  _ => InfixOperator::ShiftLeft,
-                },
-              );
-            }
-            Equal => InfixOperator::CmpLe,
-            _ => InfixOperator::CmpLt,
-          },
-        );
-      }
-      GreaterThan => {
-        return Some(
-          match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
-            GreaterThan => {
-              return Some(
-                match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
-                  Equal => (InfixOperator::ShiftRightAssign),
-                  _ => (InfixOperator::ShiftRight),
-                },
-              );
-            }
-            Equal => InfixOperator::CmpGe,
-            _ => InfixOperator::CmpGt,
-          },
-        );
-      }
-      Ampersand => {
-        return Some(
-          match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
-            Ampersand => InfixOperator::ConditionalAnd,
-            _ => InfixOperator::BitAnd,
-          },
-        );
-      }
-      Pipe => {
-        return Some(
-          match token_kinds.next().unwrap_or(TokenKind::ErrEndOfFile) {
-            Pipe => InfixOperator::ConditionalOr,
-            _ => InfixOperator::BitOr,
-          },
-        );
-      }
-      _ => return None,
-    };
-    Some(op)
-  }
-
-  /// Checks for a [PostfixOperator]
-  fn peek_postfix_operator(p: &mut CstParser) -> Option<PostfixOperator> {
-    debug_assert_ne!(p.peek(), Whitespace);
-    debug_assert_ne!(p.peek(), Comment);
-    let op = match p.peek() {
-      OpParen => PostfixOperator::FnCall,
-      OpBracket => PostfixOperator::ArrayIndex,
-      Question => PostfixOperator::Try,
-      KwAs => PostfixOperator::As,
-      DotDot => PostfixOperator::PostfixRangeExclusive,
-      DotDotEqual => PostfixOperator::PostfixRangeInclusive,
-      _ => return None,
-    };
-    Some(op)
-  }
 
   // todo: i think if and loop need to be parsable as expression atoms
   /// Parse a value atom, or `None` for no input consumed.
@@ -422,7 +422,7 @@ fn do_value_expr(p: &mut CstParser) {
         let m = p.open();
         p.expect(OpParen);
         p.eat_trivia();
-        try_value_expr_rec(p, 0);
+        try_expr_value_rec(p, 0);
         p.eat_trivia();
         p.expect(ClParen);
         p.close(m, CstKind::ExprVal)
@@ -445,7 +445,7 @@ fn do_value_expr(p: &mut CstParser) {
 
   /// recrusive form, where you also pass the pratt bind power from the parent
   /// context.
-  fn try_value_expr_rec(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
+  fn try_expr_value_rec(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
     debug_assert_ne!(p.peek(), Whitespace);
     debug_assert_ne!(p.peek(), Comment);
     // prefix or atom
@@ -462,7 +462,7 @@ fn do_value_expr(p: &mut CstParser) {
         p.eat_trivia();
       }
       p.close(op_mark, CstKind::OperatorPrefix(op));
-      if try_value_expr_rec(p, op.binding()).is_none() && op.needs_operand() {
+      if try_expr_value_rec(p, op.binding()).is_none() && op.needs_operand() {
         // todo: log error
       }
       p.close(lhs_mark, CstKind::ExprVal)
@@ -493,7 +493,7 @@ fn do_value_expr(p: &mut CstParser) {
             let arg_list_mark = p.open();
             loop {
               p.eat_trivia();
-              if let Some(_xpr_mark) = try_value_expr_rec(p, bind_power) {
+              if let Some(_xpr_mark) = try_expr_value_rec(p, bind_power) {
                 p.eat_trivia();
                 if p.peek() == Comma {
                   p.expect(TokenKind::Comma);
@@ -509,7 +509,7 @@ fn do_value_expr(p: &mut CstParser) {
           PostfixOperator::ArrayIndex => {
             let arg_list_mark = p.open();
             p.eat_trivia();
-            if try_value_expr_rec(p, 0).is_none() {
+            if try_expr_value_rec(p, 0).is_none() {
               // todo: log error
             }
             p.eat_trivia();
@@ -524,7 +524,7 @@ fn do_value_expr(p: &mut CstParser) {
           PostfixOperator::PostfixRangeExclusive
           | PostfixOperator::PostfixRangeInclusive => {
             p.eat_trivia();
-            try_value_expr_rec(p, rhs_bp);
+            try_expr_value_rec(p, rhs_bp);
             p.eat_trivia();
           }
         }
@@ -555,7 +555,7 @@ fn do_value_expr(p: &mut CstParser) {
         p.close(op_mark, CstKind::OperatorInfix(op));
         p.eat_trivia();
         // rhs
-        if try_value_expr_rec(p, rhs_bp).is_none() {
+        if try_expr_value_rec(p, rhs_bp).is_none() {
           // todo: log error
         }
         lhs = p.close(new_lhs, CstKind::ExprVal);
@@ -584,7 +584,7 @@ fn do_if(p: &mut CstParser, mark: OpenMark) -> CloseMark {
   debug_assert_eq!(p.peek(), KwIf);
   p.expect(KwIf);
   p.eat_trivia();
-  do_value_expr(p);
+  do_expr_value(p);
   let m_body = p.open_eat_trivia();
   if p.peek() == OpBrace {
     do_body(p, m_body);
@@ -599,9 +599,9 @@ fn do_for(p: &mut CstParser, m_expr: OpenMark) -> CloseMark {
   debug_assert_eq!(p.peek(), KwFor);
   p.expect(KwFor);
   p.eat_trivia();
-  do_value_expr(p);
+  do_expr_value(p);
   p.expect(KwIn);
-  do_value_expr(p);
+  do_expr_value(p);
   let m_body = p.open_eat_trivia();
   if p.peek() == OpBrace {
     do_body(p, m_body);
@@ -649,7 +649,7 @@ fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) {
       p.eat_trivia();
       p.expect(Equal);
       p.eat_trivia();
-      do_value_expr(p);
+      do_expr_value(p);
       p.expect(Semicolon);
       p.close(m_stmt, CstKind::Statement);
     }
@@ -673,7 +673,7 @@ fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) {
       p.close(m_stmt, CstKind::Statement);
     }
     _ => {
-      do_value_expr(p);
+      do_expr_value(p);
       p.expect(Semicolon);
       p.close(m_stmt, CstKind::Statement);
     }
