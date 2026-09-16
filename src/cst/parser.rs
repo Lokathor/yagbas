@@ -84,7 +84,7 @@ impl<'a> CstParser<'a> {
   /// Open a new sub-tree
   pub fn open(&mut self) -> OpenMark {
     let mark = OpenMark { index: self.events.len() };
-    self.events.push(ParseEvent::Open(CstKind::ErrCstKind));
+    self.events.push(ParseEvent::Open(CstKind::ErrCstKindDefault));
     mark
   }
   /// Open a sub-tree starting *before* the sub-tree that this close mark was
@@ -92,7 +92,7 @@ impl<'a> CstParser<'a> {
   /// this close mark.
   pub fn open_before(&mut self, m: CloseMark) -> OpenMark {
     let mark = OpenMark { index: m.index };
-    self.events.insert(m.index, ParseEvent::Open(CstKind::ErrCstKind));
+    self.events.insert(m.index, ParseEvent::Open(CstKind::ErrCstKindDefault));
     mark
   }
   /// Close a sub-tree and assign it a kind.

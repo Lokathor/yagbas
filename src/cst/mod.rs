@@ -188,22 +188,20 @@ impl core::fmt::Display for Cst {
   }
 }
 
-/// I have no idea what the correct set of tags is here!
+/// The kinds of Cst tree that the [CstParser] can generate.
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CstKind {
   #[default]
-  ErrCstKind,
+  ErrCstKindDefault,
 
-  /// * The `Module` tag should only contain `Item` trees.
+  // I think that it's better to have fewer kinds exist when possible. I'm not
+  // totally sure why I think that.
   Module,
-  /// * The first non-trivial element of each `Item` should be an item keyword
   Item,
-
   ParensGroup,
   BracketGroup,
   BraceGroup,
-
   Statement,
   ExprVal,
   ExprType,
