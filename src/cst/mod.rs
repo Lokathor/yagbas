@@ -6,7 +6,7 @@ use std::string::FromUtf8Error;
 use str_id::StrId;
 
 use crate::Span;
-use crate::cst::actions::group_module;
+use crate::cst::actions::gather_module;
 use crate::cst::parser::CstParser;
 use crate::operators::InfixOperator;
 use crate::operators::PostfixOperator;

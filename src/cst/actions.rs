@@ -22,7 +22,7 @@ static ITEM_KEYWORDS: &[TokenKind] =
 /// Parse an entire module's content.
 ///
 /// * makes its own events.
-pub fn group_module(p: &mut CstParser) {
+pub fn gather_module(p: &mut CstParser) {
   let m = p.open();
   loop {
     // comments before an item are "part of" that item.
@@ -59,63 +59,50 @@ pub fn group_module(p: &mut CstParser) {
   p.close(m, CstKind::Module);
 }
 
-// is this design even a good idea?????
-fn do_generic_braces_group<F>(p: &mut CstParser<'_>, f: &mut F)
-where
-  F: FnMut(&mut CstParser<'_>, TokenKind) -> ControlFlow<(), ()>,
-{
-  p.expect(OpBrace);
-  while let ControlFlow::Continue(()) = f(p, p.peek()) {
-    match p.peek() {
-      ClBrace => {
-        p.advance();
-        return;
-      }
-      ErrEndOfFile => {
-        // todo: log error about missing close brace
-      }
-      OpBrace => {
-        let m = p.open();
-        do_generic_braces_group(p, f);
-        p.close(m, CstKind::BraceGroup);
-      }
-      _ => {
-        p.advance();
-      }
-    }
-  }
-}
-
 fn do_impl(p: &mut CstParser<'_>) {
   p.expect(KwImpl);
   p.eat_trivia();
   p.expect(Ident);
   p.eat_trivia();
   let m_brace = p.open();
-  do_generic_braces_group(p, &mut |p, tk| {
-    if tk == Comment || ITEM_KEYWORDS.contains(&tk) {
-      let m_item = p.open_eat_trivia();
-      match p.peek() {
-        KwUse => do_use(p),
-        KwStruct => do_struct(p),
-        KwBitbag => do_bitbag(p),
-        KwEnum => do_enum(p),
-        KwStatic => do_static(p),
-        KwConst => do_const(p),
-        KwFn => do_fn(p),
-        KwImpl => do_impl(p),
-        ClBrace => {
-          p.abandon_subtree(m_item);
-        }
-        _other => {
-          // todo: log error
-          p.abandon_subtree(m_item);
-        }
+  p.expect(OpBrace);
+  loop {
+    let m_item = p.open_eat_trivia();
+    match p.peek() {
+      ErrEndOfFile => {
+        p.abandon_subtree(m_item);
+        // TODO: log error
+        break;
       }
-      p.close(m_item, CstKind::Item);
+      ClBrace => {
+        p.abandon_subtree(m_item);
+        break;
+      }
+      KwUse => do_use(p),
+      KwStruct => do_struct(p),
+      KwBitbag => do_bitbag(p),
+      KwEnum => do_enum(p),
+      KwStatic => do_static(p),
+      KwConst => do_const(p),
+      KwFn => do_fn(p),
+      KwImpl => do_impl(p),
+      _ => {
+        // skip over everything until we see another potential item or the end
+        // of this braces group.
+        loop {
+          match p.peek() {
+            ClBrace | ErrEndOfFile | KwUse | KwStruct | KwBitbag | KwEnum
+            | KwStatic | KwConst | KwFn | KwImpl | Comment => break,
+            _ => {
+              p.advance();
+            }
+          }
+        }
+        // todo: log error
+      }
     }
-    ControlFlow::Continue(())
-  });
+    p.close(m_item, CstKind::Item);
+  }
   p.close(m_brace, CstKind::BraceGroup);
 }
 
@@ -136,12 +123,10 @@ fn do_fn(p: &mut CstParser<'_>) {
   if p.peek() == MinusGreater {
     p.advance();
     p.eat_trivia();
-    group_expr_type(p);
+    gather_expr_type(p);
     p.eat_trivia();
   }
-  let m = p.open();
-  do_body(p);
-  p.close(m, CstKind::ExprVal);
+  gather_body(p);
 }
 
 fn do_const(p: &mut CstParser<'_>) {
@@ -151,11 +136,11 @@ fn do_const(p: &mut CstParser<'_>) {
   p.eat_trivia();
   p.expect(Colon);
   p.eat_trivia();
-  group_expr_type(p);
+  gather_expr_type(p);
   p.eat_trivia();
   p.expect(Equal);
   p.eat_trivia();
-  do_expr_value(p);
+  gather_expr_value(p);
   p.expect(Semicolon);
 }
 
@@ -168,7 +153,7 @@ fn do_static(p: &mut CstParser<'_>) {
       p.eat_trivia();
       p.expect(OpParen);
       p.eat_trivia();
-      do_expr_value(p);
+      gather_expr_value(p);
       p.eat_trivia();
       p.expect(ClParen);
       p.eat_trivia();
@@ -176,7 +161,7 @@ fn do_static(p: &mut CstParser<'_>) {
       p.eat_trivia();
       p.expect(Colon);
       p.eat_trivia();
-      group_expr_type(p);
+      gather_expr_type(p);
       p.eat_trivia();
       p.expect(Semicolon);
     }
@@ -187,11 +172,11 @@ fn do_static(p: &mut CstParser<'_>) {
       p.eat_trivia();
       p.expect(Colon);
       p.eat_trivia();
-      group_expr_type(p);
+      gather_expr_type(p);
       p.eat_trivia();
       p.expect(Equal);
       p.eat_trivia();
-      do_expr_value(p);
+      gather_expr_value(p);
       p.expect(Semicolon);
     }
     KwRom => {
@@ -201,14 +186,24 @@ fn do_static(p: &mut CstParser<'_>) {
       p.eat_trivia();
       p.expect(Colon);
       p.eat_trivia();
-      group_expr_type(p);
+      gather_expr_type(p);
       p.eat_trivia();
       p.expect(Equal);
       p.eat_trivia();
-      do_expr_value(p);
+      gather_expr_value(p);
       p.expect(Semicolon);
     }
     _ => {
+      // skip over everything until we see another potential item.
+      loop {
+        match p.peek() {
+          ErrEndOfFile | KwUse | KwStruct | KwBitbag | KwEnum | KwStatic
+          | KwConst | KwFn | KwImpl | Comment => break,
+          _ => {
+            p.advance();
+          }
+        }
+      }
       // todo: log error
     }
   }
@@ -253,7 +248,7 @@ fn do_bitbag(p: &mut CstParser<'_>) {
         p.eat_trivia();
         p.expect(Colon);
         p.eat_trivia();
-        do_expr_value(p);
+        gather_expr_value(p);
         p.eat_trivia();
         match p.peek() {
           ClBrace => {
@@ -295,7 +290,7 @@ fn do_struct(p: &mut CstParser<'_>) {
         p.eat_trivia();
         p.expect(Colon);
         p.eat_trivia();
-        group_expr_type(p);
+        gather_expr_type(p);
         p.eat_trivia();
         match p.peek() {
           ClBrace => {
@@ -320,7 +315,7 @@ fn do_use(p: &mut CstParser<'_>) {
   p.advance();
 }
 
-fn group_expr_type(p: &mut CstParser<'_>) {
+fn gather_expr_type(p: &mut CstParser<'_>) {
   let m_ty = p.open();
   match p.peek() {
     Comment | Whitespace => panic!(),
@@ -330,11 +325,11 @@ fn group_expr_type(p: &mut CstParser<'_>) {
     OpBracket => {
       p.expect(OpBracket);
       p.eat_trivia();
-      group_expr_type(p);
+      gather_expr_type(p);
       p.eat_trivia();
       p.expect(Semicolon);
       p.eat_trivia();
-      do_expr_value(p);
+      gather_expr_value(p);
       p.eat_trivia();
       p.expect(ClBracket);
     }
@@ -460,13 +455,18 @@ fn peek_postfix_operator(p: &mut CstParser<'_>) -> Option<PostfixOperator> {
   Some(op)
 }
 
-// todo: i think if and loop need to be parsable as expression atoms
 /// Parse a value atom, or `None` for no input consumed.
 fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   Some(match p.peek() {
-    KwTrue | KwFalse | Ident | LitNum | LitStr => {
+    KwTrue | KwFalse | LitNum | LitStr => {
+      let m = p.open();
+      p.advance();
+      p.close(m, CstKind::ExprVal)
+    }
+    Ident => {
+      // TODO: allow for struct literal expressions here.
       let m = p.open();
       p.advance();
       p.close(m, CstKind::ExprVal)
@@ -480,27 +480,17 @@ fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
       p.expect(ClParen);
       p.close(m, CstKind::ExprVal)
     }
-    KwLoop => {
-      let m_expr = p.open();
-      do_loop(p, m_expr)
-    }
-    KwIf => {
-      let m_expr = p.open();
-      do_if(p, m_expr)
-    }
-    KwFor => {
-      let m_expr = p.open();
-      do_for(p, m_expr)
-    }
+    OpBrace => gather_body(p),
+    KwLoop => gather_loop(p),
+    KwIf => gather_if(p),
+    KwFor => gather_for(p),
     // todo: array expressions
-    // todo: body expressions
     _ => return None,
   })
 }
 
 /// recrusive form, where you also pass the pratt bind power from the parent
 /// context.
-#[track_caller]
 fn try_expr_value_rec(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
@@ -574,7 +564,7 @@ fn try_expr_value_rec(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
         }
         PostfixOperator::As => {
           p.eat_trivia();
-          group_expr_type(p);
+          gather_expr_type(p);
           p.eat_trivia();
         }
         PostfixOperator::PostfixRangeExclusive
@@ -624,130 +614,118 @@ fn try_expr_value_rec(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
 }
 
 /// Parse a value expression, or `None` for no input consumed.
-#[track_caller]
-fn do_expr_value(p: &mut CstParser) {
+fn gather_expr_value(p: &mut CstParser) {
   try_expr_value_rec(p, 0);
   return;
 }
 
-fn do_loop(p: &mut CstParser, mark: OpenMark) -> CloseMark {
+fn gather_loop(p: &mut CstParser) -> CloseMark {
   debug_assert_eq!(p.peek(), KwLoop);
+  //
+  let m = p.open();
   p.expect(KwLoop);
-  let m_body = p.open_eat_trivia();
-  if p.peek() == OpBrace {
-    do_body(p);
-    p.close(m_body, CstKind::ExprVal);
-  } else {
-    p.close(m_body, CstKind::ErrCstKind);
-  }
-  p.close(mark, CstKind::ExprVal)
+  p.eat_trivia();
+  gather_body(p);
+  p.close(m, CstKind::ExprVal)
 }
 
-fn do_if(p: &mut CstParser, mark: OpenMark) -> CloseMark {
+fn gather_if(p: &mut CstParser) -> CloseMark {
   debug_assert_eq!(p.peek(), KwIf);
+  //
+  let m = p.open();
   p.expect(KwIf);
   p.eat_trivia();
-  do_expr_value(p);
-  let m_body = p.open_eat_trivia();
-  if p.peek() == OpBrace {
-    do_body(p);
-    p.close(m_body, CstKind::ExprVal);
-  } else {
-    p.close(m_body, CstKind::ErrCstKind);
-  }
-  // TODO: handle "else"
-  p.close(mark, CstKind::ExprVal)
-}
-
-fn do_for(p: &mut CstParser, m_expr: OpenMark) -> CloseMark {
-  debug_assert_eq!(p.peek(), KwFor);
-  p.expect(KwFor);
+  gather_expr_value(p);
   p.eat_trivia();
-  do_expr_value(p);
-  p.expect(KwIn);
+  gather_body(p);
   p.eat_trivia();
-  do_expr_value(p);
-  let m_body = p.open_eat_trivia();
-  if p.peek() == OpBrace {
-    do_body(p);
-    p.close(m_body, CstKind::ExprVal);
-  } else {
-    p.close(m_body, CstKind::ErrCstKind);
-  }
-  p.close(m_expr, CstKind::ExprVal)
-}
-
-fn do_body(p: &mut CstParser) {
-  debug_assert_ne!(p.peek(), Whitespace);
-  debug_assert_ne!(p.peek(), Comment);
-  debug_assert_ne!(p.peek(), ErrEndOfFile);
-  p.expect(OpBrace);
-  loop {
-    let m_stmt = p.open_eat_trivia();
-    if p.peek() == ClBrace {
-      p.abandon_subtree(m_stmt);
-      p.expect(ClBrace);
-      return;
-    }
-    if p.peek() == ErrEndOfFile {
-      p.close(m_stmt, CstKind::Statement);
-      return;
-    }
-    do_stmt(p, m_stmt);
-  }
-}
-
-fn do_stmt(p: &mut CstParser, m_stmt: OpenMark) {
-  debug_assert_ne!(p.peek(), Whitespace);
-  debug_assert_ne!(p.peek(), Comment);
-  debug_assert_ne!(p.peek(), ErrEndOfFile);
-  match p.peek() {
-    Semicolon => {
-      p.advance();
-      p.close(m_stmt, CstKind::Statement);
-    }
-    KwLet => {
-      p.expect(KwLet);
-      p.eat_trivia();
-      p.expect(Ident);
-      p.eat_trivia();
-      p.expect(Equal);
-      p.eat_trivia();
-      do_expr_value(p);
-      p.expect(Semicolon);
-      p.close(m_stmt, CstKind::Statement);
-    }
-    // Keywords that start an expression which ends with a brace, which have an
-    // implied semicolon after the brace, need to be caught here and given that
-    // separate handling, instead of passing to the generic expression statement
-    // handling which doesn't know about the implied semicolon.
-    KwLoop => {
-      let m_expr = p.open();
-      do_loop(p, m_expr);
-      p.close(m_stmt, CstKind::Statement);
-    }
-    KwIf => {
-      let m_expr = p.open();
-      do_if(p, m_expr);
-      p.close(m_stmt, CstKind::Statement);
-    }
-    KwFor => {
-      let m_expr = p.open();
-      do_for(p, m_expr);
-      p.close(m_stmt, CstKind::Statement);
-    }
-    _ => {
-      do_expr_value(p);
-      p.eat_trivia();
-      match p.peek() {
-        ClBrace => {
-          p.close(m_stmt, CstKind::Statement);
-        }
-        _ => {
-          p.expect(Semicolon);
-          p.close(m_stmt, CstKind::Statement);
-        }
+  if p.peek() == KwElse {
+    p.expect(KwElse);
+    p.eat_trivia();
+    match p.peek() {
+      KwIf => {
+        gather_if(p);
+      }
+      OpBrace => {
+        gather_body(p);
+      }
+      _ => {
+        // todo: log error
       }
     }
   }
+  p.close(m, CstKind::ExprVal)
+}
+
+fn gather_for(p: &mut CstParser) -> CloseMark {
+  debug_assert_eq!(p.peek(), KwFor);
+  //
+  let m = p.open();
+  p.expect(KwFor);
+  p.eat_trivia();
+  gather_expr_value(p);
+  p.expect(KwIn);
+  p.eat_trivia();
+  gather_expr_value(p);
+  gather_body(p);
+  p.close(m, CstKind::ExprVal)
+}
+
+fn gather_body(p: &mut CstParser) -> CloseMark {
+  debug_assert_ne!(p.peek(), Whitespace);
+  debug_assert_ne!(p.peek(), Comment);
+  debug_assert_ne!(p.peek(), ErrEndOfFile);
+  let m = p.open();
+  p.expect(OpBrace);
+  loop {
+    let m_stmt = p.open_eat_trivia();
+    match p.peek() {
+      ErrEndOfFile => {
+        p.abandon_subtree(m_stmt);
+        // todo: log error
+        break;
+      }
+      ClBrace => {
+        p.abandon_subtree(m_stmt);
+        p.expect(ClBrace);
+        break;
+      }
+      Semicolon => {
+        p.advance();
+      }
+      KwLet => {
+        p.expect(KwLet);
+        p.eat_trivia();
+        p.expect(Ident);
+        p.eat_trivia();
+        p.expect(Equal);
+        p.eat_trivia();
+        gather_expr_value(p);
+        p.expect(Semicolon);
+      }
+      // Keywords that start an expression which ends with a brace, which have an
+      // implied semicolon after the brace, need to be caught here and given that
+      // separate handling, instead of passing to the generic expression statement
+      // handling which doesn't know about the implied semicolon.
+      KwLoop => {
+        gather_loop(p);
+      }
+      KwIf => {
+        gather_if(p);
+      }
+      KwFor => {
+        gather_for(p);
+      }
+      // catch all for any other expression.
+      _ => {
+        gather_expr_value(p);
+        p.eat_trivia();
+        if p.peek() != ClBrace {
+          p.expect(Semicolon);
+        }
+      }
+    }
+    p.close(m_stmt, CstKind::Statement);
+  }
+  p.close(m, CstKind::ExprVal)
 }

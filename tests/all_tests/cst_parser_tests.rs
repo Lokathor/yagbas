@@ -1,9 +1,9 @@
-use yagbas::cst::{Cst, CstKind, actions::group_module, parser::CstParser};
+use yagbas::cst::{Cst, CstKind, actions::gather_module, parser::CstParser};
 
 #[track_caller]
 fn cst_no_errors(src: &str) -> Cst {
   let mut p = CstParser::new(src);
-  group_module(&mut p);
+  gather_module(&mut p);
   let (cst, errors) = p.build_tree();
   assert!(errors.is_empty(), "Cst Parse Errors: {errors:?}");
   let exact_src = cst.to_source_code().unwrap();

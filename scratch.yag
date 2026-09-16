@@ -1,8 +1,7 @@
 fn add_two(x: u8) -> u8 {
   let two = 2;
+  for _ in 0..5 {
+    two += 0;
+  }
   two + x
 }
-
-const NAME: Type = expression;
-
-static mmio($FF40) LCDC: LcdControl;
