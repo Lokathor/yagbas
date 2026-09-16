@@ -16,6 +16,8 @@ use crate::operators::{
 use crate::tokenizer::TokenKind::*;
 use crate::tokenizer::{Token, TokenKind, tokenize};
 
+// todo: label support for looping.
+
 static ITEM_KEYWORDS: &[TokenKind] =
   &[KwUse, KwStruct, KwBitbag, KwEnum, KwStatic, KwConst, KwFn, KwImpl];
 
@@ -481,7 +483,7 @@ fn try_val_atom(p: &mut CstParser<'_>) -> Option<CloseMark> {
     Ident => {
       // TODO: allow for struct literal expressions here.
       let m = p.open();
-      p.advance();
+      p.expect(Ident);
       p.close(m, CstKind::ExprVal)
     }
     OpParen => {
@@ -493,16 +495,44 @@ fn try_val_atom(p: &mut CstParser<'_>) -> Option<CloseMark> {
       p.expect(ClParen);
       p.close(m, CstKind::ExprVal)
     }
+    OpBracket => {
+      let m = p.open();
+      p.expect(OpBracket);
+      p.eat_trivia();
+      loop {
+        if p.peek() == ClBracket {
+          break;
+        }
+        gather_expr_value(p);
+        p.eat_trivia();
+        if p.peek() != ClBracket {
+          p.expect(Comma);
+          p.eat_trivia();
+        }
+      }
+      p.expect(ClBracket);
+      p.close(m, CstKind::ExprVal)
+    }
+    KwContinue => {
+      let m = p.open();
+      p.expect(KwContinue);
+      p.eat_trivia();
+      if p.peek() == Quote {
+        p.expect(TokenKind::Quote);
+        p.expect(TokenKind::Ident);
+      }
+      p.close(m, CstKind::ExprVal)
+    }
     OpBrace => gather_body(p),
     KwLoop => gather_loop(p),
     KwIf => gather_if(p),
     KwFor => gather_for(p),
-    // todo: array expressions
+    KwWhile => gather_while(p),
     _ => return None,
   })
 }
 
-/// recrusive form, where you also pass the pratt bind power from the parent
+/// recursive form, where you also pass the pratt bind power from the parent
 /// context.
 fn try_expr_value_rec(p: &mut CstParser<'_>, min_bp: u8) -> Option<CloseMark> {
   debug_assert_ne!(p.peek(), Whitespace);
@@ -629,7 +659,6 @@ fn try_expr_value_rec(p: &mut CstParser<'_>, min_bp: u8) -> Option<CloseMark> {
 /// Parse a value expression, or `None` for no input consumed.
 fn gather_expr_value(p: &mut CstParser<'_>) {
   try_expr_value_rec(p, 0);
-  return;
 }
 
 fn gather_loop(p: &mut CstParser<'_>) -> CloseMark {
@@ -676,10 +705,24 @@ fn gather_for(p: &mut CstParser<'_>) -> CloseMark {
   let m = p.open();
   p.expect(KwFor);
   p.eat_trivia();
-  gather_expr_value(p);
+  gather_pattern(p);
+  p.eat_trivia();
   p.expect(KwIn);
   p.eat_trivia();
   gather_expr_value(p);
+  p.eat_trivia();
+  gather_body(p);
+  p.close(m, CstKind::ExprVal)
+}
+
+fn gather_while(p: &mut CstParser<'_>) -> CloseMark {
+  debug_assert_eq!(p.peek(), KwWhile);
+  //
+  let m = p.open();
+  p.expect(KwWhile);
+  p.eat_trivia();
+  gather_expr_value(p);
+  p.eat_trivia();
   gather_body(p);
   p.close(m, CstKind::ExprVal)
 }
@@ -728,6 +771,9 @@ fn gather_body(p: &mut CstParser<'_>) -> CloseMark {
       }
       KwFor => {
         gather_for(p);
+      }
+      KwWhile => {
+        gather_while(p);
       }
       // catch all for any other expression.
       _ => {
