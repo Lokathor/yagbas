@@ -26,7 +26,7 @@ impl AstModule {
   pub fn from_source(origin: StrId, src: &str) -> Self {
     let mut cst_parser = CstParser::new(src);
     do_module(&mut cst_parser);
-    let cst = cst_parser.build_tree();
+    let (cst, _errors) = cst_parser.build_tree();
     debug_assert_eq!(cst.kind, CstKind::Module);
     let ast_parser = AstParser { src: src.to_string() };
     ast_parser.parse_module(origin, &cst)

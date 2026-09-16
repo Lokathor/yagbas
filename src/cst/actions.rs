@@ -124,6 +124,7 @@ fn do_fn(p: &mut CstParser<'_>) {
   p.eat_trivia();
   p.expect(Ident);
   p.eat_trivia();
+  // todo: args gather function
   let m = p.open();
   p.expect(OpParen);
   while p.has_more() && p.peek() != ClParen {
@@ -491,6 +492,8 @@ fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
       let m_expr = p.open();
       do_for(p, m_expr)
     }
+    // todo: array expressions
+    // todo: body expressions
     _ => return None,
   })
 }

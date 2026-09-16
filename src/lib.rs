@@ -27,10 +27,10 @@ pub mod tokenizer;
 #[forbid(unsafe_code)]
 pub mod cst;
 
-/*
-#[forbid(unsafe_code)]
-pub mod ast;
+// #[forbid(unsafe_code)]
+// pub mod ast;
 
+/*
 #[forbid(unsafe_code)]
 pub mod ir_nameres;
 
