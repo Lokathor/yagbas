@@ -122,10 +122,8 @@ fn test_use() {
 #[test]
 fn test_impl() {
   cst_no_errors(
-    "impl OamData {
-      fn hide(&mut self) {
-        self.y = 0;
-      }
+    "impl u8 {
+      const MAX: u8 = 255;
     }",
   );
 }

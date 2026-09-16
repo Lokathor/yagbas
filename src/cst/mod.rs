@@ -207,6 +207,7 @@ pub enum CstKind {
   Statement,
   ExprVal,
   ExprType,
+  Pattern,
   OperatorInfix(InfixOperator),
   OperatorPrefix(PrefixOperator),
   OperatorPostfix(PostfixOperator),

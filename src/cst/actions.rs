@@ -22,7 +22,7 @@ static ITEM_KEYWORDS: &[TokenKind] =
 /// Parse an entire module's content.
 ///
 /// * makes its own events.
-pub fn gather_module(p: &mut CstParser) {
+pub fn gather_module(p: &mut CstParser<'_>) {
   let m = p.open();
   loop {
     // comments before an item are "part of" that item.
@@ -111,11 +111,24 @@ fn do_fn(p: &mut CstParser<'_>) {
   p.eat_trivia();
   p.expect(Ident);
   p.eat_trivia();
-  // todo: args gather function
   let m = p.open();
   p.expect(OpParen);
-  while p.has_more() && p.peek() != ClParen {
-    p.advance();
+  p.eat_trivia();
+  loop {
+    if p.peek() == ClParen {
+      break;
+    }
+    // todo: allow parsing `self`, `&self`, and `&mut self` as function
+    // arguments.
+    gather_pattern(p);
+    p.eat_trivia();
+    p.expect(Colon);
+    p.eat_trivia();
+    gather_expr_type(p);
+    p.eat_trivia();
+    if p.peek() == Comma {
+      p.expect(Comma);
+    }
   }
   p.expect(ClParen);
   p.close(m, CstKind::ParensGroup);
@@ -456,7 +469,7 @@ fn peek_postfix_operator(p: &mut CstParser<'_>) -> Option<PostfixOperator> {
 }
 
 /// Parse a value atom, or `None` for no input consumed.
-fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
+fn try_val_atom(p: &mut CstParser<'_>) -> Option<CloseMark> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   Some(match p.peek() {
@@ -491,7 +504,7 @@ fn try_val_atom(p: &mut CstParser) -> Option<CloseMark> {
 
 /// recrusive form, where you also pass the pratt bind power from the parent
 /// context.
-fn try_expr_value_rec(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
+fn try_expr_value_rec(p: &mut CstParser<'_>, min_bp: u8) -> Option<CloseMark> {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   // prefix or atom
@@ -614,12 +627,12 @@ fn try_expr_value_rec(p: &mut CstParser, min_bp: u8) -> Option<CloseMark> {
 }
 
 /// Parse a value expression, or `None` for no input consumed.
-fn gather_expr_value(p: &mut CstParser) {
+fn gather_expr_value(p: &mut CstParser<'_>) {
   try_expr_value_rec(p, 0);
   return;
 }
 
-fn gather_loop(p: &mut CstParser) -> CloseMark {
+fn gather_loop(p: &mut CstParser<'_>) -> CloseMark {
   debug_assert_eq!(p.peek(), KwLoop);
   //
   let m = p.open();
@@ -629,7 +642,7 @@ fn gather_loop(p: &mut CstParser) -> CloseMark {
   p.close(m, CstKind::ExprVal)
 }
 
-fn gather_if(p: &mut CstParser) -> CloseMark {
+fn gather_if(p: &mut CstParser<'_>) -> CloseMark {
   debug_assert_eq!(p.peek(), KwIf);
   //
   let m = p.open();
@@ -657,7 +670,7 @@ fn gather_if(p: &mut CstParser) -> CloseMark {
   p.close(m, CstKind::ExprVal)
 }
 
-fn gather_for(p: &mut CstParser) -> CloseMark {
+fn gather_for(p: &mut CstParser<'_>) -> CloseMark {
   debug_assert_eq!(p.peek(), KwFor);
   //
   let m = p.open();
@@ -671,7 +684,7 @@ fn gather_for(p: &mut CstParser) -> CloseMark {
   p.close(m, CstKind::ExprVal)
 }
 
-fn gather_body(p: &mut CstParser) -> CloseMark {
+fn gather_body(p: &mut CstParser<'_>) -> CloseMark {
   debug_assert_ne!(p.peek(), Whitespace);
   debug_assert_ne!(p.peek(), Comment);
   debug_assert_ne!(p.peek(), ErrEndOfFile);
@@ -696,7 +709,7 @@ fn gather_body(p: &mut CstParser) -> CloseMark {
       KwLet => {
         p.expect(KwLet);
         p.eat_trivia();
-        p.expect(Ident);
+        gather_pattern(p);
         p.eat_trivia();
         p.expect(Equal);
         p.eat_trivia();
@@ -728,4 +741,11 @@ fn gather_body(p: &mut CstParser) -> CloseMark {
     p.close(m_stmt, CstKind::Statement);
   }
   p.close(m, CstKind::ExprVal)
+}
+
+fn gather_pattern(p: &mut CstParser<'_>) {
+  let m = p.open();
+  // todo: some day we could allow more forms of pattern
+  p.expect(Ident);
+  p.close(m, CstKind::Pattern);
 }
