@@ -562,8 +562,8 @@ fn try_expr_value_rec(p: &mut CstParser<'_>, min_bp: u8) -> Option<CloseMark> {
               break;
             }
           }
-          p.close(arg_list_mark, CstKind::ParensGroup);
           p.expect(TokenKind::ClParen);
+          p.close(arg_list_mark, CstKind::ParensGroup);
         }
         PostfixOperator::ArrayIndex => {
           let arg_list_mark = p.open();
