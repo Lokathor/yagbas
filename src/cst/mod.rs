@@ -70,6 +70,108 @@ impl Cst {
     }
   }
 }
+
+/// The kinds of Cst tree that the [CstParser] can generate.
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CstKind {
+  #[default]
+  ErrCstKindDefault,
+
+  // I think that it's better to have fewer kinds exist when possible. I'm not
+  // totally sure why I think that.
+  Module,
+  Item,
+  ParensGroup,
+  BracketGroup,
+  BraceGroup,
+  Statement,
+  ExprVal,
+  ExprType,
+  Pattern,
+  OperatorInfix(InfixOperator),
+  OperatorPrefix(PrefixOperator),
+  OperatorPostfix(PostfixOperator),
+}
+
+/// A single element within a [Cst].
+///
+/// Span data is available and accurate when the `Cst` was created via normal
+/// parsing of a source file. If the Cst has been edited since creation, or was
+/// created in memory, the spans cannot be trusted and might not be present.
+/// Because of this, the data for varying token types is extracted from the
+/// source immediately during Cst creation, and tagged according to the token
+/// kind that it came from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CstElem {
+  /// An entire inner tree.
+  SubTree(Cst),
+  /// A fixed-text token (keyword or punctuation)
+  FixedToken(TokenKind, Option<Span>),
+  /// Whitespace text.
+  Whitespace(String, Option<Span>),
+  /// Comment text.
+  Comment(String, Option<Span>),
+  /// An identifier.
+  Identifier(String, Option<Span>),
+  /// A literal number.
+  LitNumber(String, Option<Span>),
+  /// A literal string.
+  LitString(String, Option<Span>),
+  /// Raw error bytes.
+  ErrorBytes(Vec<u8>, Option<Span>),
+}
+impl CstElem {
+  pub fn sub_tree(&self) -> Option<&Cst> {
+    if let CstElem::SubTree(cst) = self { Some(cst) } else { None }
+  }
+  pub fn fixed_token(&self) -> Option<(TokenKind, Option<Span>)> {
+    if let CstElem::FixedToken(k, s) = self { Some((*k, *s)) } else { None }
+  }
+  pub fn whitespace(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::Whitespace(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn comment(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::Comment(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn identifier(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::Identifier(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn lit_number(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::LitNumber(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn lit_string(&self) -> Option<(&str, Option<Span>)> {
+    if let CstElem::LitString(st, s) = self {
+      Some((st.as_str(), *s))
+    } else {
+      None
+    }
+  }
+  pub fn error_bytes(&self) -> Option<(&[u8], Option<Span>)> {
+    if let CstElem::ErrorBytes(st, s) = self {
+      Some((st.as_slice(), *s))
+    } else {
+      None
+    }
+  }
+}
+
 impl core::fmt::Display for Cst {
   /// Better way to look at the tree than Debug provides.
   ///
@@ -178,113 +280,7 @@ impl core::fmt::Display for Cst {
           }
         }
       }
-      #[cfg(false)]
-      for _ in 0..indents {
-        write!(f, " ")?;
-      }
-      //writeln!(f, "}}")?;
       Ok(())
-    }
-  }
-}
-
-/// The kinds of Cst tree that the [CstParser] can generate.
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum CstKind {
-  #[default]
-  ErrCstKindDefault,
-
-  // I think that it's better to have fewer kinds exist when possible. I'm not
-  // totally sure why I think that.
-  Module,
-  Item,
-  ParensGroup,
-  BracketGroup,
-  BraceGroup,
-  Statement,
-  ExprVal,
-  ExprType,
-  Pattern,
-  OperatorInfix(InfixOperator),
-  OperatorPrefix(PrefixOperator),
-  OperatorPostfix(PostfixOperator),
-}
-
-/// A single element within a [Cst].
-///
-/// Span data is available and accurate when the `Cst` was created via normal
-/// parsing of a source file. If the Cst has been edited since creation, or was
-/// created in memory, the spans cannot be trusted and might not be present.
-/// Because of this, the data for varying token types is extracted from the
-/// source immediately during Cst creation, and tagged according to the token
-/// kind that it came from.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CstElem {
-  /// An entire inner tree.
-  SubTree(Cst),
-  /// A fixed-text token (keyword or punctuation)
-  FixedToken(TokenKind, Option<Span>),
-  /// Whitespace text.
-  Whitespace(String, Option<Span>),
-  /// Comment text.
-  Comment(String, Option<Span>),
-  /// An identifier.
-  Identifier(String, Option<Span>),
-  /// A literal number.
-  LitNumber(String, Option<Span>),
-  /// A literal string.
-  LitString(String, Option<Span>),
-  /// Raw error bytes.
-  ErrorBytes(Vec<u8>, Option<Span>),
-}
-impl CstElem {
-  pub fn sub_tree(&self) -> Option<&Cst> {
-    if let CstElem::SubTree(cst) = self { Some(cst) } else { None }
-  }
-  pub fn fixed_token(&self) -> Option<(TokenKind, Option<Span>)> {
-    if let CstElem::FixedToken(k, s) = self { Some((*k, *s)) } else { None }
-  }
-  pub fn whitespace(&self) -> Option<(&str, Option<Span>)> {
-    if let CstElem::Whitespace(st, s) = self {
-      Some((st.as_str(), *s))
-    } else {
-      None
-    }
-  }
-  pub fn comment(&self) -> Option<(&str, Option<Span>)> {
-    if let CstElem::Comment(st, s) = self {
-      Some((st.as_str(), *s))
-    } else {
-      None
-    }
-  }
-  pub fn identifier(&self) -> Option<(&str, Option<Span>)> {
-    if let CstElem::Identifier(st, s) = self {
-      Some((st.as_str(), *s))
-    } else {
-      None
-    }
-  }
-  pub fn lit_number(&self) -> Option<(&str, Option<Span>)> {
-    if let CstElem::LitNumber(st, s) = self {
-      Some((st.as_str(), *s))
-    } else {
-      None
-    }
-  }
-  pub fn lit_string(&self) -> Option<(&str, Option<Span>)> {
-    if let CstElem::LitString(st, s) = self {
-      Some((st.as_str(), *s))
-    } else {
-      None
-    }
-  }
-  pub fn error_bytes(&self) -> Option<(&[u8], Option<Span>)> {
-    if let CstElem::ErrorBytes(st, s) = self {
-      Some((st.as_slice(), *s))
-    } else {
-      None
     }
   }
 }
