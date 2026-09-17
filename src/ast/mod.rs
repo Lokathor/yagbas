@@ -146,6 +146,7 @@ pub enum AstStaticKind {
 pub enum AstExprType {
   #[default]
   ErrDefault,
+  // TODO
 }
 
 #[derive(Debug, Clone, Default)]
@@ -153,6 +154,7 @@ pub enum AstExprValue {
   #[default]
   ErrDefault,
   Body(Box<AstBody>),
+  // TODO
 }
 
 #[derive(Debug, Clone, Default)]
