@@ -1,9 +1,9 @@
-use core::marker::PhantomData;
-
 use str_id::StrId;
 
+use crate::ast::AstError;
+
 #[derive(Debug, Clone)]
-pub struct AstParser<'a> {
-  pub phantom: PhantomData<&'a str>,
+pub struct AstParser {
   pub file_origin: StrId,
+  pub errors: Vec<AstError>,
 }
