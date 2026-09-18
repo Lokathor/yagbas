@@ -159,7 +159,7 @@ impl<'a> CstParser<'a> {
   ///
   /// * All `open` events must have a matching `close` before attempting to create a tree.
   /// * All `advance` events must be inside of a tree.
-  pub fn build_tree(mut self) -> Cst {
+  pub fn build_tree(mut self, args: BuildTreeArgs) -> Cst {
     let mut token_kinds = self.token_kinds.iter().copied();
     let mut token_spans = self.token_spans.iter().copied();
     let mut stack = Vec::new();
@@ -269,14 +269,26 @@ impl<'a> CstParser<'a> {
             | TokenKind::KwUse
             | TokenKind::KwWhile
             | TokenKind::KwVol => CstElem::FixedToken(kind, Some(span)),
-            Whitespace => CstElem::Whitespace(
-              self.src[span.as_range()].to_string(),
-              Some(span),
-            ),
-            Comment => CstElem::Comment(
-              self.src[span.as_range()].to_string(),
-              Some(span),
-            ),
+            Whitespace => {
+              if args.skip_trivial {
+                continue;
+              } else {
+                CstElem::Whitespace(
+                  self.src[span.as_range()].to_string(),
+                  Some(span),
+                )
+              }
+            }
+            Comment => {
+              if args.skip_trivial {
+                continue;
+              } else {
+                CstElem::Comment(
+                  self.src[span.as_range()].to_string(),
+                  Some(span),
+                )
+              }
+            }
             TokenKind::Ident => CstElem::Identifier(
               self.src[span.as_range()].to_string(),
               Some(span),
@@ -299,4 +311,10 @@ impl<'a> CstParser<'a> {
     debug_assert!(token_kinds.next().is_none(), "{:?}", self.token_kinds);
     stack.pop().unwrap()
   }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BuildTreeArgs {
+  /// Skip `Whitespace` and `Comment` elements when building trees.
+  pub skip_trivial: bool,
 }

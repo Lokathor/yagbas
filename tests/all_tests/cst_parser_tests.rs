@@ -1,12 +1,16 @@
-use yagbas::cst::{Cst, CstKind, actions::gather_module, parser::CstParser};
+use yagbas::cst::{
+  Cst, CstKind,
+  actions::gather_module,
+  parser::{BuildTreeArgs, CstParser},
+};
 
 /// the main thing we're testing is that the parser does not panic and that the
-/// resulting tree can recreated the source exactly.
+/// resulting tree can recreate the input source exactly.
 #[track_caller]
 fn cst_no_errors(src: &str) -> Cst {
   let mut p = CstParser::new(src);
   gather_module(&mut p);
-  let cst = p.build_tree();
+  let cst = p.build_tree(BuildTreeArgs::default());
   let exact_src = cst.to_source_code().unwrap();
   assert_eq!(src, exact_src);
   cst

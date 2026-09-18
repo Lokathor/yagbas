@@ -1,5 +1,8 @@
 use std::ffi::OsString;
-use yagbas::cst::{actions::gather_module, parser::CstParser};
+use yagbas::cst::{
+  actions::gather_module,
+  parser::{BuildTreeArgs, CstParser},
+};
 
 fn main() {
   let arguments: Vec<_> = std::env::args_os().skip(1).collect();
@@ -130,7 +133,7 @@ fn do_cst(mut arguments: Vec<OsString>) {
         println!("```");
         let mut p = CstParser::new(&src);
         gather_module(&mut p);
-        let cst = p.build_tree();
+        let cst = p.build_tree(BuildTreeArgs { skip_trivial: !show_trivia });
         if show_trivia {
           println!("{cst:#}");
         } else {
