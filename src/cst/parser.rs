@@ -34,11 +34,6 @@ pub struct CloseMark {
   index: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum CstParseError {
-  ExpectedXFoundY { expected: TokenKind, found: TokenKind, span: Span },
-}
-
 /// Data for parsing a CST from a series of tokens.
 #[derive(Debug, Clone)]
 pub struct CstParser<'a> {
@@ -59,8 +54,6 @@ pub struct CstParser<'a> {
   /// per input token, as well as a starting `Open` and `Close` event, as well
   /// as all the other `Open` and `Close` events inserted by the tree structure.
   events: Vec<ParseEvent>,
-  /// Log of all the errors that happened.
-  errors: Vec<CstParseError>,
 }
 impl<'a> CstParser<'a> {
   /// Makes a new parser.
@@ -79,7 +72,7 @@ impl<'a> CstParser<'a> {
       token_kinds.push(kind);
       token_spans.push(span);
     }
-    Self { src, token_kinds, token_spans, pos: 0, events, errors: Vec::new() }
+    Self { src, token_kinds, token_spans, pos: 0, events }
   }
   /// Open a new sub-tree
   pub fn open(&mut self) -> OpenMark {
@@ -139,20 +132,12 @@ impl<'a> CstParser<'a> {
   pub fn peek(&self) -> TokenKind {
     self.token_kinds.get(self.pos).copied().unwrap_or(TokenKind::ErrEndOfFile)
   }
-  /// Same as `advance` when the expected kind is the next kind.
+  /// Peeks to check for `expected`, then advances, then returns if the expected
+  /// kind was found or not.
   pub fn expect(&mut self, expected: TokenKind) -> bool {
-    if self.peek() != expected {
-      self.errors.push(CstParseError::ExpectedXFoundY {
-        expected,
-        found: self.peek(),
-        span: self.token_spans.get(self.pos).copied().unwrap_or_default(),
-      });
-      self.advance();
-      false
-    } else {
-      self.advance();
-      true
-    }
+    let k = self.peek();
+    self.advance();
+    k == expected
   }
   /// `advance` over all [TokenKind::Whitespace] and [TokenKind::Comment] so
   /// that something "real" is the next kind.
@@ -174,7 +159,7 @@ impl<'a> CstParser<'a> {
   ///
   /// * All `open` events must have a matching `close` before attempting to create a tree.
   /// * All `advance` events must be inside of a tree.
-  pub fn build_tree(mut self) -> (Cst, Vec<CstParseError>) {
+  pub fn build_tree(mut self) -> Cst {
     let mut token_kinds = self.token_kinds.iter().copied();
     let mut token_spans = self.token_spans.iter().copied();
     let mut stack = Vec::new();
@@ -312,6 +297,6 @@ impl<'a> CstParser<'a> {
 
     debug_assert_eq!(stack.len(), 1);
     debug_assert!(token_kinds.next().is_none(), "{:?}", self.token_kinds);
-    (stack.pop().unwrap(), self.errors)
+    stack.pop().unwrap()
   }
 }

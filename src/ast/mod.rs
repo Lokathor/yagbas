@@ -5,16 +5,11 @@ use str_id::StrId;
 use crate::{
   Span,
   ast::{actions::read_module, parser::AstParser},
-  cst::{
-    CstElem,
-    actions::gather_module,
-    parser::{CstParseError, CstParser},
-  },
+  cst::{CstElem, actions::gather_module, parser::CstParser},
 };
 
 mod actions;
 mod parser;
-mod mod2;
 
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
@@ -25,7 +20,6 @@ pub struct Ast {
 #[derive(Debug, Clone)]
 pub enum AstError {
   ErrGeneric(String),
-  ErrCst(CstParseError),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -37,11 +31,8 @@ impl AstModule {
   pub fn from_source(file_origin: StrId, src: &str) -> (Self, Vec<AstError>) {
     let mut p = CstParser::new(src);
     gather_module(&mut p);
-    let (cst, cst_errors) = p.build_tree();
-    let mut p = AstParser {
-      file_origin,
-      errors: cst_errors.into_iter().map(AstError::ErrCst).collect(),
-    };
+    let cst = p.build_tree();
+    let mut p = AstParser { file_origin, errors: Vec::new() };
     let module = read_module(&mut p, &cst);
     (module, p.errors)
   }
