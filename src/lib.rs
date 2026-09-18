@@ -17,6 +17,7 @@
 
 use crate::non_max_u32::NonMaxU32;
 
+pub mod kvec;
 pub mod non_max_u32;
 
 #[forbid(unsafe_code)]
