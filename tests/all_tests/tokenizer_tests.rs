@@ -44,6 +44,7 @@ fn test_keywords() {
   expect_token("rom", KwRom);
   expect_token("struct", KwStruct);
   expect_token("static", KwStatic);
+  expect_token("super", KwSuper);
   expect_token("true", KwTrue);
   expect_token("use", KwUse);
   expect_token("while", KwWhile);

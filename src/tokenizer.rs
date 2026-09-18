@@ -187,6 +187,8 @@ pub enum TokenKind {
   KwStruct,
   /// `static`
   KwStatic,
+  /// `super`
+  KwSuper,
   /// `true`
   KwTrue,
   /// `use`
@@ -305,6 +307,7 @@ impl TokenKind {
       KwRom => "rom",
       KwStruct => "struct",
       KwStatic => "static",
+      KwSuper => "super",
       KwTrue => "true",
       KwUse => "use",
       KwWhile => "while",
@@ -525,6 +528,7 @@ impl<'a> TokenIter<'a> {
       b"rom" => KwRom,
       b"struct" => KwStruct,
       b"static" => KwStatic,
+      b"super" => KwSuper,
       b"true" => KwTrue,
       b"use" => KwUse,
       b"while" => KwWhile,
