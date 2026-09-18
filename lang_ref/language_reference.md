@@ -128,6 +128,10 @@ A bitbag defines names for the bits within a byte.
 
 The individual fields are bit positions, not whole bytes, so you cannot create a pointer to a field of a bitbag.
 
+### Enum
+
+The language should support enums at some point, but I'm not sure of the details we want.
+
 ### Impl
 
 ```rust
@@ -147,10 +151,6 @@ use core::memcpy;
 ```
 
 A `use` statement brings an item from another module into scope.
-
-### Enum
-
-The language should support enums at some point, but I'm not sure of the details we want.
 
 ## Statements
 
