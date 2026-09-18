@@ -64,10 +64,13 @@ pub enum ItemKind {
     target: TypeExpr,
     items: Vec<ItemId>,
   },
+  /// I have no idea how to better organize the data from a `use`, and it's not
+  /// really that important right now.
   Use {
-    /// I have no idea how to better organize the data from a `use`.
     cst: Cst,
   },
+  /// The name of the module is all we need to know, so there's no extra data.
+  Mod,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -124,14 +127,31 @@ pub enum StaticKind {
 #[derive(Debug, Clone, Default)]
 pub struct TypeExpr {
   pub span: Span,
-  pub kind: TypeExprKind,
+  pub kind: Box<TypeExprKind>,
 }
 #[derive(Debug, Clone, Default)]
 pub enum TypeExprKind {
   #[default]
   ErrTypeExprKind,
   Plain(String),
-  // TODO
+  Array {
+    elem_ty: TypeExpr,
+    elem_count: ValueExpr,
+  },
+  Pointer {
+    elem_ty: TypeExpr,
+    access_kind: PointerAccessKind,
+  },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PointerAccessKind {
+  /// Constant data, read only.
+  Const,
+  /// Mutable data, read/write.
+  Mut,
+  /// Volatile data, read/write and access cannot be elided.
+  Vol,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -145,6 +165,17 @@ pub enum ValueExprKind {
   ErrValueExprKind,
   /// Identifier to something, but we don't know what yet.
   UnknownIdentifier(String),
+  NameOfFunction(ItemId),
+  NameOfStaticMmio(ItemId),
+  NameOfStaticRam(ItemId),
+  NameOfStaticRom(ItemId),
+  NameOfConstant(ItemId),
+  NameOfStruct(ItemId),
+  NameOfBitbag(ItemId),
+  NameOfEnum(ItemId),
+  NameOfModule(ItemId),
+  NameOfFieldOrMethod(String),
+  NameOfLocal(String),
   Body {
     statements: Vec<Statement>,
   },
@@ -176,6 +207,10 @@ pub enum ValueExprKind {
   UnOp {
     op: UnOpKind,
     operand: ValueExpr,
+  },
+  Call {
+    target: ValueExpr,
+    args: Vec<ValueExpr>,
   },
 }
 
