@@ -37,6 +37,7 @@ fn test_keywords() {
   expect_token("loop", KwLoop);
   expect_token("match", KwMatch);
   expect_token("mmio", KwMmio);
+  expect_token("mod", KwMod);
   expect_token("mut", KwMut);
   expect_token("ram", KwRam);
   expect_token("return", KwReturn);

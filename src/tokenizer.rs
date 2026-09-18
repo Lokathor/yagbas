@@ -173,6 +173,8 @@ pub enum TokenKind {
   KwMatch,
   /// `mmio`
   KwMmio,
+  /// `mod`
+  KwMod,
   /// `mut`
   KwMut,
   /// `ram`
@@ -296,6 +298,7 @@ impl TokenKind {
       KwLoop => "loop",
       KwMatch => "match",
       KwMmio => "mmio",
+      KwMod => "mod",
       KwMut => "mut",
       KwRam => "ram",
       KwReturn => "return",
@@ -515,6 +518,7 @@ impl<'a> TokenIter<'a> {
       b"loop" => KwLoop,
       b"match" => KwMatch,
       b"mmio" => KwMmio,
+      b"mod" => KwMod,
       b"mut" => KwMut,
       b"ram" => KwRam,
       b"return" => KwReturn,
