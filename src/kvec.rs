@@ -1,15 +1,13 @@
 use std::marker::PhantomData;
 
-/// # Safety
 /// * You are not allowed to implement this trait.
 /// * Declare new key types using the [make_key!] macro.
-pub unsafe trait KVecKey {
+pub trait KVecKey {
   /// change the key into a raw value.
   fn to_u32(self) -> u32;
 
-  /// # Safety
   /// * You cannot call this function.
-  unsafe fn from_u32(u: u32) -> Self;
+  fn from_u32(u: u32) -> Self;
 }
 
 /// Makes a new type of key for use with a [KVec].
@@ -19,11 +17,11 @@ macro_rules! make_key {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[repr(transparent)]
     pub struct $name(u32);
-    unsafe impl KVecKey for $name {
+    impl $crate::kvec::KVecKey for $name {
       fn to_u32(self) -> u32 {
         self.0
       }
-      unsafe fn from_u32(u: u32) -> Self {
+      fn from_u32(u: u32) -> Self {
         $name(u)
       }
     }
@@ -49,7 +47,7 @@ impl<K, V> KVec<K, V> {
     K: KVecKey,
   {
     let u = u32::try_from(self.data.len()).expect("IndexList overflow!");
-    let i = unsafe { <K as KVecKey>::from_u32(u) };
+    let i = <K as KVecKey>::from_u32(u);
     self.data.push(value);
     i
   }
@@ -77,7 +75,7 @@ impl<K, V> KVec<K, V> {
       .data
       .iter()
       .enumerate()
-      .map(|(u, v)| (unsafe { <K as KVecKey>::from_u32(u as u32) }, v))
+      .map(|(u, v)| (<K as KVecKey>::from_u32(u as u32), v))
   }
   pub fn iter_mut(&mut self) -> impl Iterator<Item = (K, &mut V)>
   where
@@ -87,7 +85,7 @@ impl<K, V> KVec<K, V> {
       .data
       .iter_mut()
       .enumerate()
-      .map(|(u, v)| (unsafe { <K as KVecKey>::from_u32(u as u32) }, v))
+      .map(|(u, v)| (<K as KVecKey>::from_u32(u as u32), v))
   }
   pub fn get_disjoint_mut<const N: usize>(
     &mut self, indices: [K; N],

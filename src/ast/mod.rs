@@ -2,18 +2,14 @@
 
 use str_id::StrId;
 
-use crate::{
-  Span,
-  ast::{actions::read_module, parser::AstParser},
-  cst::{CstElem, actions::gather_module, parser::CstParser},
-};
+use crate::{Span, cst::CstElem, make_key};
 
-mod actions;
-mod parser;
+pub mod actions;
+pub mod parser;
 
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
-  pub modules: Vec<AstModule>,
+  pub items: Vec<Item>,
   pub errors: Vec<AstError>,
 }
 
@@ -22,33 +18,19 @@ pub enum AstError {
   ErrGeneric(String),
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct AstModule {
-  pub file_origin: StrId,
-  pub items: Vec<AstItem>,
-}
-impl AstModule {
-  pub fn from_source(file_origin: StrId, src: &str) -> (Self, Vec<AstError>) {
-    let mut p = CstParser::new(src);
-    gather_module(&mut p);
-    let cst = p.build_tree();
-    let mut p = AstParser { file_origin, errors: Vec::new() };
-    let module = read_module(&mut p, &cst);
-    (module, p.errors)
-  }
-}
+make_key!(ItemId);
 
 #[derive(Debug, Clone, Default)]
-pub struct AstItem {
+pub struct Item {
   pub file_origin: StrId,
   pub span: Span,
   pub name: StrId,
   pub name_span: StrId,
-  pub kind: AstItemKind,
+  pub kind: ItemKind,
 }
 
 #[derive(Debug, Clone, Default)]
-pub enum AstItemKind {
+pub enum ItemKind {
   #[default]
   ErrDefault,
   Constant(AstConstant),
@@ -152,7 +134,7 @@ pub enum AstExprValue {
 #[derive(Debug, Clone, Default)]
 pub struct AstImpl {
   pub target: AstExprType,
-  pub items: Vec<AstItem>,
+  pub items: Vec<Item>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -171,7 +153,7 @@ pub enum AstStatement {
   ErrDefault,
   Let(AstLetData),
   Expression(AstExprValue),
-  Item(AstItem),
+  Item(Item),
 }
 
 #[derive(Debug, Clone, Default)]
