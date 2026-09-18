@@ -202,9 +202,22 @@ pub enum ValueExprKind {
     op: UnOpKind,
     operand: ValueExpr,
   },
+  Break {
+    label: Option<String>,
+    value: Option<ValueExpr>,
+  },
+  Continue {
+    label: Option<String>,
+  },
   Call {
     target: ValueExpr,
     args: Vec<ValueExpr>,
+  },
+  /// Probably we should not support `as` ops, and instead make methods for the
+  /// different changes instead, but for now we're just "doing what rust does".
+  As {
+    value: ValueExpr,
+    as_type: TypeExpr,
   },
 }
 

@@ -351,8 +351,6 @@ pub enum UnOpKind {
   Reference,
   /// `return x`
   Return,
-  /// `break x`
-  Break,
   /// `..x`
   PrefixRangeExclusive,
   /// `..=x`
