@@ -37,11 +37,14 @@ The language is intended to be familiar to Rust progrmmers, while also keeping a
 * `loop`
 * `match`
 * `mmio`
+* `mod`
+* `mut`
 * `ram`
 * `return`
 * `rom`
 * `struct`
 * `static`
+* `super`
 * `true`
 * `use`
 * `while`
