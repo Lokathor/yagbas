@@ -3,8 +3,6 @@
 
 use std::string::FromUtf8Error;
 
-use str_id::StrId;
-
 use crate::Span;
 use crate::cst::actions::gather_module;
 use crate::cst::parser::CstParser;
