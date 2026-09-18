@@ -163,19 +163,12 @@ pub struct ValueExpr {
 pub enum ValueExprKind {
   #[default]
   ErrValueExprKind,
-  /// Identifier to something, but we don't know what yet.
-  UnknownIdentifier(String),
-  NameOfFunction(ItemId),
-  NameOfStaticMmio(ItemId),
-  NameOfStaticRam(ItemId),
-  NameOfStaticRom(ItemId),
-  NameOfConstant(ItemId),
-  NameOfStruct(ItemId),
-  NameOfBitbag(ItemId),
-  NameOfEnum(ItemId),
-  NameOfModule(ItemId),
-  NameOfFieldOrMethod(String),
-  NameOfLocal(String),
+  /// Unresolved identifier for something.
+  Identifier(String),
+  /// Literal string token text.
+  LiteralString(String),
+  /// Literal number token text.
+  LiteralNumber(String),
   Body {
     statements: Vec<Statement>,
   },
