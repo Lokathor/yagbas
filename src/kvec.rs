@@ -20,7 +20,7 @@ macro_rules! make_key {
     #[repr(transparent)]
     pub struct $name(u32);
     unsafe impl KVecKey for $name {
-      fn as_u32(self) -> u32 {
+      fn to_u32(self) -> u32 {
         self.0
       }
       unsafe fn from_u32(u: u32) -> Self {
@@ -58,6 +58,7 @@ impl<K, V> KVec<K, V> {
     K: KVecKey,
   {
     let u = index.to_u32();
+    debug_assert!(usize::try_from(u).is_ok());
     self.data.get(u as usize)
   }
   pub fn get_mut(&mut self, index: K) -> Option<&mut V>
@@ -65,6 +66,7 @@ impl<K, V> KVec<K, V> {
     K: KVecKey,
   {
     let u = index.to_u32();
+    debug_assert!(usize::try_from(u).is_ok());
     self.data.get_mut(u as usize)
   }
   pub fn iter(&self) -> impl Iterator<Item = (K, &V)>
@@ -87,6 +89,14 @@ impl<K, V> KVec<K, V> {
       .enumerate()
       .map(|(u, v)| (unsafe { <K as KVecKey>::from_u32(u as u32) }, v))
   }
+  pub fn get_disjoint_mut<const N: usize>(
+    &mut self, indices: [K; N],
+  ) -> Result<[&mut V; N], core::slice::GetDisjointMutError>
+  where
+    K: KVecKey,
+  {
+    self.data.get_disjoint_mut(indices.map(|k| k.to_u32() as usize))
+  }
 }
 impl<K, V> core::ops::Index<K> for KVec<K, V>
 where
@@ -95,6 +105,7 @@ where
   type Output = V;
   fn index(&self, index: K) -> &Self::Output {
     let u = index.to_u32();
+    debug_assert!(usize::try_from(u).is_ok());
     &self.data[u as usize]
   }
 }
@@ -104,6 +115,7 @@ where
 {
   fn index_mut(&mut self, index: K) -> &mut Self::Output {
     let u = index.to_u32();
+    debug_assert!(usize::try_from(u).is_ok());
     &mut self.data[u as usize]
   }
 }
