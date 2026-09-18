@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-f212e5f4.js";
+            window.path_to_searchindex_js = "searchindex-f2897ace.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-08a9b9b3.js"></script>
@@ -285,6 +285,8 @@ static rom BASE_HP: [u8; 5] = [0, 3, 5, 12, 10];
 <span class="boring">}</span></code></pre>
 <p>A bitbag defines names for the bits within a byte.</p>
 <p>The individual fields are bit positions, not whole bytes, so you cannot create a pointer to a field of a bitbag.</p>
+<h3 id="enum"><a class="header" href="#enum">Enum</a></h3>
+<p>The language should support enums at some point, but I’m not sure of the details we want.</p>
 <h3 id="impl"><a class="header" href="#impl">Impl</a></h3>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -301,8 +303,6 @@ static rom BASE_HP: [u8; 5] = [0, 3, 5, 12, 10];
 </span>use core::memcpy;
 <span class="boring">}</span></code></pre>
 <p>A <code>use</code> statement brings an item from another module into scope.</p>
-<h3 id="enum"><a class="header" href="#enum">Enum</a></h3>
-<p>The language should support enums at some point, but I’m not sure of the details we want.</p>
 <h2 id="statements"><a class="header" href="#statements">Statements</a></h2>
 <p>Within a block of code (enclosed in <code>{ }</code>) there’s one or more statements, and possibly a tail expression.</p>
 <p>A statement can be one of:</p>
