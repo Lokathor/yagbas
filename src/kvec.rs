@@ -62,7 +62,7 @@ pub type KVecIter<K, V> = core::iter::Map<
 /// Highly likely to perform better than a `HashMap`.
 ///
 /// Make a key type using the [make_key!] macro.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct KVec<K, V> {
   phantom: PhantomData<K>,
   data: Vec<V>,
