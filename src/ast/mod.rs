@@ -5,20 +5,22 @@ use std::path::PathBuf;
 use crate::{
   Span,
   cst::Cst,
-  kvec::KVec,
-  make_key,
   operators::{BinOpKind, UnOpKind},
 };
 
 pub mod actions;
 pub mod parser;
 
-make_key!(ItemId);
-
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
-  pub items: KVec<ItemId, Item>,
+  pub modules: Vec<Module>,
   pub errors: Vec<AstError>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Module {
+  pub file_origin: PathBuf,
+  pub items: Vec<Item>,
 }
 
 #[derive(Debug, Clone)]
@@ -28,7 +30,6 @@ pub enum AstError {
 
 #[derive(Debug, Clone, Default)]
 pub struct Item {
-  pub id: ItemId,
   pub file_origin: PathBuf,
   pub name: String,
   pub name_span: Span,
@@ -62,7 +63,7 @@ pub enum ItemKind {
   },
   Impl {
     target: TypeExpr,
-    items: Vec<ItemId>,
+    items: Vec<Item>,
   },
   /// I have no idea how to better organize the data from a `use`, and it's not
   /// really that important right now.
@@ -210,13 +211,13 @@ pub enum ValueExprKind {
 #[derive(Debug, Clone, Default)]
 pub struct Statement {
   pub span: Span,
-  pub kind: StatementKind,
+  pub kind: Box<StatementKind>,
 }
 #[derive(Debug, Clone, Default)]
 pub enum StatementKind {
   #[default]
   ErrStatementKind,
-  Item(ItemId),
+  Item(Item),
   Let {
     pattern: Pattern,
     type_decl: Option<TypeExpr>,
