@@ -259,12 +259,14 @@ impl<'a> CstParser<'a> {
             | TokenKind::KwLoop
             | TokenKind::KwMatch
             | TokenKind::KwMmio
+            | TokenKind::KwMod
             | TokenKind::KwMut
             | TokenKind::KwRam
             | TokenKind::KwReturn
             | TokenKind::KwRom
             | TokenKind::KwStruct
             | TokenKind::KwStatic
+            | TokenKind::KwSuper
             | TokenKind::KwTrue
             | TokenKind::KwUse
             | TokenKind::KwWhile
