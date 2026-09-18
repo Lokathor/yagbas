@@ -1,15 +1,23 @@
 //! Module for the Abstract Syntax Tree types.
 
-use str_id::StrId;
+use std::path::PathBuf;
 
-use crate::{Span, cst::CstElem, make_key};
+use crate::{
+  Span,
+  cst::Cst,
+  kvec::KVec,
+  make_key,
+  operators::{BinOpKind, UnOpKind},
+};
 
 pub mod actions;
 pub mod parser;
 
+make_key!(ItemId);
+
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
-  pub items: Vec<Item>,
+  pub items: KVec<ItemId, Item>,
   pub errors: Vec<AstError>,
 }
 
@@ -18,147 +26,173 @@ pub enum AstError {
   ErrGeneric(String),
 }
 
-make_key!(ItemId);
-
 #[derive(Debug, Clone, Default)]
 pub struct Item {
-  pub file_origin: StrId,
-  pub span: Span,
-  pub name: StrId,
-  pub name_span: StrId,
+  pub id: ItemId,
+  pub file_origin: PathBuf,
+  pub name: String,
+  pub name_span: Span,
   pub kind: ItemKind,
 }
 
 #[derive(Debug, Clone, Default)]
 pub enum ItemKind {
   #[default]
-  ErrDefault,
-  Constant(AstConstant),
-  Static(AstStatic),
-  Function(AstFunction),
-  Struct(AstStruct),
-  BitBag(AstBitBag),
-  Enum(AstEnum),
-  Impl(AstImpl),
-  Use(AstUse),
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AstConstant {
-  pub ty: AstExprType,
-  pub expr: AstExprValue,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AstStatic {
-  pub ty: AstExprType,
-  pub kind: AstStaticKind,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AstFunction {
-  pub args: Vec<AstFunctionArg>,
-  pub return_ty: AstExprType,
-  pub body: AstBody,
-}
-
-#[derive(Debug, Clone, Default, Copy)]
-pub struct AstFunctionArg {
-  pub pattern: AstPatternKind,
-  pub ty: AstExprType,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AstStruct {
-  pub fields: Vec<AstStructField>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AstEnum {
-  pub variants: Vec<StrId>,
-}
-
-#[derive(Debug, Clone, Default, Copy)]
-pub struct AstStructField {
-  pub name: StrId,
-  pub name_span: StrId,
-  pub ty: AstExprType,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AstBitBag {
-  pub fields: Vec<AstBitBagField>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AstBitBagField {
-  pub name: StrId,
-  pub name_span: StrId,
-  pub position: AstExprValue,
-}
-
-#[derive(Debug, Clone, Default, Copy)]
-pub enum AstPatternKind {
-  #[default]
-  ErrDefault,
-  Simple {
-    name: StrId,
-    span: Span,
+  ErrItemKind,
+  Constant {
+    type_decl: TypeExpr,
+    value_decl: ValueExpr,
+  },
+  Static {
+    kind: StaticKind,
+  },
+  Function {
+    args: Vec<FunctionArg>,
+    ret_ty: TypeExpr,
+    body: ValueExpr,
+  },
+  Struct {
+    fields: Vec<StructField>,
+  },
+  Bitbag {
+    fields: Vec<BitbagField>,
+  },
+  Enum {
+    variants: Vec<String>,
+  },
+  Impl {
+    target: TypeExpr,
+    items: Vec<ItemId>,
+  },
+  Use {
+    /// I have no idea how to better organize the data from a `use`.
+    cst: Cst,
   },
 }
 
 #[derive(Debug, Clone, Default)]
-pub enum AstStaticKind {
-  #[default]
-  ErrDefault,
-  Ram(AstExprValue),
-  Rom(AstExprValue),
-  Mmio(AstExprValue),
+pub struct BitbagField {
+  pub name: String,
+  pub name_span: Span,
+  pub bit: ValueExpr,
 }
 
-#[derive(Debug, Clone, Default, Copy)]
-pub enum AstExprType {
+#[derive(Debug, Clone, Default)]
+pub struct StructField {
+  pub name: String,
+  pub name_span: Span,
+  pub type_decl: TypeExpr,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Pattern {
+  pub span: Span,
+  pub kind: PatternKind,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum PatternKind {
   #[default]
-  ErrDefault,
+  ErrPatternKind,
+  Simple(String),
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FunctionArg {
+  pub pattern: Pattern,
+  pub type_decl: TypeExpr,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum StaticKind {
+  #[default]
+  ErrStaticKind,
+  Mmio {
+    location: ValueExpr,
+    type_decl: TypeExpr,
+  },
+  Ram {
+    type_decl: TypeExpr,
+    init: ValueExpr,
+  },
+  Rom {
+    type_decl: TypeExpr,
+    data: ValueExpr,
+  },
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TypeExpr {
+  pub span: Span,
+  pub kind: TypeExprKind,
+}
+#[derive(Debug, Clone, Default)]
+pub enum TypeExprKind {
+  #[default]
+  ErrTypeExprKind,
+  Plain(String),
   // TODO
 }
 
 #[derive(Debug, Clone, Default)]
-pub enum AstExprValue {
+pub struct ValueExpr {
+  pub span: Span,
+  pub kind: Box<ValueExprKind>,
+}
+#[derive(Debug, Clone, Default)]
+pub enum ValueExprKind {
   #[default]
-  ErrDefault,
-  Body(Box<AstBody>),
-  // TODO
+  ErrValueExprKind,
+  /// Identifier to something, but we don't know what yet.
+  UnknownIdentifier(String),
+  Body {
+    statements: Vec<Statement>,
+  },
+  Loop {
+    label: Option<String>,
+    statements: Vec<Statement>,
+  },
+  While {
+    label: Option<String>,
+    condition: ValueExpr,
+    statements: Vec<Statement>,
+  },
+  For {
+    label: Option<String>,
+    step_var: Pattern,
+    range: ValueExpr,
+    statements: Vec<Statement>,
+  },
+  If {
+    condition: ValueExpr,
+    when_true: Vec<Statement>,
+    when_false: Vec<Statement>,
+  },
+  BinOp {
+    left: ValueExpr,
+    op: BinOpKind,
+    right: ValueExpr,
+  },
+  UnOp {
+    op: UnOpKind,
+    operand: ValueExpr,
+  },
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct AstImpl {
-  pub target: AstExprType,
-  pub items: Vec<Item>,
+pub struct Statement {
+  pub span: Span,
+  pub kind: StatementKind,
 }
-
 #[derive(Debug, Clone, Default)]
-pub struct AstUse {
-  pub cst: Vec<CstElem>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AstBody {
-  pub statements: Vec<AstStatement>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub enum AstStatement {
+pub enum StatementKind {
   #[default]
-  ErrDefault,
-  Let(AstLetData),
-  Expression(AstExprValue),
-  Item(Item),
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AstLetData {
-  pub pattern: AstPatternKind,
-  pub ty: Option<AstExprType>,
-  pub init: Option<AstExprValue>,
+  ErrStatementKind,
+  Item(ItemId),
+  Let {
+    pattern: Pattern,
+    type_decl: Option<TypeExpr>,
+    initializer: Option<ValueExpr>,
+  },
+  Expression(ValueExpr),
 }
