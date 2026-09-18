@@ -130,16 +130,13 @@ fn do_cst(mut arguments: Vec<OsString>) {
         println!("```");
         let mut p = CstParser::new(&src);
         gather_module(&mut p);
-        let (cst, errors) = p.build_tree();
+        let cst = p.build_tree();
         if show_trivia {
           println!("{cst:#}");
         } else {
           println!("{cst}");
         }
         println!("```");
-        if !errors.is_empty() {
-          eprintln!("Cst Errors: {errors:?}");
-        }
       }
       Err(e) => {
         println!("File Reading Error: {e:?}");
