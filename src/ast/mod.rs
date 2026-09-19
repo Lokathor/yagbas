@@ -171,7 +171,7 @@ pub enum ValueExprKind {
   LiteralString(String),
   /// Literal number token text.
   LiteralNumber(String),
-  Body {
+  Block {
     statements: Vec<Statement>,
   },
   Loop {

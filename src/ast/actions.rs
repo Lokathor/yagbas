@@ -184,7 +184,7 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
   match it.next() {
     Some(CstElem::FixedToken(OpBrace, _)) => ValueExpr {
       span,
-      kind: Box::new(ValueExprKind::Body {
+      kind: Box::new(ValueExprKind::Block {
         statements: parse_value_expr_body(errors, cst),
       }),
     },
