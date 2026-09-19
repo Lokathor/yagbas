@@ -8,6 +8,7 @@
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 #![deny(unreachable_patterns)]
+#![allow(clippy::useless_format)]
 
 //! Yagbas is a compiler for a language of the same name.
 //!
