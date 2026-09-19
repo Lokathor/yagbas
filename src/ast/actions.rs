@@ -10,7 +10,7 @@ use crate::{
   },
   cst::{
     Cst, CstElem,
-    CstKind::{self, OperatorPostfix},
+    CstKind::{self},
   },
   operators::{BinOpKind, PostfixOperator, UnOpKind},
   tokenizer::TokenKind::{
@@ -73,7 +73,7 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
   let mut it = cst.elements.iter();
   let mut args = Default::default();
   let mut ret_ty = Default::default();
-  let mut body = Default::default();
+  let mut statements = Default::default();
 
   // keyword, already checked by caller and also debug asserted for.
   let _ = it.next();
@@ -94,7 +94,7 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
         cst.try_span().unwrap_or_default(),
         format!("Expected Identifier, but no input."),
       ));
-      out.kind = ItemKind::Function { args, ret_ty, body };
+      out.kind = ItemKind::Function { args, ret_ty, statements };
       return;
     }
   };
@@ -114,7 +114,7 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
         cst.try_span().unwrap_or_default(),
         format!("Expected Paren Group, but no input."),
       ));
-      out.kind = ItemKind::Function { args, ret_ty, body };
+      out.kind = ItemKind::Function { args, ret_ty, statements };
       return;
     }
   };
@@ -135,7 +135,7 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
 
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-      body = parse_value_expr(errors, cst);
+      statements = parse_value_expr_body(errors, cst);
     }
     Some(other) => {
       errors.push(AstError::ErrGeneric(
@@ -151,7 +151,7 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
     }
   };
 
-  out.kind = ItemKind::Function { args, ret_ty, body };
+  out.kind = ItemKind::Function { args, ret_ty, statements };
 
   for elem in it {
     println!("== {elem:?}");
@@ -182,7 +182,12 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
   let span = cst.try_span().unwrap_or_default();
   let mut it = cst.elements.iter();
   match it.next() {
-    Some(CstElem::FixedToken(OpBrace, _)) => parse_value_expr_body(errors, cst),
+    Some(CstElem::FixedToken(OpBrace, _)) => ValueExpr {
+      span,
+      kind: Box::new(ValueExprKind::Body {
+        statements: parse_value_expr_body(errors, cst),
+      }),
+    },
     Some(CstElem::FixedToken(KwFor, _)) => parse_value_expr_for(errors, cst),
     Some(CstElem::Identifier(string, opt_span)) => ValueExpr {
       span: opt_span.unwrap_or_default(),
@@ -333,11 +338,7 @@ fn parse_value_expr_for(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
   }
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-      if let ValueExprKind::Body { statements: body_statements } =
-        *parse_value_expr(errors, cst).kind
-      {
-        statements = body_statements
-      }
+      statements = parse_value_expr_body(errors, cst);
     }
     other => {
       errors.push(AstError::ErrGeneric(
@@ -356,7 +357,13 @@ fn parse_value_expr_for(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
   out
 }
 
-fn parse_value_expr_body(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
+/// Returns the statements of a cst holding a ValExpr body (`{ }`).
+///
+/// The return value is a vec so that this can be shared between an "actual"
+/// body as well as with the other expression forms that have expression blocks.
+fn parse_value_expr_body(
+  errors: &mut Vec<AstError>, cst: &Cst,
+) -> Vec<Statement> {
   debug_assert_eq!(cst.kind, CstKind::ValExpr);
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
@@ -365,8 +372,6 @@ fn parse_value_expr_body(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
   //
   let mut it = cst.elements.iter();
   let mut statements = Vec::new();
-  let mut out = ValueExpr::default();
-  out.span = cst.try_span().unwrap_or_default();
 
   // OpBrace, already checked by caller and also debug asserted for.
   let _ = it.next();
@@ -394,8 +399,7 @@ fn parse_value_expr_body(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
     }
   }
 
-  out.kind = Box::new(ValueExprKind::Body { statements });
-  out
+  statements
 }
 
 fn parse_statement(errors: &mut Vec<AstError>, cst: &Cst) -> Statement {

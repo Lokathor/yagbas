@@ -51,7 +51,7 @@ pub enum ItemKind {
   Function {
     args: Vec<FunctionArg>,
     ret_ty: TypeExpr,
-    body: ValueExpr,
+    statements: Vec<Statement>,
   },
   Struct {
     fields: Vec<StructField>,
