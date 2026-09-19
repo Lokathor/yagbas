@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 use crate::{
+  Span,
   ast::{
     AstError, FunctionArg, Item, ItemKind, Module, Pattern, PatternKind,
     Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
@@ -65,12 +66,13 @@ fn parse_ast_item(
 }
 
 fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
+  dbg!("parsing function");
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
     KwFn
   );
   //
-  let mut it = cst.elements.iter();
+  let mut it = cst.elements.iter().peekable();
   let mut args = Default::default();
   let mut ret_ty = Default::default();
   let mut statements = Default::default();
@@ -119,7 +121,8 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
     }
   };
 
-  if matches!(it.next(), Some(&CstElem::FixedToken(MinusGreater, _))) {
+  if matches!(it.peek(), Some(&CstElem::FixedToken(MinusGreater, _))) {
+    let _ = it.next();
     match it.next() {
       Some(CstElem::SubTree(ty_expr)) if ty_expr.kind == CstKind::TypeExpr => {
         ret_ty = parse_type_expr(errors, ty_expr);
@@ -130,6 +133,11 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
           format!("Expected return type, got {other:?}"),
         ));
       }
+    }
+  } else {
+    ret_ty = TypeExpr {
+      span: Span::default(),
+      kind: Box::new(TypeExprKind::Simple(String::from("()"))),
     }
   }
 
