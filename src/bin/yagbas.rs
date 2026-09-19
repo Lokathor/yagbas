@@ -1,7 +1,10 @@
-use std::ffi::OsString;
-use yagbas::cst::{
-  actions::gather_module,
-  parser::{BuildTreeArgs, CstParser},
+use std::{ffi::OsString, path::PathBuf};
+use yagbas::{
+  ast::{Ast, actions::parse_ast_module},
+  cst::{
+    actions::gather_module,
+    parser::{BuildTreeArgs, CstParser},
+  },
 };
 
 fn main() {
@@ -14,7 +17,7 @@ fn main() {
   match arguments[0].to_str() {
     Some("help") | Some("--help") | Some("/?") => do_help(),
     Some("cst") => do_cst(arguments),
-    //Some("ast") => do_ast(arguments),
+    Some("ast") => do_ast(arguments),
     //Some("nameres") => do_nameres(arguments),
     _ => {
       eprintln!("Unknown sub-command.");
@@ -67,7 +70,6 @@ fn do_nameres(mut arguments: Vec<OsString>) {
   println!("```");
 }
 
-#[cfg(false)]
 fn do_ast(mut arguments: Vec<OsString>) {
   debug_assert_eq!(arguments[0].to_str().unwrap(), "ast");
   arguments.remove(0);
@@ -88,17 +90,31 @@ fn do_ast(mut arguments: Vec<OsString>) {
   }
   let mut ast = Ast::default();
   for target_file in target_files {
-    match std::fs::read_to_string(&target_file) {
+    let file_origin = PathBuf::from(target_file);
+    match std::fs::read_to_string(&file_origin) {
       Ok(src) => {
-        let origin = StrId::from(target_file.display().to_string());
-        ast.modules.push(AstModule::from_source(origin, &src));
+        let mut p = CstParser::new(&src);
+        gather_module(&mut p);
+        let cst = p.build_tree(BuildTreeArgs { skip_trivial: true });
+        let module = parse_ast_module(&mut ast.errors, file_origin, &cst);
+        ast.modules.push(module);
       }
       Err(e) => {
         println!("File Reading Error: {e:?}");
       }
     }
   }
-  dbg!(ast);
+  println!("```");
+  for module in ast.modules {
+    println!("= Module: {:?}", module.file_origin);
+    for item in &module.items {
+      println!("== Item: {item:#?}");
+    }
+  }
+  for error in ast.errors {
+    println!("== Ast Error: {error:?}");
+  }
+  println!("```");
 }
 
 fn do_cst(mut arguments: Vec<OsString>) {

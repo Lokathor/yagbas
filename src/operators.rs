@@ -331,6 +331,45 @@ pub enum BinOpKind {
   /// `x<<=y`
   ShiftRightAssign,
 }
+impl From<InfixOperator> for BinOpKind {
+  fn from(value: InfixOperator) -> Self {
+    match value {
+      InfixOperator::Path => Self::Path,
+      InfixOperator::Access => Self::Access,
+      InfixOperator::Mul => Self::Mul,
+      InfixOperator::Div => Self::Div,
+      InfixOperator::Rem => Self::Rem,
+      InfixOperator::Add => Self::Add,
+      InfixOperator::Sub => Self::Sub,
+      InfixOperator::ShiftLeft => Self::ShiftLeft,
+      InfixOperator::ShiftRight => Self::ShiftRight,
+      InfixOperator::BitAnd => Self::BitAnd,
+      InfixOperator::BitXor => Self::BitXor,
+      InfixOperator::BitOr => Self::BitOr,
+      InfixOperator::CmpEq => Self::CmpEq,
+      InfixOperator::CmpNe => Self::CmpNe,
+      InfixOperator::CmpLt => Self::CmpLt,
+      InfixOperator::CmpGt => Self::CmpGt,
+      InfixOperator::CmpLe => Self::CmpLe,
+      InfixOperator::CmpGe => Self::CmpGe,
+      InfixOperator::ConditionalAnd => Self::ConditionalAnd,
+      InfixOperator::ConditionalOr => Self::ConditionalOr,
+      InfixOperator::RangeExclusive => Self::RangeExclusive,
+      InfixOperator::RangeInclusive => Self::RangeInclusive,
+      InfixOperator::Assign => Self::Assign,
+      InfixOperator::AddAssign => Self::AddAssign,
+      InfixOperator::SubAssign => Self::SubAssign,
+      InfixOperator::MulAssign => Self::MulAssign,
+      InfixOperator::DivAssign => Self::DivAssign,
+      InfixOperator::RemAssign => Self::RemAssign,
+      InfixOperator::BitAndAssign => Self::BitAndAssign,
+      InfixOperator::BitOrAssign => Self::BitOrAssign,
+      InfixOperator::BitXorAssign => Self::BitXorAssign,
+      InfixOperator::ShiftLeftAssign => Self::ShiftLeftAssign,
+      InfixOperator::ShiftRightAssign => Self::ShiftRightAssign,
+    }
+  }
+}
 
 /// A unary (one-value) operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

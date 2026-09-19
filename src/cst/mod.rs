@@ -67,6 +67,12 @@ impl Cst {
       }
     }
   }
+
+  pub fn try_span(&self) -> Option<Span> {
+    let start = self.elements.first()?.try_span()?.start;
+    let end = self.elements.last()?.try_span()?.end;
+    Some(Span { start, end })
+  }
 }
 
 /// The kinds of Cst tree that the [CstParser] can generate.
@@ -84,8 +90,8 @@ pub enum CstKind {
   BracketGroup,
   BraceGroup,
   Statement,
-  ExprVal,
-  ExprType,
+  ValExpr,
+  TypeExpr,
   Pattern,
   OperatorInfix(InfixOperator),
   OperatorPrefix(PrefixOperator),
@@ -120,6 +126,18 @@ pub enum CstElem {
   ErrorBytes(Vec<u8>, Option<Span>),
 }
 impl CstElem {
+  pub fn try_span(&self) -> Option<Span> {
+    match self {
+      CstElem::SubTree(cst) => cst.try_span(),
+      CstElem::FixedToken(_, span)
+      | CstElem::Whitespace(_, span)
+      | CstElem::Comment(_, span)
+      | CstElem::Identifier(_, span)
+      | CstElem::LitNumber(_, span)
+      | CstElem::LitString(_, span)
+      | CstElem::ErrorBytes(_, span) => *span,
+    }
+  }
   pub fn sub_tree(&self) -> Option<&Cst> {
     if let CstElem::SubTree(cst) = self { Some(cst) } else { None }
   }

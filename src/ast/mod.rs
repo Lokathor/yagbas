@@ -9,7 +9,6 @@ use crate::{
 };
 
 pub mod actions;
-pub mod parser;
 
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
@@ -25,12 +24,14 @@ pub struct Module {
 
 #[derive(Debug, Clone)]
 pub enum AstError {
-  ErrGeneric(String),
+  ErrGeneric(Span, String),
+  CstParserMadeModuleWithBadData(String),
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct Item {
   pub file_origin: PathBuf,
+  pub span: Span,
   pub name: String,
   pub name_span: Span,
   pub kind: ItemKind,
@@ -134,7 +135,7 @@ pub struct TypeExpr {
 pub enum TypeExprKind {
   #[default]
   ErrTypeExprKind,
-  Plain(String),
+  Simple(String),
   Array {
     elem_ty: TypeExpr,
     elem_count: ValueExpr,
