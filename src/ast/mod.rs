@@ -9,6 +9,7 @@ use crate::{
 };
 
 pub mod actions;
+pub mod parser;
 
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
@@ -23,9 +24,10 @@ pub struct Module {
 }
 
 #[derive(Debug, Clone)]
-pub enum AstError {
-  ErrGeneric(Span, String),
-  CstParserMadeModuleWithBadData(String),
+pub struct AstError {
+  pub file_origin: PathBuf,
+  pub span: Span,
+  pub message: String,
 }
 
 #[derive(Debug, Clone, Default)]
