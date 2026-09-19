@@ -6,8 +6,9 @@ use std::path::PathBuf;
 use crate::{
   Span,
   ast::{
-    AstError, FunctionArg, Item, ItemKind, Module, Pattern, PatternKind,
-    Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
+    FunctionArg, Item, ItemKind, Module, Pattern, PatternKind, Statement,
+    StatementKind, TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
+    parser::AstParser,
   },
   cst::{
     Cst, CstElem,
@@ -21,7 +22,7 @@ use crate::{
 };
 
 pub fn parse_ast_module(
-  errors: &mut Vec<AstError>, file_origin: PathBuf, cst: &Cst,
+  p: &mut AstParser, file_origin: PathBuf, cst: &Cst,
 ) -> Module {
   debug_assert_eq!(cst.kind, CstKind::Module);
   //
@@ -30,13 +31,14 @@ pub fn parse_ast_module(
   for elem in &cst.elements {
     match elem {
       CstElem::SubTree(cst) if cst.kind == CstKind::Item => {
-        let item = parse_ast_item(errors, file_origin.clone(), cst);
+        let item = parse_ast_item(p, file_origin.clone(), cst);
         out.items.push(item);
       }
-      otherwise => {
-        errors.push(AstError::CstParserMadeModuleWithBadData(format!(
-          "{otherwise:?}"
-        )));
+      other => {
+        p.error_at(
+          cst.try_span().unwrap_or_default(),
+          format!("InternalError: Bad Data From Cst Parser: {other:?}"),
+        );
         continue;
       }
     }
@@ -45,9 +47,7 @@ pub fn parse_ast_module(
   out
 }
 
-fn parse_ast_item(
-  errors: &mut Vec<AstError>, file_origin: PathBuf, cst: &Cst,
-) -> Item {
+fn parse_ast_item(p: &mut AstParser, file_origin: PathBuf, cst: &Cst) -> Item {
   debug_assert_eq!(cst.kind, CstKind::Item);
   //
   let mut out = Item::default();
@@ -55,17 +55,20 @@ fn parse_ast_item(
   out.span = cst.try_span().unwrap_or_default();
   match cst.elements.first() {
     Some(CstElem::FixedToken(KwFn, span)) => {
-      parse_ast_function(errors, cst, &mut out);
+      parse_ast_function(p, cst, &mut out);
     }
-    _other => {
-      dbg!(_other);
+    other => {
+      p.error_at(
+        out.span,
+        format!("ParserIncomplete: Unknown Item: {other:?}"),
+      );
       return out;
     }
   }
   out
 }
 
-fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
+fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
   dbg!("parsing function");
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
@@ -85,39 +88,23 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
       out.name = name.clone();
       out.name_span = opt_span.unwrap_or_default();
     }
-    Some(other) => {
-      errors.push(AstError::ErrGeneric(
-        other.try_span().unwrap_or_default(),
-        format!("Expected Identifier got {other:?}"),
-      ));
-    }
-    None => {
-      errors.push(AstError::ErrGeneric(
+    other => {
+      p.error_at(
         cst.try_span().unwrap_or_default(),
-        format!("Expected Identifier, but no input."),
-      ));
-      out.kind = ItemKind::Function { args, ret_ty, statements };
-      return;
+        format!("Expected Identfier: {other:?}"),
+      );
     }
   };
 
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ParensGroup => {
-      args = parse_ast_function_args(errors, cst);
+      args = parse_ast_function_args(p, cst);
     }
-    Some(other) => {
-      errors.push(AstError::ErrGeneric(
-        other.try_span().unwrap_or_default(),
-        format!("Expected Paren Group, got {other:?}"),
-      ));
-    }
-    None => {
-      errors.push(AstError::ErrGeneric(
+    other => {
+      p.error_at(
         cst.try_span().unwrap_or_default(),
-        format!("Expected Paren Group, but no input."),
-      ));
-      out.kind = ItemKind::Function { args, ret_ty, statements };
-      return;
+        format!("Expected Parens Group: {other:?}"),
+      );
     }
   };
 
@@ -125,13 +112,13 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
     let _ = it.next();
     match it.next() {
       Some(CstElem::SubTree(ty_expr)) if ty_expr.kind == CstKind::TypeExpr => {
-        ret_ty = parse_type_expr(errors, ty_expr);
+        ret_ty = parse_type_expr(p, ty_expr);
       }
       other => {
-        errors.push(AstError::ErrGeneric(
-          out.span,
-          format!("Expected return type, got {other:?}"),
-        ));
+        p.error_at(
+          cst.try_span().unwrap_or_default(),
+          format!("Expected Type Expr: {other:?}"),
+        );
       }
     }
   } else {
@@ -143,19 +130,13 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
 
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-      statements = parse_value_expr_body(errors, cst);
+      statements = parse_value_expr_body(p, cst);
     }
-    Some(other) => {
-      errors.push(AstError::ErrGeneric(
-        other.try_span().unwrap_or_default(),
-        format!("Expected function body, got {other:?}"),
-      ));
-    }
-    None => {
-      errors.push(AstError::ErrGeneric(
+    other => {
+      p.error_at(
         cst.try_span().unwrap_or_default(),
-        format!("Expected function body, but no input."),
-      ));
+        format!("Expected function body: {other:?}"),
+      );
     }
   };
 
@@ -166,7 +147,7 @@ fn parse_ast_function(errors: &mut Vec<AstError>, cst: &Cst, out: &mut Item) {
   }
 }
 
-fn parse_type_expr(errors: &mut Vec<AstError>, cst: &Cst) -> TypeExpr {
+fn parse_type_expr(p: &mut AstParser, cst: &Cst) -> TypeExpr {
   let mut out = TypeExpr::default();
   out.span = cst.try_span().unwrap_or_default();
   match cst.elements.as_slice() {
@@ -175,16 +156,13 @@ fn parse_type_expr(errors: &mut Vec<AstError>, cst: &Cst) -> TypeExpr {
       out.kind = Box::new(TypeExprKind::Simple(name.clone()));
     }
     other => {
-      errors.push(AstError::ErrGeneric(
-        out.span,
-        format!("Expected single identifier as type expression, got {other:?}"),
-      ));
+      p.error_at(out.span, format!("Expected identifier: {other:?}"));
     }
   };
   out
 }
 
-fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
+fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   debug_assert_eq!(cst.kind, CstKind::ValExpr);
   //
   let span = cst.try_span().unwrap_or_default();
@@ -193,10 +171,10 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
     Some(CstElem::FixedToken(OpBrace, _)) => ValueExpr {
       span,
       kind: Box::new(ValueExprKind::Block {
-        statements: parse_value_expr_body(errors, cst),
+        statements: parse_value_expr_body(p, cst),
       }),
     },
-    Some(CstElem::FixedToken(KwFor, _)) => parse_value_expr_for(errors, cst),
+    Some(CstElem::FixedToken(KwFor, _)) => parse_value_expr_for(p, cst),
     Some(CstElem::Identifier(string, opt_span)) => ValueExpr {
       span: opt_span.unwrap_or_default(),
       kind: Box::new(ValueExprKind::Identifier(string.clone())),
@@ -210,7 +188,7 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
       kind: Box::new(ValueExprKind::LiteralString(string.clone())),
     },
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-      let left = parse_value_expr(errors, cst);
+      let left = parse_value_expr(p, cst);
       match it.next() {
         Some(CstElem::SubTree(cst))
           if matches!(cst.kind, CstKind::OperatorInfix(op)) =>
@@ -221,17 +199,17 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
           };
           match it.next() {
             Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-              let right = parse_value_expr(errors, cst);
+              let right = parse_value_expr(p, cst);
               ValueExpr {
                 span,
                 kind: Box::new(ValueExprKind::BinOp { left, op, right }),
               }
             }
             other => {
-              errors.push(AstError::ErrGeneric(
+              p.error_at(
                 cst.try_span().unwrap_or_default(),
-                format!("Expected value expression, got {other:?}"),
-              ));
+                format!("Expected Right Hand Side Expression: {other:?}"),
+              );
               let mut out = ValueExpr::default();
               out.span = cst.try_span().unwrap_or_default();
               out
@@ -247,7 +225,7 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
             ) => match it.next() {
               Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
                 let op = BinOpKind::RangeExclusive;
-                let right = parse_value_expr(errors, cst);
+                let right = parse_value_expr(p, cst);
                 ValueExpr {
                   span,
                   kind: Box::new(ValueExprKind::BinOp { left, op, right }),
@@ -261,10 +239,10 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
                 }
               }
               other => {
-                errors.push(AstError::ErrGeneric(
+                p.error_at(
                   cst.try_span().unwrap_or_default(),
-                  format!("Expected value expression, got {other:?}"),
-                ));
+                  format!("Expected Right Hand Side Expression: {other:?}"),
+                );
                 let mut out = ValueExpr::default();
                 out.span = cst.try_span().unwrap_or_default();
                 out
@@ -274,10 +252,10 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
           }
         }
         other => {
-          errors.push(AstError::ErrGeneric(
+          p.error_at(
             cst.try_span().unwrap_or_default(),
-            format!("Expected value expression, got {other:?}"),
-          ));
+            format!("Unknown after LHS Expression: {other:?}"),
+          );
           let mut out = ValueExpr::default();
           out.span = cst.try_span().unwrap_or_default();
           out
@@ -285,10 +263,7 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
       }
     }
     other => {
-      errors.push(AstError::ErrGeneric(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected value expression, got {other:?}"),
-      ));
+      p.error_at(span, format!("Unknown Expression Start: {other:?}"));
       let mut out = ValueExpr::default();
       out.span = cst.try_span().unwrap_or_default();
       out
@@ -296,7 +271,7 @@ fn parse_value_expr(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
   }
 }
 
-fn parse_value_expr_for(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
+fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   debug_assert_eq!(cst.kind, CstKind::ValExpr);
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
@@ -315,44 +290,32 @@ fn parse_value_expr_for(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
   let _ = it.next();
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Pattern => {
-      step_var = parse_pattern(errors, cst);
+      step_var = parse_pattern(p, cst);
     }
     other => {
-      errors.push(AstError::ErrGeneric(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected pattern, got {other:?}"),
-      ));
+      p.error_at(out.span, format!("Expected Pattern: {other:?}"));
     }
   }
   match it.next() {
     Some(CstElem::FixedToken(KwIn, _)) => {}
     other => {
-      errors.push(AstError::ErrGeneric(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected pattern, got {other:?}"),
-      ));
+      p.error_at(out.span, format!("Expected keyword `in`: {other:?}"));
     }
   }
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-      range = parse_value_expr(errors, cst);
+      range = parse_value_expr(p, cst);
     }
     other => {
-      errors.push(AstError::ErrGeneric(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected range expression, got {other:?}"),
-      ));
+      p.error_at(out.span, format!("Expected range expression: {other:?}"));
     }
   }
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-      statements = parse_value_expr_body(errors, cst);
+      statements = parse_value_expr_body(p, cst);
     }
     other => {
-      errors.push(AstError::ErrGeneric(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected range expression, got {other:?}"),
-      ));
+      p.error_at(out.span, format!("Expected body: {other:?}"));
     }
   }
 
@@ -369,9 +332,7 @@ fn parse_value_expr_for(errors: &mut Vec<AstError>, cst: &Cst) -> ValueExpr {
 ///
 /// The return value is a vec so that this can be shared between an "actual"
 /// body as well as with the other expression forms that have expression blocks.
-fn parse_value_expr_body(
-  errors: &mut Vec<AstError>, cst: &Cst,
-) -> Vec<Statement> {
+fn parse_value_expr_body(p: &mut AstParser, cst: &Cst) -> Vec<Statement> {
   debug_assert_eq!(cst.kind, CstKind::ValExpr);
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
@@ -385,24 +346,17 @@ fn parse_value_expr_body(
   let _ = it.next();
   loop {
     match it.next() {
-      None => {
-        errors.push(AstError::ErrGeneric(
-          cst.try_span().unwrap_or_default(),
-          format!("Expected Statement or Close Brace, but no input"),
-        ));
-        break;
-      }
       Some(CstElem::FixedToken(ClBrace, _span)) => {
         break;
       }
       Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Statement => {
-        statements.push(parse_statement(errors, cst));
+        statements.push(parse_statement(p, cst));
       }
       other => {
-        errors.push(AstError::ErrGeneric(
+        p.error_at(
           cst.try_span().unwrap_or_default(),
-          format!("Expected statement, got {other:?}"),
-        ));
+          format!("Expected Statement: {other:?}"),
+        );
       }
     }
   }
@@ -410,13 +364,13 @@ fn parse_value_expr_body(
   statements
 }
 
-fn parse_statement(errors: &mut Vec<AstError>, cst: &Cst) -> Statement {
+fn parse_statement(p: &mut AstParser, cst: &Cst) -> Statement {
   debug_assert_eq!(cst.kind, CstKind::Statement);
   //
   match cst.elements.first() {
-    Some(CstElem::FixedToken(KwLet, _)) => parse_statement_let(errors, cst),
+    Some(CstElem::FixedToken(KwLet, _)) => parse_statement_let(p, cst),
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-      let x = parse_value_expr(errors, cst);
+      let x = parse_value_expr(p, cst);
       Statement {
         span: cst.try_span().unwrap_or_default(),
         kind: Box::new(StatementKind::Expression(x)),
@@ -436,7 +390,7 @@ fn parse_statement(errors: &mut Vec<AstError>, cst: &Cst) -> Statement {
   }
 }
 
-fn parse_statement_let(errors: &mut Vec<AstError>, cst: &Cst) -> Statement {
+fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
   debug_assert_eq!(cst.kind, CstKind::Statement);
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
@@ -456,20 +410,10 @@ fn parse_statement_let(errors: &mut Vec<AstError>, cst: &Cst) -> Statement {
 
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Pattern => {
-      pattern = parse_pattern(errors, cst);
+      pattern = parse_pattern(p, cst);
     }
-    None => {
-      errors.push(AstError::ErrGeneric(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected Pattern, but no input"),
-      ));
-      return out;
-    }
-    Some(other) => {
-      errors.push(AstError::ErrGeneric(
-        other.try_span().unwrap_or_default(),
-        format!("Expected pattern, got {other:?}"),
-      ));
+    other => {
+      p.error_at(out.span, format!("Expected Pattern: {other:?}"));
     }
   }
 
@@ -477,20 +421,10 @@ fn parse_statement_let(errors: &mut Vec<AstError>, cst: &Cst) -> Statement {
     let _ = it.next();
     match it.next() {
       Some(CstElem::SubTree(cst)) if cst.kind == CstKind::TypeExpr => {
-        type_decl = Some(parse_type_expr(errors, cst));
+        type_decl = Some(parse_type_expr(p, cst));
       }
-      None => {
-        errors.push(AstError::ErrGeneric(
-          cst.try_span().unwrap_or_default(),
-          format!("Expected Type Expr, but no input"),
-        ));
-        return out;
-      }
-      Some(other) => {
-        errors.push(AstError::ErrGeneric(
-          other.try_span().unwrap_or_default(),
-          format!("Expected Type Expr, got {other:?}"),
-        ));
+      other => {
+        p.error_at(out.span, format!("Expected Type Expr: {other:?}"));
       }
     }
   }
@@ -499,20 +433,10 @@ fn parse_statement_let(errors: &mut Vec<AstError>, cst: &Cst) -> Statement {
     let _ = it.next();
     match it.next() {
       Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-        initializer = Some(parse_value_expr(errors, cst));
+        initializer = Some(parse_value_expr(p, cst));
       }
-      None => {
-        errors.push(AstError::ErrGeneric(
-          cst.try_span().unwrap_or_default(),
-          format!("Expected Value Expr, but no input"),
-        ));
-        return out;
-      }
-      Some(other) => {
-        errors.push(AstError::ErrGeneric(
-          other.try_span().unwrap_or_default(),
-          format!("Expected Value Expr, got {other:?}"),
-        ));
+      other => {
+        p.error_at(out.span, format!("Expected Value Expr: {other:?}"));
       }
     }
   }
@@ -520,11 +444,7 @@ fn parse_statement_let(errors: &mut Vec<AstError>, cst: &Cst) -> Statement {
   match it.next() {
     Some(CstElem::FixedToken(Semicolon, _)) => (),
     other => {
-      errors.push(AstError::ErrGeneric(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected `=`, got {other:?}"),
-      ));
-      return out;
+      p.error_at(out.span, format!("Expected Semicolon: {other:?}"));
     }
   }
 
@@ -536,9 +456,7 @@ fn parse_statement_let(errors: &mut Vec<AstError>, cst: &Cst) -> Statement {
   out
 }
 
-fn parse_ast_function_args(
-  errors: &mut Vec<AstError>, cst: &Cst,
-) -> Vec<FunctionArg> {
+fn parse_ast_function_args(p: &mut AstParser, cst: &Cst) -> Vec<FunctionArg> {
   debug_assert_eq!(cst.kind, CstKind::ParensGroup);
   //
   let mut out = Vec::new();
@@ -550,55 +468,48 @@ fn parse_ast_function_args(
   );
   loop {
     match it.next() {
-      None => {
-        errors.push(AstError::ErrGeneric(
-          cst.try_span().unwrap_or_default(),
-          format!("Expected Close Paren."),
-        ));
-        return out;
-      }
       Some(CstElem::FixedToken(ClParen, _span)) => {
         debug_assert!(it.next().is_none());
         return out;
       }
       Some(CstElem::SubTree(pat_tree)) if pat_tree.kind == CstKind::Pattern => {
-        let mut pattern = parse_pattern(errors, pat_tree);
+        let mut pattern = parse_pattern(p, pat_tree);
         let mut type_decl = TypeExpr::default();
         match it.next() {
           Some(CstElem::FixedToken(Colon, _span)) => {}
           other => {
-            errors.push(AstError::ErrGeneric(
-              pat_tree.try_span().unwrap_or_default(),
-              format!("Expected `:`, got {other:?}"),
-            ));
+            p.error_at(
+              cst.try_span().unwrap_or_default(),
+              format!("Expected Colon: {other:?}"),
+            );
           }
         }
         match it.next() {
           Some(CstElem::SubTree(ty_tree))
             if ty_tree.kind == CstKind::TypeExpr =>
           {
-            type_decl = parse_type_expr(errors, ty_tree);
+            type_decl = parse_type_expr(p, ty_tree);
           }
           other => {
-            errors.push(AstError::ErrGeneric(
-              pat_tree.try_span().unwrap_or_default(),
-              format!("Expected Type Expression, got {other:?}"),
-            ));
+            p.error_at(
+              cst.try_span().unwrap_or_default(),
+              format!("Expected Type Expr: {other:?}"),
+            );
           }
         }
         out.push(FunctionArg { pattern, type_decl });
       }
-      Some(other) => {
-        errors.push(AstError::ErrGeneric(
-          other.try_span().unwrap_or_default(),
-          format!("Expected Pattern, got {other:?}"),
-        ));
+      other => {
+        p.error_at(
+          cst.try_span().unwrap_or_default(),
+          format!("Expected Pattern or Close Paren: {other:?}"),
+        );
       }
     }
   }
 }
 
-fn parse_pattern(errors: &mut Vec<AstError>, cst: &Cst) -> Pattern {
+fn parse_pattern(p: &mut AstParser, cst: &Cst) -> Pattern {
   debug_assert_eq!(cst.kind, CstKind::Pattern, "{cst}");
   //
   match cst.elements.as_slice() {
@@ -607,10 +518,10 @@ fn parse_pattern(errors: &mut Vec<AstError>, cst: &Cst) -> Pattern {
       kind: PatternKind::Simple(name.clone()),
     },
     other => {
-      errors.push(AstError::ErrGeneric(
+      p.error_at(
         cst.try_span().unwrap_or_default(),
-        format!("Expected single identifier as pattern, got {other:?}"),
-      ));
+        format!("Expected Identifier: {other:?}"),
+      );
       Pattern {
         span: cst.try_span().unwrap_or_default(),
         kind: PatternKind::ErrPatternKind,

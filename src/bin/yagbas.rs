@@ -1,6 +1,6 @@
 use std::{ffi::OsString, path::PathBuf};
 use yagbas::{
-  ast::{Ast, actions::parse_ast_module},
+  ast::{Ast, actions::parse_ast_module, parser::AstParser},
   cst::{
     actions::gather_module,
     parser::{BuildTreeArgs, CstParser},
@@ -96,8 +96,11 @@ fn do_ast(mut arguments: Vec<OsString>) {
         let mut p = CstParser::new(&src);
         gather_module(&mut p);
         let cst = p.build_tree(BuildTreeArgs { skip_trivial: true });
-        let module = parse_ast_module(&mut ast.errors, file_origin, &cst);
+        let mut ast_parser =
+          AstParser { file_origin: file_origin.clone(), errors: Vec::new() };
+        let module = parse_ast_module(&mut ast_parser, file_origin, &cst);
         ast.modules.push(module);
+        ast.errors.extend(ast_parser.errors);
       }
       Err(e) => {
         println!("File Reading Error: {e:?}");
