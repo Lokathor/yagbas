@@ -7,8 +7,8 @@ use crate::{
   Span,
   ast::{
     FunctionArg, Item, ItemKind, Module, Pattern, PatternKind, Statement,
-    StatementKind, TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
-    parser::AstParser,
+    StatementKind, StaticKind, TypeExpr, TypeExprKind, ValueExpr,
+    ValueExprKind, parser::AstParser,
   },
   cst::{
     Cst, CstElem,
@@ -16,8 +16,9 @@ use crate::{
   },
   operators::{BinOpKind, PostfixOperator, PrefixOperator, UnOpKind},
   tokenizer::TokenKind::{
-    self, ClBrace, ClBracket, ClParen, Colon, Equal, KwElse, KwFn, KwFor, KwIf,
-    KwIn, KwLet, KwLoop, MinusGreater, OpBrace, Semicolon,
+    self, ClBrace, ClBracket, ClParen, Colon, Equal, KwConst, KwElse, KwFn,
+    KwFor, KwIf, KwIn, KwLet, KwLoop, KwMmio, KwRam, KwRom, KwStatic,
+    MinusGreater, OpBrace, OpBracket, OpParen, Semicolon,
   },
 };
 
@@ -56,6 +57,12 @@ fn parse_ast_item(p: &mut AstParser, file_origin: PathBuf, cst: &Cst) -> Item {
   match cst.elements.first() {
     Some(CstElem::FixedToken(KwFn, span)) => {
       parse_ast_function(p, cst, &mut out);
+    }
+    Some(CstElem::FixedToken(KwConst, span)) => {
+      parse_ast_constant(p, cst, &mut out);
+    }
+    Some(CstElem::FixedToken(KwStatic, span)) => {
+      parse_ast_static(p, cst, &mut out);
     }
     other => {
       p.error_at(
@@ -146,18 +153,329 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
   }
 }
 
+fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
+  debug_assert_eq!(
+    cst.elements.first().unwrap().fixed_token().unwrap().0,
+    KwConst
+  );
+  //
+  let mut it = cst.elements.iter().peekable();
+  let mut type_decl = TypeExpr::default();
+  let mut value_decl = ValueExpr::default();
+
+  // keyword, already checked by caller and also debug asserted for.
+  let _ = it.next();
+
+  match it.next() {
+    Some(CstElem::Identifier(name, opt_span)) => {
+      out.name = name.clone();
+      out.name_span = opt_span.unwrap_or_default();
+    }
+    other => {
+      p.error_at(
+        cst.try_span().unwrap_or_default(),
+        format!("Expected Identfier: {other:?}"),
+      );
+    }
+  };
+  match it.next() {
+    Some(CstElem::FixedToken(Colon, _)) => {}
+    other => {
+      p.error_at(out.span, format!("Expected `:`: {other:?}"));
+    }
+  }
+  match it.next() {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::TypeExpr => {
+      type_decl = parse_type_expr(p, cst);
+    }
+    other => {
+      p.error_at(
+        cst.try_span().unwrap_or_default(),
+        format!("Expected Type Expr: {other:?}"),
+      );
+    }
+  }
+  match it.next() {
+    Some(CstElem::FixedToken(Equal, _)) => {}
+    other => {
+      p.error_at(out.span, format!("Expected `=`: {other:?}"));
+    }
+  }
+  match it.next() {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+      value_decl = parse_value_expr(p, cst);
+    }
+    other => {
+      p.error_at(
+        cst.try_span().unwrap_or_default(),
+        format!("Expected Value Expr: {other:?}"),
+      );
+    }
+  }
+  match it.next() {
+    Some(CstElem::FixedToken(Semicolon, _)) => {}
+    other => {
+      p.error_at(out.span, format!("Expected `;`: {other:?}"));
+    }
+  }
+
+  out.kind = ItemKind::Constant { type_decl, value_decl };
+
+  for elem in it {
+    println!("== {elem:?}");
+  }
+}
+
+fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
+  debug_assert_eq!(
+    cst.elements.first().unwrap().fixed_token().unwrap().0,
+    KwStatic
+  );
+  //
+  let mut it = cst.elements.iter().peekable();
+  let mut kind = StaticKind::default();
+
+  // keyword, already checked by caller and also debug asserted for.
+  let _ = it.next();
+
+  match it.next() {
+    Some(CstElem::FixedToken(KwMmio, _)) => {
+      let mut location = ValueExpr::default();
+      let mut type_decl = TypeExpr::default();
+      match it.next() {
+        Some(CstElem::FixedToken(OpParen, _)) => {}
+        other => {
+          p.error_at(out.span, format!("Expected `(`: {other:?}"));
+        }
+      }
+      match it.next() {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+          location = parse_value_expr(p, cst);
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Value Expr: {other:?}"),
+          );
+        }
+      }
+      match it.next() {
+        Some(CstElem::FixedToken(ClParen, _)) => {}
+        other => {
+          p.error_at(out.span, format!("Expected `(`: {other:?}"));
+        }
+      }
+      match it.next() {
+        Some(CstElem::Identifier(name, opt_span)) => {
+          out.name = name.clone();
+          out.name_span = opt_span.unwrap_or_default();
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Identfier: {other:?}"),
+          );
+        }
+      };
+      match it.next() {
+        Some(CstElem::FixedToken(Colon, _)) => {}
+        other => {
+          p.error_at(out.span, format!("Expected `:`: {other:?}"));
+        }
+      }
+      match it.next() {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::TypeExpr => {
+          type_decl = parse_type_expr(p, cst);
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Type Expr: {other:?}"),
+          );
+        }
+      }
+      out.kind =
+        ItemKind::Static { kind: StaticKind::Mmio { location, type_decl } };
+    }
+    Some(CstElem::FixedToken(KwRam, _)) => {
+      let mut type_decl = TypeExpr::default();
+      let mut init = ValueExpr::default();
+      match it.next() {
+        Some(CstElem::Identifier(name, opt_span)) => {
+          out.name = name.clone();
+          out.name_span = opt_span.unwrap_or_default();
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Identfier: {other:?}"),
+          );
+        }
+      };
+      match it.next() {
+        Some(CstElem::FixedToken(Colon, _)) => {}
+        other => {
+          p.error_at(out.span, format!("Expected `:`: {other:?}"));
+        }
+      }
+      match it.next() {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::TypeExpr => {
+          type_decl = parse_type_expr(p, cst);
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Type Expr: {other:?}"),
+          );
+        }
+      }
+      match it.next() {
+        Some(CstElem::FixedToken(Equal, _)) => {}
+        other => {
+          p.error_at(out.span, format!("Expected `=`: {other:?}"));
+        }
+      }
+      match it.next() {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+          init = parse_value_expr(p, cst);
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Value Expr: {other:?}"),
+          );
+        }
+      }
+      out.kind = ItemKind::Static { kind: StaticKind::Ram { type_decl, init } };
+    }
+    Some(CstElem::FixedToken(KwRom, _)) => {
+      let mut type_decl = TypeExpr::default();
+      let mut data = ValueExpr::default();
+      match it.next() {
+        Some(CstElem::Identifier(name, opt_span)) => {
+          out.name = name.clone();
+          out.name_span = opt_span.unwrap_or_default();
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Identfier: {other:?}"),
+          );
+        }
+      };
+      match it.next() {
+        Some(CstElem::FixedToken(Colon, _)) => {}
+        other => {
+          p.error_at(out.span, format!("Expected `:`: {other:?}"));
+        }
+      }
+      match it.next() {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::TypeExpr => {
+          type_decl = parse_type_expr(p, cst);
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Type Expr: {other:?}"),
+          );
+        }
+      }
+      match it.next() {
+        Some(CstElem::FixedToken(Equal, _)) => {}
+        other => {
+          p.error_at(out.span, format!("Expected `=`: {other:?}"));
+        }
+      }
+      match it.next() {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+          data = parse_value_expr(p, cst);
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Value Expr: {other:?}"),
+          );
+        }
+      }
+      out.kind = ItemKind::Static { kind: StaticKind::Rom { type_decl, data } };
+    }
+    other => {
+      todo!("{other:?}");
+    }
+  }
+  match it.next() {
+    Some(CstElem::FixedToken(Semicolon, _)) => {}
+    other => {
+      p.error_at(out.span, format!("Expected `=`: {other:?}"));
+    }
+  }
+
+  for i in it {
+    dbg!(&i);
+  }
+}
+
 fn parse_type_expr(p: &mut AstParser, cst: &Cst) -> TypeExpr {
+  let mut it = cst.elements.iter();
   let mut out = TypeExpr::default();
   out.span = cst.try_span().unwrap_or_default();
-  match cst.elements.as_slice() {
-    [CstElem::Identifier(name, opt_span)] => {
+
+  match it.next() {
+    Some(CstElem::Identifier(name, opt_span)) => {
       out.span = opt_span.unwrap_or_default();
       out.kind = Box::new(TypeExprKind::Simple(name.clone()));
     }
-    other => {
-      p.error_at(out.span, format!("Expected identifier: {other:?}"));
+    Some(CstElem::FixedToken(OpBracket, _)) => {
+      let mut elem_ty = TypeExpr::default();
+      let mut elem_count = ValueExpr::default();
+      match it.next() {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::TypeExpr => {
+          elem_ty = parse_type_expr(p, cst);
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Type Expr: {other:?}"),
+          );
+        }
+      }
+      match it.next() {
+        Some(CstElem::FixedToken(Semicolon, _)) => {}
+        other => {
+          p.error_at(out.span, format!("Expected `;`: {other:?}"));
+        }
+      }
+      match it.next() {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+          elem_count = parse_value_expr(p, cst);
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Expected Value Expr: {other:?}"),
+          );
+        }
+      }
+      match it.next() {
+        Some(CstElem::FixedToken(ClBracket, _)) => {}
+        other => {
+          p.error_at(out.span, format!("Expected `]`: {other:?}"));
+        }
+      }
+      out.kind = Box::new(TypeExprKind::Array { elem_ty, elem_count });
     }
-  };
+    other => {
+      p.error_at(
+        cst.try_span().unwrap_or_default(),
+        format!("Expected Identifier or `[`: {other:?}"),
+      );
+    }
+  }
+
+  for i in it {
+    dbg!(&i);
+  }
+
   out
 }
 
