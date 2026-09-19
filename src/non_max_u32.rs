@@ -25,3 +25,4 @@ impl Default for NonMaxU32 {
     Self::try_new(0).unwrap()
   }
 }
+// todo: debug and display show the wrong value.

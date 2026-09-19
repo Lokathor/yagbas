@@ -14,10 +14,10 @@ use crate::{
     Cst, CstElem,
     CstKind::{self},
   },
-  operators::{BinOpKind, PostfixOperator, UnOpKind},
+  operators::{BinOpKind, PostfixOperator, PrefixOperator, UnOpKind},
   tokenizer::TokenKind::{
-    self, ClBrace, ClParen, Colon, Equal, KwFn, KwFor, KwIn, KwLet,
-    MinusGreater, OpBrace, Semicolon,
+    self, ClBrace, ClBracket, ClParen, Colon, Equal, KwElse, KwFn, KwFor, KwIf,
+    KwIn, KwLet, KwLoop, MinusGreater, OpBrace, Semicolon,
   },
 };
 
@@ -69,7 +69,6 @@ fn parse_ast_item(p: &mut AstParser, file_origin: PathBuf, cst: &Cst) -> Item {
 }
 
 fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
-  dbg!("parsing function");
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
     KwFn
@@ -175,6 +174,8 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
       }),
     },
     Some(CstElem::FixedToken(KwFor, _)) => parse_value_expr_for(p, cst),
+    Some(CstElem::FixedToken(KwLoop, _)) => parse_value_expr_loop(p, cst),
+    Some(CstElem::FixedToken(KwIf, _)) => parse_value_expr_if(p, cst),
     Some(CstElem::Identifier(string, opt_span)) => ValueExpr {
       span: opt_span.unwrap_or_default(),
       kind: Box::new(ValueExprKind::Identifier(string.clone())),
@@ -187,55 +188,23 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
       span: opt_span.unwrap_or_default(),
       kind: Box::new(ValueExprKind::LiteralString(string.clone())),
     },
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-      let left = parse_value_expr(p, cst);
-      match it.next() {
-        Some(CstElem::SubTree(cst))
-          if matches!(cst.kind, CstKind::OperatorInfix(op)) =>
-        {
-          let op = match cst.kind {
-            CstKind::OperatorInfix(op) => BinOpKind::from(op),
-            _ => unimplemented!(),
-          };
-          match it.next() {
-            Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-              let right = parse_value_expr(p, cst);
-              ValueExpr {
-                span,
-                kind: Box::new(ValueExprKind::BinOp { left, op, right }),
-              }
-            }
-            other => {
-              p.error_at(
-                cst.try_span().unwrap_or_default(),
-                format!("Expected Right Hand Side Expression: {other:?}"),
-              );
-              let mut out = ValueExpr::default();
-              out.span = cst.try_span().unwrap_or_default();
-              out
-            }
-          }
-        }
-        Some(CstElem::SubTree(cst))
-          if matches!(cst.kind, CstKind::OperatorPostfix(op)) =>
-        {
-          match cst.kind {
-            CstKind::OperatorPostfix(
-              PostfixOperator::PostfixRangeExclusive,
-            ) => match it.next() {
+    Some(CstElem::SubTree(cst)) => match cst.kind {
+      CstKind::ValExpr => {
+        let left = parse_value_expr(p, cst);
+        match it.next() {
+          Some(CstElem::SubTree(cst))
+            if matches!(cst.kind, CstKind::OperatorInfix(op)) =>
+          {
+            let op = match cst.kind {
+              CstKind::OperatorInfix(op) => BinOpKind::from(op),
+              _ => unimplemented!(),
+            };
+            match it.next() {
               Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
-                let op = BinOpKind::RangeExclusive;
                 let right = parse_value_expr(p, cst);
                 ValueExpr {
                   span,
                   kind: Box::new(ValueExprKind::BinOp { left, op, right }),
-                }
-              }
-              None => {
-                let op = UnOpKind::PostfixRangeExclusive;
-                ValueExpr {
-                  span,
-                  kind: Box::new(ValueExprKind::UnOp { op, operand: left }),
                 }
               }
               other => {
@@ -247,8 +216,80 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
                 out.span = cst.try_span().unwrap_or_default();
                 out
               }
-            },
-            _ => unimplemented!(),
+            }
+          }
+          Some(CstElem::SubTree(cst))
+            if matches!(cst.kind, CstKind::OperatorPostfix(op)) =>
+          {
+            match cst.kind {
+              CstKind::OperatorPostfix(
+                PostfixOperator::PostfixRangeExclusive,
+              ) => match it.next() {
+                Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+                  let op = BinOpKind::RangeExclusive;
+                  let right = parse_value_expr(p, cst);
+                  ValueExpr {
+                    span,
+                    kind: Box::new(ValueExprKind::BinOp { left, op, right }),
+                  }
+                }
+                None => {
+                  let op = UnOpKind::PostfixRangeExclusive;
+                  ValueExpr {
+                    span,
+                    kind: Box::new(ValueExprKind::UnOp { op, operand: left }),
+                  }
+                }
+                other => {
+                  p.error_at(
+                    cst.try_span().unwrap_or_default(),
+                    format!("Expected Right Hand Side Expression: {other:?}"),
+                  );
+                  let mut out = ValueExpr::default();
+                  out.span = cst.try_span().unwrap_or_default();
+                  out
+                }
+              },
+              CstKind::OperatorPostfix(PostfixOperator::ArrayIndex) => match it
+                .next()
+              {
+                Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+                  let op = BinOpKind::ArrayIndex;
+                  let right = parse_value_expr(p, cst);
+                  match it.next() {
+                    Some(CstElem::FixedToken(ClBracket, _)) => {}
+                    other => {
+                      p.error_at(
+                        right.span,
+                        format!("Expected Closing Bracket: {other:?}"),
+                      );
+                    }
+                  }
+                  ValueExpr {
+                    span,
+                    kind: Box::new(ValueExprKind::BinOp { left, op, right }),
+                  }
+                }
+                other => {
+                  todo!("{other:?}")
+                }
+              },
+              other => todo!("{other:?}"),
+            }
+          }
+          other => {
+            todo!("Found LHS {left:?} then unknown {other:?}");
+          }
+        }
+      }
+      CstKind::OperatorPrefix(PrefixOperator::Dereference) => match it.next() {
+        Some(CstElem::SubTree(cst)) if matches!(cst.kind, CstKind::ValExpr) => {
+          ValueExpr {
+            span,
+            kind: Box::new(ValueExprKind::UnOp {
+              op: UnOpKind::Dereference,
+              operand: parse_value_expr(p, cst),
+            }),
           }
         }
         other => {
@@ -260,8 +301,47 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
           out.span = cst.try_span().unwrap_or_default();
           out
         }
+      },
+      CstKind::OperatorPrefix(PrefixOperator::Reference) => match it.next() {
+        Some(CstElem::SubTree(cst)) if matches!(cst.kind, CstKind::ValExpr) => {
+          ValueExpr {
+            span,
+            kind: Box::new(ValueExprKind::UnOp {
+              op: UnOpKind::Reference,
+              operand: parse_value_expr(p, cst),
+            }),
+          }
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Unknown after LHS Expression: {other:?}"),
+          );
+          let mut out = ValueExpr::default();
+          out.span = cst.try_span().unwrap_or_default();
+          out
+        }
+      },
+      CstKind::OperatorPrefix(PrefixOperator::Break) => match it.next() {
+        None => ValueExpr {
+          span,
+          kind: Box::new(ValueExprKind::Break { label: None, value: None }),
+        },
+        Some(elem) => todo!("{elem:?}"),
+      },
+      CstKind::OperatorPrefix(op) => {
+        todo!("Unhandled PrefixOp {op:?}")
       }
-    }
+      other => {
+        p.error_at(
+          span,
+          format!("Unknown SubTree Expression Start Kind: {other:?}"),
+        );
+        let mut out = ValueExpr::default();
+        out.span = cst.try_span().unwrap_or_default();
+        out
+      }
+    },
     other => {
       p.error_at(span, format!("Unknown Expression Start: {other:?}"));
       let mut out = ValueExpr::default();
@@ -325,6 +405,92 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 
   out.kind =
     Box::new(ValueExprKind::For { label, step_var, range, statements });
+  out
+}
+
+fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
+  debug_assert_eq!(cst.kind, CstKind::ValExpr);
+  debug_assert_eq!(
+    cst.elements.first().unwrap().fixed_token().unwrap().0,
+    KwLoop
+  );
+  //
+  let mut it = cst.elements.iter();
+  let mut label = None;
+  let mut step_var = Pattern::default();
+  let mut range = ValueExpr::default();
+  let mut statements = Vec::new();
+  let mut out = ValueExpr::default();
+  out.span = cst.try_span().unwrap_or_default();
+
+  // KwLoop, already checked by caller and also debug asserted for.
+  let _ = it.next();
+  match it.next() {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+      statements = parse_value_expr_body(p, cst);
+    }
+    other => {
+      p.error_at(out.span, format!("Expected body: {other:?}"));
+    }
+  }
+
+  for i in it {
+    dbg!(&i);
+  }
+
+  out.kind = Box::new(ValueExprKind::Loop { label, statements });
+  out
+}
+
+fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
+  debug_assert_eq!(cst.kind, CstKind::ValExpr);
+  debug_assert_eq!(
+    cst.elements.first().unwrap().fixed_token().unwrap().0,
+    KwIf
+  );
+  //
+  let mut it = cst.elements.iter().peekable();
+  let mut condition = ValueExpr::default();
+  let mut when_true = Vec::new();
+  let mut when_false = Vec::new();
+  let mut out = ValueExpr::default();
+  out.span = cst.try_span().unwrap_or_default();
+
+  // KwIf, already checked by caller and also debug asserted for.
+  let _ = it.next();
+  match it.next() {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+      condition = parse_value_expr(p, cst);
+    }
+    other => {
+      p.error_at(out.span, format!("Expected conditio : {other:?}"));
+    }
+  }
+  match it.next() {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+      when_true = parse_value_expr_body(p, cst);
+    }
+    other => {
+      p.error_at(out.span, format!("Expected body: {other:?}"));
+    }
+  }
+  if matches!(it.peek(), Some(CstElem::FixedToken(KwElse, _))) {
+    let _ = it.next();
+    match it.next() {
+      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValExpr => {
+        when_false = parse_value_expr_body(p, cst);
+      }
+      other => {
+        p.error_at(out.span, format!("Expected body: {other:?}"));
+      }
+    }
+  }
+
+  for i in it {
+    dbg!(&i);
+  }
+
+  out.kind = Box::new(ValueExprKind::If { condition, when_true, when_false });
   out
 }
 

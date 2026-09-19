@@ -205,6 +205,10 @@ pub enum ValueExprKind {
     op: UnOpKind,
     operand: ValueExpr,
   },
+  /// `..` with no left or right sub-expression
+  FullRangeExclusive,
+  /// `..=` with no left or right sub-expression
+  FullRangeInclusive,
   Break {
     label: Option<String>,
     value: Option<ValueExpr>,

@@ -66,3 +66,4 @@ impl core::fmt::Debug for Span {
     core::fmt::Debug::fmt(&self.as_range(), f)
   }
 }
+// todo: make this a non-max u64 for quick hashing?

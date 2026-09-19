@@ -85,6 +85,7 @@ pub enum CstKind {
   // I think that it's better to have fewer kinds exist when possible. I'm not
   // totally sure why I think that.
   Module,
+  // todo: hold a keyword here so that we can quickly and easily identify item kind even if there are attributes or trivia before the keyword within the item tree.
   Item,
   ParensGroup,
   BracketGroup,
