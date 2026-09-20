@@ -122,7 +122,52 @@ macro_rules! basic_identifier {
   }};
 }
 
-// todo: parse_value_expr_body
+/// * `($p:expr, $it:expr, $eoi_span:expr)`
+macro_rules! basic_value_expr_body {
+  ($p:expr, $it:expr, $eoi_span:expr) => {{
+    match $it.next() {
+      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
+        Some(parse_value_expr_body($p, cst))
+      }
+      Some(other) => {
+        $p.error_at(
+          other.try_span().unwrap_or_default(),
+          format!("Expected Body Expression, got: {other:?}"),
+        );
+        None
+      }
+      None => {
+        $p.error_at(
+          $eoi_span,
+          format!("Expected Body Expression, got EndOfGrouping"),
+        );
+        None
+      }
+    }
+  }};
+}
+
+/// * `($p:expr, $it:expr, $eoi_span:expr)`
+macro_rules! basic_pattern {
+  ($p:expr, $it:expr, $eoi_span:expr) => {{
+    match $it.next() {
+      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Pattern => {
+        Some(parse_pattern($p, cst))
+      }
+      Some(other) => {
+        $p.error_at(
+          other.try_span().unwrap_or_default(),
+          format!("Expected Pattern, got: {other:?}"),
+        );
+        None
+      }
+      None => {
+        $p.error_at($eoi_span, format!("Expected Pattern, got EndOfGrouping"));
+        None
+      }
+    }
+  }};
+}
 
 pub fn parse_ast_module(
   p: &mut AstParser, file_origin: PathBuf, cst: &Cst,
@@ -186,7 +231,7 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
   let mut it = cst.elements.iter().peekable();
   let mut args = Default::default();
   let mut ret_ty = Default::default();
-  let mut statements = Default::default();
+  let mut statements;
 
   basic_fixed_token!(p, it, out.span, KwFn);
 
@@ -219,17 +264,7 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
     }
   }
 
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-      statements = parse_value_expr_body(p, cst);
-    }
-    other => {
-      p.error_at(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected function body: {other:?}"),
-      );
-    }
-  };
+  statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
   out.kind = ItemKind::Function { args, ret_ty, statements };
 
@@ -620,22 +655,15 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   //
   let mut it = cst.elements.iter();
   let mut label = None;
-  let mut step_var = Pattern::default();
+  let mut step_var;
   let mut range = ValueExpr::default();
-  let mut statements = Vec::new();
+  let mut statements;
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, KwFor);
 
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Pattern => {
-      step_var = parse_pattern(p, cst);
-    }
-    other => {
-      p.error_at(out.span, format!("Expected Pattern: {other:?}"));
-    }
-  }
+  step_var = basic_pattern!(p, it, out.span).unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, KwIn);
 
@@ -643,14 +671,7 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     range = x;
   }
 
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-      statements = parse_value_expr_body(p, cst);
-    }
-    other => {
-      p.error_at(out.span, format!("Expected body: {other:?}"));
-    }
-  }
+  statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
   for i in it {
     dbg!(&i);
@@ -672,20 +693,13 @@ fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   let mut label = None;
   let mut step_var = Pattern::default();
   let mut range = ValueExpr::default();
-  let mut statements = Vec::new();
+  let mut statements;
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, KwLoop);
 
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-      statements = parse_value_expr_body(p, cst);
-    }
-    other => {
-      p.error_at(out.span, format!("Expected body: {other:?}"));
-    }
-  }
+  statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
   for i in it {
     dbg!(&i);
@@ -704,7 +718,7 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   //
   let mut it = cst.elements.iter().peekable();
   let mut condition = ValueExpr::default();
-  let mut when_true = Vec::new();
+  let mut when_true;
   let mut when_false = Vec::new();
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
@@ -714,25 +728,13 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   if let Some(x) = basic_value_expr!(p, it, out.span) {
     condition = x;
   }
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-      when_true = parse_value_expr_body(p, cst);
-    }
-    other => {
-      p.error_at(out.span, format!("Expected body: {other:?}"));
-    }
-  }
+
+  when_true = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+
   if matches!(it.peek(), Some(CstElem::FixedToken(KwElse, _))) {
     basic_fixed_token!(p, it, out.span, KwElse);
 
-    match it.next() {
-      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-        when_false = parse_value_expr_body(p, cst);
-      }
-      other => {
-        p.error_at(out.span, format!("Expected body: {other:?}"));
-      }
-    }
+    when_false = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
   }
 
   for i in it {
@@ -816,20 +818,13 @@ fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
   out.span = cst.try_span().unwrap_or_default();
   let mut it = cst.elements.iter().peekable();
 
-  let mut pattern = Pattern::default();
+  let mut pattern;
   let mut type_decl = None;
   let mut initializer = None;
 
   basic_fixed_token!(p, it, out.span, KwLet);
 
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Pattern => {
-      pattern = parse_pattern(p, cst);
-    }
-    other => {
-      p.error_at(out.span, format!("Expected Pattern: {other:?}"));
-    }
-  }
+  pattern = basic_pattern!(p, it, out.span).unwrap_or_default();
 
   if matches!(it.peek(), Some(CstElem::FixedToken(Colon, _))) {
     basic_fixed_token!(p, it, out.span, Colon);
