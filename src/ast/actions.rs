@@ -238,12 +238,8 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
       );
     }
   }
-  match it.next() {
-    Some(CstElem::FixedToken(Semicolon, _)) => {}
-    other => {
-      p.error_at(out.span, format!("Expected `;`: {other:?}"));
-    }
-  }
+
+  basic_fixed_token!(p, it, out.span, Semicolon);
 
   out.kind = ItemKind::Constant { type_decl, value_decl };
 
