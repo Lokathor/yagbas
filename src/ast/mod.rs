@@ -1,11 +1,10 @@
 //! Module for the Abstract Syntax Tree types.
 
-use std::path::PathBuf;
-
 use crate::{
   Span,
   cst::Cst,
   operators::{BinOpKind, UnOpKind},
+  path_id::PathId,
 };
 
 pub mod actions;
@@ -19,20 +18,20 @@ pub struct Ast {
 
 #[derive(Debug, Clone, Default)]
 pub struct Module {
-  pub file_origin: PathBuf,
+  pub file_origin: PathId,
   pub items: Vec<Item>,
 }
 
 #[derive(Debug, Clone)]
 pub struct AstError {
-  pub file_origin: PathBuf,
+  pub file_origin: PathId,
   pub span: Span,
   pub message: String,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct Item {
-  pub file_origin: PathBuf,
+  pub file_origin: PathId,
   pub span: Span,
   pub name: String,
   pub name_span: Span,

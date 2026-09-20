@@ -1,8 +1,6 @@
 #![allow(clippy::ptr_arg)]
 #![allow(unused_variables)]
 
-use std::path::PathBuf;
-
 use crate::{
   Span,
   ast::{
@@ -15,6 +13,7 @@ use crate::{
     CstKind::{self},
   },
   operators::{BinOpKind, PostOp, PrefOp, UnOpKind},
+  path_id::PathId,
   tokenizer::TokenKind::{
     self, ClBrace, ClBracket, ClParen, Colon, Equal, KwConst, KwElse, KwFn,
     KwFor, KwIf, KwIn, KwLet, KwLoop, KwMmio, KwRam, KwRom, KwStatic,
@@ -170,16 +169,16 @@ macro_rules! basic_pattern {
 }
 
 pub fn parse_ast_module(
-  p: &mut AstParser, file_origin: PathBuf, cst: &Cst,
+  p: &mut AstParser, file_origin: PathId, cst: &Cst,
 ) -> Module {
   debug_assert_eq!(cst.kind, CstKind::Module);
   //
   let mut out = Module::default();
-  out.file_origin = file_origin.clone();
+  out.file_origin = file_origin;
   for elem in &cst.elements {
     match elem {
       CstElem::SubTree(cst) if cst.kind == CstKind::Item => {
-        let item = parse_ast_item(p, file_origin.clone(), cst);
+        let item = parse_ast_item(p, file_origin, cst);
         out.items.push(item);
       }
       other => {
@@ -195,11 +194,11 @@ pub fn parse_ast_module(
   out
 }
 
-fn parse_ast_item(p: &mut AstParser, file_origin: PathBuf, cst: &Cst) -> Item {
+fn parse_ast_item(p: &mut AstParser, file_origin: PathId, cst: &Cst) -> Item {
   debug_assert_eq!(cst.kind, CstKind::Item);
   //
   let mut out = Item::default();
-  out.file_origin = file_origin.clone();
+  out.file_origin = file_origin;
   out.span = cst.try_span().unwrap_or_default();
   match cst.elements.first() {
     Some(CstElem::FixedToken(KwFn, span)) => {

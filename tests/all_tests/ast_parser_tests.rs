@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use yagbas::{
   ast::{Ast, actions::parse_ast_module, parser::AstParser},
@@ -6,16 +6,16 @@ use yagbas::{
     actions::gather_module,
     parser::{BuildTreeArgs, CstParser},
   },
+  path_id::PathId,
 };
 
 #[track_caller]
 fn ast_no_errors(src: &str) -> Ast {
-  let file_origin = PathBuf::from("InMemoryData");
+  let file_origin = PathId::from(Path::new("InMemoryData"));
   let mut p = CstParser::new(src);
   gather_module(&mut p);
   let cst = p.build_tree(BuildTreeArgs { skip_trivial: true });
-  let mut ast_parser =
-    AstParser { file_origin: file_origin.clone(), errors: Vec::new() };
+  let mut ast_parser = AstParser { file_origin, errors: Vec::new() };
   let module = parse_ast_module(&mut ast_parser, file_origin, &cst);
   let mut ast = Ast::default();
   ast.modules.push(module);

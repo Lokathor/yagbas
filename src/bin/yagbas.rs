@@ -1,10 +1,11 @@
-use std::{ffi::OsString, path::PathBuf};
+use std::{ffi::OsString, path::Path};
 use yagbas::{
   ast::{Ast, actions::parse_ast_module, parser::AstParser},
   cst::{
     actions::gather_module,
     parser::{BuildTreeArgs, CstParser},
   },
+  path_id::PathId,
 };
 
 fn main() {
@@ -90,14 +91,14 @@ fn do_ast(mut arguments: Vec<OsString>) {
   }
   let mut ast = Ast::default();
   for target_file in target_files {
-    let file_origin = PathBuf::from(target_file);
-    match std::fs::read_to_string(&file_origin) {
+    let path = Path::new(&target_file);
+    let file_origin = PathId::from(path);
+    match std::fs::read_to_string(path) {
       Ok(src) => {
         let mut p = CstParser::new(&src);
         gather_module(&mut p);
         let cst = p.build_tree(BuildTreeArgs { skip_trivial: true });
-        let mut ast_parser =
-          AstParser { file_origin: file_origin.clone(), errors: Vec::new() };
+        let mut ast_parser = AstParser { file_origin, errors: Vec::new() };
         let module = parse_ast_module(&mut ast_parser, file_origin, &cst);
         ast.modules.push(module);
         ast.errors.extend(ast_parser.errors);

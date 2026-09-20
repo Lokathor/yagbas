@@ -20,7 +20,7 @@ use crate::non_max_u32::NonMaxU32;
 
 pub mod kvec;
 pub mod non_max_u32;
-pub mod os_str_id;
+pub mod path_id;
 
 #[forbid(unsafe_code)]
 pub mod operators;
