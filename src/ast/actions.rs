@@ -72,6 +72,31 @@ macro_rules! basic_type_expr {
   }};
 }
 
+/// * `($p:expr, $it:expr, $eoi_span:expr)`
+macro_rules! basic_value_expr {
+  ($p:expr, $it:expr, $eoi_span:expr) => {{
+    match $it.next() {
+      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
+        Some(parse_value_expr($p, cst))
+      }
+      Some(other) => {
+        $p.error_at(
+          other.try_span().unwrap_or_default(),
+          format!("Expected Value Expression, got: {other:?}"),
+        );
+        None
+      }
+      None => {
+        $p.error_at(
+          $eoi_span,
+          format!("Expected Value Expression, got EndOfGrouping"),
+        );
+        None
+      }
+    }
+  }};
+}
+
 pub fn parse_ast_module(
   p: &mut AstParser, file_origin: PathBuf, cst: &Cst,
 ) -> Module {
@@ -227,16 +252,8 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   basic_fixed_token!(p, it, out.span, Equal);
 
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-      value_decl = parse_value_expr(p, cst);
-    }
-    other => {
-      p.error_at(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected Value Expr: {other:?}"),
-      );
-    }
+  if let Some(x) = basic_value_expr!(p, it, out.span) {
+    value_decl = x;
   }
 
   basic_fixed_token!(p, it, out.span, Semicolon);
@@ -266,16 +283,8 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, OpParen);
 
-      match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-          location = parse_value_expr(p, cst);
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Value Expr: {other:?}"),
-          );
-        }
+      if let Some(x) = basic_value_expr!(p, it, out.span) {
+        location = x;
       }
 
       basic_fixed_token!(p, it, out.span, ClParen);
@@ -326,17 +335,10 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Equal);
 
-      match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-          init = parse_value_expr(p, cst);
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Value Expr: {other:?}"),
-          );
-        }
+      if let Some(x) = basic_value_expr!(p, it, out.span) {
+        init = x;
       }
+
       out.kind = ItemKind::Static { kind: StaticKind::Ram { type_decl, init } };
     }
     Some(CstElem::FixedToken(KwRom, _)) => {
@@ -363,17 +365,10 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Equal);
 
-      match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-          data = parse_value_expr(p, cst);
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Value Expr: {other:?}"),
-          );
-        }
+      if let Some(x) = basic_value_expr!(p, it, out.span) {
+        data = x;
       }
+
       out.kind = ItemKind::Static { kind: StaticKind::Rom { type_decl, data } };
     }
     other => {
@@ -401,30 +396,15 @@ fn parse_type_expr(p: &mut AstParser, cst: &Cst) -> TypeExpr {
     Some(CstElem::FixedToken(OpBracket, _)) => {
       let mut elem_ty = TypeExpr::default();
       let mut elem_count = ValueExpr::default();
-      match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::TypeExpr => {
-          elem_ty = parse_type_expr(p, cst);
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Type Expr: {other:?}"),
-          );
-        }
+
+      if let Some(x) = basic_type_expr!(p, it, out.span) {
+        elem_ty = x;
       }
 
       basic_fixed_token!(p, it, out.span, Semicolon);
 
-      match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-          elem_count = parse_value_expr(p, cst);
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Value Expr: {other:?}"),
-          );
-        }
+      if let Some(x) = basic_value_expr!(p, it, out.span) {
+        elem_count = x;
       }
 
       basic_fixed_token!(p, it, out.span, ClBracket);
@@ -670,14 +650,10 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 
   basic_fixed_token!(p, it, out.span, KwIn);
 
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-      range = parse_value_expr(p, cst);
-    }
-    other => {
-      p.error_at(out.span, format!("Expected range expression: {other:?}"));
-    }
+  if let Some(x) = basic_value_expr!(p, it, out.span) {
+    range = x;
   }
+
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
       statements = parse_value_expr_body(p, cst);
@@ -746,13 +722,8 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 
   basic_fixed_token!(p, it, out.span, KwIf);
 
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-      condition = parse_value_expr(p, cst);
-    }
-    other => {
-      p.error_at(out.span, format!("Expected condition : {other:?}"));
-    }
+  if let Some(x) = basic_value_expr!(p, it, out.span) {
+    condition = x;
   }
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
@@ -878,15 +849,7 @@ fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
 
   if matches!(it.peek(), Some(CstElem::FixedToken(Equal, _))) {
     basic_fixed_token!(p, it, out.span, Equal);
-
-    match it.next() {
-      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
-        initializer = Some(parse_value_expr(p, cst));
-      }
-      other => {
-        p.error_at(out.span, format!("Expected Value Expr: {other:?}"));
-      }
-    }
+    initializer = basic_value_expr!(p, it, out.span);
   }
 
   basic_fixed_token!(p, it, out.span, Semicolon);
