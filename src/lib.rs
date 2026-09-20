@@ -20,6 +20,7 @@ use crate::non_max_u32::NonMaxU32;
 
 pub mod kvec;
 pub mod non_max_u32;
+pub mod os_str_id;
 
 #[forbid(unsafe_code)]
 pub mod operators;
@@ -32,13 +33,8 @@ pub mod cst;
 #[forbid(unsafe_code)]
 pub mod ast;
 
-/*
 #[forbid(unsafe_code)]
-pub mod ir_nameres;
-
-#[forbid(unsafe_code)]
-pub mod ir_typecheck;
-*/
+pub mod ir_nameres_typecheck;
 
 /// A span within a source file.
 ///

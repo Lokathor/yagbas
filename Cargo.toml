@@ -14,6 +14,8 @@ lto = true
 [features]
 
 [dependencies]
+bimap = "0.6.3"
+fnv = "1.0.7"
 slotmap = "1.1.1"
 #str_id = "1.1.0"
 tinyvec = { version = "1.13.0", features = ["experimental_write_impl", "latest_stable_rust"] }
