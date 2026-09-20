@@ -47,6 +47,31 @@ macro_rules! basic_fixed_token {
   }};
 }
 
+/// * `($p:expr, $it:expr, $eoi_span:expr)`
+macro_rules! basic_type_expr {
+  ($p:expr, $it:expr, $eoi_span:expr) => {{
+    match $it.next() {
+      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprType => {
+        Some(parse_type_expr($p, cst))
+      }
+      Some(other) => {
+        $p.error_at(
+          other.try_span().unwrap_or_default(),
+          format!("Expected Type Expression, got: {other:?}"),
+        );
+        None
+      }
+      None => {
+        $p.error_at(
+          $eoi_span,
+          format!("Expected Type Expression, got EndOfGrouping"),
+        );
+        None
+      }
+    }
+  }};
+}
+
 pub fn parse_ast_module(
   p: &mut AstParser, file_origin: PathBuf, cst: &Cst,
 ) -> Module {
@@ -139,17 +164,9 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
   };
 
   if matches!(it.peek(), Some(&CstElem::FixedToken(MinusGreater, _))) {
-    let _ = it.next();
-    match it.next() {
-      Some(CstElem::SubTree(ty_expr)) if ty_expr.kind == CstKind::ExprType => {
-        ret_ty = parse_type_expr(p, ty_expr);
-      }
-      other => {
-        p.error_at(
-          cst.try_span().unwrap_or_default(),
-          format!("Expected Type Expr: {other:?}"),
-        );
-      }
+    basic_fixed_token!(p, it, out.span, MinusGreater);
+    if let Some(x) = basic_type_expr!(p, it, out.span) {
+      ret_ty = x;
     }
   } else {
     ret_ty = TypeExpr {
@@ -204,16 +221,8 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   basic_fixed_token!(p, it, out.span, Colon);
 
-  match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprType => {
-      type_decl = parse_type_expr(p, cst);
-    }
-    other => {
-      p.error_at(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected Type Expr: {other:?}"),
-      );
-    }
+  if let Some(x) = basic_type_expr!(p, it, out.span) {
+    type_decl = x;
   }
 
   basic_fixed_token!(p, it, out.span, Equal);
@@ -290,17 +299,10 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Colon);
 
-      match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprType => {
-          type_decl = parse_type_expr(p, cst);
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Type Expr: {other:?}"),
-          );
-        }
+      if let Some(x) = basic_type_expr!(p, it, out.span) {
+        type_decl = x;
       }
+
       out.kind =
         ItemKind::Static { kind: StaticKind::Mmio { location, type_decl } };
     }
@@ -322,16 +324,8 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Colon);
 
-      match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprType => {
-          type_decl = parse_type_expr(p, cst);
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Type Expr: {other:?}"),
-          );
-        }
+      if let Some(x) = basic_type_expr!(p, it, out.span) {
+        type_decl = x;
       }
 
       basic_fixed_token!(p, it, out.span, Equal);
@@ -367,16 +361,8 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Colon);
 
-      match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprType => {
-          type_decl = parse_type_expr(p, cst);
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Type Expr: {other:?}"),
-          );
-        }
+      if let Some(x) = basic_type_expr!(p, it, out.span) {
+        type_decl = x;
       }
 
       basic_fixed_token!(p, it, out.span, Equal);
@@ -891,15 +877,7 @@ fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
 
   if matches!(it.peek(), Some(CstElem::FixedToken(Colon, _))) {
     basic_fixed_token!(p, it, out.span, Colon);
-
-    match it.next() {
-      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprType => {
-        type_decl = Some(parse_type_expr(p, cst));
-      }
-      other => {
-        p.error_at(out.span, format!("Expected Type Expr: {other:?}"));
-      }
-    }
+    type_decl = basic_type_expr!(p, it, out.span)
   }
 
   if matches!(it.peek(), Some(CstElem::FixedToken(Equal, _))) {
@@ -944,27 +922,11 @@ fn parse_ast_function_args(p: &mut AstParser, cst: &Cst) -> Vec<FunctionArg> {
       Some(CstElem::SubTree(pat_tree)) if pat_tree.kind == CstKind::Pattern => {
         let mut pattern = parse_pattern(p, pat_tree);
         let mut type_decl = TypeExpr::default();
-        match it.next() {
-          Some(CstElem::FixedToken(Colon, _span)) => {}
-          other => {
-            p.error_at(
-              cst.try_span().unwrap_or_default(),
-              format!("Expected Colon: {other:?}"),
-            );
-          }
-        }
-        match it.next() {
-          Some(CstElem::SubTree(ty_tree))
-            if ty_tree.kind == CstKind::ExprType =>
-          {
-            type_decl = parse_type_expr(p, ty_tree);
-          }
-          other => {
-            p.error_at(
-              cst.try_span().unwrap_or_default(),
-              format!("Expected Type Expr: {other:?}"),
-            );
-          }
+        basic_fixed_token!(p, it, cst.try_span().unwrap_or_default(), Colon);
+        if let Some(x) =
+          basic_type_expr!(p, it, cst.try_span().unwrap_or_default())
+        {
+          type_decl = x;
         }
         out.push(FunctionArg { pattern, type_decl });
       }
