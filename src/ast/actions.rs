@@ -73,31 +73,6 @@ macro_rules! basic_type_expr {
 }
 
 /// * `($p:expr, $it:expr, $eoi_span:expr)`
-macro_rules! basic_identifier {
-  ($p:expr, $it:expr, $eoi_span:expr) => {{
-    match $it.next() {
-      Some(CstElem::Identifier(name, opt_span)) => {
-        Some((name, opt_span.unwrap_or_default()))
-      }
-      Some(other) => {
-        $p.error_at(
-          other.try_span().unwrap_or_default(),
-          format!("Expected Identifier, got: {other:?}"),
-        );
-        None
-      }
-      None => {
-        $p.error_at(
-          $eoi_span,
-          format!("Expected Identifier, got EndOfGrouping"),
-        );
-        None
-      }
-    }
-  }};
-}
-
-/// * `($p:expr, $it:expr, $eoi_span:expr)`
 macro_rules! basic_value_expr {
   ($p:expr, $it:expr, $eoi_span:expr) => {{
     match $it.next() {
@@ -115,6 +90,31 @@ macro_rules! basic_value_expr {
         $p.error_at(
           $eoi_span,
           format!("Expected Value Expression, got EndOfGrouping"),
+        );
+        None
+      }
+    }
+  }};
+}
+
+/// * `($p:expr, $it:expr, $eoi_span:expr)`
+macro_rules! basic_identifier {
+  ($p:expr, $it:expr, $eoi_span:expr) => {{
+    match $it.next() {
+      Some(CstElem::Identifier(name, opt_span)) => {
+        Some((name, opt_span.unwrap_or_default()))
+      }
+      Some(other) => {
+        $p.error_at(
+          other.try_span().unwrap_or_default(),
+          format!("Expected Identifier, got: {other:?}"),
+        );
+        None
+      }
+      None => {
+        $p.error_at(
+          $eoi_span,
+          format!("Expected Identifier, got EndOfGrouping"),
         );
         None
       }
