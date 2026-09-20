@@ -11,7 +11,9 @@ use yagbas::{
 
 #[track_caller]
 fn ast_no_errors(src: &str) -> Ast {
-  let file_origin = PathId::from(Path::new("InMemoryData"));
+  let caller = core::panic::Location::caller();
+  let fake_path = format!("{}:{}", caller.file(), caller.line());
+  let file_origin = PathId::from(Path::new(&fake_path));
   let mut p = CstParser::new(src);
   gather_module(&mut p);
   let cst = p.build_tree(BuildTreeArgs { skip_trivial: true });
@@ -20,7 +22,13 @@ fn ast_no_errors(src: &str) -> Ast {
   let mut ast = Ast::default();
   ast.modules.push(module);
   ast.errors.extend(ast_parser.errors);
-  assert!(ast.errors.is_empty(), "{:?}", ast.errors);
+  for error in &ast.errors {
+    eprintln!(
+      "[ERROR] {}> ({:?}) {}",
+      error.file_origin, error.span, error.message
+    );
+  }
+  assert!(ast.errors.is_empty());
   ast
 }
 
