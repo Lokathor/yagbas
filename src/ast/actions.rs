@@ -72,9 +72,30 @@ macro_rules! basic_type_expr {
   }};
 }
 
-// todo: identifiers
-
-// todo: parse_value_expr_body
+/// * `($p:expr, $it:expr, $eoi_span:expr)`
+macro_rules! basic_identifier {
+  ($p:expr, $it:expr, $eoi_span:expr) => {{
+    match $it.next() {
+      Some(CstElem::Identifier(name, opt_span)) => {
+        Some((name, opt_span.unwrap_or_default()))
+      }
+      Some(other) => {
+        $p.error_at(
+          other.try_span().unwrap_or_default(),
+          format!("Expected Identifier, got: {other:?}"),
+        );
+        None
+      }
+      None => {
+        $p.error_at(
+          $eoi_span,
+          format!("Expected Identifier, got EndOfGrouping"),
+        );
+        None
+      }
+    }
+  }};
+}
 
 /// * `($p:expr, $it:expr, $eoi_span:expr)`
 macro_rules! basic_value_expr {
@@ -100,6 +121,8 @@ macro_rules! basic_value_expr {
     }
   }};
 }
+
+// todo: parse_value_expr_body
 
 pub fn parse_ast_module(
   p: &mut AstParser, file_origin: PathBuf, cst: &Cst,
@@ -167,18 +190,10 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   basic_fixed_token!(p, it, out.span, KwFn);
 
-  match it.next() {
-    Some(CstElem::Identifier(name, opt_span)) => {
-      out.name = name.clone();
-      out.name_span = opt_span.unwrap_or_default();
-    }
-    other => {
-      p.error_at(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected Identfier: {other:?}"),
-      );
-    }
-  };
+  if let Some((name, name_span)) = basic_identifier!(p, it, out.span) {
+    out.name = name.clone();
+    out.name_span = name_span;
+  }
 
   match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Parens => {
@@ -235,18 +250,10 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   basic_fixed_token!(p, it, out.span, KwConst);
 
-  match it.next() {
-    Some(CstElem::Identifier(name, opt_span)) => {
-      out.name = name.clone();
-      out.name_span = opt_span.unwrap_or_default();
-    }
-    other => {
-      p.error_at(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected Identfier: {other:?}"),
-      );
-    }
-  };
+  if let Some((name, name_span)) = basic_identifier!(p, it, out.span) {
+    out.name = name.clone();
+    out.name_span = name_span;
+  }
 
   basic_fixed_token!(p, it, out.span, Colon);
 
@@ -293,18 +300,10 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, ClParen);
 
-      match it.next() {
-        Some(CstElem::Identifier(name, opt_span)) => {
-          out.name = name.clone();
-          out.name_span = opt_span.unwrap_or_default();
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Identfier: {other:?}"),
-          );
-        }
-      };
+      if let Some((name, name_span)) = basic_identifier!(p, it, out.span) {
+        out.name = name.clone();
+        out.name_span = name_span;
+      }
 
       basic_fixed_token!(p, it, out.span, Colon);
 
@@ -318,18 +317,11 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
     Some(CstElem::FixedToken(KwRam, _)) => {
       let mut type_decl = TypeExpr::default();
       let mut init = ValueExpr::default();
-      match it.next() {
-        Some(CstElem::Identifier(name, opt_span)) => {
-          out.name = name.clone();
-          out.name_span = opt_span.unwrap_or_default();
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Identfier: {other:?}"),
-          );
-        }
-      };
+
+      if let Some((name, name_span)) = basic_identifier!(p, it, out.span) {
+        out.name = name.clone();
+        out.name_span = name_span;
+      }
 
       basic_fixed_token!(p, it, out.span, Colon);
 
@@ -348,18 +340,11 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
     Some(CstElem::FixedToken(KwRom, _)) => {
       let mut type_decl = TypeExpr::default();
       let mut data = ValueExpr::default();
-      match it.next() {
-        Some(CstElem::Identifier(name, opt_span)) => {
-          out.name = name.clone();
-          out.name_span = opt_span.unwrap_or_default();
-        }
-        other => {
-          p.error_at(
-            cst.try_span().unwrap_or_default(),
-            format!("Expected Identfier: {other:?}"),
-          );
-        }
-      };
+
+      if let Some((name, name_span)) = basic_identifier!(p, it, out.span) {
+        out.name = name.clone();
+        out.name_span = name_span;
+      }
 
       basic_fixed_token!(p, it, out.span, Colon);
 
