@@ -235,6 +235,93 @@ impl TokenKind {
     )
   }
 
+  pub const fn is_keyword(self) -> bool {
+    matches!(
+      self,
+      KwAs
+        | KwBitbag
+        | KwBreak
+        | KwConst
+        | KwContinue
+        | KwElse
+        | KwEnum
+        | KwFalse
+        | KwFn
+        | KwFor
+        | KwIf
+        | KwImpl
+        | KwIn
+        | KwLet
+        | KwLoop
+        | KwMatch
+        | KwMmio
+        | KwMod
+        | KwMut
+        | KwRam
+        | KwReturn
+        | KwRom
+        | KwStruct
+        | KwStatic
+        | KwSuper
+        | KwTrue
+        | KwUse
+        | KwWhile
+        | KwVol
+    )
+  }
+
+  pub const fn is_punctuation(self) -> bool {
+    matches!(
+      self,
+      Bang
+        | DoubleQuote
+        | Hash
+        | Dollar
+        | Percent
+        | Ampersand
+        | Quote
+        | OpParen
+        | ClParen
+        | Star
+        | Plus
+        | Comma
+        | Minus
+        | Dot
+        | Slash
+        | Colon
+        | Semicolon
+        | LessThan
+        | Equal
+        | GreaterThan
+        | Question
+        | At
+        | OpBracket
+        | Backslash
+        | ClBracket
+        | Caret
+        | Underscore
+        | Backtick
+        | OpBrace
+        | Pipe
+        | ClBrace
+        | Tilde
+        | ColonColon
+        | EqualEqual
+        | BangEqual
+        | DotDot
+        | DotDotEqual
+        | PlusEqual
+        | MinusEqual
+        | StarEqual
+        | SlashEqual
+        | PercentEqual
+        | AmpersandEqual
+        | PipeEqual
+        | CaretEqual
+        | MinusGreater
+    )
+  }
+
   pub const fn fixed_str(self) -> Option<&'static str> {
     Some(match self {
       Bang => "!",
