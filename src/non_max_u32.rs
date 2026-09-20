@@ -4,7 +4,7 @@ use core::num::NonZeroU32;
 ///
 /// Internally this stores a [NonZeroU32], with [try_new](NonMaxU32::try_new)
 /// applying a +1 and [get](NonMaxU32::get) applying a -1.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct NonMaxU32(NonZeroU32);
 impl NonMaxU32 {
@@ -25,4 +25,8 @@ impl Default for NonMaxU32 {
     Self::try_new(0).unwrap()
   }
 }
-// todo: debug and display show the wrong value.
+impl core::fmt::Debug for NonMaxU32 {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> core::fmt::Result {
+    core::fmt::Debug::fmt(&self.get(), f)
+  }
+}
