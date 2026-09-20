@@ -18,6 +18,7 @@
 
 use crate::non_max_u32::NonMaxU32;
 
+pub mod global_id;
 pub mod kvec;
 pub mod non_max_u32;
 pub mod path_id;
