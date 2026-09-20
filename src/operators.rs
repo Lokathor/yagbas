@@ -13,7 +13,7 @@ pub enum BindDirection {
 
 /// Operator that comes before the operand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PrefixOperator {
+pub enum PrefOp {
   /// `-x`
   Negative,
   /// `!x`
@@ -31,7 +31,7 @@ pub enum PrefixOperator {
   /// `..=x`, and `..=`
   PrefixRangeInclusive,
 }
-impl PrefixOperator {
+impl PrefOp {
   /// Gives the bind strength and direction for this operator.
   pub const fn binding(self) -> u8 {
     match self {
@@ -61,7 +61,7 @@ impl PrefixOperator {
 
 /// Operators that come after their operand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PostfixOperator {
+pub enum PostOp {
   /// `x()`
   FnCall,
   /// `x[y]`
@@ -75,7 +75,7 @@ pub enum PostfixOperator {
   /// `x..=`
   PostfixRangeInclusive,
 }
-impl PostfixOperator {
+impl PostOp {
   /// Gives the bind strength and direction for this operator.
   pub const fn binding(self) -> u8 {
     match self {
@@ -97,7 +97,7 @@ impl PostfixOperator {
 
 /// All the kinds of operator in Yagbas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InfixOperator {
+pub enum InfiOp {
   /// `x::y`
   Path,
   /// `x.y`
@@ -165,7 +165,7 @@ pub enum InfixOperator {
   /// `x<<=y`
   ShiftRightAssign,
 }
-impl InfixOperator {
+impl InfiOp {
   /// Gives the bind strength and direction for this operator.
   pub const fn binding(self) -> u8 {
     match self {
@@ -244,13 +244,13 @@ impl InfixOperator {
   /// this particular operator.
   pub const fn token_length(&self) -> usize {
     match self {
-      InfixOperator::ShiftLeftAssign | InfixOperator::ShiftRightAssign => 3,
-      InfixOperator::ShiftLeft
-      | InfixOperator::ShiftRight
-      | InfixOperator::ConditionalAnd
-      | InfixOperator::ConditionalOr
-      | InfixOperator::CmpGe
-      | InfixOperator::CmpLe => 2,
+      InfiOp::ShiftLeftAssign | InfiOp::ShiftRightAssign => 3,
+      InfiOp::ShiftLeft
+      | InfiOp::ShiftRight
+      | InfiOp::ConditionalAnd
+      | InfiOp::ConditionalOr
+      | InfiOp::CmpGe
+      | InfiOp::CmpLe => 2,
       _ => 1,
     }
   }
@@ -331,42 +331,42 @@ pub enum BinOpKind {
   /// `x<<=y`
   ShiftRightAssign,
 }
-impl From<InfixOperator> for BinOpKind {
-  fn from(value: InfixOperator) -> Self {
+impl From<InfiOp> for BinOpKind {
+  fn from(value: InfiOp) -> Self {
     match value {
-      InfixOperator::Path => Self::Path,
-      InfixOperator::Access => Self::Access,
-      InfixOperator::Mul => Self::Mul,
-      InfixOperator::Div => Self::Div,
-      InfixOperator::Rem => Self::Rem,
-      InfixOperator::Add => Self::Add,
-      InfixOperator::Sub => Self::Sub,
-      InfixOperator::ShiftLeft => Self::ShiftLeft,
-      InfixOperator::ShiftRight => Self::ShiftRight,
-      InfixOperator::BitAnd => Self::BitAnd,
-      InfixOperator::BitXor => Self::BitXor,
-      InfixOperator::BitOr => Self::BitOr,
-      InfixOperator::CmpEq => Self::CmpEq,
-      InfixOperator::CmpNe => Self::CmpNe,
-      InfixOperator::CmpLt => Self::CmpLt,
-      InfixOperator::CmpGt => Self::CmpGt,
-      InfixOperator::CmpLe => Self::CmpLe,
-      InfixOperator::CmpGe => Self::CmpGe,
-      InfixOperator::ConditionalAnd => Self::ConditionalAnd,
-      InfixOperator::ConditionalOr => Self::ConditionalOr,
-      InfixOperator::RangeExclusive => Self::RangeExclusive,
-      InfixOperator::RangeInclusive => Self::RangeInclusive,
-      InfixOperator::Assign => Self::Assign,
-      InfixOperator::AddAssign => Self::AddAssign,
-      InfixOperator::SubAssign => Self::SubAssign,
-      InfixOperator::MulAssign => Self::MulAssign,
-      InfixOperator::DivAssign => Self::DivAssign,
-      InfixOperator::RemAssign => Self::RemAssign,
-      InfixOperator::BitAndAssign => Self::BitAndAssign,
-      InfixOperator::BitOrAssign => Self::BitOrAssign,
-      InfixOperator::BitXorAssign => Self::BitXorAssign,
-      InfixOperator::ShiftLeftAssign => Self::ShiftLeftAssign,
-      InfixOperator::ShiftRightAssign => Self::ShiftRightAssign,
+      InfiOp::Path => Self::Path,
+      InfiOp::Access => Self::Access,
+      InfiOp::Mul => Self::Mul,
+      InfiOp::Div => Self::Div,
+      InfiOp::Rem => Self::Rem,
+      InfiOp::Add => Self::Add,
+      InfiOp::Sub => Self::Sub,
+      InfiOp::ShiftLeft => Self::ShiftLeft,
+      InfiOp::ShiftRight => Self::ShiftRight,
+      InfiOp::BitAnd => Self::BitAnd,
+      InfiOp::BitXor => Self::BitXor,
+      InfiOp::BitOr => Self::BitOr,
+      InfiOp::CmpEq => Self::CmpEq,
+      InfiOp::CmpNe => Self::CmpNe,
+      InfiOp::CmpLt => Self::CmpLt,
+      InfiOp::CmpGt => Self::CmpGt,
+      InfiOp::CmpLe => Self::CmpLe,
+      InfiOp::CmpGe => Self::CmpGe,
+      InfiOp::ConditionalAnd => Self::ConditionalAnd,
+      InfiOp::ConditionalOr => Self::ConditionalOr,
+      InfiOp::RangeExclusive => Self::RangeExclusive,
+      InfiOp::RangeInclusive => Self::RangeInclusive,
+      InfiOp::Assign => Self::Assign,
+      InfiOp::AddAssign => Self::AddAssign,
+      InfiOp::SubAssign => Self::SubAssign,
+      InfiOp::MulAssign => Self::MulAssign,
+      InfiOp::DivAssign => Self::DivAssign,
+      InfiOp::RemAssign => Self::RemAssign,
+      InfiOp::BitAndAssign => Self::BitAndAssign,
+      InfiOp::BitOrAssign => Self::BitOrAssign,
+      InfiOp::BitXorAssign => Self::BitXorAssign,
+      InfiOp::ShiftLeftAssign => Self::ShiftLeftAssign,
+      InfiOp::ShiftRightAssign => Self::ShiftRightAssign,
     }
   }
 }

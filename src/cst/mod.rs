@@ -6,9 +6,9 @@ use std::string::FromUtf8Error;
 use crate::Span;
 use crate::cst::actions::gather_module;
 use crate::cst::parser::CstParser;
-use crate::operators::InfixOperator;
-use crate::operators::PostfixOperator;
-use crate::operators::PrefixOperator;
+use crate::operators::InfiOp;
+use crate::operators::PostOp;
+use crate::operators::PrefOp;
 use crate::tokenizer::Token;
 use crate::tokenizer::TokenKind;
 use crate::tokenizer::TokenKind::Comment;
@@ -85,18 +85,20 @@ pub enum CstKind {
   // I think that it's better to have fewer kinds exist when possible. I'm not
   // totally sure why I think that.
   Module,
-  // todo: hold a keyword here so that we can quickly and easily identify item kind even if there are attributes or trivia before the keyword within the item tree.
+  // todo: hold a keyword here so that we can quickly and easily identify item
+  // kind even if there are attributes or trivia before the keyword within the
+  // item tree.
   Item,
-  ParensGroup,
-  BracketGroup,
-  BraceGroup,
+  Parens,
+  Brackets,
+  Braces,
   Statement,
-  ValExpr,
-  TypeExpr,
+  ExprValue,
+  ExprType,
   Pattern,
-  OperatorInfix(InfixOperator),
-  OperatorPrefix(PrefixOperator),
-  OperatorPostfix(PostfixOperator),
+  InfiOp(InfiOp),
+  PrefOp(PrefOp),
+  PostOp(PostOp),
 }
 
 /// A single element within a [Cst].
