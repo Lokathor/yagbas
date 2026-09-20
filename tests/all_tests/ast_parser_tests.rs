@@ -11,7 +11,7 @@ use yagbas::{
 #[track_caller]
 fn ast_no_errors(src: &str) -> Ast {
   let file_origin = PathBuf::from("InMemoryData");
-  let mut p = CstParser::new(&src);
+  let mut p = CstParser::new(src);
   gather_module(&mut p);
   let cst = p.build_tree(BuildTreeArgs { skip_trivial: true });
   let mut ast_parser =
