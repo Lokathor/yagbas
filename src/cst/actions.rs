@@ -350,7 +350,7 @@ fn gather_expr_type(p: &mut CstParser<'_>) {
       todo!("{other:?}");
     }
   }
-  p.close(m_ty, CstKind::ExprType);
+  p.close(m_ty, CstKind::TypeExpr);
 }
 
 /// Checks for a [PrefixOperator]
@@ -476,13 +476,13 @@ fn try_val_atom(p: &mut CstParser<'_>) -> Option<CloseMark> {
     KwTrue | KwFalse | LitNum | LitStr => {
       let m = p.open();
       p.advance();
-      p.close(m, CstKind::ExprValue)
+      p.close(m, CstKind::ValueExpr)
     }
     Ident => {
       // TODO: allow for struct literal expressions here.
       let m = p.open();
       p.expect(Ident);
-      p.close(m, CstKind::ExprValue)
+      p.close(m, CstKind::ValueExpr)
     }
     OpParen => {
       let m = p.open();
@@ -491,7 +491,7 @@ fn try_val_atom(p: &mut CstParser<'_>) -> Option<CloseMark> {
       try_expr_value_rec(p, 0);
       p.eat_trivia();
       p.expect(ClParen);
-      p.close(m, CstKind::ExprValue)
+      p.close(m, CstKind::ValueExpr)
     }
     OpBracket => {
       let m = p.open();
@@ -509,7 +509,7 @@ fn try_val_atom(p: &mut CstParser<'_>) -> Option<CloseMark> {
         }
       }
       p.expect(ClBracket);
-      p.close(m, CstKind::ExprValue)
+      p.close(m, CstKind::ValueExpr)
     }
     KwContinue => {
       let m = p.open();
@@ -519,7 +519,7 @@ fn try_val_atom(p: &mut CstParser<'_>) -> Option<CloseMark> {
         p.expect(TokenKind::Quote);
         p.expect(TokenKind::Ident);
       }
-      p.close(m, CstKind::ExprValue)
+      p.close(m, CstKind::ValueExpr)
     }
     OpBrace => gather_body(p),
     KwLoop => gather_loop(p),
@@ -552,7 +552,7 @@ fn try_expr_value_rec(p: &mut CstParser<'_>, min_bp: u8) -> Option<CloseMark> {
     if try_expr_value_rec(p, op.binding()).is_none() && op.needs_operand() {
       // todo: log error
     }
-    p.close(lhs_mark, CstKind::ExprValue)
+    p.close(lhs_mark, CstKind::ValueExpr)
   } else {
     try_val_atom(p)?
   };
@@ -610,7 +610,7 @@ fn try_expr_value_rec(p: &mut CstParser<'_>, min_bp: u8) -> Option<CloseMark> {
           p.eat_trivia();
         }
       }
-      lhs = p.close(new_lhs, CstKind::ExprValue);
+      lhs = p.close(new_lhs, CstKind::ValueExpr);
       continue;
     }
     if let Some(op) = peek_infix_operator(p) {
@@ -640,7 +640,7 @@ fn try_expr_value_rec(p: &mut CstParser<'_>, min_bp: u8) -> Option<CloseMark> {
       if try_expr_value_rec(p, rhs_bp).is_none() {
         // todo: log error
       }
-      lhs = p.close(new_lhs, CstKind::ExprValue);
+      lhs = p.close(new_lhs, CstKind::ValueExpr);
       continue;
     }
     // no operator visible, so we stop gathering.
@@ -661,7 +661,7 @@ fn gather_loop(p: &mut CstParser<'_>) -> CloseMark {
   p.expect(KwLoop);
   p.eat_trivia();
   gather_body(p);
-  p.close(m, CstKind::ExprValue)
+  p.close(m, CstKind::ValueExpr)
 }
 
 fn gather_if(p: &mut CstParser<'_>) -> CloseMark {
@@ -689,7 +689,7 @@ fn gather_if(p: &mut CstParser<'_>) -> CloseMark {
       }
     }
   }
-  p.close(m, CstKind::ExprValue)
+  p.close(m, CstKind::ValueExpr)
 }
 
 fn gather_for(p: &mut CstParser<'_>) -> CloseMark {
@@ -705,7 +705,7 @@ fn gather_for(p: &mut CstParser<'_>) -> CloseMark {
   gather_expr_value(p);
   p.eat_trivia();
   gather_body(p);
-  p.close(m, CstKind::ExprValue)
+  p.close(m, CstKind::ValueExpr)
 }
 
 fn gather_while(p: &mut CstParser<'_>) -> CloseMark {
@@ -717,7 +717,7 @@ fn gather_while(p: &mut CstParser<'_>) -> CloseMark {
   gather_expr_value(p);
   p.eat_trivia();
   gather_body(p);
-  p.close(m, CstKind::ExprValue)
+  p.close(m, CstKind::ValueExpr)
 }
 
 fn gather_body(p: &mut CstParser<'_>) -> CloseMark {
@@ -779,7 +779,7 @@ fn gather_body(p: &mut CstParser<'_>) -> CloseMark {
     }
     p.close(m_stmt, CstKind::Statement);
   }
-  p.close(m, CstKind::ExprValue)
+  p.close(m, CstKind::ValueExpr)
 }
 
 fn gather_pattern(p: &mut CstParser<'_>) {

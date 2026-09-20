@@ -51,7 +51,7 @@ macro_rules! basic_fixed_token {
 macro_rules! basic_type_expr {
   ($p:expr, $it:expr, $eoi_span:expr) => {{
     match $it.next() {
-      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprType => {
+      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::TypeExpr => {
         Some(parse_type_expr($p, cst))
       }
       Some(other) => {
@@ -176,7 +176,7 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
   }
 
   match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
       statements = parse_value_expr_body(p, cst);
     }
     other => {
@@ -228,7 +228,7 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
   basic_fixed_token!(p, it, out.span, Equal);
 
   match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
       value_decl = parse_value_expr(p, cst);
     }
     other => {
@@ -267,7 +267,7 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
       basic_fixed_token!(p, it, out.span, OpParen);
 
       match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
           location = parse_value_expr(p, cst);
         }
         other => {
@@ -327,7 +327,7 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
       basic_fixed_token!(p, it, out.span, Equal);
 
       match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
           init = parse_value_expr(p, cst);
         }
         other => {
@@ -364,7 +364,7 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
       basic_fixed_token!(p, it, out.span, Equal);
 
       match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
           data = parse_value_expr(p, cst);
         }
         other => {
@@ -402,7 +402,7 @@ fn parse_type_expr(p: &mut AstParser, cst: &Cst) -> TypeExpr {
       let mut elem_ty = TypeExpr::default();
       let mut elem_count = ValueExpr::default();
       match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprType => {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::TypeExpr => {
           elem_ty = parse_type_expr(p, cst);
         }
         other => {
@@ -416,7 +416,7 @@ fn parse_type_expr(p: &mut AstParser, cst: &Cst) -> TypeExpr {
       basic_fixed_token!(p, it, out.span, Semicolon);
 
       match it.next() {
-        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+        Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
           elem_count = parse_value_expr(p, cst);
         }
         other => {
@@ -447,7 +447,7 @@ fn parse_type_expr(p: &mut AstParser, cst: &Cst) -> TypeExpr {
 }
 
 fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
-  debug_assert_eq!(cst.kind, CstKind::ExprValue);
+  debug_assert_eq!(cst.kind, CstKind::ValueExpr);
   //
   let span = cst.try_span().unwrap_or_default();
   let mut it = cst.elements.iter();
@@ -474,7 +474,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
       kind: Box::new(ValueExprKind::LiteralString(string.clone())),
     },
     Some(CstElem::SubTree(cst)) => match cst.kind {
-      CstKind::ExprValue => {
+      CstKind::ValueExpr => {
         let left = parse_value_expr(p, cst);
         match it.next() {
           Some(CstElem::SubTree(cst))
@@ -485,7 +485,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
               _ => unimplemented!(),
             };
             match it.next() {
-              Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+              Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
                 let right = parse_value_expr(p, cst);
                 ValueExpr {
                   span,
@@ -510,7 +510,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
               CstKind::PostOp(PostOp::PostfixRangeExclusive) => {
                 match it.next() {
                   Some(CstElem::SubTree(cst))
-                    if cst.kind == CstKind::ExprValue =>
+                    if cst.kind == CstKind::ValueExpr =>
                   {
                     let op = BinOpKind::RangeExclusive;
                     let right = parse_value_expr(p, cst);
@@ -539,7 +539,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
               }
               CstKind::PostOp(PostOp::ArrayIndex) => match it.next() {
                 Some(CstElem::SubTree(cst))
-                  if cst.kind == CstKind::ExprValue =>
+                  if cst.kind == CstKind::ValueExpr =>
                 {
                   let op = BinOpKind::ArrayIndex;
                   let right = parse_value_expr(p, cst);
@@ -571,7 +571,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
       }
       CstKind::PrefOp(PrefOp::Dereference) => match it.next() {
         Some(CstElem::SubTree(cst))
-          if matches!(cst.kind, CstKind::ExprValue) =>
+          if matches!(cst.kind, CstKind::ValueExpr) =>
         {
           ValueExpr {
             span,
@@ -593,7 +593,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
       },
       CstKind::PrefOp(PrefOp::Reference) => match it.next() {
         Some(CstElem::SubTree(cst))
-          if matches!(cst.kind, CstKind::ExprValue) =>
+          if matches!(cst.kind, CstKind::ValueExpr) =>
         {
           ValueExpr {
             span,
@@ -643,7 +643,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 }
 
 fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
-  debug_assert_eq!(cst.kind, CstKind::ExprValue);
+  debug_assert_eq!(cst.kind, CstKind::ValueExpr);
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
     KwFor
@@ -671,7 +671,7 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   basic_fixed_token!(p, it, out.span, KwIn);
 
   match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
       range = parse_value_expr(p, cst);
     }
     other => {
@@ -679,7 +679,7 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     }
   }
   match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
       statements = parse_value_expr_body(p, cst);
     }
     other => {
@@ -697,7 +697,7 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 }
 
 fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
-  debug_assert_eq!(cst.kind, CstKind::ExprValue);
+  debug_assert_eq!(cst.kind, CstKind::ValueExpr);
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
     KwLoop
@@ -714,7 +714,7 @@ fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   basic_fixed_token!(p, it, out.span, KwLoop);
 
   match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
       statements = parse_value_expr_body(p, cst);
     }
     other => {
@@ -731,7 +731,7 @@ fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 }
 
 fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
-  debug_assert_eq!(cst.kind, CstKind::ExprValue);
+  debug_assert_eq!(cst.kind, CstKind::ValueExpr);
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
     KwIf
@@ -747,7 +747,7 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   basic_fixed_token!(p, it, out.span, KwIf);
 
   match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
       condition = parse_value_expr(p, cst);
     }
     other => {
@@ -755,7 +755,7 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     }
   }
   match it.next() {
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
       when_true = parse_value_expr_body(p, cst);
     }
     other => {
@@ -766,7 +766,7 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     basic_fixed_token!(p, it, out.span, KwElse);
 
     match it.next() {
-      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
         when_false = parse_value_expr_body(p, cst);
       }
       other => {
@@ -788,7 +788,7 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 /// The return value is a vec so that this can be shared between an "actual"
 /// body as well as with the other expression forms that have expression blocks.
 fn parse_value_expr_body(p: &mut AstParser, cst: &Cst) -> Vec<Statement> {
-  debug_assert_eq!(cst.kind, CstKind::ExprValue);
+  debug_assert_eq!(cst.kind, CstKind::ValueExpr);
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
     OpBrace
@@ -824,7 +824,7 @@ fn parse_statement(p: &mut AstParser, cst: &Cst) -> Statement {
   //
   match cst.elements.first() {
     Some(CstElem::FixedToken(KwLet, _)) => parse_statement_let(p, cst),
-    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+    Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
       let x = parse_value_expr(p, cst);
       Statement {
         span: cst.try_span().unwrap_or_default(),
@@ -880,7 +880,7 @@ fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
     basic_fixed_token!(p, it, out.span, Equal);
 
     match it.next() {
-      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ExprValue => {
+      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::ValueExpr => {
         initializer = Some(parse_value_expr(p, cst));
       }
       other => {
