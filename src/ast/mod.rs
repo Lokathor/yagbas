@@ -46,8 +46,17 @@ pub enum ItemKind {
     type_decl: TypeExpr,
     value_decl: ValueExpr,
   },
-  Static {
-    kind: StaticKind,
+  StaticMmio {
+    location: ValueExpr,
+    type_decl: TypeExpr,
+  },
+  StaticRam {
+    type_decl: TypeExpr,
+    init: ValueExpr,
+  },
+  StaticRom {
+    type_decl: TypeExpr,
+    data: ValueExpr,
   },
   Function {
     args: Vec<FunctionArg>,
@@ -103,30 +112,13 @@ pub enum PatternKind {
   #[default]
   ErrPatternKind,
   Simple(String),
+  SimpleLocalVariable(u32),
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct FunctionArg {
   pub pattern: Pattern,
   pub type_decl: TypeExpr,
-}
-
-#[derive(Debug, Clone, Default)]
-pub enum StaticKind {
-  #[default]
-  ErrStaticKind,
-  Mmio {
-    location: ValueExpr,
-    type_decl: TypeExpr,
-  },
-  Ram {
-    type_decl: TypeExpr,
-    init: ValueExpr,
-  },
-  Rom {
-    type_decl: TypeExpr,
-    data: ValueExpr,
-  },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -227,6 +219,10 @@ pub enum ValueExprKind {
     value: ValueExpr,
     as_type: TypeExpr,
   },
+  NameOfStaticMmio(ItemId),
+  NameOfConstant(ItemId),
+  NameOfFunction(ItemId),
+  NameOfLocalVariable(u32),
 }
 
 #[derive(Debug, Clone, Default)]

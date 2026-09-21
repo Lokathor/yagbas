@@ -5,8 +5,8 @@ use crate::{
   Span,
   ast::{
     FunctionArg, Item, ItemId, ItemKind, Module, Pattern, PatternKind,
-    Statement, StatementKind, StaticKind, TypeExpr, TypeExprKind, ValueExpr,
-    ValueExprKind, parser::AstParser,
+    Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
+    parser::AstParser,
   },
   cst::{
     Cst, CstElem,
@@ -310,8 +310,8 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   out.kind = ItemKind::Constant { type_decl, value_decl };
 
-  for elem in it {
-    println!("== {elem:?}");
+  for i in it {
+    dbg!(&i);
   }
 }
 
@@ -322,7 +322,6 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
   );
   //
   let mut it = cst.elements.iter().peekable();
-  let mut kind = StaticKind::default();
 
   basic_fixed_token!(p, it, out.span, KwStatic);
 
@@ -350,8 +349,7 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
         type_decl = x;
       }
 
-      out.kind =
-        ItemKind::Static { kind: StaticKind::Mmio { location, type_decl } };
+      out.kind = ItemKind::StaticMmio { location, type_decl };
     }
     Some(CstElem::FixedToken(KwRam, _)) => {
       let mut type_decl = TypeExpr::default();
@@ -374,7 +372,7 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
         init = x;
       }
 
-      out.kind = ItemKind::Static { kind: StaticKind::Ram { type_decl, init } };
+      out.kind = ItemKind::StaticRam { type_decl, init };
     }
     Some(CstElem::FixedToken(KwRom, _)) => {
       let mut type_decl = TypeExpr::default();
@@ -397,7 +395,7 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
         data = x;
       }
 
-      out.kind = ItemKind::Static { kind: StaticKind::Rom { type_decl, data } };
+      out.kind = ItemKind::StaticRom { type_decl, data };
     }
     other => {
       todo!("{other:?}");

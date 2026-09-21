@@ -5,6 +5,7 @@ use yagbas::{
     actions::gather_module,
     parser::{BuildTreeArgs, CstParser},
   },
+  ir_nameres_typecheck::{IrNameResTypeCheck, resolve_names},
   path_id::PathId,
 };
 
@@ -19,7 +20,7 @@ fn main() {
     Some("help") | Some("--help") | Some("/?") => do_help(),
     Some("cst") => do_cst(arguments),
     Some("ast") => do_ast(arguments),
-    //Some("nameres") => do_nameres(arguments),
+    Some("nameres") => do_nameres(arguments),
     _ => {
       eprintln!("Unknown sub-command.");
       do_help();
@@ -27,7 +28,6 @@ fn main() {
   }
 }
 
-#[cfg(false)]
 fn do_nameres(mut arguments: Vec<OsString>) {
   debug_assert_eq!(arguments[0].to_str().unwrap(), "nameres");
   arguments.remove(0);
@@ -65,19 +65,14 @@ fn do_nameres(mut arguments: Vec<OsString>) {
       }
     }
   }
-  let ir = IrNameResTypeCheck::build_from_ast(ast);
+  let mut ir = IrNameResTypeCheck { ast };
+  resolve_names(&mut ir);
   println!("```");
   for module in &ir.ast.modules {
     println!("> Module: {:?}", module.file_origin);
     for item in &module.items {
       println!(">> {item:#?}");
     }
-  }
-  for (name, info) in &ir.names {
-    println!("> Name: {name:?} = {info:?}");
-  }
-  for (ty, info) in &ir.types {
-    println!("> Type: {ty:?} = {info:?}");
   }
   for error in &ir.ast.errors {
     println!(">> Ast Error: {error:?}");
