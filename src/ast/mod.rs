@@ -1,8 +1,9 @@
 //! Module for the Abstract Syntax Tree types.
 
 use crate::{
-  Span,
+  Span, YagError,
   cst::Cst,
+  make_global_id,
   operators::{BinOpKind, UnOpKind},
   path_id::PathId,
 };
@@ -13,7 +14,7 @@ pub mod parser;
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
   pub modules: Vec<Module>,
-  pub errors: Vec<AstError>,
+  pub errors: Vec<YagError>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -22,19 +23,18 @@ pub struct Module {
   pub items: Vec<Item>,
 }
 
-#[derive(Debug, Clone)]
-pub struct AstError {
-  pub file_origin: PathId,
-  pub span: Span,
-  pub message: String,
-}
+make_global_id!(
+  /// Globally unique ID value for a particular [Item].
+  ItemId
+);
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Item {
   pub file_origin: PathId,
   pub span: Span,
   pub name: String,
   pub name_span: Span,
+  pub id: ItemId,
   pub kind: ItemKind,
 }
 
@@ -67,12 +67,14 @@ pub enum ItemKind {
     target: TypeExpr,
     items: Vec<Item>,
   },
-  /// I have no idea how to better organize the data from a `use`, and it's not
-  /// really that important right now.
+  /// `use some::item::path;`
+  ///
+  /// I have no idea how to better organize the data from a `use`, so for now we
+  /// just store the entire [Cst].
   Use {
     cst: Cst,
   },
-  /// The name of the module is all we need to know, so there's no extra data.
+  /// `mod somename;`
   Mod,
 }
 

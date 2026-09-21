@@ -4,8 +4,8 @@
 use crate::{
   Span,
   ast::{
-    FunctionArg, Item, ItemKind, Module, Pattern, PatternKind, Statement,
-    StatementKind, StaticKind, TypeExpr, TypeExprKind, ValueExpr,
+    FunctionArg, Item, ItemId, ItemKind, Module, Pattern, PatternKind,
+    Statement, StatementKind, StaticKind, TypeExpr, TypeExprKind, ValueExpr,
     ValueExprKind, parser::AstParser,
   },
   cst::{
@@ -197,9 +197,14 @@ pub fn parse_ast_module(
 fn parse_ast_item(p: &mut AstParser, file_origin: PathId, cst: &Cst) -> Item {
   debug_assert_eq!(cst.kind, CstKind::Item);
   //
-  let mut out = Item::default();
-  out.file_origin = file_origin;
-  out.span = cst.try_span().unwrap_or_default();
+  let mut out = Item {
+    file_origin,
+    span: cst.try_span().unwrap_or_default(),
+    id: ItemId::new(),
+    name: String::new(),
+    name_span: Span::default(),
+    kind: ItemKind::ErrItemKind,
+  };
   match cst.elements.first() {
     Some(CstElem::FixedToken(KwFn, span)) => {
       parse_ast_function(p, cst, &mut out);

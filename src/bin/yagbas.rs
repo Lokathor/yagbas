@@ -36,7 +36,7 @@ fn do_nameres(mut arguments: Vec<OsString>) {
     match argument.to_str() {
       Some("--help") => {
         println!("Usage: yagbas nameres [args]");
-        println!("show the name resolution of the files.");
+        println!("show the name resolution info of the files given");
         return;
       }
       _ => target_files.push(argument),
@@ -48,25 +48,39 @@ fn do_nameres(mut arguments: Vec<OsString>) {
   }
   let mut ast = Ast::default();
   for target_file in target_files {
-    match std::fs::read_to_string(&target_file) {
+    let path = Path::new(&target_file);
+    let file_origin = PathId::from(path);
+    match std::fs::read_to_string(path) {
       Ok(src) => {
-        let origin = StrId::from(target_file.display().to_string());
-        ast.modules.push(AstModule::from_source(origin, &src));
+        let mut p = CstParser::new(&src);
+        gather_module(&mut p);
+        let cst = p.build_tree(BuildTreeArgs { skip_trivial: true });
+        let mut ast_parser = AstParser { file_origin, errors: Vec::new() };
+        let module = parse_ast_module(&mut ast_parser, file_origin, &cst);
+        ast.modules.push(module);
+        ast.errors.extend(ast_parser.errors);
       }
       Err(e) => {
         println!("File Reading Error: {e:?}");
       }
     }
   }
+  let ir = IrNameResTypeCheck::build_from_ast(ast);
   println!("```");
-  let ir_nameres = IrNameres::from_ast(ast);
-  println!("{:?}", ir_nameres.ast);
-  println!("=======");
-  for (k, v) in ir_nameres.var_names.iter() {
-    println!("{k:?}: {v:#?}");
+  for module in &ir.ast.modules {
+    println!("> Module: {:?}", module.file_origin);
+    for item in &module.items {
+      println!(">> {item:#?}");
+    }
   }
-  for (k, v) in ir_nameres.type_names.iter() {
-    println!("{k:?}: {v:#?}");
+  for (name, info) in &ir.names {
+    println!("> Name: {name:?} = {info:?}");
+  }
+  for (ty, info) in &ir.types {
+    println!("> Type: {ty:?} = {info:?}");
+  }
+  for error in &ir.ast.errors {
+    println!(">> Ast Error: {error:?}");
   }
   println!("```");
 }
@@ -112,7 +126,7 @@ fn do_ast(mut arguments: Vec<OsString>) {
   for module in ast.modules {
     println!("= Module: {:?}", module.file_origin);
     for item in &module.items {
-      println!("== Item: {item:#?}");
+      println!("== {item:#?}");
     }
   }
   for error in ast.errors {

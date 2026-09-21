@@ -16,7 +16,7 @@
 //! only refers to the language/compiler portion of the project. Contents of the
 //! library and its operation may change at any time.
 
-use crate::non_max_u32::NonMaxU32;
+use crate::{non_max_u32::NonMaxU32, path_id::PathId};
 
 pub mod global_id;
 pub mod kvec;
@@ -64,3 +64,10 @@ impl core::fmt::Debug for Span {
   }
 }
 // todo: make this a non-max u64 for quick hashing?
+
+#[derive(Debug, Clone)]
+pub struct YagError {
+  pub file_origin: PathId,
+  pub span: Span,
+  pub message: String,
+}
