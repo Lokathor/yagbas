@@ -55,6 +55,11 @@ make_global_id!(
 );
 
 make_global_id!(
+  /// Globally unique ID value for a particular [ValueExpr].
+  ValueExprId
+);
+
+make_global_id!(
   /// Globally unique ID value for a particular [TypeKind].
   TypeKindId
 );
@@ -70,4 +75,9 @@ make_global_id!(
   /// Inference doesn't happen globally, but with it being a global counter
   /// there's less state to track and reset within the resolver.
   InferenceId
+);
+
+make_global_id!(
+  /// Globally unique ID value for a particular local variable name.
+  LocalNameId
 );

@@ -1,9 +1,9 @@
 //! Module for the Abstract Syntax Tree types.
 
+use crate::ValueExprId;
 use crate::{
-  ItemId, LabelId, Span, YagError,
+  ItemId, LabelId, LocalNameId, Span, YagError,
   cst::Cst,
-  make_global_id,
   operators::{BinOpKind, UnOpKind},
   path_id::PathId,
 };
@@ -124,11 +124,6 @@ pub enum LabelKind {
   IdNum(LabelId),
 }
 
-make_global_id!(
-  /// Globally unique ID value for a particular local variable name.
-  LocalNameId
-);
-
 #[derive(Debug, Clone, Default)]
 pub struct FunctionArg {
   pub pattern: Pattern,
@@ -160,7 +155,7 @@ pub enum TypeExprKind {
   NameOfPrimitive(&'static str),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PointerAccessKind {
   /// Constant data, read only.
   Const,
@@ -170,10 +165,20 @@ pub enum PointerAccessKind {
   Vol,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ValueExpr {
   pub span: Span,
+  pub id: ValueExprId,
   pub kind: Box<ValueExprKind>,
+}
+impl Default for ValueExpr {
+  fn default() -> Self {
+    Self {
+      span: Span::default(),
+      id: ValueExprId::new(),
+      kind: Box::new(ValueExprKind::default()),
+    }
+  }
 }
 #[derive(Debug, Clone, Default)]
 pub enum ValueExprKind {

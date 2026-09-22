@@ -1,13 +1,12 @@
-use fnv::FnvHashMap;
-
 use crate::{
-  LabelId, Span, YagError,
+  LabelId, LocalNameId, Span, YagError,
   ast::{
-    Ast, Item, ItemKind, Label, LabelKind, LocalNameId, PatternKind, Statement,
+    Ast, Item, ItemKind, Label, LabelKind, PatternKind, Statement,
     StatementKind, TypeExpr, TypeExprKind, ValueExpr,
     ValueExprKind::{self},
   },
 };
+use std::collections::HashMap;
 
 pub mod type_res;
 
@@ -16,9 +15,9 @@ pub struct IrNameResTypeCheck {
   pub ast: Ast,
 }
 
-pub type VarNameScopes = Vec<FnvHashMap<String, ValueExprKind>>;
-pub type TypeNameScopes = Vec<FnvHashMap<String, TypeExprKind>>;
-pub type LabelNameScopes = Vec<FnvHashMap<String, LabelKind>>;
+pub type VarNameScopes = Vec<HashMap<String, ValueExprKind>>;
+pub type TypeNameScopes = Vec<HashMap<String, TypeExprKind>>;
+pub type LabelNameScopes = Vec<HashMap<String, LabelKind>>;
 
 #[derive(Debug, Clone, Default)]
 pub struct ResolverContext {
@@ -29,9 +28,9 @@ pub struct ResolverContext {
 }
 impl ResolverContext {
   pub fn push_scope(&mut self) {
-    self.var_name_scopes.push(FnvHashMap::default());
-    self.type_name_scopes.push(FnvHashMap::default());
-    self.label_name_scopes.push(FnvHashMap::default());
+    self.var_name_scopes.push(HashMap::default());
+    self.type_name_scopes.push(HashMap::default());
+    self.label_name_scopes.push(HashMap::default());
   }
   pub fn pop_scope(&mut self) {
     self.var_name_scopes.pop();

@@ -1,6 +1,7 @@
 #![allow(clippy::ptr_arg)]
 #![allow(unused_variables)]
 
+use crate::ValueExprId;
 use crate::{
   Span,
   ast::{
@@ -284,8 +285,6 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
   );
   //
   let mut it = cst.elements.iter().peekable();
-  let mut type_decl = TypeExpr::default();
-  let mut value_decl = ValueExpr::default();
 
   basic_fixed_token!(p, it, out.span, KwConst);
 
@@ -296,15 +295,11 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   basic_fixed_token!(p, it, out.span, Colon);
 
-  if let Some(x) = basic_type_expr!(p, it, out.span) {
-    type_decl = x;
-  }
+  let type_decl = basic_type_expr!(p, it, out.span).unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, Equal);
 
-  if let Some(x) = basic_value_expr!(p, it, out.span) {
-    value_decl = x;
-  }
+  let value_decl = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, Semicolon);
 
@@ -327,14 +322,9 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   match it.next() {
     Some(CstElem::FixedToken(KwMmio, _)) => {
-      let mut location = ValueExpr::default();
-      let mut type_decl = TypeExpr::default();
-
       basic_fixed_token!(p, it, out.span, OpParen);
 
-      if let Some(x) = basic_value_expr!(p, it, out.span) {
-        location = x;
-      }
+      let location = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
       basic_fixed_token!(p, it, out.span, ClParen);
 
@@ -345,16 +335,11 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Colon);
 
-      if let Some(x) = basic_type_expr!(p, it, out.span) {
-        type_decl = x;
-      }
+      let type_decl = basic_type_expr!(p, it, out.span).unwrap_or_default();
 
       out.kind = ItemKind::StaticMmio { location, type_decl };
     }
     Some(CstElem::FixedToken(KwRam, _)) => {
-      let mut type_decl = TypeExpr::default();
-      let mut init = ValueExpr::default();
-
       if let Some((name, name_span)) = basic_identifier!(p, it, out.span) {
         out.name = name.clone();
         out.name_span = name_span;
@@ -362,22 +347,15 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Colon);
 
-      if let Some(x) = basic_type_expr!(p, it, out.span) {
-        type_decl = x;
-      }
+      let type_decl = basic_type_expr!(p, it, out.span).unwrap_or_default();
 
       basic_fixed_token!(p, it, out.span, Equal);
 
-      if let Some(x) = basic_value_expr!(p, it, out.span) {
-        init = x;
-      }
+      let init = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
       out.kind = ItemKind::StaticRam { type_decl, init };
     }
     Some(CstElem::FixedToken(KwRom, _)) => {
-      let mut type_decl = TypeExpr::default();
-      let mut data = ValueExpr::default();
-
       if let Some((name, name_span)) = basic_identifier!(p, it, out.span) {
         out.name = name.clone();
         out.name_span = name_span;
@@ -385,15 +363,11 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Colon);
 
-      if let Some(x) = basic_type_expr!(p, it, out.span) {
-        type_decl = x;
-      }
+      let type_decl = basic_type_expr!(p, it, out.span).unwrap_or_default();
 
       basic_fixed_token!(p, it, out.span, Equal);
 
-      if let Some(x) = basic_value_expr!(p, it, out.span) {
-        data = x;
-      }
+      let data = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
       out.kind = ItemKind::StaticRom { type_decl, data };
     }
@@ -460,6 +434,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   match it.next() {
     Some(CstElem::FixedToken(OpBrace, _)) => ValueExpr {
       span,
+      id: ValueExprId::new(),
       kind: Box::new(ValueExprKind::Block {
         statements: parse_value_expr_body(p, cst),
       }),
@@ -469,14 +444,17 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     Some(CstElem::FixedToken(KwIf, _)) => parse_value_expr_if(p, cst),
     Some(CstElem::Identifier(string, opt_span)) => ValueExpr {
       span: opt_span.unwrap_or_default(),
+      id: ValueExprId::new(),
       kind: Box::new(ValueExprKind::Identifier(string.clone())),
     },
     Some(CstElem::LitNumber(string, opt_span)) => ValueExpr {
       span: opt_span.unwrap_or_default(),
+      id: ValueExprId::new(),
       kind: Box::new(ValueExprKind::LiteralNumber(string.clone())),
     },
     Some(CstElem::LitString(string, opt_span)) => ValueExpr {
       span: opt_span.unwrap_or_default(),
+      id: ValueExprId::new(),
       kind: Box::new(ValueExprKind::LiteralString(string.clone())),
     },
     Some(CstElem::SubTree(cst)) => match cst.kind {
@@ -495,6 +473,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
                 let right = parse_value_expr(p, cst);
                 ValueExpr {
                   span,
+                  id: ValueExprId::new(),
                   kind: Box::new(ValueExprKind::BinOp { left, op, right }),
                 }
               }
@@ -522,6 +501,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
                     let right = parse_value_expr(p, cst);
                     ValueExpr {
                       span,
+                      id: ValueExprId::new(),
                       kind: Box::new(ValueExprKind::BinOp { left, op, right }),
                     }
                   }
@@ -529,6 +509,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
                     let op = UnOpKind::PostfixRangeExclusive;
                     ValueExpr {
                       span,
+                      id: ValueExprId::new(),
                       kind: Box::new(ValueExprKind::UnOp { op, operand: left }),
                     }
                   }
@@ -560,6 +541,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
                   }
                   ValueExpr {
                     span,
+                    id: ValueExprId::new(),
                     kind: Box::new(ValueExprKind::BinOp { left, op, right }),
                   }
                 }
@@ -581,6 +563,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
         {
           ValueExpr {
             span,
+            id: ValueExprId::new(),
             kind: Box::new(ValueExprKind::UnOp {
               op: UnOpKind::Dereference,
               operand: parse_value_expr(p, cst),
@@ -603,6 +586,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
         {
           ValueExpr {
             span,
+            id: ValueExprId::new(),
             kind: Box::new(ValueExprKind::UnOp {
               op: UnOpKind::Reference,
               operand: parse_value_expr(p, cst),
@@ -622,6 +606,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
       CstKind::PrefOp(PrefOp::Break) => match it.next() {
         None => ValueExpr {
           span,
+          id: ValueExprId::new(),
           kind: Box::new(ValueExprKind::Break { label: None, value: None }),
         },
         Some(elem) => todo!("{elem:?}"),
@@ -658,7 +643,6 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   let mut it = cst.elements.iter();
   let mut label = None;
   let mut step_var;
-  let mut range = ValueExpr::default();
   let mut statements;
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
@@ -669,9 +653,7 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 
   basic_fixed_token!(p, it, out.span, KwIn);
 
-  if let Some(x) = basic_value_expr!(p, it, out.span) {
-    range = x;
-  }
+  let range = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
   statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
@@ -693,8 +675,6 @@ fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   //
   let mut it = cst.elements.iter();
   let mut label = None;
-  let mut step_var = Pattern::default();
-  let mut range = ValueExpr::default();
   let mut statements;
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
@@ -719,7 +699,6 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   );
   //
   let mut it = cst.elements.iter().peekable();
-  let mut condition = ValueExpr::default();
   let mut when_true;
   let mut when_false = Vec::new();
   let mut out = ValueExpr::default();
@@ -727,9 +706,7 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 
   basic_fixed_token!(p, it, out.span, KwIf);
 
-  if let Some(x) = basic_value_expr!(p, it, out.span) {
-    condition = x;
-  }
+  let condition = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
   when_true = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
@@ -841,7 +818,7 @@ fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
   basic_fixed_token!(p, it, out.span, Semicolon);
 
   for i in it {
-    println!("LET!! {i:?}");
+    dbg!(&i);
   }
 
   out.kind = Box::new(StatementKind::Let { pattern, type_decl, initializer });

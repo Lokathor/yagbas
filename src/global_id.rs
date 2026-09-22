@@ -6,9 +6,18 @@ macro_rules! make_global_id {
     $name:ident
   ) => {
     $(#[$meta])*
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[repr(transparent)]
     pub struct $name(::core::num::NonZeroU32);
+    impl ::core::fmt::Debug for $name {
+      fn fmt(&self, f: &mut core::fmt::Formatter)->core::fmt::Result {
+        core::fmt::Display::fmt(stringify!($name), f)?;
+        core::fmt::Display::fmt("(", f)?;
+        core::fmt::Display::fmt(&self.0.get(), f)?;
+        core::fmt::Display::fmt(")", f)?;
+        Ok(())
+      }
+    }
     impl $name {
       #[inline]
       pub fn try_new() -> Option<Self> {
