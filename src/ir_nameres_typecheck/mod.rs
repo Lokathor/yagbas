@@ -1,10 +1,10 @@
 use fnv::FnvHashMap;
 
 use crate::{
-  YagError,
+  Span, YagError,
   ast::{
-    Ast, FunctionArg, Item, ItemKind, LabelKind, Pattern, Statement,
-    StatementKind, TypeExpr, TypeExprKind, ValueExpr,
+    Ast, Item, ItemKind, Label, LabelId, LabelKind, LocalNameId, PatternKind,
+    Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr,
     ValueExprKind::{self},
   },
 };
@@ -36,6 +36,14 @@ impl ResolverContext {
     self.type_scopes.pop();
     self.label_scopes.pop();
   }
+  pub fn within_scope<F>(&mut self, mut f: F)
+  where
+    F: FnOnce(&mut ResolverContext),
+  {
+    self.push_scope();
+    f(self);
+    self.pop_scope();
+  }
 
   pub fn lookup_name(&self, name: &str) -> Option<&ValueExprKind> {
     self.name_scopes.iter().rev().filter_map(|hm| hm.get(name)).next()
@@ -65,140 +73,214 @@ impl ResolverContext {
 }
 
 pub fn resolve_names(ir: &mut IrNameResTypeCheck) {
-  let mut name_scopes = Vec::new();
-  // there are currently no names that are in scope by default, but maybe there
-  // should be.
+  let mut ctx = ResolverContext::default();
 
   for module in ir.ast.modules.iter_mut() {
-    name_scopes.push(FnvHashMap::default());
-
-    let this_scope = name_scopes.last_mut().unwrap();
-
-    // Scan all items at this scope and gather newly defined names before
-    // digging inside of anything.
-    for item in module.items.iter() {
-      let name = item.name.clone();
-      let replacement = match &item.kind {
-        ItemKind::Constant { .. } => ValueExprKind::NameOfConstant(item.id),
-        ItemKind::StaticMmio { .. } => ValueExprKind::NameOfStaticMmio(item.id),
-        ItemKind::Function { .. } => ValueExprKind::NameOfFunction(item.id),
-        _other => todo!("{_other:?}"),
-      };
-      if this_scope.insert(name, replacement).is_some() {
-        let name = &item.name;
-        ir.ast.errors.push(YagError {
-          file_origin: item.file_origin,
-          span: item.span,
-          message: format!("Conflicting Definition: {name}"),
-        });
+    ctx.within_scope(|ctx| {
+      // scan all items as if they were defined simultaneously
+      for item in module.items.iter() {
+        let name = item.name.clone();
+        let replacement = match &item.kind {
+          ItemKind::Constant { .. } => ValueExprKind::NameOfConstant(item.id),
+          ItemKind::StaticMmio { .. } => {
+            ValueExprKind::NameOfStaticMmio(item.id)
+          }
+          ItemKind::Function { .. } => ValueExprKind::NameOfFunction(item.id),
+          other => todo!("unknown how to register {other:?}"),
+        };
+        if ctx.register_name(name, replacement).is_some() {
+          let name = item.name.as_str();
+          ir.ast.errors.push(YagError {
+            file_origin: item.file_origin,
+            span: item.span,
+            message: format!("Conflicting Definition: {name}"),
+          });
+        }
+        // todo: register types too
       }
-    }
 
-    for item in module.items.iter_mut() {
-      resolve_names_within_item(&mut name_scopes, item);
-    }
-
-    name_scopes.pop();
+      for item in module.items.iter_mut() {
+        resolve_inside_item(ctx, item);
+      }
+    });
   }
 }
 
-fn resolve_names_within_item(name_scopes: &mut NameScopes, item: &mut Item) {
+fn resolve_inside_item(ctx: &mut ResolverContext, item: &mut Item) {
   match &mut item.kind {
-    ItemKind::Constant { type_decl, value_decl } => {
-      resolve_names_within_type_expr(name_scopes, type_decl);
-      resolve_names_within_value_expr(name_scopes, value_decl);
-    }
     ItemKind::StaticMmio { location, type_decl } => {
-      resolve_names_within_value_expr(name_scopes, location);
-      resolve_names_within_type_expr(name_scopes, type_decl);
+      resolve_inside_value_expr(ctx, location);
+      resolve_inside_type_expr(ctx, type_decl);
+    }
+    ItemKind::Constant { type_decl, value_decl } => {
+      resolve_inside_type_expr(ctx, type_decl);
+      resolve_inside_value_expr(ctx, value_decl);
     }
     ItemKind::Function { args, ret_ty, statements } => {
-      for FunctionArg { type_decl, .. } in args.iter_mut() {
-        resolve_names_within_type_expr(name_scopes, type_decl);
+      resolve_inside_type_expr(ctx, ret_ty);
+      for arg in args.iter_mut() {
+        resolve_inside_type_expr(ctx, &mut arg.type_decl);
       }
-      resolve_names_within_type_expr(name_scopes, ret_ty);
-      //
-      name_scopes.push(FnvHashMap::default());
-      for FunctionArg { pattern, .. } in args.iter_mut() {
-        resolve_names_within_pattern(name_scopes, pattern);
-      }
-      for statement in statements.iter_mut() {
-        resolve_names_within_statement(name_scopes, statement);
-      }
-      name_scopes.pop();
+      ctx.within_scope(|ctx| {
+        for arg in args.iter_mut() {
+          match &mut arg.pattern.kind {
+            PatternKind::Simple(name) => {
+              let id = LocalNameId::new();
+              let name = name.clone();
+              let replacement = ValueExprKind::NameOfLocalVariable(id);
+              let _ = ctx.register_name(name, replacement);
+              arg.pattern.kind = PatternKind::SimpleLocalName(id);
+            }
+            other => todo!("unhandled pattern kind: {other:?}"),
+          }
+        }
+        resolve_inside_body(ctx, statements);
+      });
     }
-    _other => todo!("{_other:?}"),
+    other => todo!("unhandled inside item: {other:?}"),
   }
 }
 
-fn resolve_names_within_type_expr(
-  _name_scopes: &mut NameScopes, ty: &mut TypeExpr,
+fn resolve_inside_body(
+  ctx: &mut ResolverContext, statements: &mut Vec<Statement>,
 ) {
-  match &mut *ty.kind {
-    TypeExprKind::Simple(_) => return,
-    other => todo!("unhandled type expr kind: {other:?}"),
+  ctx.within_scope(|ctx| {
+    let mut items_defined_this_scope = Vec::new();
+    for statement in statements.iter() {
+      match &*statement.kind {
+        StatementKind::Item(item) => {
+          if items_defined_this_scope.contains(&item.name.as_str()) {
+            // todo: error about multiple definitions
+            continue;
+          }
+          items_defined_this_scope.push(item.name.as_str());
+          let name = item.name.clone();
+          let replacement = match &item.kind {
+            ItemKind::Constant { .. } => ValueExprKind::NameOfConstant(item.id),
+            ItemKind::StaticMmio { .. } => {
+              ValueExprKind::NameOfStaticMmio(item.id)
+            }
+            ItemKind::Function { .. } => ValueExprKind::NameOfFunction(item.id),
+            other => todo!("unknown how to register {other:?}"),
+          };
+          ctx.register_name(name, replacement);
+        }
+        _ => continue,
+      }
+    }
+    for statement in statements.iter_mut() {
+      resolve_inside_statement(ctx, statement);
+    }
+  });
+}
+
+fn resolve_inside_statement(
+  ctx: &mut ResolverContext, statement: &mut Statement,
+) {
+  match &mut *statement.kind {
+    StatementKind::Let { pattern, type_decl, initializer } => {
+      if let Some(xpr) = initializer {
+        resolve_inside_value_expr(ctx, xpr);
+      }
+      if let Some(ty) = type_decl {
+        resolve_inside_type_expr(ctx, ty);
+      }
+      match &mut pattern.kind {
+        PatternKind::Simple(name) => {
+          let id = LocalNameId::new();
+          let name = name.clone();
+          let replacement = ValueExprKind::NameOfLocalVariable(id);
+          let _ = ctx.register_name(name, replacement);
+          pattern.kind = PatternKind::SimpleLocalName(id);
+        }
+        other => todo!("unhandled let pattern kind: {other:?}"),
+      }
+    }
+    StatementKind::Expression(xpr) => resolve_inside_value_expr(ctx, xpr),
+    StatementKind::Item(item) => resolve_inside_item(ctx, item),
+    StatementKind::ErrStatementKind => return,
   }
 }
 
-// todo: when handling for items/expressions with  body we need to scan for item names.
-
-fn resolve_names_within_value_expr(
-  name_scopes: &mut NameScopes, value: &mut ValueExpr,
-) {
-  match &mut *value.kind {
-    ValueExprKind::LiteralNumber(_) => return,
-    ValueExprKind::Identifier(x) => {
-      if let Some(replacement) =
-        name_scopes.iter().rev().filter_map(|hm| hm.get(x.as_str())).next()
-      {
-        *value.kind = replacement.clone();
+fn resolve_inside_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
+  match &mut *xpr.kind {
+    ValueExprKind::Identifier(name) => {
+      if let Some(replacement) = ctx.lookup_name(name.as_str()) {
+        *xpr.kind = replacement.clone();
       }
     }
-    ValueExprKind::Loop { label: _, statements } => {
-      // TODO: label resolution
-      for statement in statements.iter_mut() {
-        resolve_names_within_statement(name_scopes, statement);
-      }
+    ValueExprKind::LiteralNumber(_) => {
+      // todo: if the type has a suffix we could assign a type right here.
     }
-    ValueExprKind::Break { label: _, value } => {
-      // TODO: label resolution
-      if let Some(x) = value {
-        resolve_names_within_value_expr(name_scopes, x);
+    ValueExprKind::Loop { label, statements } => {
+      ctx.within_scope(|ctx| {
+        if let Some(label) = label {
+          match &mut label.kind {
+            LabelKind::Identifier(name) => {
+              let id = LabelId::new();
+              let name = name.clone();
+              let replacement = LabelKind::GlobalId(id);
+              let _ = ctx.register_label(name, replacement);
+              label.kind = LabelKind::GlobalId(id);
+            }
+            other => todo!("unhandled let pattern kind: {other:?}"),
+          }
+        } else {
+          let id = LabelId::new();
+          let name = String::from("");
+          let replacement = LabelKind::GlobalId(id);
+          let _ = ctx.register_label(name, replacement);
+          *label = Some(Label {
+            span: Span::default(),
+            kind: LabelKind::GlobalId(id),
+          });
+        }
+        resolve_inside_body(ctx, statements);
+      });
+    }
+    ValueExprKind::Break { label, value } => {
+      match label {
+        Some(label_inner) => match &mut label_inner.kind {
+          LabelKind::Identifier(l) => {
+            if let Some(replacement) = ctx.lookup_label(l.as_str()) {
+              label_inner.kind = replacement.clone();
+            }
+          }
+          _ => todo!("unhadnled label kind in break expr"),
+        },
+        None => {
+          if let Some(replacement) = ctx.lookup_label("") {
+            *label =
+              Some(Label { span: Span::default(), kind: replacement.clone() });
+          } else {
+            // todo: error, break not within looping expression
+          }
+        }
+      }
+      if let Some(xpr) = value {
+        resolve_inside_value_expr(ctx, xpr);
       }
     }
     ValueExprKind::If { condition, when_true, when_false } => {
-      resolve_names_within_value_expr(name_scopes, condition);
-      for statement in when_true.iter_mut() {
-        resolve_names_within_statement(name_scopes, statement);
-      }
-      for statement in when_false.iter_mut() {
-        resolve_names_within_statement(name_scopes, statement);
-      }
+      resolve_inside_value_expr(ctx, condition);
+      resolve_inside_body(ctx, when_true);
+      resolve_inside_body(ctx, when_false);
     }
     ValueExprKind::BinOp { left, op: _, right } => {
-      resolve_names_within_value_expr(name_scopes, left);
-      resolve_names_within_value_expr(name_scopes, right);
+      resolve_inside_value_expr(ctx, left);
+      resolve_inside_value_expr(ctx, right);
     }
     ValueExprKind::UnOp { op: _, operand } => {
-      resolve_names_within_value_expr(name_scopes, operand);
+      resolve_inside_value_expr(ctx, operand);
     }
-    other => todo!("unhandled value expr kind: {other:?}"),
+    other => todo!("unhandled inside value expression: {other:?}"),
   }
 }
-
-fn resolve_names_within_pattern(
-  _name_scopes: &mut NameScopes, _pattern: &mut Pattern,
-) {
-  todo!("pattern")
-}
-
-fn resolve_names_within_statement(
-  name_scopes: &mut NameScopes, statement: &mut Statement,
-) {
-  match &mut *statement.kind {
-    StatementKind::Expression(value) => {
-      resolve_names_within_value_expr(name_scopes, value);
+fn resolve_inside_type_expr(_ctx: &mut ResolverContext, ty: &mut TypeExpr) {
+  match &mut *ty.kind {
+    TypeExprKind::Simple(_) => {
+      // todo: get the type id for this type and overwrite the kind.
     }
-    other => todo!("unhandled statement kind: {other:?}"),
+    other => todo!("unhandled inside type expression: {other:?}"),
   }
 }

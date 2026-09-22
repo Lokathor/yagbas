@@ -275,7 +275,7 @@ pub enum ValueExprKind {
   NameOfStaticMmio(ItemId),
   NameOfConstant(ItemId),
   NameOfFunction(ItemId),
-  NameOfLocalVariable(u32),
+  NameOfLocalVariable(LocalNameId),
 }
 
 #[derive(Debug, Clone, Default)]
