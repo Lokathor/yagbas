@@ -14,27 +14,27 @@ pub struct IrNameResTypeCheck {
   pub ast: Ast,
 }
 
-pub type NameScopes = Vec<FnvHashMap<String, ValueExprKind>>;
-pub type TypeScopes = Vec<FnvHashMap<String, TypeExprKind>>;
-pub type LabelScopes = Vec<FnvHashMap<String, LabelKind>>;
+pub type VarNameScopes = Vec<FnvHashMap<String, ValueExprKind>>;
+pub type TypeNameScopes = Vec<FnvHashMap<String, TypeExprKind>>;
+pub type LabelNameScopes = Vec<FnvHashMap<String, LabelKind>>;
 
 #[derive(Debug, Clone, Default)]
 pub struct ResolverContext {
-  pub name_scopes: NameScopes,
-  pub type_scopes: TypeScopes,
-  pub label_scopes: LabelScopes,
+  pub var_name_scopes: VarNameScopes,
+  pub type_name_scopes: TypeNameScopes,
+  pub label_name_scopes: LabelNameScopes,
   pub errors: Vec<YagError>,
 }
 impl ResolverContext {
   pub fn push_scope(&mut self) {
-    self.name_scopes.push(FnvHashMap::default());
-    self.type_scopes.push(FnvHashMap::default());
-    self.label_scopes.push(FnvHashMap::default());
+    self.var_name_scopes.push(FnvHashMap::default());
+    self.type_name_scopes.push(FnvHashMap::default());
+    self.label_name_scopes.push(FnvHashMap::default());
   }
   pub fn pop_scope(&mut self) {
-    self.name_scopes.pop();
-    self.type_scopes.pop();
-    self.label_scopes.pop();
+    self.var_name_scopes.pop();
+    self.type_name_scopes.pop();
+    self.label_name_scopes.pop();
   }
   pub fn within_scope<F>(&mut self, mut f: F)
   where
@@ -45,88 +45,136 @@ impl ResolverContext {
     self.pop_scope();
   }
 
-  pub fn lookup_name(&self, name: &str) -> Option<&ValueExprKind> {
-    self.name_scopes.iter().rev().filter_map(|hm| hm.get(name)).next()
+  pub fn lookup_var_name(&self, name: &str) -> Option<&ValueExprKind> {
+    self.var_name_scopes.iter().rev().filter_map(|hm| hm.get(name)).next()
   }
-  pub fn lookup_type(&self, ty: &str) -> Option<&TypeExprKind> {
-    self.type_scopes.iter().rev().filter_map(|hm| hm.get(ty)).next()
+  pub fn lookup_type_name(&self, ty: &str) -> Option<&TypeExprKind> {
+    self.type_name_scopes.iter().rev().filter_map(|hm| hm.get(ty)).next()
   }
-  pub fn lookup_label(&self, label: &str) -> Option<&LabelKind> {
-    self.label_scopes.iter().rev().filter_map(|hm| hm.get(label)).next()
+  /// Label lookups have the weird property where an empty input has to still
+  /// match on the most recent label (the innermost label), even if that
+  /// innermost label has a non-empty name.
+  pub fn lookup_label_name(&self, label: &str) -> Option<&LabelKind> {
+    if label.is_empty() {
+      self
+        .label_name_scopes
+        .iter()
+        .rev()
+        .filter_map(|hm| hm.values().next())
+        .next()
+    } else {
+      self.label_name_scopes.iter().rev().filter_map(|hm| hm.get(label)).next()
+    }
   }
 
-  pub fn register_name(
+  pub fn register_var_name(
     &mut self, name: String, replacement: ValueExprKind,
   ) -> Option<ValueExprKind> {
-    self.name_scopes.last_mut().unwrap().insert(name, replacement)
+    self.var_name_scopes.last_mut().unwrap().insert(name, replacement)
   }
-  pub fn register_type(
+  pub fn register_type_name(
     &mut self, name: String, replacement: TypeExprKind,
   ) -> Option<TypeExprKind> {
-    self.type_scopes.last_mut().unwrap().insert(name, replacement)
+    self.type_name_scopes.last_mut().unwrap().insert(name, replacement)
   }
-  pub fn register_label(
+  pub fn register_label_name(
     &mut self, name: String, replacement: LabelKind,
   ) -> Option<LabelKind> {
-    self.label_scopes.last_mut().unwrap().insert(name, replacement)
+    // there should only ever be a single label at any given scope point.
+    debug_assert!(self.label_name_scopes.last_mut().unwrap().is_empty());
+    self.label_name_scopes.last_mut().unwrap().insert(name, replacement)
   }
 }
 
-pub fn resolve_names(ir: &mut IrNameResTypeCheck) {
+pub fn do_names(ir: &mut IrNameResTypeCheck) {
   let mut ctx = ResolverContext::default();
   ctx.push_scope();
-  ctx.register_type("()".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx.register_type("bool".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx.register_type("u8".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx.register_type("i8".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx.register_type("u16".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx.register_type("i16".into(), TypeExprKind::GlobalType(TypeId::new()));
+  // todo: register the type id itself somewhere?
+  ctx.register_type_name("()".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx
+    .register_type_name("bool".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx.register_type_name("u8".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx.register_type_name("i8".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx.register_type_name("u16".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx.register_type_name("i16".into(), TypeExprKind::GlobalType(TypeId::new()));
 
   for module in ir.ast.modules.iter_mut() {
     ctx.within_scope(|ctx| {
-      // scan all items as if they were defined simultaneously
+      let mut items_defined_this_scope = Vec::new();
       for item in module.items.iter() {
-        let name = item.name.clone();
-        let replacement = match &item.kind {
-          ItemKind::Constant { .. } => ValueExprKind::NameOfConstant(item.id),
-          ItemKind::StaticMmio { .. } => {
-            ValueExprKind::NameOfStaticMmio(item.id)
-          }
-          ItemKind::Function { .. } => ValueExprKind::NameOfFunction(item.id),
-          other => todo!("unknown how to register {other:?}"),
-        };
-        if ctx.register_name(name, replacement).is_some() {
-          let name = item.name.as_str();
-          ir.ast.errors.push(YagError {
-            file_origin: item.file_origin,
-            span: item.span,
-            message: format!("Conflicting Definition: {name}"),
-          });
+        if items_defined_this_scope.contains(&item.name.as_str()) {
+          // todo: error about multiple definitions
+          continue;
+        } else {
+          items_defined_this_scope.push(item.name.as_str());
         }
-        // todo: register types too
+        register_item_definition_info(ctx, item);
       }
 
       for item in module.items.iter_mut() {
-        resolve_inside_item(ctx, item);
+        do_names_in_item(ctx, item);
       }
     });
   }
 }
 
-fn resolve_inside_item(ctx: &mut ResolverContext, item: &mut Item) {
+fn register_item_definition_info(ctx: &mut ResolverContext, item: &Item) {
+  let name = item.name.clone();
+  match &item.kind {
+    ItemKind::Constant { .. } => {
+      let replacement = ValueExprKind::NameOfConstant(item.id);
+      ctx.register_var_name(name, replacement);
+    }
+    ItemKind::StaticMmio { .. } => {
+      let replacement = ValueExprKind::NameOfStaticMmio(item.id);
+      ctx.register_var_name(name, replacement);
+    }
+    ItemKind::StaticRam { .. } => {
+      let replacement = ValueExprKind::NameOfStaticRam(item.id);
+      ctx.register_var_name(name, replacement);
+    }
+    ItemKind::StaticRom { .. } => {
+      let replacement = ValueExprKind::NameOfStaticRom(item.id);
+      ctx.register_var_name(name, replacement);
+    }
+    ItemKind::Function { .. } => {
+      let replacement = ValueExprKind::NameOfFunction(item.id);
+      ctx.register_var_name(name, replacement);
+    }
+    ItemKind::Struct { .. } => {
+      // todo: register the type id itself somewhere?
+      let replacement = TypeExprKind::GlobalType(TypeId::new());
+      ctx.register_type_name(name, replacement);
+    }
+    ItemKind::Bitbag { .. } => {
+      // todo: register the type id itself somewhere?
+      let replacement = TypeExprKind::GlobalType(TypeId::new());
+      ctx.register_type_name(name, replacement);
+    }
+    ItemKind::Enum { .. } => {
+      // todo: register the type id itself somewhere?
+      let replacement = TypeExprKind::GlobalType(TypeId::new());
+      ctx.register_type_name(name, replacement);
+    }
+    ItemKind::ErrItemKind => return,
+    other => todo!("unknown how to register {other:?}"),
+  };
+}
+
+fn do_names_in_item(ctx: &mut ResolverContext, item: &mut Item) {
   match &mut item.kind {
     ItemKind::StaticMmio { location, type_decl } => {
-      resolve_inside_value_expr(ctx, location);
-      resolve_inside_type_expr(ctx, type_decl);
+      do_names_in_value_expr(ctx, location);
+      do_names_in_type_expr(ctx, type_decl);
     }
     ItemKind::Constant { type_decl, value_decl } => {
-      resolve_inside_type_expr(ctx, type_decl);
-      resolve_inside_value_expr(ctx, value_decl);
+      do_names_in_type_expr(ctx, type_decl);
+      do_names_in_value_expr(ctx, value_decl);
     }
     ItemKind::Function { args, ret_ty, statements } => {
-      resolve_inside_type_expr(ctx, ret_ty);
+      do_names_in_type_expr(ctx, ret_ty);
       for arg in args.iter_mut() {
-        resolve_inside_type_expr(ctx, &mut arg.type_decl);
+        do_names_in_type_expr(ctx, &mut arg.type_decl);
       }
       ctx.within_scope(|ctx| {
         for arg in args.iter_mut() {
@@ -135,20 +183,20 @@ fn resolve_inside_item(ctx: &mut ResolverContext, item: &mut Item) {
               let id = LocalNameId::new();
               let name = name.clone();
               let replacement = ValueExprKind::NameOfLocalVariable(id);
-              let _ = ctx.register_name(name, replacement);
+              let _ = ctx.register_var_name(name, replacement);
               arg.pattern.kind = PatternKind::SimpleLocalName(id);
             }
             other => todo!("unhandled pattern kind: {other:?}"),
           }
         }
-        resolve_inside_body(ctx, statements);
+        do_names_in_body(ctx, statements);
       });
     }
     other => todo!("unhandled inside item: {other:?}"),
   }
 }
 
-fn resolve_inside_body(
+fn do_names_in_body(
   ctx: &mut ResolverContext, statements: &mut Vec<Statement>,
 ) {
   ctx.within_scope(|ctx| {
@@ -159,63 +207,53 @@ fn resolve_inside_body(
           if items_defined_this_scope.contains(&item.name.as_str()) {
             // todo: error about multiple definitions
             continue;
+          } else {
+            items_defined_this_scope.push(item.name.as_str());
           }
-          items_defined_this_scope.push(item.name.as_str());
-          let name = item.name.clone();
-          let replacement = match &item.kind {
-            ItemKind::Constant { .. } => ValueExprKind::NameOfConstant(item.id),
-            ItemKind::StaticMmio { .. } => {
-              ValueExprKind::NameOfStaticMmio(item.id)
-            }
-            ItemKind::Function { .. } => ValueExprKind::NameOfFunction(item.id),
-            other => todo!("unknown how to register {other:?}"),
-          };
-          ctx.register_name(name, replacement);
+          register_item_definition_info(ctx, item);
         }
         _ => continue,
       }
     }
     for statement in statements.iter_mut() {
-      resolve_inside_statement(ctx, statement);
+      do_names_in_statement(ctx, statement);
     }
   });
 }
 
-fn resolve_inside_statement(
-  ctx: &mut ResolverContext, statement: &mut Statement,
-) {
+fn do_names_in_statement(ctx: &mut ResolverContext, statement: &mut Statement) {
   match &mut *statement.kind {
     StatementKind::Let { pattern, type_decl, initializer } => {
       if let Some(xpr) = initializer {
-        resolve_inside_value_expr(ctx, xpr);
+        do_names_in_value_expr(ctx, xpr);
       }
       if let Some(ty) = type_decl {
-        resolve_inside_type_expr(ctx, ty);
+        do_names_in_type_expr(ctx, ty);
       }
       match &mut pattern.kind {
         PatternKind::Simple(name) => {
           let id = LocalNameId::new();
           let name = name.clone();
           let replacement = ValueExprKind::NameOfLocalVariable(id);
-          let _ = ctx.register_name(name, replacement);
+          let _ = ctx.register_var_name(name, replacement);
           pattern.kind = PatternKind::SimpleLocalName(id);
         }
         other => todo!("unhandled let pattern kind: {other:?}"),
       }
     }
-    StatementKind::Expression(xpr) => resolve_inside_value_expr(ctx, xpr),
-    StatementKind::Item(item) => resolve_inside_item(ctx, item),
+    StatementKind::Expression(xpr) => do_names_in_value_expr(ctx, xpr),
+    StatementKind::Item(item) => do_names_in_item(ctx, item),
     StatementKind::ErrStatementKind => return,
   }
 }
 
-fn resolve_inside_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
+fn do_names_in_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
   match &mut *xpr.kind {
     ValueExprKind::Identifier(name) => {
-      if let Some(replacement) = ctx.lookup_name(name.as_str()) {
+      if let Some(replacement) = ctx.lookup_var_name(name.as_str()) {
         *xpr.kind = replacement.clone();
       } else {
-        // todo: name resolution error
+        todo!()
       }
     }
     ValueExprKind::LiteralNumber(_) => {
@@ -229,7 +267,7 @@ fn resolve_inside_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
               let id = LabelId::new();
               let name = name.clone();
               let replacement = LabelKind::GlobalId(id);
-              let _ = ctx.register_label(name, replacement);
+              let _ = ctx.register_label_name(name, replacement);
               label.kind = LabelKind::GlobalId(id);
             }
             other => todo!("unhandled let pattern kind: {other:?}"),
@@ -238,60 +276,62 @@ fn resolve_inside_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
           let id = LabelId::new();
           let name = String::from("");
           let replacement = LabelKind::GlobalId(id);
-          let _ = ctx.register_label(name, replacement);
+          let _ = ctx.register_label_name(name, replacement);
           *label = Some(Label {
             span: Span::default(),
             kind: LabelKind::GlobalId(id),
           });
         }
-        resolve_inside_body(ctx, statements);
+        do_names_in_body(ctx, statements);
       });
     }
     ValueExprKind::Break { label, value } => {
       match label {
         Some(label_inner) => match &mut label_inner.kind {
           LabelKind::Identifier(l) => {
-            if let Some(replacement) = ctx.lookup_label(l.as_str()) {
+            if let Some(replacement) = ctx.lookup_label_name(l.as_str()) {
               label_inner.kind = replacement.clone();
+            } else {
+              todo!()
             }
           }
           _ => todo!("unhadnled label kind in break expr"),
         },
         None => {
-          if let Some(replacement) = ctx.lookup_label("") {
+          if let Some(replacement) = ctx.lookup_label_name("") {
             *label =
               Some(Label { span: Span::default(), kind: replacement.clone() });
           } else {
-            // todo: error, break not within looping expression
+            todo!()
           }
         }
       }
       if let Some(xpr) = value {
-        resolve_inside_value_expr(ctx, xpr);
+        do_names_in_value_expr(ctx, xpr);
       }
     }
     ValueExprKind::If { condition, when_true, when_false } => {
-      resolve_inside_value_expr(ctx, condition);
-      resolve_inside_body(ctx, when_true);
-      resolve_inside_body(ctx, when_false);
+      do_names_in_value_expr(ctx, condition);
+      do_names_in_body(ctx, when_true);
+      do_names_in_body(ctx, when_false);
     }
     ValueExprKind::BinOp { left, op: _, right } => {
-      resolve_inside_value_expr(ctx, left);
-      resolve_inside_value_expr(ctx, right);
+      do_names_in_value_expr(ctx, left);
+      do_names_in_value_expr(ctx, right);
     }
     ValueExprKind::UnOp { op: _, operand } => {
-      resolve_inside_value_expr(ctx, operand);
+      do_names_in_value_expr(ctx, operand);
     }
     other => todo!("unhandled inside value expression: {other:?}"),
   }
 }
-fn resolve_inside_type_expr(ctx: &mut ResolverContext, ty: &mut TypeExpr) {
+fn do_names_in_type_expr(ctx: &mut ResolverContext, ty: &mut TypeExpr) {
   match &mut *ty.kind {
     TypeExprKind::Simple(t) => {
-      if let Some(replacement) = ctx.lookup_type(t.as_str()) {
+      if let Some(replacement) = ctx.lookup_type_name(t.as_str()) {
         *ty.kind = replacement.clone();
       } else {
-        // todo: name resolution error
+        todo!()
       }
     }
     other => todo!("unhandled inside type expression: {other:?}"),

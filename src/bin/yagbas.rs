@@ -5,7 +5,7 @@ use yagbas::{
     actions::gather_module,
     parser::{BuildTreeArgs, CstParser},
   },
-  ir_nameres_typecheck::{IrNameResTypeCheck, resolve_names},
+  ir_nameres_typecheck::{IrNameResTypeCheck, do_names},
   path_id::PathId,
 };
 
@@ -66,7 +66,7 @@ fn do_nameres(mut arguments: Vec<OsString>) {
     }
   }
   let mut ir = IrNameResTypeCheck { ast };
-  resolve_names(&mut ir);
+  do_names(&mut ir);
   println!("```");
   for module in &ir.ast.modules {
     println!("> Module: {:?}", module.file_origin);

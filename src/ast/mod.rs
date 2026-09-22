@@ -273,6 +273,8 @@ pub enum ValueExprKind {
     as_type: TypeExpr,
   },
   NameOfStaticMmio(ItemId),
+  NameOfStaticRam(ItemId),
+  NameOfStaticRom(ItemId),
   NameOfConstant(ItemId),
   NameOfFunction(ItemId),
   NameOfLocalVariable(LocalNameId),
