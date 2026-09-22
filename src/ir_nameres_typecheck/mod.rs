@@ -4,7 +4,7 @@ use crate::{
   Span, YagError,
   ast::{
     Ast, Item, ItemKind, Label, LabelId, LabelKind, LocalNameId, PatternKind,
-    Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr,
+    Statement, StatementKind, TypeExpr, TypeExprKind, TypeId, ValueExpr,
     ValueExprKind::{self},
   },
 };
@@ -74,6 +74,13 @@ impl ResolverContext {
 
 pub fn resolve_names(ir: &mut IrNameResTypeCheck) {
   let mut ctx = ResolverContext::default();
+  ctx.push_scope();
+  ctx.register_type("()".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx.register_type("bool".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx.register_type("u8".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx.register_type("i8".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx.register_type("u16".into(), TypeExprKind::GlobalType(TypeId::new()));
+  ctx.register_type("i16".into(), TypeExprKind::GlobalType(TypeId::new()));
 
   for module in ir.ast.modules.iter_mut() {
     ctx.within_scope(|ctx| {
@@ -207,6 +214,8 @@ fn resolve_inside_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
     ValueExprKind::Identifier(name) => {
       if let Some(replacement) = ctx.lookup_name(name.as_str()) {
         *xpr.kind = replacement.clone();
+      } else {
+        // todo: name resolution error
       }
     }
     ValueExprKind::LiteralNumber(_) => {
@@ -276,10 +285,14 @@ fn resolve_inside_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
     other => todo!("unhandled inside value expression: {other:?}"),
   }
 }
-fn resolve_inside_type_expr(_ctx: &mut ResolverContext, ty: &mut TypeExpr) {
+fn resolve_inside_type_expr(ctx: &mut ResolverContext, ty: &mut TypeExpr) {
   match &mut *ty.kind {
-    TypeExprKind::Simple(_) => {
-      // todo: get the type id for this type and overwrite the kind.
+    TypeExprKind::Simple(t) => {
+      if let Some(replacement) = ctx.lookup_type(t.as_str()) {
+        *ty.kind = replacement.clone();
+      } else {
+        // todo: name resolution error
+      }
     }
     other => todo!("unhandled inside type expression: {other:?}"),
   }
