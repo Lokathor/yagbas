@@ -1,10 +1,10 @@
 use fnv::FnvHashMap;
 
 use crate::{
-  Span, YagError,
+  LabelId, Span, YagError,
   ast::{
-    Ast, Item, ItemKind, Label, LabelId, LabelKind, LocalNameId, PatternKind,
-    Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr,
+    Ast, Item, ItemKind, Label, LabelKind, LocalNameId, PatternKind, Statement,
+    StatementKind, TypeExpr, TypeExprKind, ValueExpr,
     ValueExprKind::{self},
   },
 };
@@ -266,21 +266,19 @@ fn do_names_in_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
             LabelKind::Identifier(name) => {
               let id = LabelId::new();
               let name = name.clone();
-              let replacement = LabelKind::GlobalId(id);
+              let replacement = LabelKind::IdNum(id);
               let _ = ctx.register_label_name(name, replacement);
-              label.kind = LabelKind::GlobalId(id);
+              label.kind = LabelKind::IdNum(id);
             }
             other => todo!("unhandled let pattern kind: {other:?}"),
           }
         } else {
           let id = LabelId::new();
           let name = String::from("");
-          let replacement = LabelKind::GlobalId(id);
+          let replacement = LabelKind::IdNum(id);
           let _ = ctx.register_label_name(name, replacement);
-          *label = Some(Label {
-            span: Span::default(),
-            kind: LabelKind::GlobalId(id),
-          });
+          *label =
+            Some(Label { span: Span::default(), kind: LabelKind::IdNum(id) });
         }
         do_names_in_body(ctx, statements);
       });
@@ -293,21 +291,19 @@ fn do_names_in_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
             LabelKind::Identifier(name) => {
               let id = LabelId::new();
               let name = name.clone();
-              let replacement = LabelKind::GlobalId(id);
+              let replacement = LabelKind::IdNum(id);
               let _ = ctx.register_label_name(name, replacement);
-              label.kind = LabelKind::GlobalId(id);
+              label.kind = LabelKind::IdNum(id);
             }
             other => todo!("unhandled let pattern kind: {other:?}"),
           }
         } else {
           let id = LabelId::new();
           let name = String::from("");
-          let replacement = LabelKind::GlobalId(id);
+          let replacement = LabelKind::IdNum(id);
           let _ = ctx.register_label_name(name, replacement);
-          *label = Some(Label {
-            span: Span::default(),
-            kind: LabelKind::GlobalId(id),
-          });
+          *label =
+            Some(Label { span: Span::default(), kind: LabelKind::IdNum(id) });
         }
         match &mut step_var.kind {
           PatternKind::Simple(name) => {

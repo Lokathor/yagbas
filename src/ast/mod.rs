@@ -1,7 +1,7 @@
 //! Module for the Abstract Syntax Tree types.
 
 use crate::{
-  Span, YagError,
+  ItemId, LabelId, Span, YagError,
   cst::Cst,
   make_global_id,
   operators::{BinOpKind, UnOpKind},
@@ -10,29 +10,6 @@ use crate::{
 
 pub mod actions;
 pub mod parser;
-
-make_global_id!(
-  /// Globally unique ID value for a particular [Item].
-  ItemId
-);
-
-make_global_id!(
-  /// Globally unique ID value for a particular [TypeKind].
-  TypeKindId
-);
-
-make_global_id!(
-  /// Globally unique ID value for a particular [Label].
-  LabelId
-);
-
-make_global_id!(
-  /// Globally unique ID value for a particular type inference variable.
-  ///
-  /// Inference doesn't happen globally, but with it being a global counter
-  /// there's less state to track and reset within the resolver.
-  InferenceId
-);
 
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
@@ -144,7 +121,7 @@ pub enum LabelKind {
   #[default]
   ErrLabelKind,
   Identifier(String),
-  GlobalId(LabelId),
+  IdNum(LabelId),
 }
 
 make_global_id!(

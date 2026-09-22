@@ -69,9 +69,9 @@ impl Cst {
   }
 
   pub fn try_span(&self) -> Option<Span> {
-    let start = self.elements.first()?.try_span()?.start;
-    let end = self.elements.last()?.try_span()?.end;
-    Some(Span { start, end })
+    let start = self.elements.first()?.try_span()?.as_range().start as u32;
+    let end = self.elements.last()?.try_span()?.as_range().end as u32;
+    Some(Span::new(start, end))
   }
 }
 

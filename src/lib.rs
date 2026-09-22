@@ -17,12 +17,14 @@
 //! only refers to the language/compiler portion of the project. Contents of the
 //! library and its operation may change at any time.
 
-use crate::{non_max_u32::NonMaxU32, path_id::PathId};
+use crate::{path_id::PathId, span::Span};
 
 pub mod global_id;
 pub mod kvec;
 pub mod non_max_u32;
+pub mod non_max_u64;
 pub mod path_id;
+pub mod span;
 
 #[forbid(unsafe_code)]
 pub mod operators;
@@ -38,32 +40,6 @@ pub mod ast;
 #[forbid(unsafe_code)]
 pub mod ir_nameres_typecheck;
 
-/// A span within a source file.
-///
-/// Because we use `u32` positions, Yagbas source files are limited in size to
-/// 4GB, which is entirely reasonable.
-#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Span {
-  /// the start of the span
-  pub start: NonMaxU32,
-  /// the **exclusive** end of the span.
-  pub end: u32,
-}
-impl Span {
-  /// Makes the new span.
-  pub const fn new(start: u32, end: u32) -> Self {
-    Self { start: NonMaxU32::try_new(start).unwrap(), end }
-  }
-  /// Convert the span to a [Range], so you can index with it.
-  pub const fn as_range(self) -> core::ops::Range<usize> {
-    (self.start.get() as usize)..(self.end as usize)
-  }
-}
-impl core::fmt::Debug for Span {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    core::fmt::Debug::fmt(&self.as_range(), f)
-  }
-}
 // todo: make this a non-max u64 for quick hashing?
 
 #[derive(Debug, Clone)]
@@ -72,3 +48,26 @@ pub struct YagError {
   pub span: Span,
   pub message: String,
 }
+
+make_global_id!(
+  /// Globally unique ID value for a particular [Item].
+  ItemId
+);
+
+make_global_id!(
+  /// Globally unique ID value for a particular [TypeKind].
+  TypeKindId
+);
+
+make_global_id!(
+  /// Globally unique ID value for a particular [Label].
+  LabelId
+);
+
+make_global_id!(
+  /// Globally unique ID value for a particular type inference variable.
+  ///
+  /// Inference doesn't happen globally, but with it being a global counter
+  /// there's less state to track and reset within the resolver.
+  InferenceId
+);

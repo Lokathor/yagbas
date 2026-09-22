@@ -2,7 +2,7 @@
 
 use TokenKind::*;
 
-use crate::{Span, non_max_u32::NonMaxU32};
+use crate::Span;
 
 /// An individual element of Yagbas source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -421,7 +421,8 @@ impl TokenKind {
 pub struct TokenIter<'a> {
   bytes: &'a [u8],
   position: usize,
-  span: Span,
+  span_start: u32,
+  span_end: u32,
 }
 impl<'a> TokenIter<'a> {
   /// Constructs a new iterator pointed to the start of the source.
@@ -429,9 +430,7 @@ impl<'a> TokenIter<'a> {
   pub fn new(src: &'a str) -> Self {
     debug_assert!(u32::try_from(src.len()).is_ok());
     let bytes = src.as_bytes();
-    let position = 0;
-    let span = Span::new(0, 0);
-    Self { bytes, position, span }
+    Self { bytes, position: 0, span_start: 0, span_end: 0 }
   }
 
   /// When in bounds, get a byte then advance the span and possition.
@@ -440,7 +439,7 @@ impl<'a> TokenIter<'a> {
   fn next_byte(&mut self) -> Option<u8> {
     if self.position < self.bytes.len() {
       let out = self.bytes[self.position];
-      self.span.end += 1;
+      self.span_end += 1;
       self.position += 1;
       Some(out)
     } else {
@@ -451,6 +450,11 @@ impl<'a> TokenIter<'a> {
   /// Peek at the next source byte
   fn peek_byte(&self) -> Option<u8> {
     self.bytes.get(self.position).copied()
+  }
+
+  /// Wraps and returns the current span data.
+  fn get_span(&self) -> Span {
+    Span::new(self.span_start, self.span_end)
   }
 
   /// find the close to a block comment
@@ -467,7 +471,7 @@ impl<'a> TokenIter<'a> {
         None => {
           return Some(Token {
             kind: ErrBlockCommentUnclosed,
-            span: self.span,
+            span: self.get_span(),
           });
         }
         Some(b'/') => {
@@ -490,7 +494,7 @@ impl<'a> TokenIter<'a> {
         Some(_) => {}
       }
     }
-    Some(Token { kind: Comment, span: self.span })
+    Some(Token { kind: Comment, span: self.get_span() })
   }
 
   /// With the lexer pointed at the byte just after the opening `"`, find the
@@ -501,7 +505,10 @@ impl<'a> TokenIter<'a> {
     loop {
       match self.next_byte() {
         None => {
-          return Some(Token { kind: ErrLitStrUnclosed, span: self.span });
+          return Some(Token {
+            kind: ErrLitStrUnclosed,
+            span: self.get_span(),
+          });
         }
         Some(b'\\') => {
           backslash_count += 1;
@@ -519,7 +526,7 @@ impl<'a> TokenIter<'a> {
         }
       }
     }
-    Some(Token { kind: LitStr, span: self.span })
+    Some(Token { kind: LitStr, span: self.get_span() })
   }
 
   /// With the lexer pointed at a `#` immediately after a `r`, finish this raw
@@ -535,13 +542,16 @@ impl<'a> TokenIter<'a> {
     }
     match self.next_byte() {
       Some(b'"') => {}
-      _ => return Some(Token { kind: ErrBadRawValue, span: self.span }),
+      _ => return Some(Token { kind: ErrBadRawValue, span: self.get_span() }),
     }
     debug_assert!(hash_count > 0);
     'find_double_quote: loop {
       match self.next_byte() {
         None => {
-          return Some(Token { kind: ErrLitRawStrUnclosed, span: self.span });
+          return Some(Token {
+            kind: ErrLitRawStrUnclosed,
+            span: self.get_span(),
+          });
         }
         Some(b'"') => {
           let mut remaining = hash_count;
@@ -550,7 +560,7 @@ impl<'a> TokenIter<'a> {
               None => {
                 return Some(Token {
                   kind: ErrLitRawStrUnclosed,
-                  span: self.span,
+                  span: self.get_span(),
                 });
               }
               Some(b'#') => {
@@ -567,7 +577,7 @@ impl<'a> TokenIter<'a> {
         Some(_) => {}
       }
     }
-    Some(Token { kind: LitStr, span: self.span })
+    Some(Token { kind: LitStr, span: self.get_span() })
   }
 
   /// Having just consumed the first byte of a number literal, this finishes
@@ -578,7 +588,7 @@ impl<'a> TokenIter<'a> {
     {
       self.next_byte();
     }
-    Some(Token { kind: LitNum, span: self.span })
+    Some(Token { kind: LitNum, span: self.get_span() })
   }
 
   /// Having just consumed the first byte of a keyword or ident, finish the
@@ -589,7 +599,8 @@ impl<'a> TokenIter<'a> {
     {
       self.next_byte();
     }
-    let captured = &self.bytes[self.span.as_range()];
+    let span = self.get_span();
+    let captured = &self.bytes[span.as_range()];
     let kind = match captured {
       b"as" => KwAs,
       b"bitbag" => KwBitbag,
@@ -622,7 +633,7 @@ impl<'a> TokenIter<'a> {
       b"vol" => KwVol,
       _ => Ident,
     };
-    Some(Token { kind, span: self.span })
+    Some(Token { kind, span })
   }
 }
 impl<'a> Iterator for TokenIter<'a> {
@@ -630,8 +641,8 @@ impl<'a> Iterator for TokenIter<'a> {
 
   fn next(&mut self) -> Option<Self::Item> {
     // reset the span
-    self.span.start = NonMaxU32::try_new(self.position as u32).unwrap();
-    self.span.end = self.position as u32;
+    self.span_start = self.position as u32;
+    self.span_end = self.position as u32;
     //
     match self.next_byte()? {
       // whitespace
@@ -639,7 +650,7 @@ impl<'a> Iterator for TokenIter<'a> {
         while let Some(b' ' | b'\t' | b'\r' | b'\n') = self.peek_byte() {
           self.next_byte();
         }
-        Some(Token { kind: Whitespace, span: self.span })
+        Some(Token { kind: Whitespace, span: self.get_span() })
       }
       // comments
       b'/' => match self.peek_byte() {
@@ -654,24 +665,24 @@ impl<'a> Iterator for TokenIter<'a> {
               }
             }
           }
-          Some(Token { kind: Comment, span: self.span })
+          Some(Token { kind: Comment, span: self.get_span() })
         }
         Some(b'=') => {
           self.next_byte();
-          Some(Token { kind: SlashEqual, span: self.span })
+          Some(Token { kind: SlashEqual, span: self.get_span() })
         }
-        _ => Some(Token { kind: Slash, span: self.span }),
+        _ => Some(Token { kind: Slash, span: self.get_span() }),
       },
       b'*' => match self.peek_byte() {
         Some(b'/') => {
           self.next_byte();
-          Some(Token { kind: ErrBlockCommentExtraClose, span: self.span })
+          Some(Token { kind: ErrBlockCommentExtraClose, span: self.get_span() })
         }
         Some(b'=') => {
           self.next_byte();
-          Some(Token { kind: StarEqual, span: self.span })
+          Some(Token { kind: StarEqual, span: self.get_span() })
         }
-        _ => Some(Token { kind: Star, span: self.span }),
+        _ => Some(Token { kind: Star, span: self.get_span() }),
       },
       // string literals
       b'"' => self.handle_literal_str(),
@@ -681,7 +692,7 @@ impl<'a> Iterator for TokenIter<'a> {
         Some(b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z') => {
           self.handle_literal_num()
         }
-        _ => Some(Token { kind: Dollar, span: self.span }),
+        _ => Some(Token { kind: Dollar, span: self.get_span() }),
       },
       b'%' => match self.peek_byte() {
         Some(b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z') => {
@@ -689,9 +700,9 @@ impl<'a> Iterator for TokenIter<'a> {
         }
         Some(b'=') => {
           self.next_byte().unwrap();
-          Some(Token { kind: PercentEqual, span: self.span })
+          Some(Token { kind: PercentEqual, span: self.get_span() })
         }
-        _ => Some(Token { kind: Percent, span: self.span }),
+        _ => Some(Token { kind: Percent, span: self.get_span() }),
       },
       b'0'..=b'9' => self.handle_literal_num(),
       // keywords, idents
@@ -699,39 +710,39 @@ impl<'a> Iterator for TokenIter<'a> {
       // double punctuation
       b'-' if self.peek_byte() == Some(b'>') => {
         self.next_byte();
-        Some(Token { kind: MinusGreater, span: self.span })
+        Some(Token { kind: MinusGreater, span: self.get_span() })
       }
       b':' if self.peek_byte() == Some(b':') => {
         self.next_byte();
-        Some(Token { kind: ColonColon, span: self.span })
+        Some(Token { kind: ColonColon, span: self.get_span() })
       }
       b'=' if self.peek_byte() == Some(b'=') => {
         self.next_byte();
-        Some(Token { kind: EqualEqual, span: self.span })
+        Some(Token { kind: EqualEqual, span: self.get_span() })
       }
       b'!' if self.peek_byte() == Some(b'=') => {
         self.next_byte();
-        Some(Token { kind: BangEqual, span: self.span })
+        Some(Token { kind: BangEqual, span: self.get_span() })
       }
       b'+' if self.peek_byte() == Some(b'=') => {
         self.next_byte();
-        Some(Token { kind: PlusEqual, span: self.span })
+        Some(Token { kind: PlusEqual, span: self.get_span() })
       }
       b'-' if self.peek_byte() == Some(b'=') => {
         self.next_byte();
-        Some(Token { kind: MinusEqual, span: self.span })
+        Some(Token { kind: MinusEqual, span: self.get_span() })
       }
       b'&' if self.peek_byte() == Some(b'=') => {
         self.next_byte();
-        Some(Token { kind: AmpersandEqual, span: self.span })
+        Some(Token { kind: AmpersandEqual, span: self.get_span() })
       }
       b'|' if self.peek_byte() == Some(b'=') => {
         self.next_byte();
-        Some(Token { kind: PipeEqual, span: self.span })
+        Some(Token { kind: PipeEqual, span: self.get_span() })
       }
       b'^' if self.peek_byte() == Some(b'=') => {
         self.next_byte();
-        Some(Token { kind: CaretEqual, span: self.span })
+        Some(Token { kind: CaretEqual, span: self.get_span() })
       }
       b'.' if self.peek_byte() == Some(b'.') => {
         self.next_byte(); // consume second '.'
@@ -739,19 +750,21 @@ impl<'a> Iterator for TokenIter<'a> {
         match self.peek_byte() {
           Some(b'=') => {
             self.next_byte(); // consume '='
-            Some(Token { kind: DotDotEqual, span: self.span })
+            Some(Token { kind: DotDotEqual, span: self.get_span() })
           }
-          _ => Some(Token { kind: DotDot, span: self.span }),
+          _ => Some(Token { kind: DotDot, span: self.get_span() }),
         }
       }
       // fallback for all other punctuation cases
       x @ b'!'..=b'/' | x @ b':'..=b'@' | x @ b'['..=b'`' | x @ b'{'..=b'~' => {
         let t = core::mem::transmute::<u8, TokenKind>;
         // Safety: all bytes in the pattern are variants within the TokenKind enum.
-        Some(Token { kind: unsafe { t(x) }, span: self.span })
+        Some(Token { kind: unsafe { t(x) }, span: self.get_span() })
       }
       // otherwise it's out of range
-      ..=0x1F | 0x7F.. => Some(Token { kind: ErrUnknownByte, span: self.span }),
+      ..=0x1F | 0x7F.. => {
+        Some(Token { kind: ErrUnknownByte, span: self.get_span() })
+      }
     }
   }
 }
