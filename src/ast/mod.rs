@@ -112,8 +112,27 @@ pub enum PatternKind {
   #[default]
   ErrPatternKind,
   Simple(String),
-  SimpleLocalVariable(u32),
+  SimpleLocalName(LocalNameId),
 }
+
+#[derive(Debug, Clone, Default)]
+pub struct Label {
+  pub span: Span,
+  pub kind: LabelKind,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum LabelKind {
+  #[default]
+  ErrLabelKind,
+  Identifier(String),
+  GlobalId(LabelId),
+}
+
+make_global_id!(
+  /// Globally unique ID value for a particular local variable name.
+  LocalNameId
+);
 
 #[derive(Debug, Clone, Default)]
 pub struct FunctionArg {
@@ -126,6 +145,7 @@ pub struct TypeExpr {
   pub span: Span,
   pub kind: Box<TypeExprKind>,
 }
+
 #[derive(Debug, Clone, Default)]
 pub enum TypeExprKind {
   #[default]
@@ -139,6 +159,39 @@ pub enum TypeExprKind {
     elem_ty: TypeExpr,
     access_kind: PointerAccessKind,
   },
+  LocalInference(InferenceId),
+  GlobalType(TypeId),
+}
+
+make_global_id!(
+  /// Globally unique ID value for a particular type inference variable.
+  ///
+  /// Inference doesn't happen globally, but with it being a global counter there's less state to track and reset within the resolver.
+  InferenceId
+);
+
+make_global_id!(
+  /// Globally unique ID value for a particular [TypeKind].
+  TypeId
+);
+
+make_global_id!(
+  /// Globally unique ID value for a particular label.
+  LabelId
+);
+
+#[derive(Debug, Clone)]
+pub struct Type {
+  pub id: TypeId,
+  pub kind: TypeKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypeKind {
+  Simple(String),
+  Array { elem_ty: TypeId, elem_count: u32 },
+  Pointer { elem_ty: TypeId, access_kind: PointerAccessKind },
+  Function { args: Vec<TypeId>, ret: TypeId },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -170,16 +223,16 @@ pub enum ValueExprKind {
     statements: Vec<Statement>,
   },
   Loop {
-    label: Option<String>,
+    label: Option<Label>,
     statements: Vec<Statement>,
   },
   While {
-    label: Option<String>,
+    label: Option<Label>,
     condition: ValueExpr,
     statements: Vec<Statement>,
   },
   For {
-    label: Option<String>,
+    label: Option<Label>,
     step_var: Pattern,
     range: ValueExpr,
     statements: Vec<Statement>,
@@ -203,11 +256,11 @@ pub enum ValueExprKind {
   /// `..=` with no left or right sub-expression
   FullRangeInclusive,
   Break {
-    label: Option<String>,
+    label: Option<Label>,
     value: Option<ValueExpr>,
   },
   Continue {
-    label: Option<String>,
+    label: Option<Label>,
   },
   Call {
     target: ValueExpr,
