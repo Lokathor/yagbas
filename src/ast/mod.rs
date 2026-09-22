@@ -11,6 +11,29 @@ use crate::{
 pub mod actions;
 pub mod parser;
 
+make_global_id!(
+  /// Globally unique ID value for a particular [Item].
+  ItemId
+);
+
+make_global_id!(
+  /// Globally unique ID value for a particular [TypeKind].
+  TypeKindId
+);
+
+make_global_id!(
+  /// Globally unique ID value for a particular [Label].
+  LabelId
+);
+
+make_global_id!(
+  /// Globally unique ID value for a particular type inference variable.
+  ///
+  /// Inference doesn't happen globally, but with it being a global counter
+  /// there's less state to track and reset within the resolver.
+  InferenceId
+);
+
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
   pub modules: Vec<Module>,
@@ -22,11 +45,6 @@ pub struct Module {
   pub file_origin: PathId,
   pub items: Vec<Item>,
 }
-
-make_global_id!(
-  /// Globally unique ID value for a particular [Item].
-  ItemId
-);
 
 #[derive(Debug, Clone)]
 pub struct Item {
@@ -159,39 +177,10 @@ pub enum TypeExprKind {
     elem_ty: TypeExpr,
     access_kind: PointerAccessKind,
   },
-  LocalInference(InferenceId),
-  GlobalType(TypeId),
-}
-
-make_global_id!(
-  /// Globally unique ID value for a particular type inference variable.
-  ///
-  /// Inference doesn't happen globally, but with it being a global counter there's less state to track and reset within the resolver.
-  InferenceId
-);
-
-make_global_id!(
-  /// Globally unique ID value for a particular [TypeKind].
-  TypeId
-);
-
-make_global_id!(
-  /// Globally unique ID value for a particular label.
-  LabelId
-);
-
-#[derive(Debug, Clone)]
-pub struct Type {
-  pub id: TypeId,
-  pub kind: TypeKind,
-}
-
-#[derive(Debug, Clone)]
-pub enum TypeKind {
-  Simple(String),
-  Array { elem_ty: TypeId, elem_count: u32 },
-  Pointer { elem_ty: TypeId, access_kind: PointerAccessKind },
-  Function { args: Vec<TypeId>, ret: TypeId },
+  NameOfStruct(ItemId),
+  NameOfBitbag(ItemId),
+  NameOfEnum(ItemId),
+  NameOfPrimitive(&'static str),
 }
 
 #[derive(Debug, Clone, Copy)]

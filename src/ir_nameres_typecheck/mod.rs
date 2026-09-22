@@ -4,10 +4,12 @@ use crate::{
   Span, YagError,
   ast::{
     Ast, Item, ItemKind, Label, LabelId, LabelKind, LocalNameId, PatternKind,
-    Statement, StatementKind, TypeExpr, TypeExprKind, TypeId, ValueExpr,
+    Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr,
     ValueExprKind::{self},
   },
 };
+
+pub mod type_res;
 
 #[derive(Debug, Clone)]
 pub struct IrNameResTypeCheck {
@@ -89,14 +91,12 @@ impl ResolverContext {
 pub fn do_names(ir: &mut IrNameResTypeCheck) {
   let mut ctx = ResolverContext::default();
   ctx.push_scope();
-  // todo: register the type id itself somewhere?
-  ctx.register_type_name("()".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx
-    .register_type_name("bool".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx.register_type_name("u8".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx.register_type_name("i8".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx.register_type_name("u16".into(), TypeExprKind::GlobalType(TypeId::new()));
-  ctx.register_type_name("i16".into(), TypeExprKind::GlobalType(TypeId::new()));
+  for primitive in ["()", "bool", "u8", "i8", "u16", "i16"] {
+    ctx.register_type_name(
+      primitive.to_owned(),
+      TypeExprKind::NameOfPrimitive(primitive),
+    );
+  }
 
   for module in ir.ast.modules.iter_mut() {
     ctx.within_scope(|ctx| {
@@ -143,17 +143,17 @@ fn register_item_definition_info(ctx: &mut ResolverContext, item: &Item) {
     }
     ItemKind::Struct { .. } => {
       // todo: register the type id itself somewhere?
-      let replacement = TypeExprKind::GlobalType(TypeId::new());
+      let replacement = TypeExprKind::NameOfStruct(item.id);
       ctx.register_type_name(name, replacement);
     }
     ItemKind::Bitbag { .. } => {
       // todo: register the type id itself somewhere?
-      let replacement = TypeExprKind::GlobalType(TypeId::new());
+      let replacement = TypeExprKind::NameOfBitbag(item.id);
       ctx.register_type_name(name, replacement);
     }
     ItemKind::Enum { .. } => {
       // todo: register the type id itself somewhere?
-      let replacement = TypeExprKind::GlobalType(TypeId::new());
+      let replacement = TypeExprKind::NameOfEnum(item.id);
       ctx.register_type_name(name, replacement);
     }
     ItemKind::ErrItemKind => return,
