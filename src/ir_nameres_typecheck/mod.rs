@@ -285,6 +285,43 @@ fn do_names_in_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
         do_names_in_body(ctx, statements);
       });
     }
+    ValueExprKind::For { label, step_var, range, statements } => {
+      do_names_in_value_expr(ctx, range);
+      ctx.within_scope(|ctx| {
+        if let Some(label) = label {
+          match &mut label.kind {
+            LabelKind::Identifier(name) => {
+              let id = LabelId::new();
+              let name = name.clone();
+              let replacement = LabelKind::GlobalId(id);
+              let _ = ctx.register_label_name(name, replacement);
+              label.kind = LabelKind::GlobalId(id);
+            }
+            other => todo!("unhandled let pattern kind: {other:?}"),
+          }
+        } else {
+          let id = LabelId::new();
+          let name = String::from("");
+          let replacement = LabelKind::GlobalId(id);
+          let _ = ctx.register_label_name(name, replacement);
+          *label = Some(Label {
+            span: Span::default(),
+            kind: LabelKind::GlobalId(id),
+          });
+        }
+        match &mut step_var.kind {
+          PatternKind::Simple(name) => {
+            let id = LocalNameId::new();
+            let name = name.clone();
+            let replacement = ValueExprKind::NameOfLocalVariable(id);
+            let _ = ctx.register_var_name(name, replacement);
+            step_var.kind = PatternKind::SimpleLocalName(id);
+          }
+          other => todo!("unhandled pattern kind: {other:?}"),
+        }
+        do_names_in_body(ctx, statements);
+      });
+    }
     ValueExprKind::Break { label, value } => {
       match label {
         Some(label_inner) => match &mut label_inner.kind {
@@ -333,6 +370,10 @@ fn do_names_in_type_expr(ctx: &mut ResolverContext, ty: &mut TypeExpr) {
       } else {
         todo!()
       }
+    }
+    TypeExprKind::Array { elem_ty, elem_count } => {
+      do_names_in_type_expr(ctx, elem_ty);
+      do_names_in_value_expr(ctx, elem_count);
     }
     other => todo!("unhandled inside type expression: {other:?}"),
   }
