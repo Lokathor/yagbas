@@ -1,13 +1,17 @@
 #![allow(unused)]
 
 use crate::ItemId;
+use crate::LocalNameId;
 use crate::PathId;
 use crate::Span;
 use crate::YagError;
+use crate::ast::Ast;
 use crate::ast::PointerAccessKind;
+use crate::ast::ValueExpr;
 use ena::unify::EqUnifyValue;
 use ena::unify::InPlaceUnificationTable;
 use ena::unify::UnifyKey;
+use imbl::HashMap as ImHashMap;
 
 /// The types that a local variable can be.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -54,5 +58,11 @@ struct TypeInference {
 impl TypeInference {
   fn new_type_variable(&mut self) -> TypeVariable {
     self.unification_table.new_key(None)
+  }
+
+  fn infer(
+    &mut self, env: ImHashMap<LocalNameId, Type>, xpr: &ValueExpr,
+  ) -> (Vec<Constraint>, Type) {
+    todo!()
   }
 }
