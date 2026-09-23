@@ -1,6 +1,12 @@
+#![allow(unused)]
+
 use crate::ItemId;
+use crate::PathId;
+use crate::Span;
+use crate::YagError;
 use crate::ast::PointerAccessKind;
 use ena::unify::EqUnifyValue;
+use ena::unify::InPlaceUnificationTable;
 use ena::unify::UnifyKey;
 
 /// The types that a local variable can be.
@@ -17,14 +23,6 @@ pub enum Type {
   Variable(TypeVariable),
 }
 impl EqUnifyValue for Type {}
-impl Type {
-  /// Does this Type contain the given TypeVariable?
-  ///
-  /// The check is fully recursive.
-  pub fn occurs_check(&self, _v: TypeVariable) -> Result<(), Self> {
-    todo!()
-  }
-}
 
 /// Type variable during inference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -38,6 +36,23 @@ impl UnifyKey for TypeVariable {
     Self(u)
   }
   fn tag() -> &'static str {
-    "TypeVariable"
+    "TypeVar"
+  }
+}
+
+#[derive(Debug, Clone)]
+struct Constraint {
+  pub file_origin: PathId,
+  pub span: Span,
+  pub left: Type,
+  pub right: Type,
+}
+
+struct TypeInference {
+  unification_table: InPlaceUnificationTable<TypeVariable>,
+}
+impl TypeInference {
+  fn new_type_variable(&mut self) -> TypeVariable {
+    self.unification_table.new_key(None)
   }
 }

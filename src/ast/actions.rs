@@ -234,9 +234,6 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
   );
   //
   let mut it = cst.elements.iter().peekable();
-  let mut args = Default::default();
-  let mut ret_ty = Default::default();
-  let mut statements;
 
   basic_fixed_token!(p, it, out.span, KwFn);
 
@@ -245,31 +242,31 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
     out.name_span = name_span;
   }
 
-  match it.next() {
+  let args = match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Parens => {
-      args = parse_ast_function_args(p, cst);
+      parse_ast_function_args(p, cst)
     }
     other => {
       p.error_at(
         cst.try_span().unwrap_or_default(),
         format!("Expected Parens Group: {other:?}"),
       );
+      Vec::default()
     }
   };
 
-  if matches!(it.peek(), Some(&CstElem::FixedToken(MinusGreater, _))) {
-    basic_fixed_token!(p, it, out.span, MinusGreater);
-    if let Some(x) = basic_type_expr!(p, it, out.span) {
-      ret_ty = x;
-    }
-  } else {
-    ret_ty = TypeExpr {
-      span: Span::default(),
-      kind: Box::new(TypeExprKind::Simple(String::from("()"))),
-    }
-  }
+  let ret_ty =
+    if matches!(it.peek(), Some(&CstElem::FixedToken(MinusGreater, _))) {
+      basic_fixed_token!(p, it, out.span, MinusGreater);
+      basic_type_expr!(p, it, out.span).unwrap_or_default()
+    } else {
+      TypeExpr {
+        span: Span::default(),
+        kind: Box::new(TypeExprKind::Simple(String::from("()"))),
+      }
+    };
 
-  statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+  let statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
   out.kind = ItemKind::Function { args, ret_ty, statements };
 
@@ -394,18 +391,11 @@ fn parse_type_expr(p: &mut AstParser, cst: &Cst) -> TypeExpr {
       out.kind = Box::new(TypeExprKind::Simple(name.clone()));
     }
     Some(CstElem::FixedToken(OpBracket, _)) => {
-      let mut elem_ty = TypeExpr::default();
-      let mut elem_count = ValueExpr::default();
-
-      if let Some(x) = basic_type_expr!(p, it, out.span) {
-        elem_ty = x;
-      }
+      let elem_ty = basic_type_expr!(p, it, out.span).unwrap_or_default();
 
       basic_fixed_token!(p, it, out.span, Semicolon);
 
-      if let Some(x) = basic_value_expr!(p, it, out.span) {
-        elem_count = x;
-      }
+      let elem_count = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
       basic_fixed_token!(p, it, out.span, ClBracket);
 
@@ -642,20 +632,18 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   //
   let mut it = cst.elements.iter();
   let mut label = None;
-  let mut step_var;
-  let mut statements;
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, KwFor);
 
-  step_var = basic_pattern!(p, it, out.span).unwrap_or_default();
+  let step_var = basic_pattern!(p, it, out.span).unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, KwIn);
 
   let range = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
-  statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+  let statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
   for i in it {
     dbg!(&i);

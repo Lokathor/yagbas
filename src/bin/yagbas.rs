@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::{ffi::OsString, path::Path};
 use yagbas::{
   ast::{Ast, actions::parse_ast_module, parser::AstParser},
@@ -65,7 +66,7 @@ fn do_nameres(mut arguments: Vec<OsString>) {
       }
     }
   }
-  let mut ir = IrNameResTypeCheck { ast };
+  let mut ir = IrNameResTypeCheck { ast, expr_types: HashMap::default() };
   do_names(&mut ir);
   println!("```");
   for module in &ir.ast.modules {

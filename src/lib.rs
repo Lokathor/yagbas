@@ -40,8 +40,6 @@ pub mod ast;
 #[forbid(unsafe_code)]
 pub mod ir_nameres_typecheck;
 
-// todo: make this a non-max u64 for quick hashing?
-
 #[derive(Debug, Clone)]
 pub struct YagError {
   pub file_origin: PathId,

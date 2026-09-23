@@ -1,3 +1,5 @@
+use crate::ValueExprId;
+use crate::ir_nameres_typecheck::type_res::Type;
 use crate::{
   LabelId, LocalNameId, Span, YagError,
   ast::{
@@ -13,6 +15,7 @@ pub mod type_res;
 #[derive(Debug, Clone)]
 pub struct IrNameResTypeCheck {
   pub ast: Ast,
+  pub expr_types: HashMap<ValueExprId, Type>,
 }
 
 pub type VarNameScopes = Vec<HashMap<String, ValueExprKind>>;
@@ -348,6 +351,8 @@ fn do_names_in_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
       do_names_in_body(ctx, when_false);
     }
     ValueExprKind::BinOp { left, op: _, right } => {
+      // todo: this is wrong for FieldAccess ops. when the left side is field accessable, the right side is a field name not a general variable name.
+      // todo: also Path ops.
       do_names_in_value_expr(ctx, left);
       do_names_in_value_expr(ctx, right);
     }
