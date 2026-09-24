@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 /// A trait for KVec key types.
 ///
-/// Declare new key types using the [make_key!] macro.
+/// Declare new key types using the [make_key!](crate::make_key) macro.
 pub trait KVecKey {
   /// change the key into a raw value.
   fn to_u32(self) -> u32;
