@@ -203,6 +203,19 @@ pub enum ValueExprKind {
     condition: ValueExpr,
     statements: Vec<Statement>,
   },
+  /// For loops are sugar for the following:
+  /// ```txt
+  /// {
+  ///   let step_var = range.start;
+  ///   'label: while step_var {range_op} range.end {
+  ///     // loop statements
+  ///     step_var += 1;
+  ///   }
+  /// }
+  /// ```
+  /// where {range_op} is
+  /// * `<` for exclusive ranges
+  /// * `<=` for inclusive ranges.
   For {
     label: Option<Label>,
     step_var: Pattern,
