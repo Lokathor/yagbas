@@ -10,6 +10,7 @@
 #![deny(unreachable_patterns)]
 #![allow(clippy::useless_format)]
 #![allow(clippy::ptr_arg)]
+#![allow(clippy::match_single_binding)]
 
 //! Yagbas is a compiler for a language of the same name.
 //!
@@ -19,11 +20,17 @@
 
 use crate::{path_id::PathId, span::Span};
 
+#[forbid(unsafe_code)]
 pub mod global_id;
+#[forbid(unsafe_code)]
 pub mod kvec;
+#[forbid(unsafe_code)]
 pub mod non_max_u32;
+#[forbid(unsafe_code)]
 pub mod non_max_u64;
+#[forbid(unsafe_code)]
 pub mod path_id;
+#[forbid(unsafe_code)]
 pub mod span;
 
 #[forbid(unsafe_code)]
@@ -48,22 +55,23 @@ pub struct YagError {
 }
 
 make_global_id!(
-  /// Globally unique ID value for a particular [Item].
+  /// Globally unique ID value for a particular [Item](crate::ast::Item).
   ItemId
 );
 
 make_global_id!(
-  /// Globally unique ID value for a particular [ValueExpr].
+  /// Globally unique ID value for a particular [ValueExpr](crate::ast::ValueExpr).
   ValueExprId
 );
 
 make_global_id!(
-  /// Globally unique ID value for a particular [TypeKind].
-  TypeKindId
+  /// Globally unique ID value for a particular
+  /// [Type](crate::ir_nameres_typecheck::type_check::Type).
+  TypeId
 );
 
 make_global_id!(
-  /// Globally unique ID value for a particular [Label].
+  /// Globally unique ID value for a particular [Label](crate::ast::Label).
   LabelId
 );
 

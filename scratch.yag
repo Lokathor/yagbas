@@ -4,6 +4,7 @@ static mmio($FF44) LY: u8;
 
 const VBLANK_START: u8 = 144;
 
+/*
 fn main() {
   loop {
     if *LY == VBLANK_START {
@@ -16,3 +17,4 @@ fn main() {
   let a = 1;
   loop {}
 }
+*/
