@@ -16,7 +16,7 @@ impl Span {
       Self(NonMaxU64::try_new(total).unwrap())
     }
   }
-  /// Convert the span to a [Range], so you can index with it.
+  /// Convert the span to a [Range](core::ops::Range), so you can index with it.
   pub fn as_range(self) -> core::ops::Range<usize> {
     let [start, end]: [u32; 2] = bytemuck::cast(self.0.get());
     (start as usize)..(end as usize)
