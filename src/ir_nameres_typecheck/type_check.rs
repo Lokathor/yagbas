@@ -71,15 +71,15 @@ pub fn compute_types_of_ir(ir: &mut IrNameResTypeCheck) {
     for item in module.items.iter() {
       match &item.kind {
         ItemKind::StaticMmio { location, type_decl } => {
-          spread_types(ir, location);
-          check_has_type(ir, location, u16_id);
+          spread_value_expr(ir, location);
+          check_value_expr(ir, location, u16_id);
         }
         ItemKind::Constant { type_decl, value_decl } => {
-          spread_types(ir, value_decl);
+          spread_value_expr(ir, value_decl);
           let target_type = type_from_type_expr_kind(ir, &type_decl.kind);
           let target_id =
             ir.type_database.get_by_right(&target_type).copied().unwrap();
-          check_has_type(ir, value_decl, target_id);
+          check_value_expr(ir, value_decl, target_id);
         }
         #[cfg(false)]
         ItemKind::Function { args, ret_ty, statements } => {
@@ -90,7 +90,7 @@ pub fn compute_types_of_ir(ir: &mut IrNameResTypeCheck) {
           let target_type = type_from_type_expr_kind(ir, &ret_ty.kind);
           let ret_ty_id =
             ir.type_database.get_by_right(&target_type).copied().unwrap();
-          check_has_type(ir, todo!(), ret_ty_id);
+          check_value_expr(ir, todo!(), ret_ty_id);
         }
         other => todo!("compute_types_of_ir: {other:?}"),
       }
@@ -99,7 +99,7 @@ pub fn compute_types_of_ir(ir: &mut IrNameResTypeCheck) {
   core::mem::replace(&mut ir.ast.modules, modules);
 }
 
-fn check_has_type(
+fn check_value_expr(
   ir: &mut IrNameResTypeCheck, xpr: &ValueExpr, goal_id: TypeId,
 ) {
   static APPROVED_COERCION_TARGETS: &[Type] = &[
@@ -134,7 +134,7 @@ fn check_has_type(
   }
 }
 
-fn spread_types(ir: &mut IrNameResTypeCheck, xpr: &ValueExpr) {
+fn spread_value_expr(ir: &mut IrNameResTypeCheck, xpr: &ValueExpr) {
   match &*xpr.kind {
     ValueExprKind::LiteralNumber(x) => {
       match ir.expr_types.entry(xpr.id) {
