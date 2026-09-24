@@ -11,6 +11,7 @@
 #![allow(clippy::useless_format)]
 #![allow(clippy::ptr_arg)]
 #![allow(clippy::match_single_binding)]
+#![allow(clippy::empty_docs)]
 
 //! Yagbas is a compiler for a language of the same name.
 //!
