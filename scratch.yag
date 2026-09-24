@@ -6,15 +6,15 @@ const VBLANK_START: u8 = 144;
 
 /*
 fn main() {
-  loop {
-    if *LY == VBLANK_START {
-      break
-    }
-  }
-
-  *LCDC = 0;
-
-  let a = 1;
-  loop {}
+  // loop {
+  //   if *LY == VBLANK_START {
+  //     break
+  //   }
+  // }
+  // //
+  // *LCDC = 0;
+  // //
+  // let a = 1;
+  // loop {}
 }
 */

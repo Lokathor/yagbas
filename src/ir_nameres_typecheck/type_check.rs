@@ -81,6 +81,17 @@ pub fn compute_types_of_ir(ir: &mut IrNameResTypeCheck) {
             ir.type_database.get_by_right(&target_type).copied().unwrap();
           check_has_type(ir, value_decl, target_id);
         }
+        #[cfg(false)]
+        ItemKind::Function { args, ret_ty, statements } => {
+          for arg in args {
+            todo!()
+          }
+          todo!("statements");
+          let target_type = type_from_type_expr_kind(ir, &ret_ty.kind);
+          let ret_ty_id =
+            ir.type_database.get_by_right(&target_type).copied().unwrap();
+          check_has_type(ir, todo!(), ret_ty_id);
+        }
         other => todo!("compute_types_of_ir: {other:?}"),
       }
     }
