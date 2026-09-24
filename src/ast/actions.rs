@@ -242,8 +242,11 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
     out.name_span = name_span;
   }
 
+  let mut position_of_end_paren: u32 = 0;
   let args = match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Parens => {
+      position_of_end_paren =
+        cst.try_span().unwrap_or_default().as_range().end as u32;
       parse_ast_function_args(p, cst)
     }
     other => {
@@ -260,8 +263,15 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
       basic_fixed_token!(p, it, out.span, MinusGreater);
       basic_type_expr!(p, it, out.span).unwrap_or_default()
     } else {
+      let postion_of_brace = it
+        .peek()
+        .map(|e| e.try_span())
+        .unwrap_or_default()
+        .unwrap_or_default()
+        .as_range()
+        .start as u32;
       TypeExpr {
-        span: Span::default(),
+        span: Span::new(position_of_end_paren, postion_of_brace),
         kind: Box::new(TypeExprKind::Simple(String::from("()"))),
       }
     };
