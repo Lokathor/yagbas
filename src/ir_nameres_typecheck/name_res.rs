@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::{
   LabelId, LocalNameId,
   ast::{
-    Item, ItemKind, Label, LabelKind, PatternKind, Statement, StatementKind,
-    TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
+    Item, ItemKind, Label, LabelKind, PatternKind, TypeExpr, TypeExprKind,
+    ValueExpr, ValueExprKind,
   },
   ir_nameres_typecheck::{IrNameResTypeCheck, PRIMITIVE_TYPE_NAMES},
   span::Span,
@@ -164,13 +164,16 @@ fn do_names_in_item(ctx: &mut NameResolverContext, item: &mut Item) {
       do_names_in_type_expr(ctx, type_decl);
       do_names_in_value_expr(ctx, value_decl);
     }
-    ItemKind::Function { args, ret_ty, statements } => {
-      do_names_in_type_expr(ctx, ret_ty);
-      for arg in args.iter_mut() {
+    ItemKind::Function(data) => {
+      if let Some(mut ret_tyx) = data.opt_ret_tyx.as_mut() {
+        do_names_in_type_expr(ctx, &mut ret_tyx);
+      }
+
+      for arg in data.args.iter_mut() {
         do_names_in_type_expr(ctx, &mut arg.type_decl);
       }
       ctx.within_scope(|ctx| {
-        for arg in args.iter_mut() {
+        for arg in data.args.iter_mut() {
           match &mut arg.pattern.kind {
             PatternKind::Simple(name, val_id) => {
               let id = LocalNameId::new();
@@ -182,13 +185,14 @@ fn do_names_in_item(ctx: &mut NameResolverContext, item: &mut Item) {
             other => todo!("unhandled pattern kind: {other:?}"),
           }
         }
-        do_names_in_body(ctx, statements);
+        do_names_in_value_expr(ctx, &mut data.body);
       });
     }
     other => todo!("unhandled inside item: {other:?}"),
   }
 }
 
+#[cfg(false)]
 fn do_names_in_body(
   ctx: &mut NameResolverContext, statements: &mut Vec<Statement>,
 ) {
@@ -214,6 +218,7 @@ fn do_names_in_body(
   });
 }
 
+#[cfg(false)]
 fn do_names_in_statement(
   ctx: &mut NameResolverContext, statement: &mut Statement,
 ) {
@@ -254,7 +259,7 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
     ValueExprKind::LiteralNumber(_) => {
       // todo: if the type has a suffix we could assign a type right here.
     }
-    ValueExprKind::Loop { label, statements } => {
+    ValueExprKind::Loop { label, body } => {
       ctx.within_scope(|ctx| {
         if let Some(label) = label {
           match &mut label.kind {
@@ -275,10 +280,10 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
           *label =
             Some(Label { span: Span::default(), kind: LabelKind::IdNum(id) });
         }
-        do_names_in_body(ctx, statements);
+        do_names_in_value_expr(ctx, body);
       });
     }
-    ValueExprKind::For { label, step_var, range, statements } => {
+    ValueExprKind::For { label, step_var, range, body } => {
       do_names_in_value_expr(ctx, range);
       ctx.within_scope(|ctx| {
         if let Some(label) = label {
@@ -310,7 +315,7 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
           }
           other => todo!("unhandled pattern kind: {other:?}"),
         }
-        do_names_in_body(ctx, statements);
+        do_names_in_value_expr(ctx, body);
       });
     }
     ValueExprKind::Break { label, value } => {
@@ -338,10 +343,12 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
         do_names_in_value_expr(ctx, xpr);
       }
     }
-    ValueExprKind::If { condition, when_true, when_false } => {
+    ValueExprKind::If { condition, true_body, opt_false_body } => {
       do_names_in_value_expr(ctx, condition);
-      do_names_in_body(ctx, when_true);
-      do_names_in_body(ctx, when_false);
+      do_names_in_value_expr(ctx, true_body);
+      if let Some(false_body) = opt_false_body {
+        do_names_in_value_expr(ctx, false_body);
+      }
     }
     ValueExprKind::BinOp { left, op: _, right } => {
       // todo: this is wrong for FieldAccess ops. when the left side is field accessable, the right side is a field name not a general variable name.

@@ -20,10 +20,10 @@ use crate::ir_nameres_typecheck::PRIMITIVE_TYPE_NAMES;
 use crate::ir_nameres_typecheck::Type;
 
 pub fn populate_basic_types(ir: &mut IrNameResTypeCheck) {
+  ir.type_database.insert(TypeId::new(), Type::MagicIntegerLiteral);
   for name in PRIMITIVE_TYPE_NAMES {
     ir.type_database.insert(TypeId::new(), Type::SimplePrimitive(name));
   }
-  ir.type_database.insert(TypeId::new(), Type::MagicIntegerLiteral);
 }
 
 pub fn type_from_type_expr_kind(

@@ -47,13 +47,15 @@ pub trait AstVisitor {
         self.walk_type_expr(type_decl);
         self.walk_value_expr(data);
       }
-      ItemKind::Function { args, ret_ty, statements } => {
-        self.walk_type_expr(ret_ty);
-        for arg in args.iter() {
+      ItemKind::Function(data) => {
+        if let Some(ret_tyx) = data.opt_ret_tyx.as_ref() {
+          self.walk_type_expr(ret_tyx);
+        }
+        for arg in data.args.iter() {
           self.visit_pattern(&arg.pattern);
           self.walk_type_expr(&arg.type_decl);
         }
-        self.walk_statement_block(statements);
+        self.walk_value_expr(&data.body);
       }
 
       other => todo!("unhandled walk_item: {other:?}"),
@@ -88,28 +90,30 @@ pub trait AstVisitor {
       ValueExprKind::Block { statements } => {
         self.walk_statement_block(statements)
       }
-      ValueExprKind::Loop { label, statements } => {
+      ValueExprKind::Loop { label, body } => {
         self.enter_label_scope(label);
-        self.walk_statement_block(statements);
+        self.walk_value_expr(body);
         self.exit_label_scope(label);
       }
-      ValueExprKind::While { label, condition, statements } => {
+      ValueExprKind::While { label, condition, body } => {
         self.enter_label_scope(label);
         self.walk_value_expr(condition);
-        self.walk_statement_block(statements);
+        self.walk_value_expr(body);
         self.exit_label_scope(label);
       }
-      ValueExprKind::For { label, step_var, range, statements } => {
+      ValueExprKind::For { label, step_var, range, body } => {
         self.walk_value_expr(range);
         self.enter_label_scope(label);
         self.visit_pattern(step_var);
-        self.walk_statement_block(statements);
+        self.walk_value_expr(body);
         self.exit_label_scope(label);
       }
-      ValueExprKind::If { condition, when_true, when_false } => {
+      ValueExprKind::If { condition, true_body, opt_false_body } => {
         self.walk_value_expr(condition);
-        self.walk_statement_block(when_true);
-        self.walk_statement_block(when_false);
+        self.walk_value_expr(true_body);
+        if let Some(false_body) = opt_false_body {
+          self.walk_value_expr(&false_body);
+        }
       }
       ValueExprKind::BinOp { left, op, right } => {
         match op {

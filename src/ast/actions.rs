@@ -5,9 +5,9 @@ use crate::ValueExprId;
 use crate::{
   Span,
   ast::{
-    FunctionArg, Item, ItemId, ItemKind, Module, Pattern, PatternKind,
-    Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
-    parser::AstParser,
+    FunctionArg, FunctionData, Item, ItemId, ItemKind, Module, Pattern,
+    PatternKind, Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr,
+    ValueExprKind, parser::AstParser,
   },
   cst::{
     Cst, CstElem,
@@ -242,11 +242,8 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
     out.name_span = name_span;
   }
 
-  let mut position_of_end_paren: u32 = 0;
   let args = match it.next() {
     Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Parens => {
-      position_of_end_paren =
-        cst.try_span().unwrap_or_default().as_range().end as u32;
       parse_ast_function_args(p, cst)
     }
     other => {
@@ -258,27 +255,18 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
     }
   };
 
-  let ret_ty =
+  let opt_ret_tyx =
     if matches!(it.peek(), Some(&CstElem::FixedToken(MinusGreater, _))) {
       basic_fixed_token!(p, it, out.span, MinusGreater);
-      basic_type_expr!(p, it, out.span).unwrap_or_default()
+      basic_type_expr!(p, it, out.span)
     } else {
-      let postion_of_brace = it
-        .peek()
-        .map(|e| e.try_span())
-        .unwrap_or_default()
-        .unwrap_or_default()
-        .as_range()
-        .start as u32;
-      TypeExpr {
-        span: Span::new(position_of_end_paren, postion_of_brace),
-        kind: Box::new(TypeExprKind::Simple(String::from("()"))),
-      }
+      None
     };
 
-  let statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+  let body = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
-  out.kind = ItemKind::Function { args, ret_ty, statements };
+  out.kind =
+    ItemKind::Function(Box::new(FunctionData { args, opt_ret_tyx, body }));
 
   for i in it {
     dbg!(&i);
@@ -432,13 +420,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   let span = cst.try_span().unwrap_or_default();
   let mut it = cst.elements.iter();
   match it.next() {
-    Some(CstElem::FixedToken(OpBrace, _)) => ValueExpr {
-      span,
-      id: ValueExprId::new(),
-      kind: Box::new(ValueExprKind::Block {
-        statements: parse_value_expr_body(p, cst),
-      }),
-    },
+    Some(CstElem::FixedToken(OpBrace, _)) => parse_value_expr_body(p, cst),
     Some(CstElem::FixedToken(KwFor, _)) => parse_value_expr_for(p, cst),
     Some(CstElem::FixedToken(KwLoop, _)) => parse_value_expr_loop(p, cst),
     Some(CstElem::FixedToken(KwIf, _)) => parse_value_expr_if(p, cst),
@@ -653,14 +635,13 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 
   let range = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
-  let statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+  let body = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
   for i in it {
     dbg!(&i);
   }
 
-  out.kind =
-    Box::new(ValueExprKind::For { label, step_var, range, statements });
+  out.kind = Box::new(ValueExprKind::For { label, step_var, range, body });
   out
 }
 
@@ -673,19 +654,18 @@ fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   //
   let mut it = cst.elements.iter();
   let mut label = None;
-  let mut statements;
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, KwLoop);
 
-  statements = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+  let body = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
   for i in it {
     dbg!(&i);
   }
 
-  out.kind = Box::new(ValueExprKind::Loop { label, statements });
+  out.kind = Box::new(ValueExprKind::Loop { label, body });
   out
 }
 
@@ -697,8 +677,6 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   );
   //
   let mut it = cst.elements.iter().peekable();
-  let mut when_true;
-  let mut when_false = Vec::new();
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
 
@@ -706,19 +684,23 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 
   let condition = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
-  when_true = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+  let true_body = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
-  if matches!(it.peek(), Some(CstElem::FixedToken(KwElse, _))) {
-    basic_fixed_token!(p, it, out.span, KwElse);
+  let opt_false_body =
+    if matches!(it.peek(), Some(CstElem::FixedToken(KwElse, _))) {
+      basic_fixed_token!(p, it, out.span, KwElse);
 
-    when_false = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
-  }
+      Some(basic_value_expr_body!(p, it, out.span).unwrap_or_default())
+    } else {
+      None
+    };
 
   for i in it {
     dbg!(&i);
   }
 
-  out.kind = Box::new(ValueExprKind::If { condition, when_true, when_false });
+  out.kind =
+    Box::new(ValueExprKind::If { condition, true_body, opt_false_body });
   out
 }
 
@@ -726,7 +708,7 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
 ///
 /// The return value is a vec so that this can be shared between an "actual"
 /// body as well as with the other expression forms that have expression blocks.
-fn parse_value_expr_body(p: &mut AstParser, cst: &Cst) -> Vec<Statement> {
+fn parse_value_expr_body(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   debug_assert_eq!(cst.kind, CstKind::ValueExpr);
   debug_assert_eq!(
     cst.elements.first().unwrap().fixed_token().unwrap().0,
@@ -755,7 +737,11 @@ fn parse_value_expr_body(p: &mut AstParser, cst: &Cst) -> Vec<Statement> {
     }
   }
 
-  statements
+  ValueExpr {
+    id: ValueExprId::new(),
+    span: cst.try_span().unwrap_or_default(),
+    kind: Box::new(ValueExprKind::Block { statements }),
+  }
 }
 
 fn parse_statement(p: &mut AstParser, cst: &Cst) -> Statement {

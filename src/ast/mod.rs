@@ -54,11 +54,7 @@ pub enum ItemKind {
     type_decl: TypeExpr,
     data: ValueExpr,
   },
-  Function {
-    args: Vec<FunctionArg>,
-    ret_ty: TypeExpr,
-    statements: Vec<Statement>,
-  },
+  Function(Box<FunctionData>),
   Struct {
     fields: Vec<StructField>,
   },
@@ -81,6 +77,13 @@ pub enum ItemKind {
   },
   /// `mod somename;`
   Mod,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FunctionData {
+  pub args: Vec<FunctionArg>,
+  pub opt_ret_tyx: Option<TypeExpr>,
+  pub body: ValueExpr,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -196,12 +199,12 @@ pub enum ValueExprKind {
   },
   Loop {
     label: Option<Label>,
-    statements: Vec<Statement>,
+    body: ValueExpr,
   },
   While {
     label: Option<Label>,
     condition: ValueExpr,
-    statements: Vec<Statement>,
+    body: ValueExpr,
   },
   /// For loops are sugar for the following:
   /// ```txt
@@ -220,12 +223,12 @@ pub enum ValueExprKind {
     label: Option<Label>,
     step_var: Pattern,
     range: ValueExpr,
-    statements: Vec<Statement>,
+    body: ValueExpr,
   },
   If {
     condition: ValueExpr,
-    when_true: Vec<Statement>,
-    when_false: Vec<Statement>,
+    true_body: ValueExpr,
+    opt_false_body: Option<ValueExpr>,
   },
   BinOp {
     left: ValueExpr,
