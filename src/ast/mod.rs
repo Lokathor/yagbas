@@ -106,8 +106,8 @@ pub struct Pattern {
 pub enum PatternKind {
   #[default]
   ErrPatternKind,
-  Simple(String),
-  SimpleLocalName(LocalNameId),
+  Simple(String, ValueExprId),
+  SimpleLocalName(LocalNameId, ValueExprId),
 }
 
 #[derive(Debug, Clone, Default)]

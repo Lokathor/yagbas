@@ -13,5 +13,6 @@ fn main() {
 
   *LCDC = 0;
 
+  let a = 1;
   loop {}
 }

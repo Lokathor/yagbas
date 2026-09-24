@@ -181,12 +181,12 @@ fn do_names_in_item(ctx: &mut ResolverContext, item: &mut Item) {
       ctx.within_scope(|ctx| {
         for arg in args.iter_mut() {
           match &mut arg.pattern.kind {
-            PatternKind::Simple(name) => {
+            PatternKind::Simple(name, val_id) => {
               let id = LocalNameId::new();
               let name = name.clone();
               let replacement = ValueExprKind::NameOfLocalVariable(id);
               let _ = ctx.register_var_name(name, replacement);
-              arg.pattern.kind = PatternKind::SimpleLocalName(id);
+              arg.pattern.kind = PatternKind::SimpleLocalName(id, *val_id);
             }
             other => todo!("unhandled pattern kind: {other:?}"),
           }
@@ -233,12 +233,12 @@ fn do_names_in_statement(ctx: &mut ResolverContext, statement: &mut Statement) {
         do_names_in_type_expr(ctx, ty);
       }
       match &mut pattern.kind {
-        PatternKind::Simple(name) => {
+        PatternKind::Simple(name, val_id) => {
           let id = LocalNameId::new();
           let name = name.clone();
           let replacement = ValueExprKind::NameOfLocalVariable(id);
           let _ = ctx.register_var_name(name, replacement);
-          pattern.kind = PatternKind::SimpleLocalName(id);
+          pattern.kind = PatternKind::SimpleLocalName(id, *val_id);
         }
         other => todo!("unhandled let pattern kind: {other:?}"),
       }
@@ -308,12 +308,12 @@ fn do_names_in_value_expr(ctx: &mut ResolverContext, xpr: &mut ValueExpr) {
             Some(Label { span: Span::default(), kind: LabelKind::IdNum(id) });
         }
         match &mut step_var.kind {
-          PatternKind::Simple(name) => {
+          PatternKind::Simple(name, val_id) => {
             let id = LocalNameId::new();
             let name = name.clone();
             let replacement = ValueExprKind::NameOfLocalVariable(id);
             let _ = ctx.register_var_name(name, replacement);
-            step_var.kind = PatternKind::SimpleLocalName(id);
+            step_var.kind = PatternKind::SimpleLocalName(id, *val_id);
           }
           other => todo!("unhandled pattern kind: {other:?}"),
         }

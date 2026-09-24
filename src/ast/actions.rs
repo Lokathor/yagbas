@@ -856,7 +856,7 @@ fn parse_pattern(p: &mut AstParser, cst: &Cst) -> Pattern {
   match cst.elements.as_slice() {
     [CstElem::Identifier(name, opt_span)] => Pattern {
       span: opt_span.unwrap_or_default(),
-      kind: PatternKind::Simple(name.clone()),
+      kind: PatternKind::Simple(name.clone(), ValueExprId::new()),
     },
     other => {
       p.error_at(
