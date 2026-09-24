@@ -7,8 +7,7 @@ use crate::{
     TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
   },
   ir_nameres_typecheck::{
-    IrNameResTypeCheck,
-    type_check::{PRIMITIVE_TYPE_NAMES, Type},
+    IrNameResTypeCheck, type_check::PRIMITIVE_TYPE_NAMES,
   },
   span::Span,
 };

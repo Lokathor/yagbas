@@ -10,6 +10,7 @@ use crate::{
 
 pub mod actions;
 pub mod parser;
+pub mod visitor;
 
 #[derive(Debug, Clone, Default)]
 pub struct Ast {
