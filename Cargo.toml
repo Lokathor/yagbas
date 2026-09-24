@@ -16,7 +16,5 @@ lto = true
 [dependencies]
 bimap = "0.6.3"
 bytemuck = "1.25.2"
-ena = "0.14.4"
 fnv = "1.0.7"
-imbl = "7.0.2"
-#tinyvec = { version = "1.13.0", features = ["experimental_write_impl", "latest_stable_rust"] }
+
