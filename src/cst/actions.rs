@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 //! Module for free functions that manipulate a [CstParser] to build a useful
-//! [Cst]
+//! [Cst](crate::cst::Cst)
 //!
 //! ## Conventions
 //! * All actions that need to be within a grouping should have the grouping
