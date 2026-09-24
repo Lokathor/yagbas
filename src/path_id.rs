@@ -16,7 +16,7 @@ static NEXT_OS_STR_ID: AtomicU32 = AtomicU32::new(1);
 
 static OS_STR_CACHE: OnceLock<RwLock<BiMapPath>> = OnceLock::new();
 
-/// Works like [StrId], but for a [Path] value instead.
+/// Unique identifier that maps to a specific [Path] value.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct PathId(NonZeroU32);
