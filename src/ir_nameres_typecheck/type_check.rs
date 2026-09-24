@@ -16,22 +16,8 @@ use crate::ast::TypeExprKind;
 use crate::ast::ValueExpr;
 use crate::ast::ValueExprKind;
 use crate::ir_nameres_typecheck::IrNameResTypeCheck;
-
-/// The types that a local variable can be.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Type {
-  ErrType,
-  MagicIntegerLiteral,
-  SimplePrimitive(&'static str),
-  Array { elem_ty: TypeId, elem_count: u32 },
-  Pointer { target_ty: TypeId, access_kind: PointerAccessKind },
-  Function { args: Vec<TypeId>, ret: TypeId },
-  Struct(ItemId),
-  Bitbag(ItemId),
-  Enum(ItemId),
-}
-pub static PRIMITIVE_TYPE_NAMES: &[&str] =
-  &["()", "bool", "u8", "i8", "u16", "i16"];
+use crate::ir_nameres_typecheck::PRIMITIVE_TYPE_NAMES;
+use crate::ir_nameres_typecheck::Type;
 
 pub fn populate_basic_types(ir: &mut IrNameResTypeCheck) {
   for name in PRIMITIVE_TYPE_NAMES {
@@ -67,7 +53,7 @@ pub fn compute_types_of_ir(ir: &mut IrNameResTypeCheck) {
     .copied()
     .unwrap();
   let mut modules = core::mem::take(&mut ir.ast.modules);
-  for module in modules.iter_mut() {
+  for module in modules.iter() {
     for item in module.items.iter() {
       match &item.kind {
         ItemKind::StaticMmio { location, type_decl } => {

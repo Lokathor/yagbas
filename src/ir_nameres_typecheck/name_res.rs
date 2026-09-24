@@ -6,9 +6,7 @@ use crate::{
     Item, ItemKind, Label, LabelKind, PatternKind, Statement, StatementKind,
     TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
   },
-  ir_nameres_typecheck::{
-    IrNameResTypeCheck, type_check::PRIMITIVE_TYPE_NAMES,
-  },
+  ir_nameres_typecheck::{IrNameResTypeCheck, PRIMITIVE_TYPE_NAMES},
   span::Span,
 };
 
