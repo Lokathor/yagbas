@@ -194,6 +194,8 @@ impl<'a> CstParser<'a> {
             | TokenKind::ErrLitRawStrUnclosed
             | TokenKind::ErrBadRawValue => {
               let bytes = self.src.as_bytes();
+              // TODO: we maybe want more error variants, or to store what the
+              // error token was, for resporting.
               CstElem::ErrorBytes(bytes[span.as_range()].to_vec(), Some(span))
             }
             TokenKind::Bang
