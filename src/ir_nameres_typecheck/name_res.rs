@@ -160,8 +160,8 @@ fn do_names_in_item(ctx: &mut NameResolverContext, item: &mut Item) {
       do_names_in_type_expr(ctx, &mut data.tyx);
     }
     ItemKind::Constant(data) => {
-      do_names_in_type_expr(ctx, &mut data.type_decl);
-      do_names_in_value_expr(ctx, &mut data.value_decl);
+      do_names_in_type_expr(ctx, &mut data.tyx);
+      do_names_in_value_expr(ctx, &mut data.vx);
     }
     ItemKind::Function(data) => {
       if let Some(mut ret_tyx) = data.opt_ret_tyx.as_mut() {
@@ -169,7 +169,7 @@ fn do_names_in_item(ctx: &mut NameResolverContext, item: &mut Item) {
       }
 
       for arg in data.args.iter_mut() {
-        do_names_in_type_expr(ctx, &mut arg.type_decl);
+        do_names_in_type_expr(ctx, &mut arg.tyx);
       }
       ctx.within_scope(|ctx| {
         for arg in data.args.iter_mut() {
@@ -203,7 +203,7 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
     ValueExprKind::LiteralNumber(_) => {
       // todo: if the type has a suffix we could assign a type right here.
     }
-    ValueExprKind::Loop { label, body } => {
+    ValueExprKind::Loop { opt_label: label, body } => {
       ctx.within_scope(|ctx| {
         if let Some(label) = label {
           match &mut label.kind {
@@ -226,7 +226,7 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
         do_names_in_value_expr(ctx, body);
       });
     }
-    ValueExprKind::For { label, step_var, range, body } => {
+    ValueExprKind::For { opt_label: label, step_var, range, body } => {
       do_names_in_value_expr(ctx, range);
       ctx.within_scope(|ctx| {
         if let Some(label) = label {
@@ -260,7 +260,7 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
         do_names_in_value_expr(ctx, body);
       });
     }
-    ValueExprKind::Break { label, value } => {
+    ValueExprKind::Break { opt_label: label, opt_vx: value } => {
       match label {
         Some(label_inner) => match &mut label_inner.kind {
           LabelKind::Identifier(l) => {

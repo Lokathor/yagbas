@@ -277,7 +277,8 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   basic_fixed_token!(p, it, out.span, Semicolon);
 
-  out.kind = ItemKind::Constant(ConstantData { type_decl, value_decl });
+  out.kind =
+    ItemKind::Constant(ConstantData { tyx: type_decl, vx: value_decl });
 
   for i in it {
     dbg!(&i);
@@ -343,7 +344,7 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       let data = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
-      out.kind = ItemKind::StaticRom(StaticRomData { tyx, data });
+      out.kind = ItemKind::StaticRom(StaticRomData { tyx, vx: data });
     }
     other => {
       todo!("{other:?}");
@@ -569,7 +570,10 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
         None => ValueExpr {
           span,
           id: ValueExprId::new(),
-          kind: Box::new(ValueExprKind::Break { label: None, value: None }),
+          kind: Box::new(ValueExprKind::Break {
+            opt_label: None,
+            opt_vx: None,
+          }),
         },
         Some(elem) => todo!("{elem:?}"),
       },
@@ -621,7 +625,8 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     dbg!(&i);
   }
 
-  out.kind = Box::new(ValueExprKind::For { label, step_var, range, body });
+  out.kind =
+    Box::new(ValueExprKind::For { opt_label: label, step_var, range, body });
   out
 }
 
@@ -645,7 +650,7 @@ fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     dbg!(&i);
   }
 
-  out.kind = Box::new(ValueExprKind::Loop { label, body });
+  out.kind = Box::new(ValueExprKind::Loop { opt_label: label, body });
   out
 }
 
@@ -818,7 +823,7 @@ fn parse_ast_function_args(p: &mut AstParser, cst: &Cst) -> Vec<FunctionArg> {
         let type_decl =
           basic_type_expr!(p, it, cst.try_span().unwrap_or_default())
             .unwrap_or_default();
-        out.push(FunctionArg { var, type_decl });
+        out.push(FunctionArg { var, tyx: type_decl });
       }
       other => {
         p.error_at(

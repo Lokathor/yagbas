@@ -53,8 +53,8 @@ pub enum ItemKind {
 
 #[derive(Debug, Clone, Default)]
 pub struct ConstantData {
-  pub type_decl: TypeExpr,
-  pub value_decl: ValueExpr,
+  pub tyx: TypeExpr,
+  pub vx: ValueExpr,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -72,7 +72,7 @@ pub struct StaticRamData {
 #[derive(Debug, Clone, Default)]
 pub struct StaticRomData {
   pub tyx: TypeExpr,
-  pub data: ValueExpr,
+  pub vx: ValueExpr,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -119,7 +119,7 @@ pub struct BitbagField {
 pub struct StructField {
   pub name: String,
   pub name_span: Span,
-  pub type_decl: TypeExpr,
+  pub tyx: TypeExpr,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -139,7 +139,7 @@ pub enum LabelKind {
 #[derive(Debug, Clone, Default)]
 pub struct FunctionArg {
   pub var: ValueExpr,
-  pub type_decl: TypeExpr,
+  pub tyx: TypeExpr,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -214,11 +214,11 @@ pub enum ValueExprKind {
     statements: Vec<Statement>,
   },
   Loop {
-    label: Option<Label>,
+    opt_label: Option<Label>,
     body: ValueExpr,
   },
   While {
-    label: Option<Label>,
+    opt_label: Option<Label>,
     condition: ValueExpr,
     body: ValueExpr,
   },
@@ -236,7 +236,7 @@ pub enum ValueExprKind {
   /// * `<` for exclusive ranges
   /// * `<=` for inclusive ranges.
   For {
-    label: Option<Label>,
+    opt_label: Option<Label>,
     step_var: ValueExpr,
     range: ValueExpr,
     body: ValueExpr,
@@ -260,11 +260,11 @@ pub enum ValueExprKind {
   /// `..=` with no left or right sub-expression
   FullRangeInclusive,
   Break {
-    label: Option<Label>,
-    value: Option<ValueExpr>,
+    opt_label: Option<Label>,
+    opt_vx: Option<ValueExpr>,
   },
   Continue {
-    label: Option<Label>,
+    opt_label: Option<Label>,
   },
   Call {
     target: ValueExpr,
