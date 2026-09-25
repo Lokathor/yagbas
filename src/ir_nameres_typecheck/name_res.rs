@@ -7,7 +7,6 @@ use crate::{
     TypeExprKind, ValueExpr, ValueExprKind,
   },
   ir_nameres_typecheck::IrNameResTypeCheck,
-  span::Span,
 };
 
 pub type VarNameScopes = Vec<HashMap<String, ValueExprKind>>;
@@ -222,8 +221,7 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
           let name = String::from("");
           let replacement = LabelKind::IdNum(id);
           let _ = ctx.register_label_name(name, replacement);
-          *label =
-            Some(Label { span: Span::default(), kind: LabelKind::IdNum(id) });
+          *label = Some(Label { span: xpr.span, kind: LabelKind::IdNum(id) });
         }
         do_names_in_value_expr(ctx, body);
       });
@@ -247,8 +245,7 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
           let name = String::from("");
           let replacement = LabelKind::IdNum(id);
           let _ = ctx.register_label_name(name, replacement);
-          *label =
-            Some(Label { span: Span::default(), kind: LabelKind::IdNum(id) });
+          *label = Some(Label { span: xpr.span, kind: LabelKind::IdNum(id) });
         }
         match &mut *step_var.kind {
           ValueExprKind::Identifier(name) => {
@@ -273,12 +270,11 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
               todo!()
             }
           }
-          _ => todo!("unhadnled label kind in break expr"),
+          _ => todo!("unhandled label kind in break expr"),
         },
         None => {
           if let Some(replacement) = ctx.lookup_label_name("") {
-            *label =
-              Some(Label { span: Span::default(), kind: replacement.clone() });
+            *label = Some(Label { span: xpr.span, kind: replacement.clone() });
           } else {
             todo!()
           }
