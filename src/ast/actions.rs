@@ -2,6 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::ValueExprId;
+use crate::ast::ConstantData;
 use crate::tokenizer::TokenKind::Comma;
 use crate::{
   Span,
@@ -244,8 +245,7 @@ fn parse_ast_function(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   let body = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
-  out.kind =
-    ItemKind::Function(Box::new(FunctionData { args, opt_ret_tyx, body }));
+  out.kind = ItemKind::Function(FunctionData { args, opt_ret_tyx, body });
 
   for i in it {
     dbg!(&i);
@@ -277,7 +277,7 @@ fn parse_ast_constant(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
   basic_fixed_token!(p, it, out.span, Semicolon);
 
-  out.kind = ItemKind::Constant { type_decl, value_decl };
+  out.kind = ItemKind::Constant(ConstantData { type_decl, value_decl });
 
   for i in it {
     dbg!(&i);

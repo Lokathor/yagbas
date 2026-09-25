@@ -38,10 +38,7 @@ pub struct Item {
 pub enum ItemKind {
   #[default]
   ErrItemKind,
-  Constant {
-    type_decl: TypeExpr,
-    value_decl: ValueExpr,
-  },
+  Constant(ConstantData),
   StaticMmio {
     location: ValueExpr,
     type_decl: TypeExpr,
@@ -54,7 +51,7 @@ pub enum ItemKind {
     type_decl: TypeExpr,
     data: ValueExpr,
   },
-  Function(Box<FunctionData>),
+  Function(FunctionData),
   Struct {
     fields: Vec<StructField>,
   },
@@ -77,6 +74,12 @@ pub enum ItemKind {
   },
   /// `mod somename;`
   Mod,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ConstantData {
+  pub type_decl: TypeExpr,
+  pub value_decl: ValueExpr,
 }
 
 #[derive(Debug, Clone, Default)]

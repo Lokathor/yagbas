@@ -159,9 +159,9 @@ fn do_names_in_item(ctx: &mut NameResolverContext, item: &mut Item) {
       do_names_in_value_expr(ctx, location);
       do_names_in_type_expr(ctx, type_decl);
     }
-    ItemKind::Constant { type_decl, value_decl } => {
-      do_names_in_type_expr(ctx, type_decl);
-      do_names_in_value_expr(ctx, value_decl);
+    ItemKind::Constant(data) => {
+      do_names_in_type_expr(ctx, &mut data.type_decl);
+      do_names_in_value_expr(ctx, &mut data.value_decl);
     }
     ItemKind::Function(data) => {
       if let Some(mut ret_tyx) = data.opt_ret_tyx.as_mut() {
