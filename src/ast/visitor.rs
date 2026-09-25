@@ -112,7 +112,7 @@ pub trait AstVisitor {
         self.walk_value_expr(condition);
         self.walk_value_expr(true_body);
         if let Some(false_body) = opt_false_body {
-          self.walk_value_expr(&false_body);
+          self.walk_value_expr(false_body);
         }
       }
       ValueExprKind::BinOp { left, op, right } => {

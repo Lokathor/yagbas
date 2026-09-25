@@ -166,7 +166,7 @@ fn do_names_in_item(ctx: &mut NameResolverContext, item: &mut Item) {
     }
     ItemKind::Function(data) => {
       if let Some(mut ret_tyx) = data.opt_ret_tyx.as_mut() {
-        do_names_in_type_expr(ctx, &mut ret_tyx);
+        do_names_in_type_expr(ctx, ret_tyx);
       }
 
       for arg in data.args.iter_mut() {
