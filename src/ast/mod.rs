@@ -40,36 +40,14 @@ pub enum ItemKind {
   ErrItemKind,
   Constant(ConstantData),
   StaticMmio(StaticMmioData),
-  StaticRam {
-    type_decl: TypeExpr,
-    init: ValueExpr,
-  },
-  StaticRom {
-    type_decl: TypeExpr,
-    data: ValueExpr,
-  },
+  StaticRam(StaticRamData),
+  StaticRom(StaticRomData),
   Function(FunctionData),
-  Struct {
-    fields: Vec<StructField>,
-  },
-  Bitbag {
-    fields: Vec<BitbagField>,
-  },
-  Enum {
-    variants: Vec<String>,
-  },
-  Impl {
-    target: TypeExpr,
-    items: Vec<Item>,
-  },
-  /// `use some::item::path;`
-  ///
-  /// I have no idea how to better organize the data from a `use`, so for now we
-  /// just store the entire [Cst].
-  Use {
-    cst: Cst,
-  },
-  /// `mod somename;`
+  Struct(StructData),
+  Bitbag(BitbagData),
+  Enum(EnumData),
+  Impl(ImplData),
+  Use(UseData),
   Mod,
 }
 
@@ -86,10 +64,48 @@ pub struct StaticMmioData {
 }
 
 #[derive(Debug, Clone, Default)]
+pub struct StaticRamData {
+  pub tyx: TypeExpr,
+  pub init: ValueExpr,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct StaticRomData {
+  pub tyx: TypeExpr,
+  pub data: ValueExpr,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct StructData {
+  pub fields: Vec<StructField>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct BitbagData {
+  pub fields: Vec<BitbagField>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EnumData {
+  pub variants: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct FunctionData {
   pub args: Vec<FunctionArg>,
   pub opt_ret_tyx: Option<TypeExpr>,
   pub body: ValueExpr,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ImplData {
+  pub target: TypeExpr,
+  pub items: Vec<Item>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct UseData {
+  pub cst: Cst,
 }
 
 #[derive(Debug, Clone, Default)]

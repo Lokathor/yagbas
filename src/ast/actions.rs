@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::ValueExprId;
-use crate::ast::{ConstantData, StaticMmioData};
+use crate::ast::{ConstantData, StaticMmioData, StaticRamData, StaticRomData};
 use crate::tokenizer::TokenKind::Comma;
 use crate::{
   Span,
@@ -321,13 +321,13 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Colon);
 
-      let type_decl = basic_type_expr!(p, it, out.span).unwrap_or_default();
+      let tyx = basic_type_expr!(p, it, out.span).unwrap_or_default();
 
       basic_fixed_token!(p, it, out.span, Equal);
 
       let init = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
-      out.kind = ItemKind::StaticRam { type_decl, init };
+      out.kind = ItemKind::StaticRam(StaticRamData { tyx, init });
     }
     Some(CstElem::FixedToken(KwRom, _)) => {
       if let Some((name, name_span)) = basic_identifier!(p, it, out.span) {
@@ -337,13 +337,13 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Colon);
 
-      let type_decl = basic_type_expr!(p, it, out.span).unwrap_or_default();
+      let tyx = basic_type_expr!(p, it, out.span).unwrap_or_default();
 
       basic_fixed_token!(p, it, out.span, Equal);
 
       let data = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
-      out.kind = ItemKind::StaticRom { type_decl, data };
+      out.kind = ItemKind::StaticRom(StaticRomData { tyx, data });
     }
     other => {
       todo!("{other:?}");

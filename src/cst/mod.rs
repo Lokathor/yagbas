@@ -24,7 +24,7 @@ pub mod parser;
 /// an explicit layer in the compiler because one day hopefully Yagbas will have
 /// a code re-formatter, which would operate on Cst data instead of only an Ast,
 /// so that comments can be shifted around safely.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Cst {
   /// This is a hint about the intended form of the Cst's elements.
   pub kind: CstKind,
