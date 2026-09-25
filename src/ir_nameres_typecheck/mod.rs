@@ -1,6 +1,6 @@
 //! "Grant me the power of name resolution!"
 
-use crate::ast::{Ast, PointerAccessKind};
+use crate::ast::{Ast, PointerAccessKind, TypeExprKind};
 use crate::{ItemId, TypeId, ValueExprId};
 
 use bimap::BiHashMap;
@@ -34,3 +34,19 @@ pub enum Type {
 }
 pub static PRIMITIVE_TYPE_NAMES: &[&str] =
   &["()", "bool", "u8", "i8", "u16", "i16"];
+
+#[allow(unused)]
+pub fn type_from_type_expr_kind(
+  ir: &mut IrNameResTypeCheck, ty_expr_kind: &TypeExprKind,
+) -> Type {
+  match ty_expr_kind {
+    TypeExprKind::NameOfPrimitive(name) => Type::SimplePrimitive(name),
+    TypeExprKind::NameOfStruct(item_id) => todo!(),
+    TypeExprKind::NameOfBitbag(item_id) => todo!(),
+    TypeExprKind::NameOfEnum(item_id) => todo!(),
+    TypeExprKind::Array { elem_ty, elem_count } => todo!(),
+    TypeExprKind::Pointer { elem_ty, access_kind } => todo!(),
+    TypeExprKind::ErrTypeExprKind => Type::ErrType,
+    TypeExprKind::Simple(_) => unimplemented!(),
+  }
+}

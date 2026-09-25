@@ -18,26 +18,12 @@ use crate::ast::ValueExprKind;
 use crate::ir_nameres_typecheck::IrNameResTypeCheck;
 use crate::ir_nameres_typecheck::PRIMITIVE_TYPE_NAMES;
 use crate::ir_nameres_typecheck::Type;
+use crate::ir_nameres_typecheck::type_from_type_expr_kind;
 
 pub fn populate_basic_types(ir: &mut IrNameResTypeCheck) {
   ir.type_database.insert(TypeId::new(), Type::MagicIntegerLiteral);
   for name in PRIMITIVE_TYPE_NAMES {
     ir.type_database.insert(TypeId::new(), Type::SimplePrimitive(name));
-  }
-}
-
-pub fn type_from_type_expr_kind(
-  ir: &mut IrNameResTypeCheck, ty_expr_kind: &TypeExprKind,
-) -> Type {
-  match ty_expr_kind {
-    TypeExprKind::NameOfPrimitive(name) => Type::SimplePrimitive(name),
-    TypeExprKind::NameOfStruct(item_id) => todo!(),
-    TypeExprKind::NameOfBitbag(item_id) => todo!(),
-    TypeExprKind::NameOfEnum(item_id) => todo!(),
-    TypeExprKind::Array { elem_ty, elem_count } => todo!(),
-    TypeExprKind::Pointer { elem_ty, access_kind } => todo!(),
-    TypeExprKind::ErrTypeExprKind => Type::ErrType,
-    TypeExprKind::Simple(s) => unimplemented!(),
   }
 }
 
