@@ -185,18 +185,22 @@ impl<'a> CstParser<'a> {
           let kind = token_kinds.next().unwrap();
           let span = token_spans.next().unwrap();
           let elem = match kind {
-            TokenKind::ErrEndOfFile
+            errkind @ (TokenKind::ErrEndOfFile
             | TokenKind::ErrDefault
             | TokenKind::ErrUnknownByte
             | TokenKind::ErrBlockCommentUnclosed
             | TokenKind::ErrBlockCommentExtraClose
             | TokenKind::ErrLitStrUnclosed
             | TokenKind::ErrLitRawStrUnclosed
-            | TokenKind::ErrBadRawValue => {
+            | TokenKind::ErrBadRawValue) => {
               let bytes = self.src.as_bytes();
               // TODO: we maybe want more error variants, or to store what the
               // error token was, for resporting.
-              CstElem::ErrorBytes(bytes[span.as_range()].to_vec(), Some(span))
+              CstElem::ErrorBytes(
+                errkind,
+                bytes[span.as_range()].to_vec(),
+                Some(span),
+              )
             }
             TokenKind::Bang
             | TokenKind::DoubleQuote

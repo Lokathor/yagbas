@@ -60,7 +60,7 @@ impl Cst {
           | CstElem::LitString(string, _span) => {
             buf.extend_from_slice(string.as_bytes());
           }
-          CstElem::ErrorBytes(items, _span) => {
+          CstElem::ErrorBytes(_err_kind, items, _span) => {
             buf.extend_from_slice(items);
           }
         }
@@ -95,7 +95,7 @@ pub enum CstKind {
   Statement,
   ValueExpr,
   TypeExpr,
-  Pattern,
+  IdentColonTypeExpr,
   InfiOp(InfiOp),
   PrefOp(PrefOp),
   PostOp(PostOp),
@@ -126,7 +126,7 @@ pub enum CstElem {
   /// A literal string.
   LitString(String, Option<Span>),
   /// Raw error bytes.
-  ErrorBytes(Vec<u8>, Option<Span>),
+  ErrorBytes(TokenKind, Vec<u8>, Option<Span>),
 }
 impl CstElem {
   pub fn try_span(&self) -> Option<Span> {
@@ -138,7 +138,7 @@ impl CstElem {
       | CstElem::Identifier(_, span)
       | CstElem::LitNumber(_, span)
       | CstElem::LitString(_, span)
-      | CstElem::ErrorBytes(_, span) => *span,
+      | CstElem::ErrorBytes(_, _, span) => *span,
     }
   }
   pub fn sub_tree(&self) -> Option<&Cst> {
@@ -182,9 +182,9 @@ impl CstElem {
       None
     }
   }
-  pub fn error_bytes(&self) -> Option<(&[u8], Option<Span>)> {
-    if let CstElem::ErrorBytes(st, s) = self {
-      Some((st.as_slice(), *s))
+  pub fn error_bytes(&self) -> Option<(TokenKind, &[u8], Option<Span>)> {
+    if let CstElem::ErrorBytes(kind, st, s) = self {
+      Some((*kind, st.as_slice(), *s))
     } else {
       None
     }
@@ -286,11 +286,11 @@ impl core::fmt::Display for Cst {
               writeln!(f)?;
             }
           }
-          CstElem::ErrorBytes(_, span) => {
+          CstElem::ErrorBytes(kind, _, span) => {
             for _ in 0..(indents + 2) {
               write!(f, " ")?;
             }
-            write!(f, "ErrorBytes")?;
+            write!(f, "ErrorBytes({kind:?})")?;
             if let Some(span) = span {
               writeln!(f, " @({span:?})")?;
             } else {

@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use crate::{
   LabelId, LocalNameId,
   ast::{
-    Item, ItemKind, Label, LabelKind, PatternKind, TypeExpr, TypeExprKind,
-    ValueExpr, ValueExprKind,
+    Item, ItemKind, Label, LabelKind, Statement, StatementKind, TypeExpr,
+    TypeExprKind, ValueExpr, ValueExprKind,
   },
-  ir_nameres_typecheck::{IrNameResTypeCheck, PRIMITIVE_TYPE_NAMES},
+  ir_nameres_typecheck::IrNameResTypeCheck,
   span::Span,
 };
 
@@ -84,12 +84,12 @@ impl NameResolverContext {
 pub fn do_names(ir: &mut IrNameResTypeCheck) {
   let mut ctx = NameResolverContext::default();
   ctx.push_scope();
-  for prim_name in PRIMITIVE_TYPE_NAMES {
-    ctx.register_type_name(
-      prim_name.to_string(),
-      TypeExprKind::NameOfPrimitive(prim_name),
-    );
-  }
+  ctx.register_type_name("()".to_string(), TypeExprKind::Unit);
+  ctx.register_type_name("bool".to_string(), TypeExprKind::Bool);
+  ctx.register_type_name("u8".to_string(), TypeExprKind::U8);
+  ctx.register_type_name("i8".to_string(), TypeExprKind::I8);
+  ctx.register_type_name("u16".to_string(), TypeExprKind::U16);
+  ctx.register_type_name("i16".to_string(), TypeExprKind::I16);
 
   for module in ir.ast.modules.iter_mut() {
     ctx.within_scope(|ctx| {
@@ -174,76 +174,21 @@ fn do_names_in_item(ctx: &mut NameResolverContext, item: &mut Item) {
       }
       ctx.within_scope(|ctx| {
         for arg in data.args.iter_mut() {
-          match &mut arg.pattern.kind {
-            PatternKind::Simple(name, val_id) => {
+          match &mut *arg.var.kind {
+            ValueExprKind::Identifier(name) => {
               let id = LocalNameId::new();
               let name = name.clone();
               let replacement = ValueExprKind::NameOfLocalVariable(id);
+              *arg.var.kind = replacement.clone();
               let _ = ctx.register_var_name(name, replacement);
-              arg.pattern.kind = PatternKind::SimpleLocalName(id, *val_id);
             }
-            other => todo!("unhandled pattern kind: {other:?}"),
+            other => todo!("unhandled function arg kind: {other:?}"),
           }
         }
         do_names_in_value_expr(ctx, &mut data.body);
       });
     }
     other => todo!("unhandled inside item: {other:?}"),
-  }
-}
-
-#[cfg(false)]
-fn do_names_in_body(
-  ctx: &mut NameResolverContext, statements: &mut Vec<Statement>,
-) {
-  ctx.within_scope(|ctx| {
-    let mut items_defined_this_scope = Vec::new();
-    for statement in statements.iter() {
-      match &*statement.kind {
-        StatementKind::Item(item) => {
-          if items_defined_this_scope.contains(&item.name.as_str()) {
-            // todo: error about multiple definitions
-            continue;
-          } else {
-            items_defined_this_scope.push(item.name.as_str());
-          }
-          register_item_definition_info(ctx, item);
-        }
-        _ => continue,
-      }
-    }
-    for statement in statements.iter_mut() {
-      do_names_in_statement(ctx, statement);
-    }
-  });
-}
-
-#[cfg(false)]
-fn do_names_in_statement(
-  ctx: &mut NameResolverContext, statement: &mut Statement,
-) {
-  match &mut *statement.kind {
-    StatementKind::Let { pattern, type_decl, initializer } => {
-      if let Some(xpr) = initializer {
-        do_names_in_value_expr(ctx, xpr);
-      }
-      if let Some(ty) = type_decl {
-        do_names_in_type_expr(ctx, ty);
-      }
-      match &mut pattern.kind {
-        PatternKind::Simple(name, val_id) => {
-          let id = LocalNameId::new();
-          let name = name.clone();
-          let replacement = ValueExprKind::NameOfLocalVariable(id);
-          let _ = ctx.register_var_name(name, replacement);
-          pattern.kind = PatternKind::SimpleLocalName(id, *val_id);
-        }
-        other => todo!("unhandled let pattern kind: {other:?}"),
-      }
-    }
-    StatementKind::Expression(xpr) => do_names_in_value_expr(ctx, xpr),
-    StatementKind::Item(item) => do_names_in_item(ctx, item),
-    StatementKind::ErrStatementKind => return,
   }
 }
 
@@ -305,15 +250,15 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
           *label =
             Some(Label { span: Span::default(), kind: LabelKind::IdNum(id) });
         }
-        match &mut step_var.kind {
-          PatternKind::Simple(name, val_id) => {
+        match &mut *step_var.kind {
+          ValueExprKind::Identifier(name) => {
             let id = LocalNameId::new();
             let name = name.clone();
             let replacement = ValueExprKind::NameOfLocalVariable(id);
+            *step_var.kind = replacement.clone();
             let _ = ctx.register_var_name(name, replacement);
-            step_var.kind = PatternKind::SimpleLocalName(id, *val_id);
           }
-          other => todo!("unhandled pattern kind: {other:?}"),
+          other => todo!("unhandled step var kind: {other:?}"),
         }
         do_names_in_value_expr(ctx, body);
       });
@@ -359,22 +304,73 @@ fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
     ValueExprKind::UnOp { op: _, operand } => {
       do_names_in_value_expr(ctx, operand);
     }
+    ValueExprKind::Block { statements } => {
+      ctx.within_scope(|ctx| {
+        let mut items_defined_this_scope = Vec::new();
+        for statement in statements.iter() {
+          match &*statement.kind {
+            StatementKind::Item(item) => {
+              if items_defined_this_scope.contains(&item.name.as_str()) {
+                // todo: error about multiple definitions
+                continue;
+              } else {
+                items_defined_this_scope.push(item.name.as_str());
+              }
+              register_item_definition_info(ctx, item);
+            }
+            _ => continue,
+          }
+        }
+        for statement in statements.iter_mut() {
+          do_names_in_statement(ctx, statement);
+        }
+      });
+    }
     other => todo!("unhandled inside value expression: {other:?}"),
   }
 }
+
 fn do_names_in_type_expr(ctx: &mut NameResolverContext, ty: &mut TypeExpr) {
   match &mut *ty.kind {
-    TypeExprKind::Simple(t) => {
+    TypeExprKind::Identifier(t) => {
       if let Some(replacement) = ctx.lookup_type_name(t.as_str()) {
         *ty.kind = replacement.clone();
       } else {
         todo!()
       }
     }
-    TypeExprKind::Array { elem_ty, elem_count } => {
+    TypeExprKind::Array { elem_tyx: elem_ty, elem_count } => {
       do_names_in_type_expr(ctx, elem_ty);
       do_names_in_value_expr(ctx, elem_count);
     }
     other => todo!("unhandled inside type expression: {other:?}"),
+  }
+}
+
+fn do_names_in_statement(
+  ctx: &mut NameResolverContext, statement: &mut Statement,
+) {
+  match &mut *statement.kind {
+    StatementKind::Let { var, type_decl, initializer } => {
+      if let Some(xpr) = initializer {
+        do_names_in_value_expr(ctx, xpr);
+      }
+      if let Some(ty) = type_decl {
+        do_names_in_type_expr(ctx, ty);
+      }
+      match &mut *var.kind {
+        ValueExprKind::Identifier(name) => {
+          let id = LocalNameId::new();
+          let name = name.clone();
+          let replacement = ValueExprKind::NameOfLocalVariable(id);
+          *var.kind = replacement.clone();
+          let _ = ctx.register_var_name(name, replacement);
+        }
+        other => todo!("unhandled let pattern kind: {other:?}"),
+      }
+    }
+    StatementKind::Expression(xpr) => do_names_in_value_expr(ctx, xpr),
+    StatementKind::Item(item) => do_names_in_item(ctx, item),
+    StatementKind::ErrStatementKind => return,
   }
 }

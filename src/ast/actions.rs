@@ -2,12 +2,13 @@
 #![allow(unused_variables)]
 
 use crate::ValueExprId;
+use crate::tokenizer::TokenKind::Comma;
 use crate::{
   Span,
   ast::{
-    FunctionArg, FunctionData, Item, ItemId, ItemKind, Module, Pattern,
-    PatternKind, Statement, StatementKind, TypeExpr, TypeExprKind, ValueExpr,
-    ValueExprKind, parser::AstParser,
+    FunctionArg, FunctionData, Item, ItemId, ItemKind, Module, Statement,
+    StatementKind, TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
+    parser::AstParser,
   },
   cst::{
     Cst, CstElem,
@@ -141,28 +142,6 @@ macro_rules! basic_value_expr_body {
           $eoi_span,
           format!("Expected Body Expression, got EndOfGrouping"),
         );
-        None
-      }
-    }
-  }};
-}
-
-/// * `($p:expr, $it:expr, $eoi_span:expr)`
-macro_rules! basic_pattern {
-  ($p:expr, $it:expr, $eoi_span:expr) => {{
-    match $it.next() {
-      Some(CstElem::SubTree(cst)) if cst.kind == CstKind::Pattern => {
-        Some(parse_pattern($p, cst))
-      }
-      Some(other) => {
-        $p.error_at(
-          other.try_span().unwrap_or_default(),
-          format!("Expected Pattern, got: {other:?}"),
-        );
-        None
-      }
-      None => {
-        $p.error_at($eoi_span, format!("Expected Pattern, got EndOfGrouping"));
         None
       }
     }
@@ -386,7 +365,7 @@ fn parse_type_expr(p: &mut AstParser, cst: &Cst) -> TypeExpr {
   match it.next() {
     Some(CstElem::Identifier(name, opt_span)) => {
       out.span = opt_span.unwrap_or_default();
-      out.kind = Box::new(TypeExprKind::Simple(name.clone()));
+      out.kind = Box::new(TypeExprKind::Identifier(name.clone()));
     }
     Some(CstElem::FixedToken(OpBracket, _)) => {
       let elem_ty = basic_type_expr!(p, it, out.span).unwrap_or_default();
@@ -397,7 +376,8 @@ fn parse_type_expr(p: &mut AstParser, cst: &Cst) -> TypeExpr {
 
       basic_fixed_token!(p, it, out.span, ClBracket);
 
-      out.kind = Box::new(TypeExprKind::Array { elem_ty, elem_count });
+      out.kind =
+        Box::new(TypeExprKind::Array { elem_tyx: elem_ty, elem_count });
     }
     other => {
       p.error_at(
@@ -623,13 +603,13 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   );
   //
   let mut it = cst.elements.iter();
-  let mut label = None;
+  let label = None;
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, KwFor);
 
-  let step_var = basic_pattern!(p, it, out.span).unwrap_or_default();
+  let step_var = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
   basic_fixed_token!(p, it, out.span, KwIn);
 
@@ -781,23 +761,24 @@ fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
   out.span = cst.try_span().unwrap_or_default();
   let mut it = cst.elements.iter().peekable();
 
-  let mut pattern;
-  let mut type_decl = None;
-  let mut initializer = None;
-
   basic_fixed_token!(p, it, out.span, KwLet);
 
-  pattern = basic_pattern!(p, it, out.span).unwrap_or_default();
+  let var = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
-  if matches!(it.peek(), Some(CstElem::FixedToken(Colon, _))) {
+  let type_decl = if matches!(it.peek(), Some(CstElem::FixedToken(Colon, _))) {
     basic_fixed_token!(p, it, out.span, Colon);
-    type_decl = basic_type_expr!(p, it, out.span)
-  }
+    basic_type_expr!(p, it, out.span)
+  } else {
+    None
+  };
 
-  if matches!(it.peek(), Some(CstElem::FixedToken(Equal, _))) {
+  let initializer = if matches!(it.peek(), Some(CstElem::FixedToken(Equal, _)))
+  {
     basic_fixed_token!(p, it, out.span, Equal);
-    initializer = basic_value_expr!(p, it, out.span);
-  }
+    basic_value_expr!(p, it, out.span)
+  } else {
+    None
+  };
 
   basic_fixed_token!(p, it, out.span, Semicolon);
 
@@ -805,7 +786,7 @@ fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
     dbg!(&i);
   }
 
-  out.kind = Box::new(StatementKind::Let { pattern, type_decl, initializer });
+  out.kind = Box::new(StatementKind::Let { var, type_decl, initializer });
   out
 }
 
@@ -821,47 +802,29 @@ fn parse_ast_function_args(p: &mut AstParser, cst: &Cst) -> Vec<FunctionArg> {
   );
   loop {
     match it.next() {
+      Some(CstElem::FixedToken(Comma, _span)) => {
+        continue;
+      }
       Some(CstElem::FixedToken(ClParen, _span)) => {
         debug_assert!(it.next().is_none());
         return out;
       }
-      Some(CstElem::SubTree(pat_tree)) if pat_tree.kind == CstKind::Pattern => {
-        let mut pattern = parse_pattern(p, pat_tree);
-        let mut type_decl = TypeExpr::default();
+      Some(CstElem::SubTree(pat_tree))
+        if pat_tree.kind == CstKind::IdentColonTypeExpr =>
+      {
+        let mut var = parse_value_expr(p, pat_tree);
         basic_fixed_token!(p, it, cst.try_span().unwrap_or_default(), Colon);
-        if let Some(x) =
+        TypeExpr::default();
+        let type_decl =
           basic_type_expr!(p, it, cst.try_span().unwrap_or_default())
-        {
-          type_decl = x;
-        }
-        out.push(FunctionArg { pattern, type_decl });
+            .unwrap_or_default();
+        out.push(FunctionArg { var, type_decl });
       }
       other => {
         p.error_at(
           cst.try_span().unwrap_or_default(),
           format!("Expected Pattern or Close Paren: {other:?}"),
         );
-      }
-    }
-  }
-}
-
-fn parse_pattern(p: &mut AstParser, cst: &Cst) -> Pattern {
-  debug_assert_eq!(cst.kind, CstKind::Pattern, "{cst}");
-  //
-  match cst.elements.as_slice() {
-    [CstElem::Identifier(name, opt_span)] => Pattern {
-      span: opt_span.unwrap_or_default(),
-      kind: PatternKind::Simple(name.clone(), ValueExprId::new()),
-    },
-    other => {
-      p.error_at(
-        cst.try_span().unwrap_or_default(),
-        format!("Expected Pattern: {other:?}"),
-      );
-      Pattern {
-        span: cst.try_span().unwrap_or_default(),
-        kind: PatternKind::ErrPatternKind,
       }
     }
   }

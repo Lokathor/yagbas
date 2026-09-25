@@ -101,20 +101,6 @@ pub struct StructField {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Pattern {
-  pub span: Span,
-  pub kind: PatternKind,
-}
-
-#[derive(Debug, Clone, Default)]
-pub enum PatternKind {
-  #[default]
-  ErrPatternKind,
-  Simple(String, ValueExprId),
-  SimpleLocalName(LocalNameId, ValueExprId),
-}
-
-#[derive(Debug, Clone, Default)]
 pub struct Label {
   pub span: Span,
   pub kind: LabelKind,
@@ -130,7 +116,7 @@ pub enum LabelKind {
 
 #[derive(Debug, Clone, Default)]
 pub struct FunctionArg {
-  pub pattern: Pattern,
+  pub var: ValueExpr,
   pub type_decl: TypeExpr,
 }
 
@@ -144,19 +130,27 @@ pub struct TypeExpr {
 pub enum TypeExprKind {
   #[default]
   ErrTypeExprKind,
-  Simple(String),
+  Identifier(String),
   Array {
-    elem_ty: TypeExpr,
+    elem_tyx: TypeExpr,
     elem_count: ValueExpr,
   },
+  /// `*access target`
   Pointer {
-    elem_ty: TypeExpr,
+    target_tyx: TypeExpr,
     access_kind: PointerAccessKind,
   },
   NameOfStruct(ItemId),
   NameOfBitbag(ItemId),
   NameOfEnum(ItemId),
-  NameOfPrimitive(&'static str),
+  /// `()`
+  Unit,
+  /// `bool`
+  Bool,
+  U8,
+  I8,
+  U16,
+  I16,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -221,7 +215,7 @@ pub enum ValueExprKind {
   /// * `<=` for inclusive ranges.
   For {
     label: Option<Label>,
-    step_var: Pattern,
+    step_var: ValueExpr,
     range: ValueExpr,
     body: ValueExpr,
   },
@@ -279,7 +273,7 @@ pub enum StatementKind {
   ErrStatementKind,
   Item(Item),
   Let {
-    pattern: Pattern,
+    var: ValueExpr,
     type_decl: Option<TypeExpr>,
     initializer: Option<ValueExpr>,
   },

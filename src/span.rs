@@ -8,6 +8,8 @@ use crate::non_max_u64::NonMaxU64;
 pub struct Span(NonMaxU64);
 impl Span {
   /// Makes the new span.
+  /// ## Panics
+  /// * if `start` and `end` are *both* `u32::MAX`
   pub fn new(start: u32, end: u32) -> Self {
     if start == u32::MAX && end == u32::MAX {
       panic!("Span overflow")

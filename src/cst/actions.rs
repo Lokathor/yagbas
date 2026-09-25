@@ -8,7 +8,7 @@
 
 use std::ops::ControlFlow;
 
-use crate::cst::CstKind::{self};
+use crate::cst::CstKind::{self, ValueExpr};
 use crate::cst::parser::{CloseMark, CstParser, OpenMark};
 use crate::operators::{BindDirection, InfiOp, PostOp, PrefOp};
 use crate::tokenizer::TokenKind::*;
@@ -114,21 +114,23 @@ fn do_fn(p: &mut CstParser<'_>) {
   let m = p.open();
   p.expect(OpParen);
   p.eat_trivia();
+  let mut mark = p.open();
   loop {
     if p.peek() == ClParen {
+      p.abandon_subtree(mark);
       break;
     }
-    // todo: allow parsing `self`, `&self`, and `&mut self` as function
-    // arguments.
-    gather_pattern(p);
+    gather_value_expr(p);
     p.eat_trivia();
     p.expect(Colon);
     p.eat_trivia();
-    gather_expr_type(p);
+    gather_type_expr(p);
     p.eat_trivia();
+    p.close(mark, CstKind::IdentColonTypeExpr);
     if p.peek() == Comma {
       p.expect(Comma);
     }
+    mark = p.open();
   }
   p.expect(ClParen);
   p.close(m, CstKind::Parens);
@@ -136,7 +138,7 @@ fn do_fn(p: &mut CstParser<'_>) {
   if p.peek() == MinusGreater {
     p.advance();
     p.eat_trivia();
-    gather_expr_type(p);
+    gather_type_expr(p);
     p.eat_trivia();
   }
   gather_body(p);
@@ -149,11 +151,11 @@ fn do_const(p: &mut CstParser<'_>) {
   p.eat_trivia();
   p.expect(Colon);
   p.eat_trivia();
-  gather_expr_type(p);
+  gather_type_expr(p);
   p.eat_trivia();
   p.expect(Equal);
   p.eat_trivia();
-  gather_expr_value(p);
+  gather_value_expr(p);
   p.expect(Semicolon);
 }
 
@@ -166,7 +168,7 @@ fn do_static(p: &mut CstParser<'_>) {
       p.eat_trivia();
       p.expect(OpParen);
       p.eat_trivia();
-      gather_expr_value(p);
+      gather_value_expr(p);
       p.eat_trivia();
       p.expect(ClParen);
       p.eat_trivia();
@@ -174,7 +176,7 @@ fn do_static(p: &mut CstParser<'_>) {
       p.eat_trivia();
       p.expect(Colon);
       p.eat_trivia();
-      gather_expr_type(p);
+      gather_type_expr(p);
       p.eat_trivia();
       p.expect(Semicolon);
     }
@@ -185,11 +187,11 @@ fn do_static(p: &mut CstParser<'_>) {
       p.eat_trivia();
       p.expect(Colon);
       p.eat_trivia();
-      gather_expr_type(p);
+      gather_type_expr(p);
       p.eat_trivia();
       p.expect(Equal);
       p.eat_trivia();
-      gather_expr_value(p);
+      gather_value_expr(p);
       p.expect(Semicolon);
     }
     KwRom => {
@@ -199,11 +201,11 @@ fn do_static(p: &mut CstParser<'_>) {
       p.eat_trivia();
       p.expect(Colon);
       p.eat_trivia();
-      gather_expr_type(p);
+      gather_type_expr(p);
       p.eat_trivia();
       p.expect(Equal);
       p.eat_trivia();
-      gather_expr_value(p);
+      gather_value_expr(p);
       p.expect(Semicolon);
     }
     _ => {
@@ -261,7 +263,7 @@ fn do_bitbag(p: &mut CstParser<'_>) {
         p.eat_trivia();
         p.expect(Colon);
         p.eat_trivia();
-        gather_expr_value(p);
+        gather_value_expr(p);
         p.eat_trivia();
         match p.peek() {
           ClBrace => {
@@ -303,7 +305,7 @@ fn do_struct(p: &mut CstParser<'_>) {
         p.eat_trivia();
         p.expect(Colon);
         p.eat_trivia();
-        gather_expr_type(p);
+        gather_type_expr(p);
         p.eat_trivia();
         match p.peek() {
           ClBrace => {
@@ -328,7 +330,7 @@ fn do_use(p: &mut CstParser<'_>) {
   p.advance();
 }
 
-fn gather_expr_type(p: &mut CstParser<'_>) {
+fn gather_type_expr(p: &mut CstParser<'_>) {
   let m_ty = p.open();
   match p.peek() {
     Comment | Whitespace => panic!(),
@@ -338,11 +340,11 @@ fn gather_expr_type(p: &mut CstParser<'_>) {
     OpBracket => {
       p.expect(OpBracket);
       p.eat_trivia();
-      gather_expr_type(p);
+      gather_type_expr(p);
       p.eat_trivia();
       p.expect(Semicolon);
       p.eat_trivia();
-      gather_expr_value(p);
+      gather_value_expr(p);
       p.eat_trivia();
       p.expect(ClBracket);
     }
@@ -501,7 +503,7 @@ fn try_val_atom(p: &mut CstParser<'_>) -> Option<CloseMark> {
         if p.peek() == ClBracket {
           break;
         }
-        gather_expr_value(p);
+        gather_value_expr(p);
         p.eat_trivia();
         if p.peek() != ClBracket {
           p.expect(Comma);
@@ -595,13 +597,13 @@ fn try_expr_value_rec(p: &mut CstParser<'_>, min_bp: u8) -> Option<CloseMark> {
         }
         PostOp::ArrayIndex => {
           p.eat_trivia();
-          gather_expr_value(p);
+          gather_value_expr(p);
           p.eat_trivia();
           p.expect(TokenKind::ClBracket);
         }
         PostOp::As => {
           p.eat_trivia();
-          gather_expr_type(p);
+          gather_type_expr(p);
           p.eat_trivia();
         }
         PostOp::PostfixRangeExclusive | PostOp::PostfixRangeInclusive => {
@@ -650,7 +652,7 @@ fn try_expr_value_rec(p: &mut CstParser<'_>, min_bp: u8) -> Option<CloseMark> {
 }
 
 /// Parse a value expression, or `None` for no input consumed.
-fn gather_expr_value(p: &mut CstParser<'_>) {
+fn gather_value_expr(p: &mut CstParser<'_>) {
   try_expr_value_rec(p, 0);
 }
 
@@ -670,7 +672,7 @@ fn gather_if(p: &mut CstParser<'_>) -> CloseMark {
   let m = p.open();
   p.expect(KwIf);
   p.eat_trivia();
-  gather_expr_value(p);
+  gather_value_expr(p);
   p.eat_trivia();
   gather_body(p);
   p.eat_trivia();
@@ -698,11 +700,11 @@ fn gather_for(p: &mut CstParser<'_>) -> CloseMark {
   let m = p.open();
   p.expect(KwFor);
   p.eat_trivia();
-  gather_pattern(p);
+  gather_value_expr(p);
   p.eat_trivia();
   p.expect(KwIn);
   p.eat_trivia();
-  gather_expr_value(p);
+  gather_value_expr(p);
   p.eat_trivia();
   gather_body(p);
   p.close(m, CstKind::ValueExpr)
@@ -714,7 +716,7 @@ fn gather_while(p: &mut CstParser<'_>) -> CloseMark {
   let m = p.open();
   p.expect(KwWhile);
   p.eat_trivia();
-  gather_expr_value(p);
+  gather_value_expr(p);
   p.eat_trivia();
   gather_body(p);
   p.close(m, CstKind::ValueExpr)
@@ -745,15 +747,25 @@ fn gather_body(p: &mut CstParser<'_>) -> CloseMark {
       KwLet => {
         p.expect(KwLet);
         p.eat_trivia();
-        gather_pattern(p);
+        let m = p.open();
+        p.expect(Ident);
+        p.close(m, ValueExpr);
         p.eat_trivia();
-        p.expect(Equal);
-        p.eat_trivia();
-        gather_expr_value(p);
+        if p.peek() == Colon {
+          p.expect(Colon);
+          gather_type_expr(p);
+          p.eat_trivia();
+        }
+        if p.peek() == Equal {
+          p.expect(Equal);
+          p.eat_trivia();
+          gather_value_expr(p);
+          p.eat_trivia();
+        }
         p.expect(Semicolon);
       }
-      // Keywords that start an expression which ends with a brace, which have an
-      // implied semicolon after the brace, need to be caught here and given that
+      // Keywords that start an expression which ends with a brace (which have an
+      // implied semicolon after the brace) need to be caught here and given that
       // separate handling, instead of passing to the generic expression statement
       // handling which doesn't know about the implied semicolon.
       KwLoop => {
@@ -770,7 +782,7 @@ fn gather_body(p: &mut CstParser<'_>) -> CloseMark {
       }
       // catch all for any other expression.
       _ => {
-        gather_expr_value(p);
+        gather_value_expr(p);
         p.eat_trivia();
         if p.peek() != ClBrace {
           p.expect(Semicolon);
@@ -780,11 +792,4 @@ fn gather_body(p: &mut CstParser<'_>) -> CloseMark {
     p.close(m_stmt, CstKind::Statement);
   }
   p.close(m, CstKind::ValueExpr)
-}
-
-fn gather_pattern(p: &mut CstParser<'_>) {
-  let m = p.open();
-  // todo: some day we could allow more forms of pattern
-  p.expect(Ident);
-  p.close(m, CstKind::Pattern);
 }

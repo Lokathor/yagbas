@@ -2,22 +2,25 @@
 #![allow(unused_braces)]
 #![allow(unused_parens)]
 #![allow(unused_labels)]
-#![allow(clippy::needless_return)]
-#![allow(clippy::field_reassign_with_default)]
-//#![warn(missing_docs)]
+#![deny(unreachable_patterns)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
-#![deny(unreachable_patterns)]
-#![allow(clippy::useless_format)]
 #![allow(clippy::ptr_arg)]
-#![allow(clippy::match_single_binding)]
 #![allow(clippy::empty_docs)]
+#![allow(clippy::useless_format)]
+#![allow(clippy::let_and_return)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::result_unit_err)]
+#![allow(clippy::match_single_binding)]
+#![allow(clippy::field_reassign_with_default)]
 
 //! Yagbas is a compiler for a language of the same name.
 //!
 //! The SemVer version of this crate does **not** refer to the crate library. It
 //! only refers to the language/compiler portion of the project. Contents of the
 //! library and its operation may change at any time.
+
+use bimap::BiHashMap;
 
 use crate::{path_id::PathId, span::Span};
 
@@ -67,7 +70,7 @@ make_global_id!(
 
 make_global_id!(
   /// Globally unique ID value for a particular
-  /// [Type](crate::ir_nameres_typecheck::type_check::Type).
+  /// [Type](crate::ir_nameres_typecheck::Type).
   TypeId
 );
 
@@ -88,3 +91,6 @@ make_global_id!(
   /// Globally unique ID value for a particular local variable name.
   LocalNameId
 );
+
+pub type FnvBiHashMap<L, R> =
+  BiHashMap<L, R, fnv::FnvBuildHasher, fnv::FnvBuildHasher>;

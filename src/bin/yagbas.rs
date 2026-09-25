@@ -1,10 +1,5 @@
-use bimap::BiHashMap;
-use std::collections::HashMap;
 use std::{ffi::OsString, path::Path};
 use yagbas::ir_nameres_typecheck::name_res::do_names;
-use yagbas::ir_nameres_typecheck::type_check::{
-  compute_types_of_ir, populate_basic_types,
-};
 use yagbas::{
   ast::{Ast, actions::parse_ast_module, parser::AstParser},
   cst::{
@@ -71,14 +66,9 @@ fn do_nameres(mut arguments: Vec<OsString>) {
       }
     }
   }
-  let mut ir = IrNameResTypeCheck {
-    ast,
-    expr_types: HashMap::default(),
-    type_database: BiHashMap::default(),
-  };
+  let mut ir = IrNameResTypeCheck::new(ast);
   do_names(&mut ir);
-  populate_basic_types(&mut ir);
-  compute_types_of_ir(&mut ir);
+  //todo!();
   println!("```");
   for module in &ir.ast.modules {
     println!("> Module: {:?}", module.file_origin);
