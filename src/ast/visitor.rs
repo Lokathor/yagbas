@@ -53,14 +53,19 @@ pub trait TreeVisitMut {
       }
       ItemKind::Function(data) => {
         debug_assert!(matches!(&*data.body.kind, ValueExprKind::Block { .. }));
+        if let Some(ret_tyx) = &mut data.opt_ret_tyx {
+          self.walk_type_expr(ret_tyx);
+        }
+        // Function argument variables need a scope to exist within, so we fake
+        // a scope for them to be created, before the "actual" function body
+        // expression begins.
+        self.push_block_point();
         for arg in &mut data.args {
           self.register_block_local(&mut arg.var);
           self.walk_type_expr(&mut arg.tyx);
         }
-        if let Some(ret_tyx) = &mut data.opt_ret_tyx {
-          self.walk_type_expr(ret_tyx);
-        }
         self.walk_value_expr(&mut data.body);
+        self.pop_block_point();
       }
       ItemKind::Struct(data) => {
         for field in &mut data.fields {
@@ -108,20 +113,22 @@ pub trait TreeVisitMut {
       ValueExprKind::LiteralString(_) => (),
       ValueExprKind::LiteralNumber(_) => (),
       ValueExprKind::Block { statements } => {
+        self.push_block_point();
         self.walk_statement_vec(statements);
+        self.pop_block_point();
       }
       ValueExprKind::Loop { opt_label, body } => {
         debug_assert!(matches!(&*body.kind, ValueExprKind::Block { .. }));
         self.push_label_point(opt_label);
         self.walk_value_expr(body);
-        self.pop_label_point(opt_label);
+        self.pop_label_point();
       }
       ValueExprKind::While { opt_label, condition, body } => {
         debug_assert!(matches!(&*body.kind, ValueExprKind::Block { .. }));
         self.push_label_point(opt_label);
         self.walk_value_expr(condition);
         self.walk_value_expr(body);
-        self.pop_label_point(opt_label);
+        self.pop_label_point();
       }
       ValueExprKind::For { opt_label, step_var, range, body } => {
         debug_assert!(matches!(&*body.kind, ValueExprKind::Block { .. }));
@@ -129,7 +136,7 @@ pub trait TreeVisitMut {
         self.push_label_point(opt_label);
         self.register_block_local(step_var);
         self.walk_value_expr(body);
-        self.pop_label_point(opt_label);
+        self.pop_label_point();
       }
       ValueExprKind::If { condition, true_body, opt_false_body } => {
         debug_assert!(matches!(&*true_body.kind, ValueExprKind::Block { .. }));
@@ -232,25 +239,39 @@ pub trait TreeVisitMut {
   #[allow(unused_variables)]
   fn visit_type_expr(&mut self, tyx: &mut TypeExpr) {}
 
+  /// Visits a label within a `break` or `continue` expression.
+  ///
+  /// If there's no label in the source you'll get a `&mut None`, allowing you
+  /// to insert a virtual label when necessary.
   #[allow(unused_variables)]
   fn visit_opt_label(&mut self, opt_label: &mut Option<Label>) {}
 
+  /// Enter a new label scope.
+  ///
+  /// If the input is `None` then no label was written into source but
+  /// `break`/`continue` still use this point.
   #[allow(unused_variables)]
   fn push_label_point(&mut self, opt_label: &mut Option<Label>) {}
 
+  /// Leave a label scope.
   #[allow(unused_variables)]
-  fn pop_label_point(&mut self, opt_label: &mut Option<Label>) {}
+  fn pop_label_point(&mut self) {}
 
+  /// Enter a new expression block
+  ///
+  /// Any local variables that are registered after this will be cleared from
+  /// the environment by the matching pop.
   #[allow(unused_variables)]
-  fn push_block_point(&mut self, opt_label: &mut Option<Label>) {}
+  fn push_block_point(&mut self) {}
 
-  /// Notify the walker of a local new in the current block.
+  /// Leave a block scope.
+  #[allow(unused_variables)]
+  fn pop_block_point(&mut self) {}
+
+  /// Notify the walker of a new local in the current block.
   ///
   /// This is distinct from the `visit_value_expr` because it overrides
   /// ("shadows") any previous definition of the identifier in this block.
   #[allow(unused_variables)]
   fn register_block_local(&mut self, vx: &mut ValueExpr) {}
-
-  #[allow(unused_variables)]
-  fn pop_block_point(&mut self, opt_label: &mut Option<Label>) {}
 }
