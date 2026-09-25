@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 
 use crate::ValueExprId;
-use crate::ast::ConstantData;
+use crate::ast::{ConstantData, StaticMmioData};
 use crate::tokenizer::TokenKind::Comma;
 use crate::{
   Span,
@@ -309,9 +309,9 @@ fn parse_ast_static(p: &mut AstParser, cst: &Cst, out: &mut Item) {
 
       basic_fixed_token!(p, it, out.span, Colon);
 
-      let type_decl = basic_type_expr!(p, it, out.span).unwrap_or_default();
+      let tyx = basic_type_expr!(p, it, out.span).unwrap_or_default();
 
-      out.kind = ItemKind::StaticMmio { location, type_decl };
+      out.kind = ItemKind::StaticMmio(StaticMmioData { location, tyx });
     }
     Some(CstElem::FixedToken(KwRam, _)) => {
       if let Some((name, name_span)) = basic_identifier!(p, it, out.span) {

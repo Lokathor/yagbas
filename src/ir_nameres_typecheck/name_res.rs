@@ -155,9 +155,9 @@ fn register_item_definition_info(ctx: &mut NameResolverContext, item: &Item) {
 
 fn do_names_in_item(ctx: &mut NameResolverContext, item: &mut Item) {
   match &mut item.kind {
-    ItemKind::StaticMmio { location, type_decl } => {
-      do_names_in_value_expr(ctx, location);
-      do_names_in_type_expr(ctx, type_decl);
+    ItemKind::StaticMmio(data) => {
+      do_names_in_value_expr(ctx, &mut data.location);
+      do_names_in_type_expr(ctx, &mut data.tyx);
     }
     ItemKind::Constant(data) => {
       do_names_in_type_expr(ctx, &mut data.type_decl);

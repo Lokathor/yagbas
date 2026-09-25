@@ -39,10 +39,7 @@ pub enum ItemKind {
   #[default]
   ErrItemKind,
   Constant(ConstantData),
-  StaticMmio {
-    location: ValueExpr,
-    type_decl: TypeExpr,
-  },
+  StaticMmio(StaticMmioData),
   StaticRam {
     type_decl: TypeExpr,
     init: ValueExpr,
@@ -80,6 +77,12 @@ pub enum ItemKind {
 pub struct ConstantData {
   pub type_decl: TypeExpr,
   pub value_decl: ValueExpr,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct StaticMmioData {
+  pub location: ValueExpr,
+  pub tyx: TypeExpr,
 }
 
 #[derive(Debug, Clone, Default)]
