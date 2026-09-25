@@ -15,12 +15,5 @@ use crate::ast::PointerAccessKind;
 use crate::ast::TypeExprKind;
 use crate::ast::ValueExpr;
 use crate::ast::ValueExprKind;
-use crate::ast::visitor::AstVisitor;
 use crate::ir_nameres_typecheck::IrNameResTypeCheck;
 use crate::ir_nameres_typecheck::Type;
-
-#[derive(Debug)]
-struct TypeSpreadPass(IrNameResTypeCheck);
-impl AstVisitor for TypeSpreadPass {
-  //
-}
