@@ -373,9 +373,11 @@ fn do_names_in_statement(
 
 #[derive(Debug)]
 pub struct NameResolver2 {
-  pub var_scopes: Vec<HashMap<String, ValueExprKind>>,
+  pub nonlocal_scopes: Vec<HashMap<String, ValueExprKind>>,
   pub type_scopes: Vec<HashMap<String, TypeExprKind>>,
+  pub local_scopes: Vec<HashMap<String, ValueExprKind>>,
   pub label_scopes: Vec<(String, LabelId)>,
+  pub stash: Vec<(Vec<HashMap<String, ValueExprKind>>,Vec<(String, LabelId)>)>,
 }
 impl NameResolver2 {
   //
@@ -400,23 +402,25 @@ impl TreeVisitMut for NameResolver2 {
   }
 
   fn visit_item(&mut self, item: &mut Item) {
-    todo!(
-      "debug assert that when we see an item that there's no open local scopes"
-    )
+    debug_assert!(self.local_scopes.is_empty());
+    debug_assert!(self.label_scopes.is_empty());
   }
 
   fn push_label_point(&mut self, opt_label: &mut Option<Label>) {
     todo!()
   }
   fn pop_label_point(&mut self) {
-    todo!()
+    self.label_scopes.pop();
   }
 
   fn push_block_point(&mut self) {
-    todo!()
+    self.nonlocal_scopes.push(HashMap::default());
+    self.type_scopes.push(HashMap::default());
+    self.local_scopes.push(HashMap::default());
   }
   fn pop_block_point(&mut self) {
-    todo!()
+    self.var_scopes.pop();
+    self.type_scopes.pop();
   }
   fn register_block_local(&mut self, vx: &mut ValueExpr) {
     todo!()
