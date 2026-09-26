@@ -791,7 +791,8 @@ fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
     dbg!(&i);
   }
 
-  out.kind = Box::new(StatementKind::Let { var, type_decl, initializer });
+  out.kind =
+    Box::new(StatementKind::Let { var, opt_tyx: type_decl, opt_init: initializer });
   out
 }
 

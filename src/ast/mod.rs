@@ -296,8 +296,8 @@ pub enum StatementKind {
   Item(Item),
   Let {
     var: ValueExpr,
-    type_decl: Option<TypeExpr>,
-    initializer: Option<ValueExpr>,
+    opt_tyx: Option<TypeExpr>,
+    opt_init: Option<ValueExpr>,
   },
   Expression(ValueExpr),
 }
