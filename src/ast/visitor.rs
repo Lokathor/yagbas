@@ -1,4 +1,4 @@
-use super::{ItemKind, TypeExprKind};
+use super::{ItemKind, StatementKind, TypeExprKind};
 use crate::{
   ast::{
     Ast, Item, Label, Module, Statement, TypeExpr, ValueExpr, ValueExprKind,
@@ -93,12 +93,44 @@ pub trait TreeVisitMut {
     }
   }
 
-  /// Visits the whole list, then visits the elements of the list.
+  /// Visits the whole list, then walks the elements of the list.
   fn walk_statement_vec(&mut self, statements: &mut Vec<Statement>) {
     self.visit_statement_vec(statements);
     for statement in statements {
-      self.visit_statement(statement);
+      self.walk_statement(statement);
     }
+  }
+
+  /// Walks each statement element, then visits the whole statement.
+  ///
+  /// Because of this ordering, you probably do not want to implement the
+  /// `visit_statement` method, just use the other visit methods.
+  fn walk_statement(&mut self, statement: &mut Statement) {
+    match &mut *statement.kind {
+      StatementKind::ErrStatementKind => (),
+      StatementKind::Item(item) => {
+        self.stash_locals_and_labels();
+        self.walk_item(item);
+        self.unstash_locals_and_labels();
+      }
+      StatementKind::Let { var, opt_tyx, opt_init } => {
+        // We must be sure to walk the initializer before the new variable is
+        // introduced so that when a new binding shadows an old name the
+        // initializer is guaranteed to use the old name.
+        if let Some(init) = opt_init {
+          self.walk_value_expr(init);
+        }
+        if let Some(tyx) = opt_tyx {
+          self.walk_type_expr(tyx);
+        }
+        self.register_block_local(var);
+        self.walk_value_expr(var);
+      }
+      StatementKind::Expression(vx) => {
+        self.walk_value_expr(vx);
+      }
+    }
+    self.visit_statement(statement);
   }
 
   /// Recursively visits the **components first**, then the expression itself.
@@ -195,6 +227,7 @@ pub trait TreeVisitMut {
     }
     self.visit_value_expr(vx);
   }
+
   /// Recursively visits the **components first**, then the expression itself.
   fn walk_type_expr(&mut self, tyx: &mut TypeExpr) {
     match &mut *tyx.kind {
@@ -232,6 +265,8 @@ pub trait TreeVisitMut {
   #[allow(unused_variables)]
   fn visit_statement_vec(&mut self, statements: &mut Vec<Statement>) {}
 
+  /// The `walk_statement` step will walk all parts of a statement before
+  /// calling this, so usually you **don't** need this at all.
   #[allow(unused_variables)]
   fn visit_statement(&mut self, statement: &mut Statement) {}
 
@@ -276,4 +311,17 @@ pub trait TreeVisitMut {
   /// ("shadows") any previous definition of the identifier in this block.
   #[allow(unused_variables)]
   fn register_block_local(&mut self, vx: &mut ValueExpr) {}
+
+  /// Put aside all local and label scopes.
+  ///
+  /// This is used when an item is defined within a statement block, because the
+  /// item should not inherit local and label scopes (but it can inherit nearby
+  /// item names at this scope).
+  ///
+  /// This can be called more than once, multiple stashes should stack up.
+  #[allow(unused_variables)]
+  fn stash_locals_and_labels(&mut self) {}
+
+  /// Undo the most recent stash action.
+  fn unstash_locals_and_labels(&mut self) {}
 }
