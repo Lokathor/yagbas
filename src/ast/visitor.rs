@@ -9,10 +9,13 @@ use super::{ItemKind, TypeExprKind};
 
 /// Allows for visiting important parts of an [Ast] in the "tree" ordering.
 ///
+/// Start the whole thing by calling `walk_ast` on an Ast, it will call all
+/// other methods in the right order.
+///
 /// * All methods have a default impl, so no methods are required.
 /// * To make your visitor "do something", override the `visit` methods.
-/// * You *probably* should not override the `walk` methods, which use a default
-///   walk ordering that should be suitable for most purposes.
+/// * You *probably* should not override the `walk` methods. The default walk
+///   ordering should be suitable for most purposes.
 pub trait TreeVisitMut {
   /// Visits the whole Ast, then walks the modules.
   fn walk_ast(&mut self, ast: &mut Ast) {
