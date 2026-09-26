@@ -4,7 +4,7 @@ use crate::{
   LabelId, LocalNameId,
   ast::{
     Item, ItemKind, Label, LabelKind, Statement, StatementKind, TypeExpr,
-    TypeExprKind, ValueExpr, ValueExprKind,
+    TypeExprKind, ValueExpr, ValueExprKind, visitor::TreeVisitMut,
   },
   ir_nameres_typecheck::IrNameResTypeCheck,
 };
@@ -347,7 +347,7 @@ fn do_names_in_statement(
   ctx: &mut NameResolverContext, statement: &mut Statement,
 ) {
   match &mut *statement.kind {
-    StatementKind::Let { var, type_decl, initializer } => {
+    StatementKind::Let { var, opt_tyx: type_decl, opt_init: initializer } => {
       if let Some(xpr) = initializer {
         do_names_in_value_expr(ctx, xpr);
       }
@@ -368,5 +368,76 @@ fn do_names_in_statement(
     StatementKind::Expression(xpr) => do_names_in_value_expr(ctx, xpr),
     StatementKind::Item(item) => do_names_in_item(ctx, item),
     StatementKind::ErrStatementKind => return,
+  }
+}
+
+#[derive(Debug)]
+pub struct NameResolver2 {
+  pub var_scopes: Vec<HashMap<String, ValueExprKind>>,
+  pub type_scopes: Vec<HashMap<String, TypeExprKind>>,
+  pub label_scopes: Vec<(String, LabelId)>,
+}
+impl NameResolver2 {
+  //
+}
+#[allow(unused_variables)]
+impl TreeVisitMut for NameResolver2 {
+  fn visit_module(&mut self, _: &mut crate::ast::Module) {
+    todo!(
+      "
+      * reset state, putting just pelude types into scope
+      * pre-scan all items.
+      "
+    )
+  }
+
+  fn visit_statement_vec(&mut self, _: &mut Vec<Statement>) {
+    todo!(
+      "
+      * pre-scan all items.
+      "
+    )
+  }
+
+  fn visit_item(&mut self, item: &mut Item) {
+    todo!(
+      "debug assert that when we see an item that there's no open local scopes"
+    )
+  }
+
+  fn push_label_point(&mut self, opt_label: &mut Option<Label>) {
+    todo!()
+  }
+  fn pop_label_point(&mut self) {
+    todo!()
+  }
+
+  fn push_block_point(&mut self) {
+    todo!()
+  }
+  fn pop_block_point(&mut self) {
+    todo!()
+  }
+  fn register_block_local(&mut self, vx: &mut ValueExpr) {
+    todo!()
+  }
+
+  fn stash_locals_and_labels(&mut self) {
+    todo!()
+  }
+  fn unstash_locals_and_labels(&mut self) {
+    todo!()
+  }
+
+  fn visit_value_expr(&mut self, vx: &mut ValueExpr) {
+    todo!()
+  }
+
+  fn visit_type_expr(&mut self, tyx: &mut TypeExpr) {
+    todo!()
+  }
+
+  fn visit_opt_label(&mut self, opt_label: &mut Option<Label>) {
+    todo!()
   }
 }
