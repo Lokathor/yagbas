@@ -1,11 +1,10 @@
+use super::{ItemKind, TypeExprKind};
 use crate::{
   ast::{
     Ast, Item, Label, Module, Statement, TypeExpr, ValueExpr, ValueExprKind,
   },
   operators::BinOpKind,
 };
-
-use super::{ItemKind, TypeExprKind};
 
 /// Allows for visiting important parts of an [Ast] in the "tree" ordering.
 ///
