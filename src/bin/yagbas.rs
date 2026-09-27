@@ -1,12 +1,13 @@
 use std::{ffi::OsString, path::Path};
-use yagbas::ir_nameres_typecheck::name_res::do_names;
 use yagbas::{
-  ast::{Ast, actions::parse_ast_module, parser::AstParser},
+  ast::{
+    Ast, actions::parse_ast_module, parser::AstParser, visitor::TreeVisitMut,
+  },
   cst::{
     actions::gather_module,
     parser::{BuildTreeArgs, CstParser},
   },
-  ir_nameres_typecheck::IrNameResTypeCheck,
+  ir_nameres_typecheck::name_res::NameResolver,
   path_id::PathId,
 };
 
@@ -66,24 +67,25 @@ fn do_nameres(mut arguments: Vec<OsString>) {
       }
     }
   }
-  let mut ir = IrNameResTypeCheck::new(ast);
-  do_names(&mut ir);
-  //todo!();
+  let mut name_resolver = NameResolver::default();
+  name_resolver.walk_ast(&mut ast);
   println!("```");
-  for module in &ir.ast.modules {
+  for module in &ast.modules {
     println!("> Module: {:?}", module.file_origin);
     for item in &module.items {
       println!(">> {item:#?}");
     }
   }
+  #[cfg(false)]
   for (ty_id, ty) in &ir.type_database {
     println!("** {ty_id:?}: {ty:?}");
   }
+  #[cfg(false)]
   for (xpr_id, ty_id) in &ir.expr_types {
     let ty = ir.type_database.get_by_left(ty_id).unwrap();
     println!("** {xpr_id:?}: {ty:?}");
   }
-  for error in &ir.ast.errors {
+  for error in &ast.errors {
     println!(">> Ast Error: {error:?}");
   }
   println!("```");

@@ -3,445 +3,203 @@ use std::collections::HashMap;
 use crate::{
   LabelId, LocalNameId,
   ast::{
-    Item, ItemKind, Label, LabelKind, Statement, StatementKind, TypeExpr,
+    Item, ItemKind, Label, Module, Statement, StatementKind, TypeExpr,
     TypeExprKind, ValueExpr, ValueExprKind, visitor::TreeVisitMut,
   },
-  ir_nameres_typecheck::IrNameResTypeCheck,
 };
 
-pub type VarNameScopes = Vec<HashMap<String, ValueExprKind>>;
-pub type TypeNameScopes = Vec<HashMap<String, TypeExprKind>>;
-pub type LabelNameScopes = Vec<HashMap<String, LabelKind>>;
+type ValueScope = HashMap<String, ValueExprKind>;
+type TypeScope = HashMap<String, TypeExprKind>;
+type LabelScope = (String, LabelId);
+type StashedData = (Vec<ValueScope>, Vec<LabelScope>);
 
-#[derive(Debug, Clone, Default)]
-pub struct NameResolverContext {
-  pub var_name_scopes: VarNameScopes,
-  pub type_name_scopes: TypeNameScopes,
-  pub label_name_scopes: LabelNameScopes,
+#[derive(Debug, Default)]
+pub struct NameResolver {
+  pub nonlocal_var_scopes: Vec<ValueScope>,
+  pub local_var_scopes: Vec<ValueScope>,
+  pub type_scopes: Vec<TypeScope>,
+  pub label_scopes: Vec<LabelScope>,
+  pub stash: Vec<StashedData>,
 }
-impl NameResolverContext {
-  pub fn push_scope(&mut self) {
-    self.var_name_scopes.push(HashMap::default());
-    self.type_name_scopes.push(HashMap::default());
-    self.label_name_scopes.push(HashMap::default());
+impl NameResolver {
+  fn scope_add_vx(&mut self, name: String, replacement: ValueExprKind) {
+    self.nonlocal_var_scopes.last_mut().unwrap().insert(name, replacement);
   }
-  pub fn pop_scope(&mut self) {
-    self.var_name_scopes.pop();
-    self.type_name_scopes.pop();
-    self.label_name_scopes.pop();
+  fn scope_add_tyx(&mut self, name: String, replacement: TypeExprKind) {
+    self.type_scopes.last_mut().unwrap().insert(name, replacement);
   }
-  pub fn within_scope<F>(&mut self, mut f: F)
-  where
-    F: FnOnce(&mut NameResolverContext),
-  {
-    self.push_scope();
-    f(self);
-    self.pop_scope();
-  }
-
-  pub fn lookup_var_name(&self, name: &str) -> Option<&ValueExprKind> {
-    self.var_name_scopes.iter().rev().filter_map(|hm| hm.get(name)).next()
-  }
-  pub fn lookup_type_name(&self, ty: &str) -> Option<&TypeExprKind> {
-    self.type_name_scopes.iter().rev().filter_map(|hm| hm.get(ty)).next()
-  }
-  /// Label lookups have the weird property where an empty input has to still
-  /// match on the most recent label (the innermost label), even if that
-  /// innermost label has a non-empty name.
-  pub fn lookup_label_name(&self, label: &str) -> Option<&LabelKind> {
-    if label.is_empty() {
-      self
-        .label_name_scopes
-        .iter()
-        .rev()
-        .filter_map(|hm| hm.values().next())
-        .next()
-    } else {
-      self.label_name_scopes.iter().rev().filter_map(|hm| hm.get(label)).next()
-    }
-  }
-
-  pub fn register_var_name(
-    &mut self, name: String, replacement: ValueExprKind,
-  ) -> Option<ValueExprKind> {
-    self.var_name_scopes.last_mut().unwrap().insert(name, replacement)
-  }
-  pub fn register_type_name(
-    &mut self, name: String, replacement: TypeExprKind,
-  ) -> Option<TypeExprKind> {
-    self.type_name_scopes.last_mut().unwrap().insert(name, replacement)
-  }
-  pub fn register_label_name(
-    &mut self, name: String, replacement: LabelKind,
-  ) -> Option<LabelKind> {
-    // there should only ever be a single label at any given scope point.
-    debug_assert!(self.label_name_scopes.last_mut().unwrap().is_empty());
-    self.label_name_scopes.last_mut().unwrap().insert(name, replacement)
-  }
-}
-
-pub fn do_names(ir: &mut IrNameResTypeCheck) {
-  let mut ctx = NameResolverContext::default();
-  ctx.push_scope();
-  ctx.register_type_name("()".to_string(), TypeExprKind::Unit);
-  ctx.register_type_name("bool".to_string(), TypeExprKind::Bool);
-  ctx.register_type_name("u8".to_string(), TypeExprKind::U8);
-  ctx.register_type_name("i8".to_string(), TypeExprKind::I8);
-  ctx.register_type_name("u16".to_string(), TypeExprKind::U16);
-  ctx.register_type_name("i16".to_string(), TypeExprKind::I16);
-
-  for module in ir.ast.modules.iter_mut() {
-    ctx.within_scope(|ctx| {
-      let mut items_defined_this_scope = Vec::new();
-      for item in module.items.iter() {
-        if items_defined_this_scope.contains(&item.name.as_str()) {
-          // todo: error about multiple definitions
-          continue;
-        } else {
-          items_defined_this_scope.push(item.name.as_str());
-        }
-        register_item_definition_info(ctx, item);
-      }
-
-      for item in module.items.iter_mut() {
-        do_names_in_item(ctx, item);
-      }
-    });
-  }
-}
-
-fn register_item_definition_info(ctx: &mut NameResolverContext, item: &Item) {
-  let name = item.name.clone();
-  match &item.kind {
-    ItemKind::Constant { .. } => {
-      let replacement = ValueExprKind::NameOfConstant(item.id);
-      ctx.register_var_name(name, replacement);
-    }
-    ItemKind::StaticMmio { .. } => {
-      let replacement = ValueExprKind::NameOfStaticMmio(item.id);
-      ctx.register_var_name(name, replacement);
-    }
-    ItemKind::StaticRam { .. } => {
-      let replacement = ValueExprKind::NameOfStaticRam(item.id);
-      ctx.register_var_name(name, replacement);
-    }
-    ItemKind::StaticRom { .. } => {
-      let replacement = ValueExprKind::NameOfStaticRom(item.id);
-      ctx.register_var_name(name, replacement);
-    }
-    ItemKind::Function { .. } => {
-      let replacement = ValueExprKind::NameOfFunction(item.id);
-      ctx.register_var_name(name, replacement);
-    }
-    ItemKind::Struct { .. } => {
-      // todo: register the type id itself somewhere?
-      let replacement = TypeExprKind::NameOfStruct(item.id);
-      ctx.register_type_name(name, replacement);
-    }
-    ItemKind::Bitbag { .. } => {
-      // todo: register the type id itself somewhere?
-      let replacement = TypeExprKind::NameOfBitbag(item.id);
-      ctx.register_type_name(name, replacement);
-    }
-    ItemKind::Enum { .. } => {
-      // todo: register the type id itself somewhere?
-      let replacement = TypeExprKind::NameOfEnum(item.id);
-      ctx.register_type_name(name, replacement);
-    }
-    ItemKind::ErrItemKind => return,
-    other => todo!("unknown how to register {other:?}"),
-  };
-}
-
-fn do_names_in_item(ctx: &mut NameResolverContext, item: &mut Item) {
-  match &mut item.kind {
-    ItemKind::StaticMmio(data) => {
-      do_names_in_value_expr(ctx, &mut data.location);
-      do_names_in_type_expr(ctx, &mut data.tyx);
-    }
-    ItemKind::Constant(data) => {
-      do_names_in_type_expr(ctx, &mut data.tyx);
-      do_names_in_value_expr(ctx, &mut data.vx);
-    }
-    ItemKind::Function(data) => {
-      if let Some(mut ret_tyx) = data.opt_ret_tyx.as_mut() {
-        do_names_in_type_expr(ctx, ret_tyx);
-      }
-
-      for arg in data.args.iter_mut() {
-        do_names_in_type_expr(ctx, &mut arg.tyx);
-      }
-      ctx.within_scope(|ctx| {
-        for arg in data.args.iter_mut() {
-          match &mut *arg.var.kind {
-            ValueExprKind::Identifier(name) => {
-              let id = LocalNameId::new();
-              let name = name.clone();
-              let replacement = ValueExprKind::NameOfLocalVariable(id);
-              *arg.var.kind = replacement.clone();
-              let _ = ctx.register_var_name(name, replacement);
-            }
-            other => todo!("unhandled function arg kind: {other:?}"),
-          }
-        }
-        do_names_in_value_expr(ctx, &mut data.body);
-      });
-    }
-    other => todo!("unhandled inside item: {other:?}"),
-  }
-}
-
-fn do_names_in_value_expr(ctx: &mut NameResolverContext, xpr: &mut ValueExpr) {
-  match &mut *xpr.kind {
-    ValueExprKind::Identifier(name) => {
-      if let Some(replacement) = ctx.lookup_var_name(name.as_str()) {
-        *xpr.kind = replacement.clone();
+  fn register_items<'a>(&mut self, items: impl Iterator<Item = &'a Item>) {
+    let mut names_registered_this_scope = Vec::new();
+    for item in items {
+      let name = item.name.as_str();
+      if names_registered_this_scope.contains(&name) {
+        todo!("multiple definitions");
       } else {
-        todo!()
-      }
-    }
-    ValueExprKind::LiteralNumber(_) => {
-      // todo: if the type has a suffix we could assign a type right here.
-    }
-    ValueExprKind::Loop { opt_label: label, body } => {
-      ctx.within_scope(|ctx| {
-        if let Some(label) = label {
-          match &mut label.kind {
-            LabelKind::Identifier(name) => {
-              let id = LabelId::new();
-              let name = name.clone();
-              let replacement = LabelKind::IdNum(id);
-              let _ = ctx.register_label_name(name, replacement);
-              label.kind = LabelKind::IdNum(id);
-            }
-            other => todo!("unhandled let pattern kind: {other:?}"),
+        names_registered_this_scope.push(name);
+        match &item.kind {
+          ItemKind::ErrItemKind => (),
+          ItemKind::Constant(_) => {
+            let replacement = ValueExprKind::NameOfConstant(item.id);
+            self.scope_add_vx(name.to_string(), replacement);
           }
-        } else {
-          let id = LabelId::new();
-          let name = String::from("");
-          let replacement = LabelKind::IdNum(id);
-          let _ = ctx.register_label_name(name, replacement);
-          *label = Some(Label { span: xpr.span, kind: LabelKind::IdNum(id) });
-        }
-        do_names_in_value_expr(ctx, body);
-      });
-    }
-    ValueExprKind::For { opt_label: label, step_var, range, body } => {
-      do_names_in_value_expr(ctx, range);
-      ctx.within_scope(|ctx| {
-        if let Some(label) = label {
-          match &mut label.kind {
-            LabelKind::Identifier(name) => {
-              let id = crate::LabelId::new();
-              let name = name.clone();
-              let replacement = LabelKind::IdNum(id);
-              let _ = ctx.register_label_name(name, replacement);
-              label.kind = LabelKind::IdNum(id);
-            }
-            other => todo!("unhandled let pattern kind: {other:?}"),
+          ItemKind::StaticMmio(_) => {
+            let replacement = ValueExprKind::NameOfStaticMmio(item.id);
+            self.scope_add_vx(name.to_string(), replacement);
           }
-        } else {
-          let id = LabelId::new();
-          let name = String::from("");
-          let replacement = LabelKind::IdNum(id);
-          let _ = ctx.register_label_name(name, replacement);
-          *label = Some(Label { span: xpr.span, kind: LabelKind::IdNum(id) });
-        }
-        match &mut *step_var.kind {
-          ValueExprKind::Identifier(name) => {
-            let id = LocalNameId::new();
-            let name = name.clone();
-            let replacement = ValueExprKind::NameOfLocalVariable(id);
-            *step_var.kind = replacement.clone();
-            let _ = ctx.register_var_name(name, replacement);
+          ItemKind::StaticRam(_) => {
+            let replacement = ValueExprKind::NameOfStaticRam(item.id);
+            self.scope_add_vx(name.to_string(), replacement);
           }
-          other => todo!("unhandled step var kind: {other:?}"),
-        }
-        do_names_in_value_expr(ctx, body);
-      });
-    }
-    ValueExprKind::Break { opt_label: label, opt_vx: value } => {
-      match label {
-        Some(label_inner) => match &mut label_inner.kind {
-          LabelKind::Identifier(l) => {
-            if let Some(replacement) = ctx.lookup_label_name(l.as_str()) {
-              label_inner.kind = replacement.clone();
-            } else {
-              todo!()
-            }
+          ItemKind::StaticRom(_) => {
+            let replacement = ValueExprKind::NameOfStaticRom(item.id);
+            self.scope_add_vx(name.to_string(), replacement);
           }
-          _ => todo!("unhandled label kind in break expr"),
-        },
-        None => {
-          if let Some(replacement) = ctx.lookup_label_name("") {
-            *label = Some(Label { span: xpr.span, kind: replacement.clone() });
-          } else {
-            todo!()
+          ItemKind::Function(_) => {
+            let replacement = ValueExprKind::NameOfFunction(item.id);
+            self.scope_add_vx(name.to_string(), replacement);
           }
+          ItemKind::Struct(_) => {
+            let replacement = TypeExprKind::NameOfStruct(item.id);
+            self.scope_add_tyx(name.to_string(), replacement);
+          }
+          ItemKind::Bitbag(_) => {
+            let replacement = TypeExprKind::NameOfStruct(item.id);
+            self.scope_add_tyx(name.to_string(), replacement);
+          }
+          ItemKind::Enum(_) => {
+            let replacement = TypeExprKind::NameOfStruct(item.id);
+            self.scope_add_tyx(name.to_string(), replacement);
+          }
+          ItemKind::Impl(_) => (),
+          ItemKind::Use(_) => {
+            todo!("somehow this should put a thing into scope.")
+          }
+          ItemKind::Mod => (),
         }
       }
-      if let Some(xpr) = value {
-        do_names_in_value_expr(ctx, xpr);
+    }
+  }
+  fn lookup_var(&mut self, name: &str) -> Option<&ValueExprKind> {
+    self
+      .nonlocal_var_scopes
+      .iter()
+      .rev()
+      .zip(self.local_var_scopes.iter().rev())
+      .find_map(|(hm0, hm1)| {
+        debug_assert!(!(hm0.contains_key(name) && hm1.contains_key(name)));
+        hm0.get(name).or_else(|| hm1.get(name))
+      })
+  }
+  fn lookup_type(&mut self, name: &str) -> Option<&TypeExprKind> {
+    #[allow(clippy::unnecessary_lazy_evaluations)]
+    self.type_scopes.iter().rev().find_map(|hm| hm.get(name)).or_else(|| {
+      match name {
+        "()" => Some(&TypeExprKind::Unit),
+        "bool" => Some(&TypeExprKind::Bool),
+        "u8" => Some(&TypeExprKind::U8),
+        "i8" => Some(&TypeExprKind::I8),
+        "u16" => Some(&TypeExprKind::U16),
+        "i16" => Some(&TypeExprKind::I16),
+        _ => None,
       }
-    }
-    ValueExprKind::If { condition, true_body, opt_false_body } => {
-      do_names_in_value_expr(ctx, condition);
-      do_names_in_value_expr(ctx, true_body);
-      if let Some(false_body) = opt_false_body {
-        do_names_in_value_expr(ctx, false_body);
-      }
-    }
-    ValueExprKind::BinOp { left, op: _, right } => {
-      // todo: this is wrong for FieldAccess ops. when the left side is field accessable, the right side is a field name not a general variable name.
-      // todo: also Path ops.
-      do_names_in_value_expr(ctx, left);
-      do_names_in_value_expr(ctx, right);
-    }
-    ValueExprKind::UnOp { op: _, operand } => {
-      do_names_in_value_expr(ctx, operand);
-    }
-    ValueExprKind::Block { statements } => {
-      ctx.within_scope(|ctx| {
-        let mut items_defined_this_scope = Vec::new();
-        for statement in statements.iter() {
-          match &*statement.kind {
-            StatementKind::Item(item) => {
-              if items_defined_this_scope.contains(&item.name.as_str()) {
-                // todo: error about multiple definitions
-                continue;
-              } else {
-                items_defined_this_scope.push(item.name.as_str());
-              }
-              register_item_definition_info(ctx, item);
-            }
-            _ => continue,
-          }
-        }
-        for statement in statements.iter_mut() {
-          do_names_in_statement(ctx, statement);
-        }
-      });
-    }
-    other => todo!("unhandled inside value expression: {other:?}"),
+    })
+  }
+  fn lookup_label(&mut self, name: &str) -> Option<LabelId> {
+    self
+      .label_scopes
+      .iter()
+      .rev()
+      .find_map(|(n, i)| if name == n.as_str() { Some(*i) } else { None })
   }
 }
+impl TreeVisitMut for NameResolver {
+  fn visit_module(&mut self, module: &mut Module) {
+    self.register_items(module.items.iter());
+  }
 
-fn do_names_in_type_expr(ctx: &mut NameResolverContext, ty: &mut TypeExpr) {
-  match &mut *ty.kind {
-    TypeExprKind::Identifier(t) => {
-      if let Some(replacement) = ctx.lookup_type_name(t.as_str()) {
-        *ty.kind = replacement.clone();
+  fn visit_statement_vec(&mut self, statements: &mut Vec<Statement>) {
+    self.register_items(statements.iter().filter_map(|statement| {
+      if let StatementKind::Item(item) = &*statement.kind {
+        Some(item)
       } else {
-        todo!()
+        None
       }
-    }
-    TypeExprKind::Array { elem_tyx: elem_ty, elem_count } => {
-      do_names_in_type_expr(ctx, elem_ty);
-      do_names_in_value_expr(ctx, elem_count);
-    }
-    other => todo!("unhandled inside type expression: {other:?}"),
+    }));
   }
-}
 
-fn do_names_in_statement(
-  ctx: &mut NameResolverContext, statement: &mut Statement,
-) {
-  match &mut *statement.kind {
-    StatementKind::Let { var, opt_tyx: type_decl, opt_init: initializer } => {
-      if let Some(xpr) = initializer {
-        do_names_in_value_expr(ctx, xpr);
+  fn push_label_point(&mut self, label: &mut Label) {
+    let name = label.name.to_string();
+    let id = match label.opt_id {
+      Some(id) => id,
+      None => {
+        let new_id = LabelId::new();
+        label.opt_id = Some(new_id);
+        new_id
       }
-      if let Some(ty) = type_decl {
-        do_names_in_type_expr(ctx, ty);
-      }
-      match &mut *var.kind {
-        ValueExprKind::Identifier(name) => {
-          let id = LocalNameId::new();
-          let name = name.clone();
-          let replacement = ValueExprKind::NameOfLocalVariable(id);
-          *var.kind = replacement.clone();
-          let _ = ctx.register_var_name(name, replacement);
-        }
-        other => todo!("unhandled let pattern kind: {other:?}"),
-      }
-    }
-    StatementKind::Expression(xpr) => do_names_in_value_expr(ctx, xpr),
-    StatementKind::Item(item) => do_names_in_item(ctx, item),
-    StatementKind::ErrStatementKind => return,
-  }
-}
-
-#[derive(Debug)]
-pub struct NameResolver2 {
-  pub nonlocal_scopes: Vec<HashMap<String, ValueExprKind>>,
-  pub type_scopes: Vec<HashMap<String, TypeExprKind>>,
-  pub local_scopes: Vec<HashMap<String, ValueExprKind>>,
-  pub label_scopes: Vec<(String, LabelId)>,
-  pub stash: Vec<(Vec<HashMap<String, ValueExprKind>>,Vec<(String, LabelId)>)>,
-}
-impl NameResolver2 {
-  //
-}
-#[allow(unused_variables)]
-impl TreeVisitMut for NameResolver2 {
-  fn visit_module(&mut self, _: &mut crate::ast::Module) {
-    todo!(
-      "
-      * reset state, putting just pelude types into scope
-      * pre-scan all items.
-      "
-    )
-  }
-
-  fn visit_statement_vec(&mut self, _: &mut Vec<Statement>) {
-    todo!(
-      "
-      * pre-scan all items.
-      "
-    )
-  }
-
-  fn visit_item(&mut self, item: &mut Item) {
-    debug_assert!(self.local_scopes.is_empty());
-    debug_assert!(self.label_scopes.is_empty());
-  }
-
-  fn push_label_point(&mut self, opt_label: &mut Option<Label>) {
-    todo!()
+    };
+    self.label_scopes.push((name, id));
   }
   fn pop_label_point(&mut self) {
     self.label_scopes.pop();
   }
 
   fn push_block_point(&mut self) {
-    self.nonlocal_scopes.push(HashMap::default());
+    self.nonlocal_var_scopes.push(HashMap::default());
     self.type_scopes.push(HashMap::default());
-    self.local_scopes.push(HashMap::default());
+    self.local_var_scopes.push(HashMap::default());
   }
   fn pop_block_point(&mut self) {
-    self.var_scopes.pop();
+    self.nonlocal_var_scopes.pop();
     self.type_scopes.pop();
+    self.local_var_scopes.pop();
   }
   fn register_block_local(&mut self, vx: &mut ValueExpr) {
-    todo!()
+    match &mut *vx.kind {
+      ValueExprKind::Identifier(name) => {
+        let name = name.to_string();
+        let local_id = LocalNameId::new();
+        let replacement = ValueExprKind::NameOfLocalVariable(local_id);
+        self.local_var_scopes.last_mut().unwrap().insert(name, replacement);
+      }
+      other => {
+        todo!("block local declaration, expected Identifier, got: {other:?}")
+      }
+    }
   }
 
   fn stash_locals_and_labels(&mut self) {
-    todo!()
+    let old_local_vars = core::mem::take(&mut self.local_var_scopes);
+    let old_labels = core::mem::take(&mut self.label_scopes);
+    self.stash.push((old_local_vars, old_labels));
   }
   fn unstash_locals_and_labels(&mut self) {
-    todo!()
+    debug_assert!(self.local_var_scopes.is_empty());
+    debug_assert!(self.label_scopes.is_empty());
+    let (old_local_vars, old_labels) = self.stash.pop().unwrap();
+    self.local_var_scopes = old_local_vars;
+    self.label_scopes = old_labels;
   }
 
   fn visit_value_expr(&mut self, vx: &mut ValueExpr) {
-    todo!()
+    dbg!(&vx);
+    if let ValueExprKind::Identifier(name) = &mut *vx.kind
+      && let Some(replacement) = self.lookup_var(name)
+    {
+      *vx.kind = replacement.clone();
+    }
   }
 
   fn visit_type_expr(&mut self, tyx: &mut TypeExpr) {
-    todo!()
+    if let TypeExprKind::Identifier(name) = &mut *tyx.kind
+      && let Some(replacement) = self.lookup_type(name)
+    {
+      *tyx.kind = replacement.clone();
+    }
   }
 
-  fn visit_opt_label(&mut self, opt_label: &mut Option<Label>) {
-    todo!()
+  fn visit_label_expr(&mut self, label: &mut Label) {
+    if label.opt_id.is_none() {
+      label.opt_id = self.lookup_label(&label.name);
+    }
   }
 }

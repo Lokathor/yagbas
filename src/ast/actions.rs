@@ -2,7 +2,9 @@
 #![allow(unused_variables)]
 
 use crate::ValueExprId;
-use crate::ast::{ConstantData, StaticMmioData, StaticRamData, StaticRomData};
+use crate::ast::{
+  ConstantData, Label, StaticMmioData, StaticRamData, StaticRomData,
+};
 use crate::tokenizer::TokenKind::Comma;
 use crate::{
   Span,
@@ -571,7 +573,7 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
           span,
           id: ValueExprId::new(),
           kind: Box::new(ValueExprKind::Break {
-            opt_label: None,
+            label: Label { span, name: String::from(""), opt_id: None },
             opt_vx: None,
           }),
         },
@@ -607,11 +609,12 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   );
   //
   let mut it = cst.elements.iter();
-  let label = None;
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
 
-  basic_fixed_token!(p, it, out.span, KwFor);
+  let label_span =
+    basic_fixed_token!(p, it, out.span, KwFor).unwrap_or_default();
+  let label = Label { name: String::from(""), span: label_span, opt_id: None };
 
   let step_var = basic_value_expr!(p, it, out.span).unwrap_or_default();
 
@@ -625,8 +628,7 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     dbg!(&i);
   }
 
-  out.kind =
-    Box::new(ValueExprKind::For { opt_label: label, step_var, range, body });
+  out.kind = Box::new(ValueExprKind::For { label, step_var, range, body });
   out
 }
 
@@ -638,11 +640,12 @@ fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   );
   //
   let mut it = cst.elements.iter();
-  let mut label = None;
   let mut out = ValueExpr::default();
   out.span = cst.try_span().unwrap_or_default();
 
-  basic_fixed_token!(p, it, out.span, KwLoop);
+  let label_span =
+    basic_fixed_token!(p, it, out.span, KwLoop).unwrap_or_default();
+  let label = Label { name: String::from(""), span: label_span, opt_id: None };
 
   let body = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
 
@@ -650,7 +653,7 @@ fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     dbg!(&i);
   }
 
-  out.kind = Box::new(ValueExprKind::Loop { opt_label: label, body });
+  out.kind = Box::new(ValueExprKind::Loop { label, body });
   out
 }
 
@@ -791,8 +794,11 @@ fn parse_statement_let(p: &mut AstParser, cst: &Cst) -> Statement {
     dbg!(&i);
   }
 
-  out.kind =
-    Box::new(StatementKind::Let { var, opt_tyx: type_decl, opt_init: initializer });
+  out.kind = Box::new(StatementKind::Let {
+    var,
+    opt_tyx: type_decl,
+    opt_init: initializer,
+  });
   out
 }
 

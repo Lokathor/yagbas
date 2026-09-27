@@ -124,16 +124,12 @@ pub struct StructField {
 
 #[derive(Debug, Clone, Default)]
 pub struct Label {
+  /// When the label is missing from source, just use the span of the keyword.
   pub span: Span,
-  pub kind: LabelKind,
-}
-
-#[derive(Debug, Clone, Default)]
-pub enum LabelKind {
-  #[default]
-  ErrLabelKind,
-  Identifier(String),
-  IdNum(LabelId),
+  /// If a label is missing from source, the empty string is implied.
+  pub name: String,
+  /// Defaults to None, this gets set during name resolution.
+  pub opt_id: Option<LabelId>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -214,11 +210,11 @@ pub enum ValueExprKind {
     statements: Vec<Statement>,
   },
   Loop {
-    opt_label: Option<Label>,
+    label: Label,
     body: ValueExpr,
   },
   While {
-    opt_label: Option<Label>,
+    label: Label,
     condition: ValueExpr,
     body: ValueExpr,
   },
@@ -236,7 +232,7 @@ pub enum ValueExprKind {
   /// * `<` for exclusive ranges
   /// * `<=` for inclusive ranges.
   For {
-    opt_label: Option<Label>,
+    label: Label,
     step_var: ValueExpr,
     range: ValueExpr,
     body: ValueExpr,
@@ -260,11 +256,11 @@ pub enum ValueExprKind {
   /// `..=` with no left or right sub-expression
   FullRangeInclusive,
   Break {
-    opt_label: Option<Label>,
+    label: Label,
     opt_vx: Option<ValueExpr>,
   },
   Continue {
-    opt_label: Option<Label>,
+    label: Label,
   },
   Call {
     target: ValueExpr,

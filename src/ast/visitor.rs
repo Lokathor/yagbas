@@ -16,7 +16,7 @@ use crate::{
 /// * You *probably* should not override the `walk` methods. The default walk
 ///   ordering should be suitable for most purposes.
 pub trait TreeVisitMut {
-  /// Visits the whole Ast, then walks the modules.
+  /// Visits the whole Ast, then walks each module.
   fn walk_ast(&mut self, ast: &mut Ast) {
     self.visit_ast(ast);
     for module in &mut ast.modules {
@@ -25,11 +25,15 @@ pub trait TreeVisitMut {
   }
 
   /// Visits the whole module, then visits each item.
+  ///
+  /// The module is visited and walked "within" a virtual block point.
   fn walk_module(&mut self, module: &mut Module) {
+    self.push_block_point();
     self.visit_module(module);
     for item in &mut module.items {
       self.walk_item(item);
     }
+    self.pop_block_point();
   }
 
   /// Visits the whole item, then walks the item components.
@@ -38,20 +42,20 @@ pub trait TreeVisitMut {
     match &mut item.kind {
       ItemKind::ErrItemKind => (),
       ItemKind::Constant(data) => {
-        self.visit_type_expr(&mut data.tyx);
-        self.visit_value_expr(&mut data.vx);
+        self.walk_type_expr(&mut data.tyx);
+        self.walk_value_expr(&mut data.vx);
       }
       ItemKind::StaticMmio(data) => {
-        self.visit_value_expr(&mut data.location);
-        self.visit_type_expr(&mut data.tyx);
+        self.walk_value_expr(&mut data.location);
+        self.walk_type_expr(&mut data.tyx);
       }
       ItemKind::StaticRam(data) => {
-        self.visit_type_expr(&mut data.tyx);
-        self.visit_value_expr(&mut data.init);
+        self.walk_type_expr(&mut data.tyx);
+        self.walk_value_expr(&mut data.init);
       }
       ItemKind::StaticRom(data) => {
-        self.visit_type_expr(&mut data.tyx);
-        self.visit_value_expr(&mut data.vx);
+        self.walk_type_expr(&mut data.tyx);
+        self.walk_value_expr(&mut data.vx);
       }
       ItemKind::Function(data) => {
         debug_assert!(matches!(&*data.body.kind, ValueExprKind::Block { .. }));
@@ -151,33 +155,34 @@ pub trait TreeVisitMut {
         self.walk_statement_vec(statements);
         self.pop_block_point();
       }
-      ValueExprKind::Loop { opt_label, body } => {
+      ValueExprKind::Loop { label, body } => {
         debug_assert!(matches!(&*body.kind, ValueExprKind::Block { .. }));
-        self.push_label_point(opt_label);
+        self.push_label_point(label);
         self.walk_value_expr(body);
         self.pop_label_point();
       }
-      ValueExprKind::While { opt_label, condition, body } => {
+      ValueExprKind::While { label, condition, body } => {
         debug_assert!(matches!(&*body.kind, ValueExprKind::Block { .. }));
-        self.push_label_point(opt_label);
+        self.push_label_point(label);
         self.walk_value_expr(condition);
         self.walk_value_expr(body);
         self.pop_label_point();
       }
-      ValueExprKind::For { opt_label, step_var, range, body } => {
+      ValueExprKind::For { label, step_var, range, body } => {
         debug_assert!(matches!(&*body.kind, ValueExprKind::Block { .. }));
         self.walk_value_expr(range);
-        self.push_label_point(opt_label);
+        self.push_label_point(label);
         self.register_block_local(step_var);
         self.walk_value_expr(body);
         self.pop_label_point();
       }
       ValueExprKind::If { condition, true_body, opt_false_body } => {
         debug_assert!(matches!(&*true_body.kind, ValueExprKind::Block { .. }));
-        debug_assert!(matches!(
-          opt_false_body.as_ref().map(|f| &*f.kind),
-          Some(&ValueExprKind::Block { .. })
-        ));
+        debug_assert!(if let Some(false_body) = opt_false_body {
+          matches!(&*false_body.kind, ValueExprKind::Block { .. })
+        } else {
+          true
+        });
         self.walk_value_expr(condition);
         self.walk_value_expr(true_body);
         if let Some(false_body) = opt_false_body {
@@ -199,14 +204,14 @@ pub trait TreeVisitMut {
       }
       ValueExprKind::FullRangeExclusive => (),
       ValueExprKind::FullRangeInclusive => (),
-      ValueExprKind::Break { opt_label, opt_vx } => {
-        self.visit_opt_label(opt_label);
+      ValueExprKind::Break { label, opt_vx } => {
+        self.visit_label_expr(label);
         if let Some(vx) = opt_vx {
           self.walk_value_expr(vx);
         }
       }
-      ValueExprKind::Continue { opt_label } => {
-        self.visit_opt_label(opt_label);
+      ValueExprKind::Continue { label } => {
+        self.visit_label_expr(label);
       }
       ValueExprKind::Call { target, args } => {
         self.walk_value_expr(target);
@@ -277,18 +282,12 @@ pub trait TreeVisitMut {
   fn visit_type_expr(&mut self, tyx: &mut TypeExpr) {}
 
   /// Visits a label within a `break` or `continue` expression.
-  ///
-  /// If there's no label in the source you'll get a `&mut None`, allowing you
-  /// to insert a virtual label when necessary.
   #[allow(unused_variables)]
-  fn visit_opt_label(&mut self, opt_label: &mut Option<Label>) {}
+  fn visit_label_expr(&mut self, label: &mut Label) {}
 
   /// Enter a new label scope.
-  ///
-  /// If the input is `None` then no label was written into source but
-  /// `break`/`continue` still use this point.
   #[allow(unused_variables)]
-  fn push_label_point(&mut self, opt_label: &mut Option<Label>) {}
+  fn push_label_point(&mut self, label: &mut Label) {}
 
   /// Leave a label scope.
   #[allow(unused_variables)]
@@ -307,8 +306,9 @@ pub trait TreeVisitMut {
 
   /// Notify the walker of a new local in the current block.
   ///
-  /// This is distinct from the `visit_value_expr` because it overrides
-  /// ("shadows") any previous definition of the identifier in this block.
+  /// When walking a variable declaration, this is called first, and then
+  /// [walk_value_expr](TreeVisitMut::walk_value_expr) is called immediately
+  /// after, because the declaraiotn still counts as a [ValueExpr].
   #[allow(unused_variables)]
   fn register_block_local(&mut self, vx: &mut ValueExpr) {}
 
