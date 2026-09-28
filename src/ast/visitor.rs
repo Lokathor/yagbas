@@ -173,6 +173,7 @@ pub trait TreeVisitMut {
         self.walk_value_expr(range);
         self.push_label_point(label);
         self.register_block_local(step_var);
+        self.walk_value_expr(step_var);
         self.walk_value_expr(body);
         self.pop_label_point();
       }
