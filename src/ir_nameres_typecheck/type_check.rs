@@ -26,6 +26,7 @@ use crate::ir_nameres_typecheck::Type;
 #[derive(Debug, Default)]
 pub struct TypeChecker {
   pub type_database: FnvBiHashMap<TypeId, Type>,
+  pub item_id_to_type_id: FnvHashMap<ItemId, TypeId>,
   pub val_expr_to_type_id: FnvHashMap<ValueExprId, TypeId>,
 }
 impl TreeVisitMut for TypeChecker {
