@@ -72,6 +72,7 @@ fn do_nameres(mut arguments: Vec<OsString>) {
   let mut type_checker = TypeChecker::default();
   type_checker.walk_ast(&mut ast);
   println!("```");
+  // #[cfg(false)]
   for module in &ast.modules {
     println!("> Module: {:?}", module.file_origin);
     for item in &module.items {
