@@ -15,7 +15,10 @@ use crate::YagError;
 use crate::ast::Ast;
 use crate::ast::Item;
 use crate::ast::ItemKind;
+use crate::ast::Module;
 use crate::ast::PointerAccessKind;
+use crate::ast::Statement;
+use crate::ast::TypeExpr;
 use crate::ast::TypeExprKind;
 use crate::ast::ValueExpr;
 use crate::ast::ValueExprKind;
@@ -30,12 +33,20 @@ pub struct TypeChecker {
   pub val_expr_to_type_id: FnvHashMap<ValueExprId, TypeId>,
 }
 impl TreeVisitMut for TypeChecker {
-  fn visit_module(&mut self, module: &mut crate::ast::Module) {
-    // if the item can be used as a variable, record the type
+  fn visit_module(&mut self, module: &mut Module) {
+    // scan items: if the item can be used as a variable, record the type
+  }
+
+  fn visit_statement_vec(&mut self, statements: &mut Vec<Statement>) {
+    // scan items: if the item can be used as a variable, record the type
   }
 
   fn visit_item(&mut self, item: &mut Item) {
     // if item is a function, record input argument types
+  }
+
+  fn visit_statement(&mut self, statement: &mut Statement) {
+    // if statement is let, record type (if any)
   }
 
   fn visit_value_expr(&mut self, vx: &mut ValueExpr) {
