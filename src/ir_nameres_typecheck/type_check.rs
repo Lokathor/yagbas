@@ -30,6 +30,14 @@ pub struct TypeChecker {
   pub val_expr_to_type_id: FnvHashMap<ValueExprId, TypeId>,
 }
 impl TreeVisitMut for TypeChecker {
+  fn visit_module(&mut self, module: &mut crate::ast::Module) {
+    // if the item can be used as a variable, record the type
+  }
+
+  fn visit_item(&mut self, item: &mut Item) {
+    // if item is a function, record input argument types
+  }
+
   fn visit_value_expr(&mut self, vx: &mut ValueExpr) {
     dbg!(&vx.id);
   }
