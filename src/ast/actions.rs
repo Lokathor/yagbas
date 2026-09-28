@@ -550,12 +550,13 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
         Some(CstElem::SubTree(cst))
           if matches!(cst.kind, CstKind::ValueExpr) =>
         {
+          let operand = parse_value_expr(p, cst);
           ValueExpr {
             span,
             id: ValueExprId::new(),
             kind: Box::new(ValueExprKind::UnOp {
               op: UnOpKind::Reference,
-              operand: parse_value_expr(p, cst),
+              operand,
             }),
           }
         }
