@@ -526,12 +526,13 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
         Some(CstElem::SubTree(cst))
           if matches!(cst.kind, CstKind::ValueExpr) =>
         {
+          let operand = parse_value_expr(p, cst);
           ValueExpr {
             span,
             id: ValueExprId::new(),
             kind: Box::new(ValueExprKind::UnOp {
               op: UnOpKind::Dereference,
-              operand: parse_value_expr(p, cst),
+              operand,
             }),
           }
         }
@@ -609,25 +610,25 @@ fn parse_value_expr_for(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   );
   //
   let mut it = cst.elements.iter();
-  let mut out = ValueExpr::default();
-  out.span = cst.try_span().unwrap_or_default();
+  let span = cst.try_span().unwrap_or_default();
 
-  let label_span =
-    basic_fixed_token!(p, it, out.span, KwFor).unwrap_or_default();
+  let label_span = basic_fixed_token!(p, it, span, KwFor).unwrap_or_default();
   let label = Label { name: String::from(""), span: label_span, opt_id: None };
 
-  let step_var = basic_value_expr!(p, it, out.span).unwrap_or_default();
+  let step_var = basic_value_expr!(p, it, span).unwrap_or_default();
 
-  basic_fixed_token!(p, it, out.span, KwIn);
+  basic_fixed_token!(p, it, span, KwIn);
 
-  let range = basic_value_expr!(p, it, out.span).unwrap_or_default();
+  let range = basic_value_expr!(p, it, span).unwrap_or_default();
 
-  let body = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+  let body = basic_value_expr_body!(p, it, span).unwrap_or_default();
 
   for i in it {
     dbg!(&i);
   }
 
+  let mut out = ValueExpr::default();
+  out.span = span;
   out.kind = Box::new(ValueExprKind::For { label, step_var, range, body });
   out
 }
@@ -640,19 +641,19 @@ fn parse_value_expr_loop(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   );
   //
   let mut it = cst.elements.iter();
-  let mut out = ValueExpr::default();
-  out.span = cst.try_span().unwrap_or_default();
+  let span = cst.try_span().unwrap_or_default();
 
-  let label_span =
-    basic_fixed_token!(p, it, out.span, KwLoop).unwrap_or_default();
+  let label_span = basic_fixed_token!(p, it, span, KwLoop).unwrap_or_default();
   let label = Label { name: String::from(""), span: label_span, opt_id: None };
 
-  let body = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+  let body = basic_value_expr_body!(p, it, span).unwrap_or_default();
 
   for i in it {
     dbg!(&i);
   }
 
+  let mut out = ValueExpr::default();
+  out.span = span;
   out.kind = Box::new(ValueExprKind::Loop { label, body });
   out
 }
@@ -665,20 +666,19 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   );
   //
   let mut it = cst.elements.iter().peekable();
-  let mut out = ValueExpr::default();
-  out.span = cst.try_span().unwrap_or_default();
+  let span = cst.try_span().unwrap_or_default();
 
-  basic_fixed_token!(p, it, out.span, KwIf);
+  basic_fixed_token!(p, it, span, KwIf);
 
-  let condition = basic_value_expr!(p, it, out.span).unwrap_or_default();
+  let condition = basic_value_expr!(p, it, span).unwrap_or_default();
 
-  let true_body = basic_value_expr_body!(p, it, out.span).unwrap_or_default();
+  let true_body = basic_value_expr_body!(p, it, span).unwrap_or_default();
 
   let opt_false_body =
     if matches!(it.peek(), Some(CstElem::FixedToken(KwElse, _))) {
-      basic_fixed_token!(p, it, out.span, KwElse);
+      basic_fixed_token!(p, it, span, KwElse);
 
-      Some(basic_value_expr_body!(p, it, out.span).unwrap_or_default())
+      Some(basic_value_expr_body!(p, it, span).unwrap_or_default())
     } else {
       None
     };
@@ -687,6 +687,8 @@ fn parse_value_expr_if(p: &mut AstParser, cst: &Cst) -> ValueExpr {
     dbg!(&i);
   }
 
+  let mut out = ValueExpr::default();
+  out.span = span;
   out.kind =
     Box::new(ValueExprKind::If { condition, true_body, opt_false_body });
   out
