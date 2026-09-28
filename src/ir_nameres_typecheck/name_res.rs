@@ -181,7 +181,6 @@ impl TreeVisitMut for NameResolver {
   }
 
   fn visit_value_expr(&mut self, vx: &mut ValueExpr) {
-    dbg!(&vx);
     if let ValueExprKind::Identifier(name) = &mut *vx.kind
       && let Some(replacement) = self.lookup_var(name)
     {
