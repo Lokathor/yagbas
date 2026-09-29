@@ -208,6 +208,7 @@ pub enum ValueExprKind {
   LiteralNumber(String),
   Block {
     statements: Vec<Statement>,
+    opt_tail_vx: Option<ValueExpr>,
   },
   Loop {
     label: Label,

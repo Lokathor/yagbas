@@ -708,6 +708,7 @@ fn parse_value_expr_body(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   //
   let mut it = cst.elements.iter();
   let mut statements = Vec::new();
+  let mut opt_tail_vx = None;
 
   basic_fixed_token!(p, it, cst.try_span().unwrap_or_default(), OpBrace);
 
@@ -731,7 +732,7 @@ fn parse_value_expr_body(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   ValueExpr {
     id: ValueExprId::new(),
     span: cst.try_span().unwrap_or_default(),
-    kind: Box::new(ValueExprKind::Block { statements }),
+    kind: Box::new(ValueExprKind::Block { statements, opt_tail_vx }),
   }
 }
 

@@ -72,22 +72,29 @@ fn do_nameres(mut arguments: Vec<OsString>) {
   let mut type_checker = TypeChecker::default();
   type_checker.walk_ast(&mut ast);
   println!("```");
-  // #[cfg(false)]
   for module in &ast.modules {
     println!("> Module: {:?}", module.file_origin);
     for item in &module.items {
-      println!(">> {item:#?}");
+      println!(">> {item:?}");
     }
   }
-  #[cfg(false)]
-  for (ty_id, ty) in &ir.type_database {
+  println!("<type_database>");
+  for (ty_id, ty) in &type_checker.type_database {
     println!("** {ty_id:?}: {ty:?}");
   }
-  #[cfg(false)]
-  for (xpr_id, ty_id) in &ir.expr_types {
-    let ty = ir.type_database.get_by_left(ty_id).unwrap();
-    println!("** {xpr_id:?}: {ty:?}");
+  println!("<item_id_to_type_id>");
+  for (i_id, ty_id) in &type_checker.item_id_to_type_id {
+    println!("** {i_id:?}: {ty_id:?}");
   }
+  println!("<local_id_to_type_id>");
+  for (l_id, ty_id) in &type_checker.local_id_to_type_id {
+    println!("** {l_id:?}: {ty_id:?}");
+  }
+  println!("<val_expr_to_type_id>");
+  for (vx_id, ty_id) in &type_checker.val_expr_to_type_id {
+    println!("** {vx_id:?}: {ty_id:?}");
+  }
+
   for error in &ast.errors {
     println!(">> Ast Error: {error:?}");
   }

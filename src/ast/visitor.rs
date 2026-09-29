@@ -150,9 +150,12 @@ pub trait TreeVisitMut {
       ValueExprKind::Identifier(_) => (),
       ValueExprKind::LiteralString(_) => (),
       ValueExprKind::LiteralNumber(_) => (),
-      ValueExprKind::Block { statements } => {
+      ValueExprKind::Block { statements, opt_tail_vx } => {
         self.push_block_point();
         self.walk_statement_vec(statements);
+        if let Some(tail_vx) = opt_tail_vx {
+          self.walk_value_expr(tail_vx);
+        }
         self.pop_block_point();
       }
       ValueExprKind::Loop { label, body } => {
