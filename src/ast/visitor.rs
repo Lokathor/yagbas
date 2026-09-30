@@ -30,6 +30,7 @@ pub trait TreeVisitMut {
   fn walk_module(&mut self, module: &mut Module) {
     self.push_block_point();
     self.visit_module(module);
+    self.items_entered_scope(module.items.iter_mut());
     for item in &mut module.items {
       self.walk_item(item);
     }
@@ -152,6 +153,13 @@ pub trait TreeVisitMut {
       ValueExprKind::LiteralNumber(_) => (),
       ValueExprKind::Block { statements, opt_tail_vx } => {
         self.push_block_point();
+        self.items_entered_scope(statements.iter_mut().filter_map(|s| {
+          if let StatementKind::Item(item) = &mut *s.kind {
+            Some(item)
+          } else {
+            None
+          }
+        }));
         self.walk_statement_vec(statements);
         if let Some(tail_vx) = opt_tail_vx {
           self.walk_value_expr(tail_vx);
@@ -288,6 +296,15 @@ pub trait TreeVisitMut {
   /// Visits a label within a `break` or `continue` expression.
   #[allow(unused_variables)]
   fn visit_label_expr(&mut self, label: &mut Label) {}
+
+  /// Called with an iterator of items when entering a module or a block body.
+  ///
+  /// In practice this will usually end up being called with an empty iterator.
+  #[allow(unused_variables)]
+  fn items_entered_scope<'a>(
+    &mut self, items: impl Iterator<Item = &'a mut Item>,
+  ) {
+  }
 
   /// Enter a new label scope.
   #[allow(unused_variables)]

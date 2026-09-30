@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::{
   LabelId, LocalNameId,
   ast::{
-    Item, ItemKind, Label, Module, Statement, StatementKind, TypeExpr,
-    TypeExprKind, ValueExpr, ValueExprKind, visitor::TreeVisitMut,
+    Item, ItemKind, Label, TypeExpr, TypeExprKind, ValueExpr, ValueExprKind,
+    visitor::TreeVisitMut,
   },
 };
 
@@ -113,18 +113,10 @@ impl NameResolver {
   }
 }
 impl TreeVisitMut for NameResolver {
-  fn visit_module(&mut self, module: &mut Module) {
-    self.register_items(module.items.iter());
-  }
-
-  fn visit_statement_vec(&mut self, statements: &mut Vec<Statement>) {
-    self.register_items(statements.iter().filter_map(|statement| {
-      if let StatementKind::Item(item) = &*statement.kind {
-        Some(item)
-      } else {
-        None
-      }
-    }));
+  fn items_entered_scope<'a>(
+    &mut self, items: impl Iterator<Item = &'a mut Item>,
+  ) {
+    self.register_items(items.map(|i| &*i));
   }
 
   fn push_label_point(&mut self, label: &mut Label) {

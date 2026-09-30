@@ -123,17 +123,11 @@ impl TypeChecker {
   }
 }
 impl TreeVisitMut for TypeChecker {
-  fn visit_module(&mut self, module: &mut Module) {
-    for item in &module.items {
+  fn items_entered_scope<'a>(
+    &mut self, items: impl Iterator<Item = &'a mut Item>,
+  ) {
+    for item in items {
       self.register_item(item);
-    }
-  }
-
-  fn visit_statement_vec(&mut self, statements: &mut Vec<Statement>) {
-    for statement in statements {
-      if let StatementKind::Item(item) = &*statement.kind {
-        self.register_item(item);
-      }
     }
   }
 
