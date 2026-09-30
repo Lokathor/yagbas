@@ -1,11 +1,26 @@
+# Notes
 
-## Other Open Source GB Programs
+## Major TODOs
 
-* https://github.com/pinobatch/libbet
-* https://github.com/evie-calico/esprit
+* Type Checking.
+* Constant Evaluation.
+* Split function trees into blocks.
+* Split value expression trees into temp var steps.
+* Allocate registers.
+* Generate Assembly.
+* Build a ROM image.
 
-## general notes
+## Minor TODOs
 
-* laptop: 12.59 to 0.23
-* phone: 42.58 to 1.50
+* Name resolution in Path and Access ops.
+* Parsing the tail expression of a block properly.
+* Test coverage for the Cst layer.
+* Test coverage for the Ast layer.
+* Make the Cst and Ast layers more resilient when bad inputs are given.
+* Track and report errors in a disciplined way.
+* Support Query based compilation.
 
+## Long Term Goals
+
+* make steps multi-threaded by default when possible.
+* additional targets: nes, snes, arm, wasm
