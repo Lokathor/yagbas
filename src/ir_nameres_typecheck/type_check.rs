@@ -144,7 +144,7 @@ impl TreeVisitMut for TypeChecker {
         self.val_expr_to_type_id.insert(vx.id, lit_id);
       }
       ValueExprKind::NameOfStaticMmio(n) => {
-        let tid = self.item_id_to_type_id.get(&n).unwrap();
+        let tid = self.item_id_to_type_id.get(n).unwrap();
         self.val_expr_to_type_id.insert(vx.id, *tid);
       }
       ValueExprKind::UnOp { op: UnOpKind::Dereference, operand } => {
