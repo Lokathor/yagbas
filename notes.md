@@ -2,6 +2,7 @@
 
 ## Major TODOs
 
+* `min_const_eval`: integer-only ops, for array lengths.
 * Type Checking.
 * Constant Evaluation.
 * Split function trees into blocks.
