@@ -151,6 +151,7 @@ pub trait TreeVisitMut {
       ValueExprKind::Identifier(_) => (),
       ValueExprKind::LiteralString(_) => (),
       ValueExprKind::LiteralNumber(_) => (),
+      ValueExprKind::Number { .. } => (),
       ValueExprKind::Block { statements, opt_tail_vx } => {
         self.push_block_point();
         self.items_entered_scope(statements.iter_mut().filter_map(|s| {

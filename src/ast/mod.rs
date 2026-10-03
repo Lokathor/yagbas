@@ -181,6 +181,14 @@ pub enum PointerAccessKind {
   Vol,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum NumberPrintHint {
+  Binary,
+  #[default]
+  Decimal,
+  Hex,
+}
+
 #[derive(Debug, Clone)]
 pub struct ValueExpr {
   pub span: Span,
@@ -206,6 +214,11 @@ pub enum ValueExprKind {
   LiteralString(String),
   /// Literal number token text.
   LiteralNumber(String),
+  /// Number value, possibly a const eval intermediate value.
+  Number {
+    value: i64,
+    print_hint: Option<NumberPrintHint>,
+  },
   Block {
     statements: Vec<Statement>,
     opt_tail_vx: Option<ValueExpr>,
