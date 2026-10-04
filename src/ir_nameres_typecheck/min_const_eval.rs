@@ -81,7 +81,6 @@ fn parse_number_literal(s: &str) -> Result<i64, String> {
 }
 
 fn get_print_hint_from_literal(s: &str) -> Option<NumberPrintHint> {
-  // todo: this could probably be smarter.
   if s.starts_with('$') || s.starts_with("0x") {
     Some(NumberPrintHint::Hex)
   } else if s.starts_with('%') || s.starts_with("0b") {
