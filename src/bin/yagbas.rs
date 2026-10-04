@@ -1,13 +1,11 @@
 use std::{ffi::OsString, path::Path};
 use yagbas::{
-  ast::{
-    Ast, actions::parse_ast_module, parser::AstParser, visitor::TreeVisitMut,
-  },
+  ast::{Ast, actions::parse_ast_module, parser::AstParser},
   cst::{
     actions::gather_module,
     parser::{BuildTreeArgs, CstParser},
   },
-  ir_nameres_typecheck::{name_res::NameResolver, type_check::TypeChecker},
+  ir_nameres_typecheck::IrNameResTypeCheck,
   path_id::PathId,
 };
 
@@ -67,35 +65,37 @@ fn do_nameres(mut arguments: Vec<OsString>) {
       }
     }
   }
-  let mut name_resolver = NameResolver::default();
-  name_resolver.walk_ast(&mut ast);
-  let mut type_checker = TypeChecker::default();
-  type_checker.walk_ast(&mut ast);
+  let mut ir = IrNameResTypeCheck::new(ast);
+  ir.resolve_names();
+  ir.run_const_eval();
+  // TODO: run type checker
   println!("```");
-  for module in &ast.modules {
+  for module in &ir.ast.modules {
     println!("> Module: {:?}", module.file_origin);
     for item in &module.items {
-      println!(">> {item:?}");
+      println!(">> {item:#?}");
     }
   }
+  /*
   println!("<type_database>");
   for (ty_id, ty) in &type_checker.type_database {
     println!("** {ty_id:?}: {ty:?}");
   }
   println!("<item_id_to_type_id>");
-  for (i_id, ty_id) in &type_checker.item_id_to_type_id {
+  for (i_id, ty_id) in &type_checker.item_id_to_ty_id {
     println!("** {i_id:?}: {ty_id:?}");
   }
   println!("<local_id_to_type_id>");
-  for (l_id, ty_id) in &type_checker.local_id_to_type_id {
+  for (l_id, ty_id) in &type_checker.local_id_to_ty_id {
     println!("** {l_id:?}: {ty_id:?}");
   }
   println!("<val_expr_to_type_id>");
-  for (vx_id, ty_id) in &type_checker.val_expr_to_type_id {
+  for (vx_id, ty_id) in &type_checker.vx_id_to_ty_id {
     println!("** {vx_id:?}: {ty_id:?}");
   }
+  */
 
-  for error in &ast.errors {
+  for error in &ir.ast.errors {
     println!(">> Ast Error: {error:?}");
   }
   println!("```");
