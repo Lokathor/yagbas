@@ -7,6 +7,7 @@
 #![warn(missing_debug_implementations)]
 #![allow(clippy::ptr_arg)]
 #![allow(clippy::empty_docs)]
+#![allow(clippy::single_match)]
 #![allow(clippy::useless_format)]
 #![allow(clippy::let_and_return)]
 #![allow(clippy::needless_return)]
