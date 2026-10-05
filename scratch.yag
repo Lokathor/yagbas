@@ -1,4 +1,4 @@
 
 fn main() {
-  let x = -(-$F);
+  let x = 32+2-1;
 }

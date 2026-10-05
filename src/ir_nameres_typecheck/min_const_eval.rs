@@ -2,7 +2,7 @@ use crate::{
   TypeId, YagError,
   ast::{NumberPrintHint, ValueExpr, ValueExprKind, visitor::TreeVisitMut},
   ir_nameres_typecheck::IrNameResTypeCheck,
-  operators::UnOpKind,
+  operators::{BinOpKind, UnOpKind},
   path_id::PathId,
 };
 use std::collections::hash_map::Entry;
@@ -62,6 +62,103 @@ impl<'a> TreeVisitMut for ConstEvaluator<'a> {
               }
             }
           }
+          _ => (),
+        }
+      }
+      ValueExprKind::BinOp { left, op: BinOpKind::Add, right } => {
+        match (&mut *left.kind, &mut *right.kind) {
+          (
+            ValueExprKind::Number { value: l, print_hint: l_hint },
+            ValueExprKind::Number { value: r, print_hint: r_hint },
+          ) => match l.checked_add(*r) {
+            Some(new_val) => {
+              *vx.kind = ValueExprKind::Number {
+                value: new_val,
+                print_hint: l_hint.or(*r_hint),
+              };
+            }
+            None => {
+              self.errors.push(YagError {
+                file_origin: self.file_origin.unwrap(),
+                span: vx.span,
+                message: format!("Const Eval Overflow"),
+              });
+              *vx.kind = ValueExprKind::ErrValueExprKind;
+            }
+          },
+          _ => (),
+        }
+      }
+
+      ValueExprKind::BinOp { left, op: BinOpKind::Sub, right } => {
+        match (&mut *left.kind, &mut *right.kind) {
+          (
+            ValueExprKind::Number { value: l, print_hint: l_hint },
+            ValueExprKind::Number { value: r, print_hint: r_hint },
+          ) => match l.checked_sub(*r) {
+            Some(new_val) => {
+              *vx.kind = ValueExprKind::Number {
+                value: new_val,
+                print_hint: l_hint.or(*r_hint),
+              };
+            }
+            None => {
+              self.errors.push(YagError {
+                file_origin: self.file_origin.unwrap(),
+                span: vx.span,
+                message: format!("Const Eval Overflow"),
+              });
+              *vx.kind = ValueExprKind::ErrValueExprKind;
+            }
+          },
+          _ => (),
+        }
+      }
+      ValueExprKind::BinOp { left, op: BinOpKind::Mul, right } => {
+        match (&mut *left.kind, &mut *right.kind) {
+          (
+            ValueExprKind::Number { value: l, print_hint: l_hint },
+            ValueExprKind::Number { value: r, print_hint: r_hint },
+          ) => match l.checked_mul(*r) {
+            Some(new_val) => {
+              *vx.kind = ValueExprKind::Number {
+                value: new_val,
+                print_hint: l_hint.or(*r_hint),
+              };
+            }
+            None => {
+              self.errors.push(YagError {
+                file_origin: self.file_origin.unwrap(),
+                span: vx.span,
+                message: format!("Const Eval Overflow"),
+              });
+              *vx.kind = ValueExprKind::ErrValueExprKind;
+            }
+          },
+          _ => (),
+        }
+      }
+      ValueExprKind::BinOp { left, op: BinOpKind::Div, right } => {
+        match (&mut *left.kind, &mut *right.kind) {
+          (
+            ValueExprKind::Number { value: l, print_hint: l_hint },
+            ValueExprKind::Number { value: r, print_hint: r_hint },
+          ) => match l.checked_div(*r) {
+            Some(new_val) => {
+              *vx.kind = ValueExprKind::Number {
+                value: new_val,
+                print_hint: l_hint.or(*r_hint),
+              };
+            }
+            None => {
+              self.errors.push(YagError {
+                file_origin: self.file_origin.unwrap(),
+                span: vx.span,
+                message: format!("Const Eval Overflow"),
+              });
+              *vx.kind = ValueExprKind::ErrValueExprKind;
+            }
+          },
           _ => (),
         }
       }
