@@ -404,6 +404,9 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
   let mut it = cst.elements.iter();
   match it.next() {
     Some(CstElem::FixedToken(OpBrace, _)) => parse_value_expr_body(p, cst),
+    Some(CstElem::FixedToken(OpParen, _)) => {
+      parse_value_expr(p, it.next().unwrap().sub_tree().unwrap())
+    }
     Some(CstElem::FixedToken(KwFor, _)) => parse_value_expr_for(p, cst),
     Some(CstElem::FixedToken(KwLoop, _)) => parse_value_expr_loop(p, cst),
     Some(CstElem::FixedToken(KwIf, _)) => parse_value_expr_if(p, cst),
@@ -556,6 +559,30 @@ fn parse_value_expr(p: &mut AstParser, cst: &Cst) -> ValueExpr {
             id: ValueExprId::new(),
             kind: Box::new(ValueExprKind::UnOp {
               op: UnOpKind::Reference,
+              operand,
+            }),
+          }
+        }
+        other => {
+          p.error_at(
+            cst.try_span().unwrap_or_default(),
+            format!("Unknown after LHS Expression: {other:?}"),
+          );
+          let mut out = ValueExpr::default();
+          out.span = cst.try_span().unwrap_or_default();
+          out
+        }
+      },
+      CstKind::PrefOp(PrefOp::Negative) => match it.next() {
+        Some(CstElem::SubTree(cst))
+          if matches!(cst.kind, CstKind::ValueExpr) =>
+        {
+          let operand = parse_value_expr(p, cst);
+          ValueExpr {
+            span,
+            id: ValueExprId::new(),
+            kind: Box::new(ValueExprKind::UnOp {
+              op: UnOpKind::Negative,
               operand,
             }),
           }

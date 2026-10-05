@@ -1,7 +1,4 @@
 
-static mmio($FF26) AUDIO_MAIN: u8;
-
 fn main() {
-  // disable sound
-  *AUDIO_MAIN = 0;
+  let x = -(-$F);
 }

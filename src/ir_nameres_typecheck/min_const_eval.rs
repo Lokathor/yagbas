@@ -2,6 +2,7 @@ use crate::{
   TypeId, YagError,
   ast::{NumberPrintHint, ValueExpr, ValueExprKind, visitor::TreeVisitMut},
   ir_nameres_typecheck::IrNameResTypeCheck,
+  operators::UnOpKind,
   path_id::PathId,
 };
 use std::collections::hash_map::Entry;
@@ -41,6 +42,29 @@ impl<'a> TreeVisitMut for ConstEvaluator<'a> {
           *vx.kind = ValueExprKind::ErrValueExprKind;
         }
       },
+      ValueExprKind::UnOp { op: UnOpKind::Negative, operand } => {
+        match &mut *operand.kind {
+          ValueExprKind::Number { value, print_hint } => {
+            match value.checked_neg() {
+              Some(new_val) => {
+                *vx.kind = ValueExprKind::Number {
+                  value: new_val,
+                  print_hint: *print_hint,
+                };
+              }
+              None => {
+                self.errors.push(YagError {
+                  file_origin: self.file_origin.unwrap(),
+                  span: vx.span,
+                  message: format!("Const Eval Overflow"),
+                });
+                *vx.kind = ValueExprKind::ErrValueExprKind;
+              }
+            }
+          }
+          _ => (),
+        }
+      }
       // TODO: support more math ops!
       _ => (),
     }
@@ -48,15 +72,25 @@ impl<'a> TreeVisitMut for ConstEvaluator<'a> {
 }
 
 fn parse_number_literal(s: &str) -> Result<i64, String> {
-  // TODO: it will be ugly code but we should probably use all checked
-  // operations in the accumulation step.
   if let Some(hex) = s.strip_prefix('$').or_else(|| s.strip_prefix("0x")) {
     hex.chars().filter(|ch| ch != &'_').try_fold(
       0_i64,
       |b, new_ch| match new_ch {
-        '0'..='9' => Ok(b * 16 + ((new_ch as i64) - ('0' as i64))),
-        'a'..='f' => Ok(b * 16 + (10 + (new_ch as i64) - ('a' as i64))),
-        'A'..='F' => Ok(b * 16 + (10 + (new_ch as i64) - ('A' as i64))),
+        '0'..='9' => b
+          .checked_mul(16)
+          .ok_or_else(|| format!("Const Eval Overflow"))?
+          .checked_add((new_ch as i64) - ('0' as i64))
+          .ok_or_else(|| format!("Const Eval Overflow")),
+        'a'..='f' => b
+          .checked_mul(16)
+          .ok_or_else(|| format!("Const Eval Overflow"))?
+          .checked_add(10 + (new_ch as i64) - ('a' as i64))
+          .ok_or_else(|| format!("Const Eval Overflow")),
+        'A'..='F' => b
+          .checked_mul(16)
+          .ok_or_else(|| format!("Const Eval Overflow"))?
+          .checked_add(10 + (new_ch as i64) - ('A' as i64))
+          .ok_or_else(|| format!("Const Eval Overflow")),
         other => Err(format!("Not a Hex digit: `{other}`")),
       },
     )
@@ -65,7 +99,11 @@ fn parse_number_literal(s: &str) -> Result<i64, String> {
     bin.chars().filter(|ch| ch != &'_').try_fold(
       0_i64,
       |b, new_ch| match new_ch {
-        '0'..='1' => Ok(b * 2 + ((new_ch as i64) - ('0' as i64))),
+        '0'..='1' => b
+          .checked_mul(2)
+          .ok_or_else(|| format!("Const Eval Overflow"))?
+          .checked_add((new_ch as i64) - ('0' as i64))
+          .ok_or_else(|| format!("Const Eval Overflow")),
         other => Err(format!("Not a Binary digit: `{other}`")),
       },
     )
@@ -73,7 +111,11 @@ fn parse_number_literal(s: &str) -> Result<i64, String> {
     s.chars().filter(|ch| ch != &'_').try_fold(
       0_i64,
       |b, new_ch| match new_ch {
-        '0'..='9' => Ok(b * 10 + ((new_ch as i64) - ('0' as i64))),
+        '0'..='9' => b
+          .checked_mul(10)
+          .ok_or_else(|| format!("Const Eval Overflow"))?
+          .checked_add((new_ch as i64) - ('0' as i64))
+          .ok_or_else(|| format!("Const Eval Overflow")),
         other => Err(format!("Not a Decimal digit: `{other}`")),
       },
     )
