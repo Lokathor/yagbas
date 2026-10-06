@@ -1,3 +1,11 @@
+//! A simple const evaluation engine that can run before type checking.
+//!
+//! The purpose of this step us to allow for evaluating expressions used as array lengths, so that array lengths are already known before type checking begins.
+//! This only needs to support literal parsing, simple math ops, and converting const names into the expression they stand for.
+//! If an expression would require type info to evaluate, we simply don't handle it at this step (and so it's not allowed in an array length).
+//!
+//! As the compiler develops the process can become more sophisticated, but for now we just do this basic thing.
+
 use crate::{
   TypeId, YagError,
   ast::{NumberPrintHint, ValueExpr, ValueExprKind, visitor::TreeVisitMut},
@@ -9,9 +17,15 @@ use std::collections::hash_map::Entry;
 
 #[derive(Debug)]
 pub struct ConstEvaluator<'a> {
+  /// Note: Don't access `self.ir.ast` during the `TreeVisitMut`
+  ///
+  /// The Ast in here is a dummy value during the walk.
   pub ir: &'a mut IrNameResTypeCheck,
+  /// needed for error messages.
   pub file_origin: Option<PathId>,
+  /// TypeId for literal integers.
   pub lit_id: TypeId,
+  /// errors go here, and it's merged back into the Ast error list later.
   pub errors: Vec<YagError>,
 }
 
@@ -20,6 +34,7 @@ impl<'a> TreeVisitMut for ConstEvaluator<'a> {
     self.file_origin = Some(module.file_origin);
   }
 
+  // TODO: replace const identifier use with the const's expression. we will need to watch for cyclical definitions as we go.
   fn visit_value_expr(&mut self, vx: &mut ValueExpr) {
     match &mut *vx.kind {
       ValueExprKind::LiteralNumber(ln) => match parse_number_literal(ln) {
@@ -65,104 +80,49 @@ impl<'a> TreeVisitMut for ConstEvaluator<'a> {
           _ => (),
         }
       }
-      ValueExprKind::BinOp { left, op: BinOpKind::Add, right } => {
+      ValueExprKind::BinOp { left, op, right } => {
         match (&mut *left.kind, &mut *right.kind) {
           (
             ValueExprKind::Number { value: l, print_hint: l_hint },
             ValueExprKind::Number { value: r, print_hint: r_hint },
-          ) => match l.checked_add(*r) {
-            Some(new_val) => {
-              *vx.kind = ValueExprKind::Number {
-                value: new_val,
-                print_hint: l_hint.or(*r_hint),
-              };
+          ) => {
+            let opt_new_val = match op {
+              BinOpKind::Add => l.checked_add(*r),
+              BinOpKind::Sub => l.checked_sub(*r),
+              BinOpKind::Mul => l.checked_mul(*r),
+              BinOpKind::Div => l.checked_div(*r),
+              BinOpKind::Rem => l.checked_rem(*r),
+              BinOpKind::ShiftLeft => {
+                u32::try_from(*r).ok().and_then(|r| l.checked_shl(r))
+              }
+              BinOpKind::ShiftRight => {
+                u32::try_from(*r).ok().and_then(|r| l.checked_shr(r))
+              }
+              BinOpKind::BitAnd => Some(*l & *r),
+              BinOpKind::BitOr => Some(*l | *r),
+              BinOpKind::BitXor => Some(*l ^ *r),
+              _ => return,
+            };
+            match opt_new_val {
+              Some(new_val) => {
+                *vx.kind = ValueExprKind::Number {
+                  value: new_val,
+                  print_hint: l_hint.or(*r_hint),
+                };
+              }
+              None => {
+                self.errors.push(YagError {
+                  file_origin: self.file_origin.unwrap(),
+                  span: vx.span,
+                  message: format!("Const Eval Overflow"),
+                });
+                *vx.kind = ValueExprKind::ErrValueExprKind;
+              }
             }
-            None => {
-              self.errors.push(YagError {
-                file_origin: self.file_origin.unwrap(),
-                span: vx.span,
-                message: format!("Const Eval Overflow"),
-              });
-              *vx.kind = ValueExprKind::ErrValueExprKind;
-            }
-          },
+          }
           _ => (),
         }
       }
-
-      ValueExprKind::BinOp { left, op: BinOpKind::Sub, right } => {
-        match (&mut *left.kind, &mut *right.kind) {
-          (
-            ValueExprKind::Number { value: l, print_hint: l_hint },
-            ValueExprKind::Number { value: r, print_hint: r_hint },
-          ) => match l.checked_sub(*r) {
-            Some(new_val) => {
-              *vx.kind = ValueExprKind::Number {
-                value: new_val,
-                print_hint: l_hint.or(*r_hint),
-              };
-            }
-            None => {
-              self.errors.push(YagError {
-                file_origin: self.file_origin.unwrap(),
-                span: vx.span,
-                message: format!("Const Eval Overflow"),
-              });
-              *vx.kind = ValueExprKind::ErrValueExprKind;
-            }
-          },
-          _ => (),
-        }
-      }
-      ValueExprKind::BinOp { left, op: BinOpKind::Mul, right } => {
-        match (&mut *left.kind, &mut *right.kind) {
-          (
-            ValueExprKind::Number { value: l, print_hint: l_hint },
-            ValueExprKind::Number { value: r, print_hint: r_hint },
-          ) => match l.checked_mul(*r) {
-            Some(new_val) => {
-              *vx.kind = ValueExprKind::Number {
-                value: new_val,
-                print_hint: l_hint.or(*r_hint),
-              };
-            }
-            None => {
-              self.errors.push(YagError {
-                file_origin: self.file_origin.unwrap(),
-                span: vx.span,
-                message: format!("Const Eval Overflow"),
-              });
-              *vx.kind = ValueExprKind::ErrValueExprKind;
-            }
-          },
-          _ => (),
-        }
-      }
-      ValueExprKind::BinOp { left, op: BinOpKind::Div, right } => {
-        match (&mut *left.kind, &mut *right.kind) {
-          (
-            ValueExprKind::Number { value: l, print_hint: l_hint },
-            ValueExprKind::Number { value: r, print_hint: r_hint },
-          ) => match l.checked_div(*r) {
-            Some(new_val) => {
-              *vx.kind = ValueExprKind::Number {
-                value: new_val,
-                print_hint: l_hint.or(*r_hint),
-              };
-            }
-            None => {
-              self.errors.push(YagError {
-                file_origin: self.file_origin.unwrap(),
-                span: vx.span,
-                message: format!("Const Eval Overflow"),
-              });
-              *vx.kind = ValueExprKind::ErrValueExprKind;
-            }
-          },
-          _ => (),
-        }
-      }
-      // TODO: support more math ops!
       _ => (),
     }
   }
